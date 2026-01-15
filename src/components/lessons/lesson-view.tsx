@@ -11,6 +11,7 @@ import { Bot, Send } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { conductLesson } from '@/ai/flows/lesson-flow';
 import { Spinner } from '../ui/spinner';
+import { getConsultantActivity } from '@/lib/data';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -21,36 +22,96 @@ interface LessonViewProps {
   lesson: Lesson;
 }
 
+interface CxScores {
+    empathy: number;
+    listening: number;
+    trust: number;
+    followUp: number;
+    closing: number;
+    relationshipBuilding: number;
+}
+
 export function LessonView({ lesson }: LessonViewProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [cxScores, setCxScores] = useState<CxScores | null>(null);
+  const [inputDisabled, setInputDisabled] = useState(false);
+
+  useEffect(() => {
+    async function fetchScores() {
+      if (user) {
+        const activity = await getConsultantActivity(user.userId);
+        if (!activity.length) {
+            // Provide some default scores if no history, ensuring one is lowest
+            setCxScores({ empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85 });
+            return;
+        }
+        const total = activity.reduce((acc, log) => {
+            acc.empathy += log.empathy;
+            acc.listening += log.listening;
+            acc.trust += log.trust;
+            acc.followUp += log.followUp;
+            acc.closing += log.closing;
+            acc.relationshipBuilding += log.relationshipBuilding;
+            return acc;
+        }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
+
+        const count = activity.length;
+        setCxScores({
+            empathy: Math.round(total.empathy / count),
+            listening: Math.round(total.listening / count),
+            trust: Math.round(total.trust / count),
+            followUp: Math.round(total.followUp / count),
+            closing: Math.round(total.closing / count),
+            relationshipBuilding: Math.round(total.relationshipBuilding / count),
+        });
+      }
+    }
+    fetchScores();
+  }, [user]);
+
+  const handleAiResponse = (responseText: string) => {
+    try {
+      const result = JSON.parse(responseText);
+      if (result && result.xpAwarded) {
+        const summaryText = `Lesson Complete!\n\nFocus Area: ${result.trainedTrait}\nXP Awarded: ${result.xpAwarded}\nSummary: ${result.coachSummary}\nNext Steps: Focus on ${result.recommendedNextFocus}.`;
+        const finalMessage: Message = { sender: 'ai', text: summaryText };
+        setMessages(prev => [...prev, finalMessage]);
+        setInputDisabled(true);
+        return;
+      }
+    } catch (e) {
+      // Not JSON, so it's a regular message
+    }
+    const aiMessage: Message = { sender: 'ai', text: responseText };
+    setMessages(prev => [...prev, aiMessage]);
+  };
 
   useEffect(() => {
     async function startLesson() {
-      if (messages.length > 0) return;
+      if (messages.length > 0 || !cxScores) return;
       
-      setIsLoading(true);
       const initialResponse = await conductLesson({
         lessonId: lesson.lessonId,
         lessonTitle: lesson.title,
         history: [],
         userMessage: 'Start the lesson.',
+        cxScores,
       });
 
-      setMessages([
-        { sender: 'ai', text: initialResponse },
-      ]);
+      handleAiResponse(initialResponse);
       setIsLoading(false);
     }
     startLesson();
-  }, [lesson.lessonId, lesson.title, messages.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.lessonId, lesson.title, cxScores]); 
 
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || inputDisabled || !cxScores) return;
 
     const currentInput = input;
     const userMessage: Message = { sender: 'user', text: currentInput };
@@ -65,10 +126,10 @@ export function LessonView({ lesson }: LessonViewProps) {
         lessonTitle: lesson.title,
         history: newMessages,
         userMessage: currentInput,
+        cxScores,
     });
     
-    const aiMessage: Message = { sender: 'ai', text: response };
-    setMessages(prev => [...prev, aiMessage]);
+    handleAiResponse(response);
     setIsLoading(false);
   };
 
@@ -81,6 +142,11 @@ export function LessonView({ lesson }: LessonViewProps) {
             <CardContent className="flex-1 overflow-hidden">
                 <ScrollArea className="h-full pr-4">
                     <div className="space-y-4">
+                        {isLoading && messages.length === 0 && (
+                            <div className="flex h-full w-full items-center justify-center">
+                                <Spinner size="lg" />
+                            </div>
+                        )}
                         {messages.map((message, index) => (
                         <div key={index} className={`flex items-start gap-4 ${message.sender === 'user' ? 'justify-end' : ''}`}>
                             {message.sender === 'ai' && (
@@ -99,7 +165,7 @@ export function LessonView({ lesson }: LessonViewProps) {
                             )}
                         </div>
                         ))}
-                        {isLoading && (
+                        {isLoading && messages.length > 0 && (
                             <div className="flex items-start gap-4">
                                 <Avatar className="h-8 w-8">
                                     <AvatarFallback><Bot /></AvatarFallback>
@@ -121,9 +187,9 @@ export function LessonView({ lesson }: LessonViewProps) {
                         autoComplete="off"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        disabled={isLoading}
+                        disabled={isLoading || inputDisabled}
                     />
-                    <Button type="submit" size="icon" disabled={isLoading}>
+                    <Button type="submit" size="icon" disabled={isLoading || inputDisabled}>
                         <Send className="h-4 w-4" />
                         <span className="sr-only">Send</span>
                     </Button>
