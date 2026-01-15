@@ -88,6 +88,26 @@ export function LoginForm() {
     }
   }
 
+  async function handleConsultantLogin() {
+    setIsSubmitting(true);
+    try {
+      await login('consultant@autodrive.com', 'password'); // Using consultant credentials
+      toast({
+        title: 'Login Successful',
+        description: 'Logged in as Consultant.',
+      });
+      router.push('/');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Consultant Login Failed',
+        description: 'Could not log in as consultant user.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <Card>
       <Form {...form}>
@@ -126,6 +146,9 @@ export function LoginForm() {
             </Button>
             <Button type="button" variant="outline" className="w-full" onClick={handleAdminLogin} disabled={isSubmitting}>
               Admin Bypass
+            </Button>
+            <Button type="button" variant="outline" className="w-full" onClick={handleConsultantLogin} disabled={isSubmitting}>
+              Consultant Bypass
             </Button>
           </CardFooter>
         </form>
