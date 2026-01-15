@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "user-avatar-1",
+      "description": "A portrait of a smiling person.",
+      "imageUrl": "https://images.unsplash.com/photo-1521119989659-a83eee488004?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njg0NTYzODZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-2",
+      "description": "A professional headshot of a person in business attire.",
+      "imageUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdHxlbnwwfHx8fDE3NjgzOTQ5NTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "professional headshot"
+    },
+    {
+      "id": "user-avatar-3",
+      "description": "A candid photo of a person.",
+      "imageUrl": "https://images.unsplash.com/photo-1607487768473-cbe887eb0a3d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxwZXJzb24lMjBjYW5kaWR8ZW58MHx8fHwxNzY4NDkzMDk4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person candid"
+    },
+    {
+      "id": "user-avatar-4",
+      "description": "A friendly looking person.",
+      "imageUrl": "https://images.unsplash.com/photo-1602594487983-a13e0a56c6b9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxmcmllbmRseSUyMHBlcnNvbnxlbnwwfHx8fDE3Njg0MDMwMTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "friendly person"
+    }
+  ]
 }
