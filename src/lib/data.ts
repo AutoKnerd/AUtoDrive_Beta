@@ -1,5 +1,5 @@
 
-import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait } from './definitions';
+import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory } from './definitions';
 
 // --- MOCK DATABASE ---
 
@@ -72,13 +72,51 @@ export async function getLessonById(lessonId: string): Promise<Lesson | null> {
     return lessons.find(l => l.lessonId === lessonId) || null;
 }
 
+export async function createLesson(lessonData: {
+    title: string;
+    category: LessonCategory;
+    associatedTrait: CxTrait;
+    targetRole: UserRole | 'global';
+    scenario: string;
+}) {
+    await simulateNetworkDelay();
+    
+    const baseLesson = {
+        title: lessonData.title,
+        category: lessonData.category,
+        associatedTrait: lessonData.associatedTrait,
+        customScenario: lessonData.scenario,
+    };
+
+    const rolesToCreate: LessonRole[] = [];
+    const validRoles: UserRole[] = ['consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager'];
+    
+    if (lessonData.targetRole === 'global') {
+        rolesToCreate.push(...validRoles as LessonRole[]);
+    } else if (validRoles.includes(lessonData.targetRole)) {
+        rolesToCreate.push(lessonData.targetRole as LessonRole);
+    }
+
+    for (const role of rolesToCreate) {
+        const newLesson: Lesson = {
+            ...baseLesson,
+            lessonId: `lesson-${Math.floor(1000 + Math.random() * 9000)}`,
+            role: role,
+        };
+        lessons.unshift(newLesson);
+    }
+
+    return { success: true };
+}
+
+
 export async function getConsultantActivity(userId: string): Promise<LessonLog[]> {
     await simulateNetworkDelay();
     return lessonLogs.filter(log => log.userId === userId).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
 
 // MANAGER
-const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
+export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
     switch (managerRole) {
         case 'manager':
             return ['consultant'];

@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait } from '@/lib/definitions';
 import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity } from '@/lib/data';
 import { StatCard } from './stat-card';
-import { BarChart, BookOpen, CheckCircle, Smile, Star, Users } from 'lucide-react';
+import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,6 +13,9 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
 import { Badge } from '../ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '../ui/button';
+import { CreateLessonForm } from '../lessons/create-lesson-form';
 
 interface ManagerDashboardProps {
   user: User;
@@ -31,6 +34,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [managerActivity, setManagerActivity] = useState<LessonLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -171,14 +175,33 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart className="h-5 w-5" />
-            Team Performance Summary
-          </CardTitle>
-          <CardDescription>
-            Performance overview of staff at your dealership.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+            <div>
+                <CardTitle className="flex items-center gap-2">
+                    <BarChart className="h-5 w-5" />
+                    Team Performance Summary
+                </CardTitle>
+                <CardDescription>
+                    Performance overview of staff at your dealership.
+                </CardDescription>
+            </div>
+             <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
+                <DialogTrigger asChild>
+                    <Button>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create Lesson
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[625px]">
+                    <DialogHeader>
+                        <DialogTitle>Create New Training Lesson</DialogTitle>
+                        <DialogDescription>
+                            Design a new lesson for your team. Use AI to suggest a scenario based on your team's performance.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <CreateLessonForm user={user} onLessonCreated={() => setCreateLessonOpen(false)} />
+                </DialogContent>
+            </Dialog>
         </CardHeader>
         <CardContent>
           {loading ? (

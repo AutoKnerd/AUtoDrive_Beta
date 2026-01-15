@@ -94,10 +94,12 @@ export function LessonView({ lesson }: LessonViewProps) {
     async function startLesson() {
       if (lessonStarted.current || !cxScores) return;
       lessonStarted.current = true;
+      setIsLoading(true);
       
       const initialResponse = await conductLesson({
         lessonId: lesson.lessonId,
         lessonTitle: lesson.title,
+        customScenario: lesson.customScenario,
         history: [],
         userMessage: 'Start the lesson.',
         cxScores,
@@ -107,8 +109,7 @@ export function LessonView({ lesson }: LessonViewProps) {
       setIsLoading(false);
     }
     startLesson();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cxScores, lesson.lessonId, lesson.title]); 
+  }, [cxScores, lesson.lessonId, lesson.title, lesson.customScenario]); 
 
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -118,15 +119,16 @@ export function LessonView({ lesson }: LessonViewProps) {
     const currentInput = input;
     const userMessage: Message = { sender: 'user', text: currentInput };
     
-    const historyForAI = [...messages];
-    setMessages([...messages, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput('');
     setIsLoading(true);
 
     const response = await conductLesson({
         lessonId: lesson.lessonId,
         lessonTitle: lesson.title,
-        history: historyForAI,
+        customScenario: lesson.customScenario,
+        history: newMessages, // Send the most up-to-date history
         userMessage: currentInput,
         cxScores,
     });

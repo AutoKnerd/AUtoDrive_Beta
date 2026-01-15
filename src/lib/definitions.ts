@@ -36,6 +36,7 @@ export type Lesson = {
   role: LessonRole;
   category: LessonCategory;
   associatedTrait: CxTrait;
+  customScenario?: string;
 };
 
 export type LessonLog = {

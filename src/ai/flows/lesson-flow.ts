@@ -26,6 +26,7 @@ const CXScoresSchema = z.object({
 const ConductLessonInputSchema = z.object({
   lessonId: z.string().describe('The ID of the lesson being taken.'),
   lessonTitle: z.string().describe('The title of the lesson.'),
+  customScenario: z.string().optional().describe('A custom scenario provided by a manager.'),
   cxScores: CXScoresSchema,
   history: z.array(MessageSchema).describe('The history of the conversation so far.'),
   userMessage: z.string().describe("The user's latest message or action."),
@@ -134,6 +135,9 @@ Current Lesson: "{{lessonTitle}}"
 ### Turn Structure
 - **Your First Turn (Lesson Start):** When the lesson begins (when \`userMessage\` is "Start the lesson."), you MUST:
     1.  Present **one single customer scenario** relevant to the weakest CX trait.
+        {{#if customScenario}}
+        Use this exact scenario provided by the manager: "{{customScenario}}"
+        {{/if}}
     2.  Ask a **single, open-ended question** directly related to the scenario to prompt the user's first response.
     3.  You MUST NOT provide coaching, feedback, or reference CX traits/scores in this first message.
 
