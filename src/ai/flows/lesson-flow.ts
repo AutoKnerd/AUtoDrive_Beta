@@ -23,7 +23,7 @@ const CXScoresSchema = z.object({
     relationshipBuilding: z.number(),
 }).describe("The consultant's current CX scores.");
 
-export const ConductLessonInputSchema = z.object({
+const ConductLessonInputSchema = z.object({
   lessonId: z.string().describe('The ID of the lesson being taken.'),
   lessonTitle: z.string().describe('The title of the lesson.'),
   cxScores: CXScoresSchema,
@@ -32,7 +32,7 @@ export const ConductLessonInputSchema = z.object({
 });
 export type ConductLessonInput = z.infer<typeof ConductLessonInputSchema>;
 
-export const ConductLessonOutputSchema = z.string().describe("The AI instructor's response, which could be a string or a JSON object stringified.");
+const ConductLessonOutputSchema = z.string().describe("The AI instructor's response, which could be a string or a JSON object stringified.");
 export type ConductLessonOutput = z.infer<typeof ConductLessonOutputSchema>;
 
 export async function conductLesson(input: ConductLessonInput): Promise<ConductLessonOutput> {
