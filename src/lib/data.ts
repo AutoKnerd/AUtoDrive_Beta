@@ -17,6 +17,8 @@ const users: User[] = [
   { userId: 'user-11', name: 'Sam Smith', email: 'sam.sw@autodrive.com', role: 'Service Writer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/111/200/200' },
   { userId: 'user-12', name: 'Travis Trainer', email: 'trainer@autoknerd.com', role: 'Trainer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/112/200/200' },
   { userId: 'user-13', name: 'Andy Admin', email: 'admin@autoknerd.com', role: 'Admin', dealershipId: 'autoknerd-hq', avatarUrl: 'https://picsum.photos/seed/113/200/200' },
+  { userId: 'user-14', name: 'Manager B', email: 'manager.b@autodrive.com', role: 'manager', dealershipId: 'dealership-B', avatarUrl: 'https://picsum.photos/seed/114/200/200' },
+  { userId: 'user-15', name: 'Consultant B1', email: 'consultant.b1@autodrive.com', role: 'consultant', dealershipId: 'dealership-B', avatarUrl: 'https://picsum.photos/seed/115/200/200' },
 ];
 
 const lessons: Lesson[] = [
@@ -40,6 +42,8 @@ const lessonLogs: LessonLog[] = [
   { logId: 'log-2', timestamp: new Date('2024-05-21T11:30:00Z'), userId: 'user-1', lessonId: 'lesson-103', stepResults: { step1: 'pass' }, xpGained: 120, empathy: 88, listening: 92, trust: 82, followUp: 78, closing: 72, relationshipBuilding: 90 },
   { logId: 'log-3', timestamp: new Date('2024-05-22T09:00:00Z'), userId: 'user-3', lessonId: 'lesson-101', stepResults: { step1: 'pass', step2: 'fail' }, xpGained: 50, empathy: 70, listening: 65, trust: 75, followUp: 60, closing: 55, relationshipBuilding: 72 },
   { logId: 'log-4', timestamp: new Date('2024-05-23T14:00:00Z'), userId: 'user-12', lessonId: 'lesson-202', stepResults: { step1: 'pass' }, xpGained: 75, empathy: 90, listening: 85, trust: 88, followUp: 82, closing: 80, relationshipBuilding: 92 },
+  { logId: 'log-5', timestamp: new Date('2024-05-24T10:00:00Z'), userId: 'user-4', lessonId: 'lesson-104', stepResults: { step1: 'pass' }, xpGained: 90, empathy: 90, listening: 80, trust: 85, followUp: 88, closing: 82, relationshipBuilding: 87 },
+  { logId: 'log-6', timestamp: new Date('2024-05-25T11:30:00Z'), userId: 'user-15', lessonId: 'lesson-101', stepResults: { step1: 'fail' }, xpGained: 30, empathy: 60, listening: 55, trust: 65, followUp: 70, closing: 50, relationshipBuilding: 62 },
 ];
 
 
@@ -140,21 +144,36 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
     }
 };
 
+export async function getDealerships(): Promise<string[]> {
+    await simulateNetworkDelay();
+    const dealershipIds = users.map(u => u.dealershipId).filter(id => id !== 'autoknerd-hq');
+    return [...new Set(dealershipIds)];
+}
+
 export async function getManagerStats(dealershipId: string, userRole: UserRole): Promise<{ totalLessons: number; avgEmpathy: number }> {
     await simulateNetworkDelay();
-    const teamRoles = getTeamMemberRoles(userRole);
-    const teamUserIds = users
-        .filter(u => userRole === 'Admin' || (u.dealershipId === dealershipId && teamRoles.includes(u.role)))
-        .map(u => u.userId);
 
-    const dealershipLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
+    const teamRoles = getTeamMemberRoles(userRole);
     
-    if (dealershipLogs.length === 0) {
+    let relevantLogs: LessonLog[];
+
+    if ((userRole === 'Owner' || userRole === 'Admin') && dealershipId === 'all') {
+        // All users except other owners/admins
+        const teamUserIds = users.filter(u => !['Owner', 'Admin'].includes(u.role)).map(u => u.userId);
+        relevantLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
+    } else {
+        const teamUserIds = users
+            .filter(u => u.dealershipId === dealershipId && teamRoles.includes(u.role))
+            .map(u => u.userId);
+        relevantLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
+    }
+    
+    if (relevantLogs.length === 0) {
         return { totalLessons: 0, avgEmpathy: 0 };
     }
 
-    const totalLessons = dealershipLogs.length;
-    const totalEmpathy = dealershipLogs.reduce((sum, log) => sum + log.empathy, 0);
+    const totalLessons = relevantLogs.length;
+    const totalEmpathy = relevantLogs.reduce((sum, log) => sum + log.empathy, 0);
     const avgEmpathy = Math.round(totalEmpathy / totalLessons);
 
     return { totalLessons, avgEmpathy };
@@ -164,7 +183,20 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
     await simulateNetworkDelay();
     const teamRoles = getTeamMemberRoles(userRole);
 
-    const teamMembers = users.filter(u => userRole === 'Admin' || (u.dealershipId === dealershipId && teamRoles.includes(u.role)));
+    let teamMembers: User[];
+
+    if (userRole === 'Admin' || userRole === 'Owner') {
+        if (dealershipId === 'all') {
+             // For Admin/Owner 'all', get all manageable users across all dealerships
+            teamMembers = users.filter(u => teamRoles.includes(u.role));
+        } else {
+            // For Admin/Owner single dealership view
+            teamMembers = users.filter(u => u.dealershipId === dealershipId && teamRoles.includes(u.role));
+        }
+    } else {
+         // For other managers, scope to their dealership
+         teamMembers = users.filter(u => u.dealershipId === dealershipId && teamRoles.includes(u.role));
+    }
     
     const activity = teamMembers.map(member => {
         const memberLogs = lessonLogs.filter(log => log.userId === member.userId);

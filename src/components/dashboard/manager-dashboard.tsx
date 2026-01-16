@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait } from '@/lib/definitions';
-import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity } from '@/lib/data';
+import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity, getDealerships } from '@/lib/data';
 import { StatCard } from './stat-card';
 import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '../ui/button';
 import { CreateLessonForm } from '../lessons/create-lesson-form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ManagerDashboardProps {
   user: User;
@@ -36,13 +37,33 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
 
+  // New state for dealership selection
+  const [dealerships, setDealerships] = useState<string[]>([]);
+  const [selectedDealership, setSelectedDealership] = useState<string | null>(null);
+
   useEffect(() => {
+    async function fetchInitialData() {
+        if(user.role === 'Owner' || user.role === 'Admin') {
+            const fetchedDealerships = await getDealerships();
+            setDealerships(fetchedDealerships);
+            setSelectedDealership('all'); // Owners/Admins start with an 'all' view.
+        } else {
+            setSelectedDealership(user.dealershipId); // Other managers are scoped to their own dealership.
+        }
+    }
+    fetchInitialData();
+  }, [user.role, user.dealershipId]);
+
+  useEffect(() => {
+    // Don't fetch data until a dealership is selected
+    if (!selectedDealership) return;
+
     async function fetchData() {
       setLoading(true);
 
       const promises: Promise<any>[] = [
-        getManagerStats(user.dealershipId, user.role),
-        getTeamActivity(user.dealershipId, user.role),
+        getManagerStats(selectedDealership!, user.role),
+        getTeamActivity(selectedDealership!, user.role),
       ];
 
       if (!['Owner', 'Admin'].includes(user.role)) {
@@ -64,7 +85,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       setLoading(false);
     }
     fetchData();
-  }, [user.dealershipId, user.role, user.userId]);
+  }, [user.userId, user.role, selectedDealership]); // Re-fetch when selectedDealership changes
 
   const managerAverageScores = useMemo(() => {
       if (['Owner', 'Admin'].includes(user.role)) return null;
@@ -107,9 +128,38 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
     return lesson || lessons[0];
   }, [loading, lessons, managerAverageScores, user.role]);
+
+  const statDescription = useMemo(() => {
+    if (user.role === 'Owner' || user.role === 'Admin') {
+      return selectedDealership === 'all' ? 'Across all dealerships' : `For ${selectedDealership}`;
+    }
+    return 'Across your entire team';
+  }, [user.role, selectedDealership]);
   
   return (
     <>
+      {['Owner', 'Admin'].includes(user.role) && (
+        <Card className="mb-4">
+            <CardHeader>
+                <CardTitle>Dealership Overview</CardTitle>
+                <CardDescription>Select a dealership to view its performance statistics.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Select value={selectedDealership || 'all'} onValueChange={setSelectedDealership}>
+                    <SelectTrigger className="w-full md:w-1/3">
+                        <SelectValue placeholder="Select a dealership" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Dealerships</SelectItem>
+                        {dealerships.map(d => (
+                            <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </CardContent>
+        </Card>
+      )}
+
       {!['Owner', 'Admin'].includes(user.role) && (
         <Card className="mb-4">
           <CardHeader>
@@ -149,25 +199,25 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             <StatCard 
               title="Total Lessons Completed"
               value={stats?.totalLessons.toString() || '0'}
-              description={user.role === 'Admin' ? 'Across all dealerships' : 'Across your entire team'}
+              description={statDescription}
               Icon={CheckCircle}
             />
             <StatCard 
               title="Team Members"
               value={teamActivity.length.toString()}
-              description={user.role === 'Admin' ? 'Across all dealerships' : 'Active team members'}
+              description={statDescription}
               Icon={Users}
             />
             <StatCard 
               title="Average Empathy Score"
               value={`${stats?.avgEmpathy || 0}%`}
-              description={user.role === 'Admin' ? 'Platform-wide average' : 'Team-wide average'}
+              description={statDescription}
               Icon={Smile}
             />
             <StatCard 
               title="Total XP Gained"
               value={teamActivity.reduce((sum, member) => sum + member.totalXp, 0).toLocaleString()}
-              description={user.role === 'Admin' ? 'Platform-wide total' : "Team's collective experience"}
+              description={statDescription}
               Icon={Star}
             />
           </>
@@ -182,7 +232,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     Team Performance Summary
                 </CardTitle>
                 <CardDescription>
-                    {user.role === 'Admin' ? 'Performance overview of all users.' : 'Performance overview of staff at your dealership.'}
+                    {`Performance overview of staff ${selectedDealership === 'all' ? 'at all dealerships' : `at ${selectedDealership}`}.`}
                 </CardDescription>
             </div>
              <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
@@ -251,7 +301,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 )) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      No team activity found.
+                      No team activity found for the selected dealership.
                     </TableCell>
                   </TableRow>
                 )}
