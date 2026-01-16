@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from '../ui/button';
 import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TeamMemberCard } from './team-member-card';
 
 interface ManagerDashboardProps {
   user: User;
@@ -273,31 +273,41 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               </TableHeader>
               <TableBody>
                 {teamActivity.length > 0 ? teamActivity.map(member => (
-                  <TableRow key={member.consultant.userId}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={member.consultant.avatarUrl} data-ai-hint="person portrait" />
-                          <AvatarFallback>{member.consultant.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{member.consultant.name}</p>
-                          <p className="text-sm text-muted-foreground">{member.consultant.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                        <Badge variant="outline">{member.consultant.role}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
-                    <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="font-medium">{member.avgScore}%</span>
-                        <Progress value={member.avgScore} className="h-2 w-20" />
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <Dialog key={member.consultant.userId}>
+                    <DialogTrigger asChild>
+                        <TableRow className="cursor-pointer">
+                            <TableCell>
+                            <div className="flex items-center gap-3">
+                                <Avatar>
+                                <AvatarImage src={member.consultant.avatarUrl} data-ai-hint="person portrait" />
+                                <AvatarFallback>{member.consultant.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                <p className="font-medium">{member.consultant.name}</p>
+                                <p className="text-sm text-muted-foreground">{member.consultant.email}</p>
+                                </div>
+                            </div>
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant="outline">{member.consultant.role}</Badge>
+                            </TableCell>
+                            <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
+                            <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="font-medium">{member.avgScore}%</span>
+                                <Progress value={member.avgScore} className="h-2 w-20" />
+                            </div>
+                            </TableCell>
+                        </TableRow>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Performance Snapshot</DialogTitle>
+                        </DialogHeader>
+                        <TeamMemberCard user={member.consultant} />
+                    </DialogContent>
+                  </Dialog>
                 )) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground">
