@@ -68,20 +68,20 @@ export function LoginForm() {
     }
   }
   
-  async function handleAdminLogin() {
+  async function handleManagerLogin() {
     setIsSubmitting(true);
     try {
       await login('manager@autodrive.com', 'password'); // Using manager credentials
       toast({
         title: 'Login Successful',
-        description: 'Logged in as Admin.',
+        description: 'Logged in as Sales Manager.',
       });
       router.push('/');
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Admin Login Failed',
-        description: 'Could not log in as admin user.',
+        title: 'Sales Manager Login Failed',
+        description: 'Could not log in as sales manager user.',
       });
     } finally {
       setIsSubmitting(false);
@@ -147,6 +147,46 @@ export function LoginForm() {
       setIsSubmitting(false);
     }
   }
+  
+  async function handleTrainerLogin() {
+    setIsSubmitting(true);
+    try {
+      await login('trainer@autoknerd.com', 'password');
+      toast({
+        title: 'Login Successful',
+        description: 'Logged in as Trainer.',
+      });
+      router.push('/');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Trainer Login Failed',
+        description: 'Could not log in as trainer user.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleAdminLogin() {
+    setIsSubmitting(true);
+    try {
+      await login('admin@autoknerd.com', 'password');
+      toast({
+        title: 'Login Successful',
+        description: 'Logged in as Admin.',
+      });
+      router.push('/');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Admin Login Failed',
+        description: 'Could not log in as admin user.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <Card>
@@ -188,7 +228,7 @@ export function LoginForm() {
               <Button type="button" variant="outline" className="w-full" onClick={handleConsultantLogin} disabled={isSubmitting}>
                 Consultant
               </Button>
-              <Button type="button" variant="outline" className="w-full" onClick={handleAdminLogin} disabled={isSubmitting}>
+              <Button type="button" variant="outline" className="w-full" onClick={handleManagerLogin} disabled={isSubmitting}>
                 Sales Manager
               </Button>
             </div>
@@ -198,6 +238,14 @@ export function LoginForm() {
               </Button>
               <Button type="button" variant="outline" className="w-full" onClick={handleOwnerLogin} disabled={isSubmitting}>
                 Owner
+              </Button>
+            </div>
+            <div className='flex w-full gap-2'>
+              <Button type="button" variant="outline" className="w-full" onClick={handleTrainerLogin} disabled={isSubmitting}>
+                Trainer
+              </Button>
+              <Button type="button" variant="outline" className="w-full" onClick={handleAdminLogin} disabled={isSubmitting}>
+                Admin
               </Button>
             </div>
           </CardFooter>

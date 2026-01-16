@@ -49,9 +49,12 @@ export function CreateLessonForm({ user, onLessonCreated }: CreateLessonFormProp
     },
   });
 
-  const availableRoles = user.role === 'Owner'
-    ? ['global', ...getTeamMemberRoles(user.role)]
-    : getTeamMemberRoles(user.role);
+  const canCreateGlobal = ['Owner', 'Admin', 'Trainer'].includes(user.role);
+  const teamRoles = getTeamMemberRoles(user.role);
+  
+  const availableRoles = canCreateGlobal
+    ? ['global', ...teamRoles]
+    : teamRoles;
 
   const handleSuggestScenario = async () => {
     setIsSuggesting(true);

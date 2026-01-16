@@ -27,7 +27,7 @@ export default function Home() {
     );
   }
 
-  const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner'];
+  const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin'];
 
   return (
     <div className="flex min-h-screen w-full flex-col">

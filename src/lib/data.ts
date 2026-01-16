@@ -15,6 +15,8 @@ const users: User[] = [
   { userId: 'user-9', name: 'Ivy Green', email: 'parts.manager@autodrive.com', role: 'Parts Manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/109/200/200' },
   { userId: 'user-10', name: 'Jack King', email: 'owner@autodrive.com', role: 'Owner', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/110/200/200' },
   { userId: 'user-11', name: 'Sam Smith', email: 'sam.sw@autodrive.com', role: 'Service Writer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/111/200/200' },
+  { userId: 'user-12', name: 'Travis Trainer', email: 'trainer@autoknerd.com', role: 'Trainer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/112/200/200' },
+  { userId: 'user-13', name: 'Andy Admin', email: 'admin@autoknerd.com', role: 'Admin', dealershipId: 'autoknerd-hq', avatarUrl: 'https://picsum.photos/seed/113/200/200' },
 ];
 
 const lessons: Lesson[] = [
@@ -25,6 +27,7 @@ const lessons: Lesson[] = [
     { lessonId: 'lesson-105', title: 'Active Listening for Customer Needs', role: 'consultant', category: 'Customer Service', associatedTrait: 'listening' },
     { lessonId: 'lesson-106', title: 'Effective Post-Sale Follow Up', role: 'consultant', category: 'Sales Process', associatedTrait: 'followUp' },
     { lessonId: 'lesson-201', title: 'Coaching on Listening Skills', role: 'manager', category: 'Sales Process', associatedTrait: 'listening' },
+    { lessonId: 'lesson-202', title: 'Training Trainers', role: 'Trainer', category: 'Customer Service', associatedTrait: 'empathy' },
     { lessonId: 'lesson-301', title: 'Effective Service Write-ups', role: 'Service Writer', category: 'Service', associatedTrait: 'listening' },
     { lessonId: 'lesson-302', title: 'Managing Shop Workflow for Better Follow-Up', role: 'Service Manager', category: 'Service', associatedTrait: 'followUp' },
     { lessonId: 'lesson-401', title: 'Building Trust in F&I', role: 'Finance Manager', category: 'Financing', associatedTrait: 'trust' },
@@ -36,6 +39,7 @@ const lessonLogs: LessonLog[] = [
   { logId: 'log-1', timestamp: new Date('2024-05-20T10:00:00Z'), userId: 'user-1', lessonId: 'lesson-101', stepResults: { step1: 'pass', step2: 'pass' }, xpGained: 100, empathy: 85, listening: 90, trust: 80, followUp: 75, closing: 70, relationshipBuilding: 88 },
   { logId: 'log-2', timestamp: new Date('2024-05-21T11:30:00Z'), userId: 'user-1', lessonId: 'lesson-103', stepResults: { step1: 'pass' }, xpGained: 120, empathy: 88, listening: 92, trust: 82, followUp: 78, closing: 72, relationshipBuilding: 90 },
   { logId: 'log-3', timestamp: new Date('2024-05-22T09:00:00Z'), userId: 'user-3', lessonId: 'lesson-101', stepResults: { step1: 'pass', step2: 'fail' }, xpGained: 50, empathy: 70, listening: 65, trust: 75, followUp: 60, closing: 55, relationshipBuilding: 72 },
+  { logId: 'log-4', timestamp: new Date('2024-05-23T14:00:00Z'), userId: 'user-12', lessonId: 'lesson-202', stepResults: { step1: 'pass' }, xpGained: 75, empathy: 90, listening: 85, trust: 88, followUp: 82, closing: 80, relationshipBuilding: 92 },
 ];
 
 
@@ -89,7 +93,7 @@ export async function createLesson(lessonData: {
     };
 
     const rolesToCreate: LessonRole[] = [];
-    const validRoles: UserRole[] = ['consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager'];
+    const validRoles: UserRole[] = ['consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'Trainer'];
     
     if (lessonData.targetRole === 'global') {
         rolesToCreate.push(...validRoles as LessonRole[]);
@@ -125,7 +129,12 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
         case 'Parts Manager':
             return ['Parts Consultant'];
         case 'Owner':
-            return users.filter(u => u.role !== 'Owner').map(u => u.role);
+        case 'Trainer':
+             const ownerRoles = users.filter(u => u.role !== 'Owner' && u.role !== 'Admin').map(u => u.role)
+             return [...new Set(ownerRoles)];
+        case 'Admin':
+            const adminRoles = users.filter(u => u.role !== 'Admin').map(u => u.role);
+            return [...new Set(adminRoles)];
         default:
             return [];
     }
@@ -135,7 +144,7 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
     await simulateNetworkDelay();
     const teamRoles = getTeamMemberRoles(userRole);
     const teamUserIds = users
-        .filter(u => u.dealershipId === dealershipId && teamRoles.includes(u.role))
+        .filter(u => userRole === 'Admin' || (u.dealershipId === dealershipId && teamRoles.includes(u.role)))
         .map(u => u.userId);
 
     const dealershipLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
@@ -154,7 +163,8 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
 export async function getTeamActivity(dealershipId: string, userRole: UserRole): Promise<{ consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[]> {
     await simulateNetworkDelay();
     const teamRoles = getTeamMemberRoles(userRole);
-    const teamMembers = users.filter(u => u.dealershipId === dealershipId && teamRoles.includes(u.role));
+
+    const teamMembers = users.filter(u => userRole === 'Admin' || (u.dealershipId === dealershipId && teamRoles.includes(u.role)));
     
     const activity = teamMembers.map(member => {
         const memberLogs = lessonLogs.filter(log => log.userId === member.userId);

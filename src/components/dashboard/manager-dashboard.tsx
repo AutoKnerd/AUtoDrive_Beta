@@ -45,7 +45,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         getTeamActivity(user.dealershipId, user.role),
       ];
 
-      if (user.role !== 'Owner') {
+      if (!['Owner', 'Admin'].includes(user.role)) {
         promises.push(getLessons(user.role as LessonRole));
         promises.push(getConsultantActivity(user.userId));
       }
@@ -67,7 +67,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [user.dealershipId, user.role, user.userId]);
 
   const managerAverageScores = useMemo(() => {
-      if (user.role === 'Owner') return null;
+      if (['Owner', 'Admin'].includes(user.role)) return null;
       if (!managerActivity.length) return {
           empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85
       };
@@ -94,7 +94,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [managerActivity, user.role]);
 
   const recommendedLesson = useMemo(() => {
-    if (user.role === 'Owner' || loading || lessons.length === 0 || !managerAverageScores) return null;
+    if (['Owner', 'Admin'].includes(user.role) || loading || lessons.length === 0 || !managerAverageScores) return null;
 
     const lowestScoringTrait = Object.entries(managerAverageScores).reduce((lowest, [trait, score]) => {
         if (score < lowest.score) {
@@ -110,7 +110,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   
   return (
     <>
-      {user.role !== 'Owner' && (
+      {!['Owner', 'Admin'].includes(user.role) && (
         <Card className="mb-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -149,25 +149,25 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             <StatCard 
               title="Total Lessons Completed"
               value={stats?.totalLessons.toString() || '0'}
-              description="Across your entire team"
+              description={user.role === 'Admin' ? 'Across all dealerships' : 'Across your entire team'}
               Icon={CheckCircle}
             />
             <StatCard 
               title="Team Members"
               value={teamActivity.length.toString()}
-              description="Active team members"
+              description={user.role === 'Admin' ? 'Across all dealerships' : 'Active team members'}
               Icon={Users}
             />
             <StatCard 
               title="Average Empathy Score"
               value={`${stats?.avgEmpathy || 0}%`}
-              description="Team-wide average"
+              description={user.role === 'Admin' ? 'Platform-wide average' : 'Team-wide average'}
               Icon={Smile}
             />
             <StatCard 
               title="Total XP Gained"
               value={teamActivity.reduce((sum, member) => sum + member.totalXp, 0).toLocaleString()}
-              description="Team's collective experience"
+              description={user.role === 'Admin' ? 'Platform-wide total' : "Team's collective experience"}
               Icon={Star}
             />
           </>
@@ -182,7 +182,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     Team Performance Summary
                 </CardTitle>
                 <CardDescription>
-                    Performance overview of staff at your dealership.
+                    {user.role === 'Admin' ? 'Performance overview of all users.' : 'Performance overview of staff at your dealership.'}
                 </CardDescription>
             </div>
              <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>

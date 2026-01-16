@@ -7,7 +7,9 @@ export type UserRole =
   | 'Finance Manager' 
   | 'Parts Consultant' 
   | 'Parts Manager' 
-  | 'Owner';
+  | 'Owner'
+  | 'Trainer'
+  | 'Admin';
 
 export type User = {
   userId: string;
@@ -18,7 +20,7 @@ export type User = {
   avatarUrl: string;
 };
 
-export type LessonRole = Exclude<UserRole, 'Owner'>;
+export type LessonRole = Exclude<UserRole, 'Owner' | 'Admin'>;
 
 export type LessonCategory = 
   | 'Sales Process' 
