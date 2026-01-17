@@ -42,7 +42,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   useEffect(() => {
     async function fetchInitialData() {
-        if(user.role === 'Owner' || user.role === 'Admin') {
+        if(['Owner', 'Admin', 'Trainer'].includes(user.role)) {
             const fetchedDealerships = await getDealerships();
             setDealerships(fetchedDealerships);
             setSelectedDealership('all'); // Owners/Admins start with an 'all' view.
@@ -65,7 +65,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         getTeamActivity(selectedDealership!, user.role),
       ];
 
-      if (!['Owner', 'Admin'].includes(user.role)) {
+      if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
         promises.push(getLessons(user.role as LessonRole));
         promises.push(getConsultantActivity(user.userId));
       }
@@ -87,7 +87,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [user.userId, user.role, selectedDealership]); // Re-fetch when selectedDealership changes
 
   const managerAverageScores = useMemo(() => {
-      if (['Owner', 'Admin'].includes(user.role)) return null;
+      if (['Owner', 'Admin', 'Trainer'].includes(user.role)) return null;
       if (!managerActivity.length) return {
           empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85
       };
@@ -114,7 +114,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [managerActivity, user.role]);
 
   const recommendedLesson = useMemo(() => {
-    if (['Owner', 'Admin'].includes(user.role) || loading || lessons.length === 0 || !managerAverageScores) return null;
+    if (['Owner', 'Admin', 'Trainer'].includes(user.role) || loading || lessons.length === 0 || !managerAverageScores) return null;
 
     const lowestScoringTrait = Object.entries(managerAverageScores).reduce((lowest, [trait, score]) => {
         if (score < lowest.score) {
@@ -129,7 +129,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [loading, lessons, managerAverageScores, user.role]);
 
   const statDescription = useMemo(() => {
-    if (user.role === 'Owner' || user.role === 'Admin') {
+    if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
       return selectedDealership === 'all' ? 'Across all dealerships' : `For ${selectedDealership}`;
     }
     return 'Across your entire team';
@@ -137,7 +137,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   
   return (
     <>
-      {['Owner', 'Admin'].includes(user.role) && (
+      {['Owner', 'Admin', 'Trainer'].includes(user.role) && (
         <Card className="mb-4">
             <CardHeader>
                 <CardTitle>Dealership Overview</CardTitle>
@@ -159,7 +159,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </Card>
       )}
 
-      {!['Owner', 'Admin'].includes(user.role) && (
+      {!['Owner', 'Admin', 'Trainer'].includes(user.role) && (
         <Card className="mb-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

@@ -133,9 +133,11 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
         case 'Parts Manager':
             return ['Parts Consultant'];
         case 'Owner':
-        case 'Trainer':
              const ownerRoles = users.filter(u => u.role !== 'Owner' && u.role !== 'Admin').map(u => u.role)
              return [...new Set(ownerRoles)];
+        case 'Trainer':
+            const trainerRoles = users.filter(u => u.role !== 'Admin' && u.role !== 'Trainer').map(u => u.role);
+            return [...new Set(trainerRoles)];
         case 'Admin':
             const adminRoles = users.filter(u => u.role !== 'Admin').map(u => u.role);
             return [...new Set(adminRoles)];
@@ -157,9 +159,9 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
     
     let relevantLogs: LessonLog[];
 
-    if ((userRole === 'Owner' || userRole === 'Admin') && dealershipId === 'all') {
+    if ((['Owner', 'Admin', 'Trainer'].includes(userRole)) && dealershipId === 'all') {
         // All users except other owners/admins
-        const teamUserIds = users.filter(u => !['Owner', 'Admin'].includes(u.role)).map(u => u.userId);
+        const teamUserIds = users.filter(u => !['Owner', 'Admin', 'Trainer'].includes(u.role)).map(u => u.userId);
         relevantLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
     } else {
         const teamUserIds = users
@@ -185,7 +187,7 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
 
     let teamMembers: User[];
 
-    if (userRole === 'Admin' || userRole === 'Owner') {
+    if (['Owner', 'Admin', 'Trainer'].includes(userRole)) {
         if (dealershipId === 'all') {
              // For Admin/Owner 'all', get all manageable users across all dealerships
             teamMembers = users.filter(u => teamRoles.includes(u.role));
