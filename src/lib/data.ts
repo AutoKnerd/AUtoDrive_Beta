@@ -47,6 +47,14 @@ const lessonLogs: LessonLog[] = [
   { logId: 'log-6', timestamp: new Date('2024-05-25T11:30:00Z'), userId: 'user-15', lessonId: 'lesson-101', stepResults: { step1: 'fail' }, xpGained: 30, empathy: 60, listening: 55, trust: 65, followUp: 70, closing: 50, relationshipBuilding: 62, isRecommended: true },
 ];
 
+export type InvitationCode = {
+    code: string;
+    dealershipId: string;
+    role: UserRole; 
+    uses: number;
+};
+const invitationCodes: InvitationCode[] = [];
+
 
 // --- MOCK API FUNCTIONS ---
 
@@ -68,6 +76,40 @@ export async function authenticateUser(email: string, pass: string): Promise<Use
 export async function getUserById(userId: string): Promise<User | null> {
     await simulateNetworkDelay();
     return users.find(u => u.userId === userId) || null;
+}
+
+export async function redeemInvitationCode(code: string, name: string, email: string): Promise<User> {
+    await simulateNetworkDelay();
+    
+    const invitation = invitationCodes.find(inv => inv.code.toLowerCase() === code.toLowerCase());
+
+    if (!invitation) {
+        throw new Error("Invalid invitation code.");
+    }
+    if (invitation.uses <= 0) {
+        throw new Error("This invitation code has no uses left.");
+    }
+    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        throw new Error("An account with this email already exists.");
+    }
+
+    const newUserId = `user-${users.length + 1}`;
+    const newUser: User = {
+        userId: newUserId,
+        name: name,
+        email: email,
+        role: invitation.role,
+        dealershipId: invitation.dealershipId,
+        avatarUrl: `https://picsum.photos/seed/${newUserId}/200/200`,
+        xp: 0,
+    };
+
+    users.push(newUser);
+    invitation.uses--;
+
+    console.log(`Redeemed code ${code} for ${email}. ${invitation.uses} uses remaining.`);
+
+    return newUser;
 }
 
 // LESSONS
@@ -271,28 +313,9 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
 export async function registerDealership(dealershipName: string, userEmail: string, role: UserRole): Promise<{ activationCode: string; uses: number; }> {
     await simulateNetworkDelay();
 
-    if (users.some(u => u.email.toLowerCase() === userEmail.toLowerCase())) {
-        throw new Error("An account with this email already exists.");
-    }
     const dealershipId = dealershipName.toLowerCase().replace(/\s+/g, '-');
-    if (users.some(u => u.dealershipId === dealershipId)) {
-        // In a real app, you might want to handle this differently, but for mock data this is fine.
-    }
-
-    const newUserId = `user-${users.length + 1}`;
+    
     const activationCode = Math.random().toString(36).slice(2, 10).toUpperCase();
-
-    const newUser: User = {
-        userId: newUserId,
-        name: 'New User', // Default name
-        email: userEmail,
-        role: role,
-        dealershipId: dealershipId,
-        avatarUrl: `https://picsum.photos/seed/${newUserId}/200/200`,
-        xp: 0,
-    };
-
-    users.push(newUser);
     
     let uses = 30; // Default for other roles
     if (role === 'Owner') {
@@ -301,8 +324,17 @@ export async function registerDealership(dealershipName: string, userEmail: stri
         uses = 10;
     }
 
-    console.log(`Registered new dealership: ${dealershipName} (${dealershipId})`);
-    console.log(`New ${role}: ${userEmail} with activation code: ${activationCode} (${uses} uses)`);
+    const newInvitation: InvitationCode = {
+        code: activationCode,
+        dealershipId: dealershipId,
+        role: role,
+        uses: uses,
+    };
+
+    invitationCodes.push(newInvitation);
+
+    console.log(`Generated invitation code for dealership: ${dealershipName} (${dealershipId})`);
+    console.log(`Code: ${activationCode}, Role: ${role}, Uses: ${uses}. Intended for user: ${userEmail}`);
 
     return { activationCode, uses };
 }

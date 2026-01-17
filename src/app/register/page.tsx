@@ -1,8 +1,8 @@
-import { LoginForm } from '@/components/auth/login-form';
+import { RegisterForm } from '@/components/auth/register-form';
 import { Cog } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
@@ -14,16 +14,16 @@ export default function LoginPage() {
               <h1 className="text-3xl font-bold text-foreground">AutoDrive</h1>
               <p className="text-sm font-medium text-muted-foreground">powered by AutoKnerd</p>
             </div>
-            <p className="mt-4 text-muted-foreground">Sign in to your account</p>
+            <p className="mt-4 text-muted-foreground">Activate your account</p>
         </div>
-        <LoginForm />
-        <p className="mt-4 px-8 text-center text-sm text-muted-foreground">
-          Have an invitation code?{' '}
+        <RegisterForm />
+         <p className="mt-4 px-8 text-center text-sm text-muted-foreground">
+          Already have an account?{' '}
           <Link
-            href="/register"
+            href="/login"
             className="underline underline-offset-4 hover:text-primary"
           >
-            Activate Your Account
+            Sign In
           </Link>
         </p>
       </div>

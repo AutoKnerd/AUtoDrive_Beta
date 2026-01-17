@@ -23,7 +23,7 @@ const registrationRoles: UserRole[] = ['Owner', 'manager', 'Service Manager', 'P
 
 const registerSchema = z.object({
   dealershipName: z.string().min(3, 'Dealership name must be at least 3 characters long.'),
-  userEmail: z.string().email('Please enter a valid email address for the primary contact.'),
+  userEmail: z.string().email('Please enter a valid email address for the intended user.'),
   role: z.enum(registrationRoles as [UserRole, ...UserRole[]]),
 });
 
@@ -52,7 +52,7 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
       setRegistrationResult(result);
       toast({
         title: 'Dealership Registered!',
-        description: `${data.dealershipName} has been created.`,
+        description: `An invitation code for ${data.dealershipName} has been created.`,
       });
       
       onDealershipRegistered?.();
@@ -74,11 +74,11 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
             <Terminal className="h-4 w-4" />
             <AlertTitle>Registration Successful!</AlertTitle>
             <AlertDescription>
-                <p className="mb-2">An activation code has been generated. Provide this to the new user.</p>
+                <p className="mb-2">An invitation code has been generated. Provide this to the new user to activate their account.</p>
                 <div className="rounded-md bg-muted p-3 font-mono text-sm">
-                    <p>Email: {form.getValues('userEmail')}</p>
+                    <p>Intended for: {form.getValues('userEmail')}</p>
                     <p>Role: {roleDisplay === 'manager' ? 'Sales Manager' : roleDisplay}</p>
-                    <p>Activation Code: <span className="font-bold text-primary">{registrationResult.activationCode}</span></p>
+                    <p>Invitation Code: <span className="font-bold text-primary">{registrationResult.activationCode}</span></p>
                     <p>Code Uses: {registrationResult.uses}</p>
                 </div>
             </AlertDescription>
@@ -108,7 +108,7 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
             name="userEmail"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Primary User's Email</FormLabel>
+                <FormLabel>Intended User's Email</FormLabel>
                 <FormControl>
                     <Input placeholder="user@example.com" {...field} />
                 </FormControl>
@@ -121,7 +121,7 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
             name="role"
             render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Primary User Role</FormLabel>
+                    <FormLabel>Intended User Role</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                         <SelectTrigger>
@@ -142,7 +142,7 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
             />
         </div>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <Spinner size="sm" /> : 'Generate Activation Code'}
+          {isSubmitting ? <Spinner size="sm" /> : 'Generate Invitation Code'}
         </Button>
       </form>
     </Form>
