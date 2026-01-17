@@ -1,24 +1,25 @@
 
+import { isToday } from 'date-fns';
 import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory } from './definitions';
 
 // --- MOCK DATABASE ---
 
 const users: User[] = [
-  { userId: 'user-1', name: 'Alice Johnson', email: 'consultant@autodrive.com', role: 'consultant', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/101/200/200' },
-  { userId: 'user-2', name: 'Bob Williams', email: 'manager@autodrive.com', role: 'manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/102/200/200' },
-  { userId: 'user-3', name: 'Charlie Brown', email: 'charlie@autodrive.com', role: 'consultant', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/103/200/200' },
-  { userId: 'user-4', name: 'Diana Prince', email: 'diana@autodrive.com', role: 'consultant', dealershipId: 'dealership-B', avatarUrl: 'https://picsum.photos/seed/104/200/200' },
-  { userId: 'user-5', name: 'Eve Adams', email: 'service.writer@autodrive.com', role: 'Service Writer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/105/200/200' },
-  { userId: 'user-6', name: 'Frank Miller', email: 'service.manager@autodrive.com', role: 'Service Manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/106/200/200' },
-  { userId: 'user-7', name: 'Grace Lee', email: 'finance.manager@autodrive.com', role: 'Finance Manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/107/200/200' },
-  { userId: 'user-8', name: 'Henry Wilson', email: 'parts.consultant@autodrive.com', role: 'Parts Consultant', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/108/200/200' },
-  { userId: 'user-9', name: 'Ivy Green', email: 'parts.manager@autodrive.com', role: 'Parts Manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/109/200/200' },
-  { userId: 'user-10', name: 'Jack King', email: 'owner@autodrive.com', role: 'Owner', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/110/200/200' },
-  { userId: 'user-11', name: 'Sam Smith', email: 'sam.sw@autodrive.com', role: 'Service Writer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/111/200/200' },
-  { userId: 'user-12', name: 'Travis Trainer', email: 'trainer@autoknerd.com', role: 'Trainer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/112/200/200' },
-  { userId: 'user-13', name: 'Andy Admin', email: 'admin@autoknerd.com', role: 'Admin', dealershipId: 'autoknerd-hq', avatarUrl: 'https://picsum.photos/seed/113/200/200' },
-  { userId: 'user-14', name: 'Manager B', email: 'manager.b@autodrive.com', role: 'manager', dealershipId: 'dealership-B', avatarUrl: 'https://picsum.photos/seed/114/200/200' },
-  { userId: 'user-15', name: 'Consultant B1', email: 'consultant.b1@autodrive.com', role: 'consultant', dealershipId: 'dealership-B', avatarUrl: 'https://picsum.photos/seed/115/200/200' },
+  { userId: 'user-1', name: 'Alice Johnson', email: 'consultant@autodrive.com', role: 'consultant', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/101/200/200', xp: 2580 },
+  { userId: 'user-2', name: 'Bob Williams', email: 'manager@autodrive.com', role: 'manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/102/200/200', xp: 5200 },
+  { userId: 'user-3', name: 'Charlie Brown', email: 'charlie@autodrive.com', role: 'consultant', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/103/200/200', xp: 550 },
+  { userId: 'user-4', name: 'Diana Prince', email: 'diana@autodrive.com', role: 'consultant', dealershipId: 'dealership-B', avatarUrl: 'https://picsum.photos/seed/104/200/200', xp: 120 },
+  { userId: 'user-5', name: 'Eve Adams', email: 'service.writer@autodrive.com', role: 'Service Writer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/105/200/200', xp: 800 },
+  { userId: 'user-6', name: 'Frank Miller', email: 'service.manager@autodrive.com', role: 'Service Manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/106/200/200', xp: 4800 },
+  { userId: 'user-7', name: 'Grace Lee', email: 'finance.manager@autodrive.com', role: 'Finance Manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/107/200/200', xp: 6000 },
+  { userId: 'user-8', name: 'Henry Wilson', email: 'parts.consultant@autodrive.com', role: 'Parts Consultant', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/108/200/200', xp: 450 },
+  { userId: 'user-9', name: 'Ivy Green', email: 'parts.manager@autodrive.com', role: 'Parts Manager', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/109/200/200', xp: 3200 },
+  { userId: 'user-10', name: 'Jack King', email: 'owner@autodrive.com', role: 'Owner', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/110/200/200', xp: 10000 },
+  { userId: 'user-11', name: 'Sam Smith', email: 'sam.sw@autodrive.com', role: 'Service Writer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/111/200/200', xp: 150 },
+  { userId: 'user-12', name: 'Travis Trainer', email: 'trainer@autoknerd.com', role: 'Trainer', dealershipId: 'dealership-A', avatarUrl: 'https://picsum.photos/seed/112/200/200', xp: 15000 },
+  { userId: 'user-13', name: 'Andy Admin', email: 'admin@autoknerd.com', role: 'Admin', dealershipId: 'autoknerd-hq', avatarUrl: 'https://picsum.photos/seed/113/200/200', xp: 20000 },
+  { userId: 'user-14', name: 'Manager B', email: 'manager.b@autodrive.com', role: 'manager', dealershipId: 'dealership-B', avatarUrl: 'https://picsum.photos/seed/114/200/200', xp: 4500 },
+  { userId: 'user-15', name: 'Consultant B1', email: 'consultant.b1@autodrive.com', role: 'consultant', dealershipId: 'dealership-B', avatarUrl: 'https://picsum.photos/seed/115/200/200', xp: 30 },
 ];
 
 const lessons: Lesson[] = [
@@ -38,12 +39,12 @@ const lessons: Lesson[] = [
 ];
 
 const lessonLogs: LessonLog[] = [
-  { logId: 'log-1', timestamp: new Date('2024-05-20T10:00:00Z'), userId: 'user-1', lessonId: 'lesson-101', stepResults: { step1: 'pass', step2: 'pass' }, xpGained: 100, empathy: 85, listening: 90, trust: 80, followUp: 75, closing: 70, relationshipBuilding: 88 },
-  { logId: 'log-2', timestamp: new Date('2024-05-21T11:30:00Z'), userId: 'user-1', lessonId: 'lesson-103', stepResults: { step1: 'pass' }, xpGained: 120, empathy: 88, listening: 92, trust: 82, followUp: 78, closing: 72, relationshipBuilding: 90 },
-  { logId: 'log-3', timestamp: new Date('2024-05-22T09:00:00Z'), userId: 'user-3', lessonId: 'lesson-101', stepResults: { step1: 'pass', step2: 'fail' }, xpGained: 50, empathy: 70, listening: 65, trust: 75, followUp: 60, closing: 55, relationshipBuilding: 72 },
-  { logId: 'log-4', timestamp: new Date('2024-05-23T14:00:00Z'), userId: 'user-12', lessonId: 'lesson-202', stepResults: { step1: 'pass' }, xpGained: 75, empathy: 90, listening: 85, trust: 88, followUp: 82, closing: 80, relationshipBuilding: 92 },
-  { logId: 'log-5', timestamp: new Date('2024-05-24T10:00:00Z'), userId: 'user-4', lessonId: 'lesson-104', stepResults: { step1: 'pass' }, xpGained: 90, empathy: 90, listening: 80, trust: 85, followUp: 88, closing: 82, relationshipBuilding: 87 },
-  { logId: 'log-6', timestamp: new Date('2024-05-25T11:30:00Z'), userId: 'user-15', lessonId: 'lesson-101', stepResults: { step1: 'fail' }, xpGained: 30, empathy: 60, listening: 55, trust: 65, followUp: 70, closing: 50, relationshipBuilding: 62 },
+  { logId: 'log-1', timestamp: new Date('2024-05-20T10:00:00Z'), userId: 'user-1', lessonId: 'lesson-101', stepResults: { step1: 'pass', step2: 'pass' }, xpGained: 100, empathy: 85, listening: 90, trust: 80, followUp: 75, closing: 70, relationshipBuilding: 88, isRecommended: true },
+  { logId: 'log-2', timestamp: new Date('2024-05-21T11:30:00Z'), userId: 'user-1', lessonId: 'lesson-103', stepResults: { step1: 'pass' }, xpGained: 120, empathy: 88, listening: 92, trust: 82, followUp: 78, closing: 72, relationshipBuilding: 90, isRecommended: false },
+  { logId: 'log-3', timestamp: new Date('2024-05-22T09:00:00Z'), userId: 'user-3', lessonId: 'lesson-101', stepResults: { step1: 'pass', step2: 'fail' }, xpGained: 50, empathy: 70, listening: 65, trust: 75, followUp: 60, closing: 55, relationshipBuilding: 72, isRecommended: true },
+  { logId: 'log-4', timestamp: new Date('2024-05-23T14:00:00Z'), userId: 'user-12', lessonId: 'lesson-202', stepResults: { step1: 'pass' }, xpGained: 75, empathy: 90, listening: 85, trust: 88, followUp: 82, closing: 80, relationshipBuilding: 92, isRecommended: false },
+  { logId: 'log-5', timestamp: new Date('2024-05-24T10:00:00Z'), userId: 'user-4', lessonId: 'lesson-104', stepResults: { step1: 'pass' }, xpGained: 90, empathy: 90, listening: 80, trust: 85, followUp: 88, closing: 82, relationshipBuilding: 87, isRecommended: true },
+  { logId: 'log-6', timestamp: new Date('2024-05-25T11:30:00Z'), userId: 'user-15', lessonId: 'lesson-101', stepResults: { step1: 'fail' }, xpGained: 30, empathy: 60, listening: 55, trust: 65, followUp: 70, closing: 50, relationshipBuilding: 62, isRecommended: true },
 ];
 
 
@@ -122,6 +123,51 @@ export async function getConsultantActivity(userId: string): Promise<LessonLog[]
     await simulateNetworkDelay();
     return lessonLogs.filter(log => log.userId === userId).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
+
+export async function getDailyLessonLimits(userId: string): Promise<{ recommendedTaken: boolean, otherTaken: boolean }> {
+    await simulateNetworkDelay();
+    const todayLogs = lessonLogs.filter(log => log.userId === userId && isToday(log.timestamp));
+    
+    const recommendedTaken = todayLogs.some(log => log.isRecommended);
+    const otherTaken = todayLogs.some(log => !log.isRecommended);
+
+    return { recommendedTaken, otherTaken };
+}
+
+export async function logLessonCompletion(data: {
+    userId: string;
+    lessonId: string;
+    xpGained: number;
+    isRecommended: boolean;
+    scores: Omit<LessonLog, 'logId' | 'timestamp' | 'userId' | 'lessonId' | 'stepResults' | 'xpGained' | 'isRecommended'>;
+}): Promise<User> {
+    await simulateNetworkDelay();
+
+    // 1. Find user and update XP
+    const userIndex = users.findIndex(u => u.userId === data.userId);
+    if (userIndex === -1) throw new Error('User not found');
+    
+    users[userIndex].xp += data.xpGained;
+
+    // 2. Create and add new lesson log
+    const newLog: LessonLog = {
+        logId: `log-${lessonLogs.length + 1}`,
+        timestamp: new Date(),
+        userId: data.userId,
+        lessonId: data.lessonId,
+        xpGained: data.xpGained,
+        isRecommended: data.isRecommended,
+        stepResults: { final: 'pass' }, // Simplified for this implementation
+        ...data.scores,
+    };
+    lessonLogs.unshift(newLog);
+
+    console.log(`Logged lesson ${data.lessonId} for ${data.userId}. XP Gained: ${data.xpGained}. New total XP: ${users[userIndex].xp}`);
+
+    // 3. Return updated user object
+    return users[userIndex];
+}
+
 
 // MANAGER
 export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
@@ -243,6 +289,7 @@ export async function registerDealership(dealershipName: string, userEmail: stri
         role: role,
         dealershipId: dealershipId,
         avatarUrl: `https://picsum.photos/seed/${newUserId}/200/200`,
+        xp: 0,
     };
 
     users.push(newUser);

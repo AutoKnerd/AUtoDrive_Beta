@@ -18,6 +18,7 @@ export type User = {
   role: UserRole;
   dealershipId: string;
   avatarUrl: string;
+  xp: number;
 };
 
 export type LessonRole = Exclude<UserRole, 'Owner' | 'Admin'>;
@@ -99,9 +100,7 @@ export const lessonCategoriesByRole: Record<string, LessonCategory[]> = {
     'Parts - Sourcing',
     'Product Knowledge',
   ],
-  'Trainer': [
-    'Product Knowledge',
-  ]
+  // No categories for trainer
 };
 
 const allCategories = Object.values(lessonCategoriesByRole).flat();
@@ -132,4 +131,5 @@ export type LessonLog = {
   followUp: number;
   closing: number;
   relationshipBuilding: number;
+  isRecommended: boolean;
 };

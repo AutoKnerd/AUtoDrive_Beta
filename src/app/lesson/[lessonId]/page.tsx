@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -6,10 +7,13 @@ import { getLessonById } from '@/lib/data';
 import { Lesson } from '@/lib/definitions';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
-import { notFound, useParams } from 'next/navigation';
+import { notFound, useParams, useSearchParams } from 'next/navigation';
 
 export default function LessonPage() {
     const params = useParams<{ lessonId: string }>();
+    const searchParams = useSearchParams();
+    const isRecommended = searchParams.get('recommended') === 'true';
+
     const [lesson, setLesson] = useState<Lesson | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -39,7 +43,7 @@ export default function LessonPage() {
         <div className="flex min-h-screen w-full flex-col">
             <Header />
             <main className="flex flex-1 flex-col">
-                <LessonView lesson={lesson} />
+                <LessonView lesson={lesson} isRecommended={isRecommended} />
             </main>
         </div>
     );

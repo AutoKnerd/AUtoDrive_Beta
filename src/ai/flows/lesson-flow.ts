@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow for conducting interactive training lessons.
@@ -124,8 +125,8 @@ At the end of the lesson (after 10 interactions or if the user indicates they ar
 
 XP Rules:
 - Minimum XP: 10
-- Maximum XP: 50
-- Award higher XP for clear answers, improvement, and demonstrated understanding of the trait.
+- Maximum XP: 100
+- Award XP based on the quality of the user's answers throughout the entire lesson. Higher XP should be awarded for clear answers, demonstrated improvement, and consistent application of the target CX trait. Lower XP should be given for responses that are off-topic, ignore coaching, or fail to demonstrate the skill.
 
 End the session after outputting the JSON.
 

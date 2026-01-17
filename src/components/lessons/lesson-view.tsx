@@ -1,17 +1,19 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { Lesson } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/use-auth';
-import { Bot, Send } from 'lucide-react';
+import { Bot, Send, ArrowLeft } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { conductLesson } from '@/ai/flows/lesson-flow';
 import { Spinner } from '../ui/spinner';
-import { getConsultantActivity } from '@/lib/data';
+import { getConsultantActivity, logLessonCompletion } from '@/lib/data';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -20,6 +22,7 @@ interface Message {
 
 interface LessonViewProps {
   lesson: Lesson;
+  isRecommended: boolean;
 }
 
 interface CxScores {
@@ -31,11 +34,12 @@ interface CxScores {
     relationshipBuilding: number;
 }
 
-export function LessonView({ lesson }: LessonViewProps) {
-  const { user } = useAuth();
+export function LessonView({ lesson, isRecommended }: LessonViewProps) {
+  const { user, setUser } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [cxScores, setCxScores] = useState<CxScores | null>(null);
   const [inputDisabled, setInputDisabled] = useState(false);
   const lessonStarted = useRef(false);
@@ -73,7 +77,7 @@ export function LessonView({ lesson }: LessonViewProps) {
     fetchScores();
   }, [user]);
 
-  const handleAiResponse = (responseText: string) => {
+  const handleAiResponse = async (responseText: string) => {
     try {
       const result = JSON.parse(responseText);
       if (result && result.xpAwarded) {
@@ -81,6 +85,18 @@ export function LessonView({ lesson }: LessonViewProps) {
         const finalMessage: Message = { sender: 'ai', text: summaryText };
         setMessages(prev => [...prev, finalMessage]);
         setInputDisabled(true);
+        setIsCompleted(true);
+
+        if (user && cxScores) {
+            const updatedUser = await logLessonCompletion({
+                userId: user.userId,
+                lessonId: lesson.lessonId,
+                xpGained: result.xpAwarded,
+                isRecommended,
+                scores: cxScores,
+            });
+            setUser(updatedUser);
+        }
         return;
       }
     } catch (e) {
@@ -105,7 +121,7 @@ export function LessonView({ lesson }: LessonViewProps) {
         cxScores,
       });
 
-      handleAiResponse(initialResponse);
+      await handleAiResponse(initialResponse);
       setIsLoading(false);
     }
     startLesson();
@@ -133,7 +149,7 @@ export function LessonView({ lesson }: LessonViewProps) {
         cxScores,
     });
     
-    handleAiResponse(response);
+    await handleAiResponse(response);
     setIsLoading(false);
   };
 
@@ -183,21 +199,30 @@ export function LessonView({ lesson }: LessonViewProps) {
                 </ScrollArea>
             </CardContent>
             <CardFooter>
-                <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
-                    <Input
-                        id="message"
-                        placeholder="Type your response..."
-                        className="flex-1"
-                        autoComplete="off"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        disabled={isLoading || inputDisabled}
-                    />
-                    <Button type="submit" size="icon" disabled={isLoading || inputDisabled}>
-                        <Send className="h-4 w-4" />
-                        <span className="sr-only">Send</span>
+                {isCompleted ? (
+                    <Button asChild className="w-full">
+                        <Link href="/">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Back to Dashboard
+                        </Link>
                     </Button>
-                </form>
+                ) : (
+                    <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
+                        <Input
+                            id="message"
+                            placeholder="Type your response..."
+                            className="flex-1"
+                            autoComplete="off"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            disabled={isLoading || inputDisabled}
+                        />
+                        <Button type="submit" size="icon" disabled={isLoading || inputDisabled}>
+                            <Send className="h-4 w-4" />
+                            <span className="sr-only">Send</span>
+                        </Button>
+                    </form>
+                )}
             </CardFooter>
         </Card>
     </div>
