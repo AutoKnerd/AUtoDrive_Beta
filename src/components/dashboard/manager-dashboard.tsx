@@ -142,7 +142,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [user.role, selectedDealership]);
   
   async function handleDealershipRegistered() {
-    setRegisterOpen(false);
     const fetchedDealerships = await getDealerships();
     setDealerships(fetchedDealerships);
   }
