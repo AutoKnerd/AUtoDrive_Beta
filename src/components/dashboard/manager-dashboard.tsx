@@ -49,10 +49,13 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             setDealerships(fetchedDealerships);
             setSelectedDealershipId('all');
         } else {
-            const dealership = await getDealershipById(user.dealershipId);
-            if (dealership) {
-                setDealerships([dealership]);
-                setSelectedDealershipId(dealership.id);
+            const managedDealerships = await Promise.all(
+                user.dealershipIds.map(id => getDealershipById(id))
+            );
+            const validDealerships = managedDealerships.filter((d): d is Dealership => d !== null);
+            setDealerships(validDealerships);
+            if (validDealerships.length > 0) {
+                setSelectedDealershipId(validDealerships[0].id);
             }
         }
     }
@@ -166,7 +169,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   return (
     <>
-      {['Owner', 'Admin', 'Trainer'].includes(user.role) && (
+      {(['Owner', 'Admin', 'Trainer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
         <Card className="mb-4">
             <CardHeader>
                 <CardTitle>Dealership Overview</CardTitle>
@@ -178,7 +181,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <SelectValue placeholder="Select a dealership" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All Dealerships</SelectItem>
+                        {['Owner', 'Admin', 'Trainer'].includes(user.role) && <SelectItem value="all">All Dealerships</SelectItem>}
                         {dealerships.map(d => (
                             <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                         ))}

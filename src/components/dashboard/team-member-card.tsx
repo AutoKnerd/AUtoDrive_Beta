@@ -3,15 +3,17 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership } from '@/lib/definitions';
-import { getLessons, getConsultantActivity, assignUserToDealership } from '@/lib/data';
+import { getLessons, getConsultantActivity, updateUserDealerships } from '@/lib/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/hooks/use-toast';
+import isEqual from 'lodash.isequal';
+
 
 interface TeamMemberCardProps {
   user: User;
@@ -34,7 +36,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignment }:
   const [activity, setActivity] = useState<LessonLog[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const [selectedDealership, setSelectedDealership] = useState(user.dealershipId);
+  const [selectedDealerships, setSelectedDealerships] = useState(user.dealershipIds);
   const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
@@ -52,17 +54,20 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignment }:
     fetchData();
   }, [user]);
   
-  const currentDealershipName = useMemo(() => {
-    return dealerships.find(d => d.id === user.dealershipId)?.name || user.dealershipId;
-  }, [dealerships, user.dealershipId]);
+  const currentDealershipNames = useMemo(() => {
+    return user.dealershipIds
+        .map(id => dealerships.find(d => d.id === id)?.name)
+        .filter(Boolean)
+        .join(', ');
+  }, [dealerships, user.dealershipIds]);
 
-  async function handleAssignDealership() {
+  async function handleAssignDealerships() {
     setIsAssigning(true);
     try {
-        await assignUserToDealership(user.userId, selectedDealership);
+        await updateUserDealerships(user.userId, selectedDealerships);
         toast({
             title: 'Success',
-            description: `${user.name} has been assigned to a new dealership.`,
+            description: `${user.name} has been assigned to new dealerships.`,
         });
         onAssignment(); // This will trigger a re-fetch in the parent
     } catch(e) {
@@ -74,6 +79,16 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignment }:
     } finally {
         setIsAssigning(false);
     }
+  }
+
+  const handleCheckedChange = (dealershipId: string, checked: boolean) => {
+    setSelectedDealerships(prev => {
+        if (checked) {
+            return [...prev, dealershipId];
+        } else {
+            return prev.filter(id => id !== dealershipId);
+        }
+    });
   }
 
   const recentActivity = useMemo(() => {
@@ -106,6 +121,8 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignment }:
         relationshipBuilding: Math.round(total.relationshipBuilding / count),
     };
   }, [activity]);
+  
+  const canAssign = ['Owner', 'Admin', 'Trainer'].includes(currentUser.role) && ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager'].includes(user.role)
 
   return (
     <div className="space-y-4">
@@ -117,29 +134,43 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignment }:
                 </Avatar>
                 <div>
                     <CardTitle className="text-2xl">{user.name}</CardTitle>
-                    <CardDescription>{user.role} at {currentDealershipName}</CardDescription>
+                    <CardDescription>{user.role} at {currentDealershipNames}</CardDescription>
                 </div>
             </CardHeader>
         </Card>
 
-        {currentUser.role === 'Owner' && ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager'].includes(user.role) && (
+        {canAssign && (
             <Card>
                 <CardHeader>
-                    <CardTitle>Assign Dealership</CardTitle>
-                    <CardDescription>Move this manager to another dealership in your organization.</CardDescription>
+                    <CardTitle>Assign Dealerships</CardTitle>
+                    <CardDescription>Assign this manager to one or more dealerships.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex items-center gap-4">
-                    <Select onValueChange={setSelectedDealership} defaultValue={user.dealershipId}>
-                        <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Select a dealership..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {dealerships.map(d => (
-                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                <span className="truncate">
+                                    {selectedDealerships.length > 0 ? 
+                                        dealerships.filter(d => selectedDealerships.includes(d.id)).map(d => d.name).join(', ') :
+                                        "Select dealerships..."}
+                                </span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56" align="start">
+                            <DropdownMenuLabel>Dealerships</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {dealerships.map(dealership => (
+                                <DropdownMenuCheckboxItem
+                                    key={dealership.id}
+                                    checked={selectedDealerships.includes(dealership.id)}
+                                    onCheckedChange={(checked) => handleCheckedChange(dealership.id, !!checked)}
+                                >
+                                    {dealership.name}
+                                </DropdownMenuCheckboxItem>
                             ))}
-                        </SelectContent>
-                    </Select>
-                    <Button onClick={handleAssignDealership} disabled={isAssigning || selectedDealership === user.dealershipId}>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button onClick={handleAssignDealerships} disabled={isAssigning || isEqual([...user.dealershipIds].sort(), [...selectedDealerships].sort())}>
                         {isAssigning ? <Spinner size="sm" /> : "Assign"}
                     </Button>
                 </CardContent>

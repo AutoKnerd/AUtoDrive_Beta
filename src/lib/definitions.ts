@@ -16,7 +16,7 @@ export type User = {
   name: string;
   email: string;
   role: UserRole;
-  dealershipId: string;
+  dealershipIds: string[];
   avatarUrl: string;
   xp: number;
 };
