@@ -58,14 +58,13 @@ export function CreateLessonForm({ user, onLessonCreated }: CreateLessonFormProp
 
   const handleSuggestScenario = async () => {
     setIsSuggesting(true);
-    const trait = form.getValues('associatedTrait');
-    const role = form.getValues('targetRole');
+    const { title, targetRole, associatedTrait, category } = form.getValues();
 
-    if (!trait || !role) {
+    if (!title || !targetRole || !associatedTrait || !category) {
       toast({
         variant: 'destructive',
-        title: 'Please select a Trait and Role',
-        description: 'AI needs a trait and target role to suggest a scenario.',
+        title: 'Please complete lesson details',
+        description: 'AI needs the Title, Target Role, CX Trait, and Category to suggest a scenario.',
       });
       setIsSuggesting(false);
       return;
@@ -73,9 +72,10 @@ export function CreateLessonForm({ user, onLessonCreated }: CreateLessonFormProp
 
     try {
       const result = await suggestScenario({
-        targetRole: (role === 'global' ? 'consultant' : role) as UserRole, // AI needs a concrete role
-        cxTrait: trait,
-        teamPerformanceSummary: "The team struggles with proactively communicating delays and providing clear, empathetic explanations.",
+        lessonTitle: title,
+        targetRole: (targetRole === 'global' ? 'consultant' : targetRole) as UserRole, // AI needs a concrete role
+        cxTrait: associatedTrait,
+        category: category,
       });
       form.setValue('scenario', result.scenario, { shouldValidate: true });
       toast({

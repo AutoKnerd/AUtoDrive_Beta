@@ -2,16 +2,18 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { UserRole as UserRoleType, CxTrait as CxTraitType } from '@/lib/definitions';
+import { UserRole as UserRoleType, CxTrait as CxTraitType, LessonCategory as LessonCategoryType } from '@/lib/definitions';
 
 const UserRoleSchema = z.enum(['consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'Owner', 'Trainer', 'Admin']);
 const CxTraitSchema = z.enum(['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding']);
+const LessonCategorySchema = z.enum(['Sales Process', 'Product Knowledge', 'Customer Service', 'Financing', 'Service', 'Parts']);
 
 
 const SuggestScenarioInputSchema = z.object({
+  lessonTitle: z.string().describe("The title for the lesson being created."),
   targetRole: UserRoleSchema,
+  category: LessonCategorySchema,
   cxTrait: CxTraitSchema,
-  teamPerformanceSummary: z.string().describe("A brief summary of the team's weakest areas related to the CX trait."),
 });
 export type SuggestScenarioInput = z.infer<typeof SuggestScenarioInputSchema>;
 
@@ -29,15 +31,17 @@ const scenarioPrompt = ai.definePrompt({
   name: 'suggestScenarioPrompt',
   input: { schema: SuggestScenarioInputSchema },
   output: { schema: SuggestScenarioOutputSchema },
-  prompt: `You are a training content creator for the automotive industry. Your task is to write a short, realistic training scenario.
+  prompt: `You are a training content creator for the automotive industry. Your task is to write a short, realistic training scenario for a lesson with the title "{{lessonTitle}}".
 
-Role to be trained: {{targetRole}}
-Customer Experience Trait to focus on: {{cxTrait}}
-Summary of team's weakness: {{teamPerformanceSummary}}
+The scenario should be tailored for the following context:
 
-Based on this, generate a single, concise scenario that this team member might encounter. The scenario should be written from the customer's perspective or as a neutral observation. Do not include any questions or instructions for the trainee. Just the scenario itself.
+- Role to be trained: {{targetRole}}
+- Lesson Category: {{category}}
+- Customer Experience Trait to focus on: {{cxTrait}}
 
-Example: A customer who bought a car three weeks ago calls, and they sound frustrated. "I was promised a call back last week about the scratch we noticed on delivery, but I haven't heard from anyone."`,
+Based on this, generate a single, concise scenario that this team member might encounter. The scenario should be written from the customer's perspective or as a neutral observation. It should be directly relevant to the lesson title, category, and target CX trait. Do not include any questions or instructions for the trainee. Just the scenario itself.
+
+Example for a 'followUp' lesson: A customer who bought a car three weeks ago calls, and they sound frustrated. "I was promised a call back last week about the scratch we noticed on delivery, but I haven't heard from anyone."`,
 });
 
 const suggestScenarioFlow = ai.defineFlow(
