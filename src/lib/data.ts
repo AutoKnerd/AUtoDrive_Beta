@@ -310,31 +310,49 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
 }
 
 
-export async function registerDealership(dealershipName: string, userEmail: string, role: UserRole): Promise<{ activationCode: string; uses: number; }> {
+export async function registerDealership(
+    dealershipName: string, 
+    userEmail: string, 
+    role: UserRole
+): Promise<{ codes: { role: UserRole; activationCode: string; uses: number }[] }> {
     await simulateNetworkDelay();
 
     const dealershipId = dealershipName.toLowerCase().replace(/\s+/g, '-');
-    
-    const activationCode = Math.random().toString(36).slice(2, 10).toUpperCase();
-    
-    let uses = 30; // Default for other roles
-    if (role === 'Owner') {
-        uses = 1;
-    } else if (['manager', 'Service Manager', 'Parts Manager', 'Finance Manager'].includes(role)) {
-        uses = 10;
-    }
+    const generatedCodes: { role: UserRole; activationCode: string; uses: number }[] = [];
 
-    const newInvitation: InvitationCode = {
-        code: activationCode,
-        dealershipId: dealershipId,
-        role: role,
-        uses: uses,
+    const generateAndStoreCode = (codeRole: UserRole, uses: number) => {
+        const activationCode = Math.random().toString(36).slice(2, 10).toUpperCase();
+        const newInvitation: InvitationCode = {
+            code: activationCode,
+            dealershipId: dealershipId,
+            role: codeRole,
+            uses: uses,
+        };
+        invitationCodes.push(newInvitation);
+        generatedCodes.push({ role: codeRole, activationCode, uses });
     };
 
-    invitationCodes.push(newInvitation);
+    if (role === 'Owner') {
+        // Generate code for the owner
+        generateAndStoreCode('Owner', 1);
+        // Generate codes for managers the owner will invite
+        generateAndStoreCode('manager', 10);
+        generateAndStoreCode('Service Manager', 10);
+        generateAndStoreCode('Parts Manager', 10);
+        generateAndStoreCode('Finance Manager', 10);
+    } else {
+        // Original behavior for registering a manager directly
+        let uses = 30; // Default
+        if (['manager', 'Service Manager', 'Parts Manager', 'Finance Manager'].includes(role)) {
+            uses = 10;
+        } else if (role === 'Owner') {
+            uses = 1;
+        }
+        generateAndStoreCode(role, uses);
+    }
+    
+    console.log(`Generated invitation codes for dealership: ${dealershipName} (${dealershipId}). Intended for ${userEmail}`);
+    console.log(generatedCodes);
 
-    console.log(`Generated invitation code for dealership: ${dealershipName} (${dealershipId})`);
-    console.log(`Code: ${activationCode}, Role: ${role}, Uses: ${uses}. Intended for user: ${userEmail}`);
-
-    return { activationCode, uses };
+    return { codes: generatedCodes };
 }

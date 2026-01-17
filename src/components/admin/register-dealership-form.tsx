@@ -31,7 +31,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDealershipFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [registrationResult, setRegistrationResult] = useState<{ activationCode: string; uses: number } | null>(null);
+  const [registrationResult, setRegistrationResult] = useState<{ codes: { role: UserRole; activationCode: string; uses: number }[] } | null>(null);
   const { toast } = useToast();
 
   const form = useForm<RegisterFormValues>({
@@ -67,23 +67,33 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
     }
   }
   
-  if (registrationResult) {
-    const roleDisplay = form.getValues('role');
+  if (registrationResult && registrationResult.codes.length > 0) {
+    const primaryRole = form.getValues('role');
+    const primaryUserEmail = form.getValues('userEmail');
+
     return (
-        <Alert>
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Registration Successful!</AlertTitle>
-            <AlertDescription>
-                <p className="mb-2">An invitation code has been generated. Provide this to the new user to activate their account.</p>
-                <div className="rounded-md bg-muted p-3 font-mono text-sm">
-                    <p>Intended for: {form.getValues('userEmail')}</p>
-                    <p>Role: {roleDisplay === 'manager' ? 'Sales Manager' : roleDisplay}</p>
-                    <p>Invitation Code: <span className="font-bold text-primary">{registrationResult.activationCode}</span></p>
-                    <p>Code Uses: {registrationResult.uses}</p>
-                </div>
-            </AlertDescription>
-        </Alert>
-    )
+      <Alert>
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Registration Successful!</AlertTitle>
+        <AlertDescription>
+          <p className="mb-4">
+            {primaryRole === 'Owner'
+              ? 'Invitation codes have been generated for the new dealership. Provide these to the Owner to distribute to their team.'
+              : 'An invitation code has been generated. Provide this to the new user to activate their account.'}
+          </p>
+          <div className="space-y-3">
+            {registrationResult.codes.map((reg, index) => (
+              <div key={reg.activationCode} className="rounded-md bg-muted p-3 font-mono text-sm">
+                {index === 0 && <p className="mb-1">Intended for: {primaryUserEmail}</p>}
+                <p>Role: <span className="font-semibold">{reg.role === 'manager' ? 'Sales Manager' : reg.role}</span></p>
+                <p>Invitation Code: <span className="font-bold text-primary">{reg.activationCode}</span></p>
+                <p>Uses: {reg.uses}</p>
+              </div>
+            ))}
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   return (
