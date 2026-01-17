@@ -121,6 +121,23 @@ export async function getInvitationByToken(token: string): Promise<EmailInvitati
     return invitation || null;
 }
 
+export async function assignUserToDealership(userId: string, newDealershipId: string): Promise<User> {
+    await simulateNetworkDelay();
+    const userIndex = users.findIndex(u => u.userId === userId);
+    if (userIndex === -1) {
+        throw new Error("User not found.");
+    }
+
+    const dealershipExists = dealerships.some(d => d.id === newDealershipId);
+    if (!dealershipExists) {
+        throw new Error("Dealership not found.");
+    }
+    
+    users[userIndex].dealershipId = newDealershipId;
+    console.log(`Assigned user ${userId} to dealership ${newDealershipId}`);
+    return users[userIndex];
+}
+
 
 // LESSONS
 export async function getLessons(role: LessonRole): Promise<Lesson[]> {
@@ -249,7 +266,7 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
     }
 };
 
-export async function getDealerships(user?: User): Promise<string[]> {
+export async function getDealerships(user?: User): Promise<Dealership[]> {
     await simulateNetworkDelay();
 
     let relevantDealerships = dealerships.filter(d => d.id !== 'autoknerd-hq');
@@ -258,26 +275,17 @@ export async function getDealerships(user?: User): Promise<string[]> {
         relevantDealerships = relevantDealerships.filter(d => d.trainerId === user.userId);
     }
     
-    return relevantDealerships.map(d => d.name);
+    return relevantDealerships;
 }
 
-function getDealershipIdFromName(name: string): string | undefined {
-    if (name === 'all') return 'all';
-    const dealership = dealerships.find(d => d.name === name);
-    return dealership?.id;
-}
-
-
-export async function getManagerStats(dealershipName: string, userRole: UserRole): Promise<{ totalLessons: number; avgEmpathy: number }> {
+export async function getManagerStats(dealershipId: string, userRole: UserRole): Promise<{ totalLessons: number; avgEmpathy: number }> {
     await simulateNetworkDelay();
 
-    const dealershipId = getDealershipIdFromName(dealershipName);
     const teamRoles = getTeamMemberRoles(userRole);
     
     let relevantLogs: LessonLog[];
 
     if ((['Owner', 'Admin', 'Trainer'].includes(userRole)) && dealershipId === 'all') {
-        // All users except other owners/admins
         const teamUserIds = users.filter(u => !['Owner', 'Admin', 'Trainer'].includes(u.role)).map(u => u.userId);
         relevantLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
     } else {
@@ -298,35 +306,31 @@ export async function getManagerStats(dealershipName: string, userRole: UserRole
     return { totalLessons, avgEmpathy };
 }
 
-export async function getTeamActivity(dealershipName: string, userRole: UserRole): Promise<{ consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[]> {
+export async function getTeamActivity(dealershipId: string, userRole: UserRole): Promise<{ consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[]> {
     await simulateNetworkDelay();
 
-    const dealershipId = getDealershipIdFromName(dealershipName);
     const teamRoles = getTeamMemberRoles(userRole);
 
     let teamMembers: User[];
 
     if (['Owner', 'Admin', 'Trainer'].includes(userRole)) {
         if (dealershipId === 'all') {
-             // For Admin/Owner 'all', get all manageable users across all dealerships
             teamMembers = users.filter(u => teamRoles.includes(u.role));
         } else {
-            // For Admin/Owner single dealership view
             teamMembers = users.filter(u => u.dealershipId === dealershipId && teamRoles.includes(u.role));
         }
     } else {
-         // For other managers, scope to their dealership
          teamMembers = users.filter(u => u.dealershipId === dealershipId && teamRoles.includes(u.role));
     }
     
     const activity = teamMembers.map(member => {
         const memberLogs = lessonLogs.filter(log => log.userId === member.userId);
         if (memberLogs.length === 0) {
-            return { consultant: member, lessonsCompleted: 0, totalXp: 0, avgScore: 0 };
+            return { consultant: member, lessonsCompleted: 0, totalXp: member.xp, avgScore: 0 };
         }
 
         const lessonsCompleted = memberLogs.length;
-        const totalXp = memberLogs.reduce((sum, log) => sum + log.xpGained, 0);
+        const totalXp = member.xp;
         
         const totalScore = memberLogs.reduce((sum, log) => {
             return sum + (log.empathy + log.listening + log.trust + log.followUp + log.closing + log.relationshipBuilding);
@@ -353,19 +357,24 @@ export async function sendInvitation(
     let dealershipId: string;
 
     if (!dealership) {
-        dealershipId = dealershipName.toLowerCase().replace(/\s+/g, '-');
-        
-        const newDealership: Dealership = {
-            id: dealershipId,
-            name: dealershipName,
-        };
         const creator = users.find(u => u.userId === creatorId);
-        if (creator && creator.role === 'Trainer') {
-            newDealership.trainerId = creatorId;
+        if (creator && ['Admin', 'Trainer'].includes(creator.role)) {
+            dealershipId = dealershipName.toLowerCase().replace(/\s+/g, '-');
+            
+            const newDealership: Dealership = {
+                id: dealershipId,
+                name: dealershipName,
+            };
+            if (creator.role === 'Trainer') {
+                newDealership.trainerId = creatorId;
+            }
+
+            dealerships.push(newDealership);
+            console.log(`Created new dealership: ${dealershipName} with ID ${dealershipId}`);
+        } else {
+            throw new Error('You do not have permission to create a new dealership.');
         }
 
-        dealerships.push(newDealership);
-        console.log(`Created new dealership: ${dealershipName} with ID ${dealershipId}`);
     } else {
         dealershipId = dealership.id;
     }

@@ -1,15 +1,23 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { User, Lesson, LessonLog, CxTrait, LessonRole } from '@/lib/definitions';
-import { getLessons, getConsultantActivity } from '@/lib/data';
+import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership } from '@/lib/definitions';
+import { getLessons, getConsultantActivity, assignUserToDealership } from '@/lib/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { useToast } from '@/hooks/use-toast';
 
 interface TeamMemberCardProps {
   user: User;
+  currentUser: User;
+  dealerships: Dealership[];
+  onAssignment: () => void;
 }
 
 const metricIcons: Record<CxTrait, LucideIcon> = {
@@ -21,10 +29,13 @@ const metricIcons: Record<CxTrait, LucideIcon> = {
   relationshipBuilding: Users,
 };
 
-export function TeamMemberCard({ user }: TeamMemberCardProps) {
+export function TeamMemberCard({ user, currentUser, dealerships, onAssignment }: TeamMemberCardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [activity, setActivity] = useState<LessonLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const [selectedDealership, setSelectedDealership] = useState(user.dealershipId);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -40,6 +51,30 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
     }
     fetchData();
   }, [user]);
+  
+  const currentDealershipName = useMemo(() => {
+    return dealerships.find(d => d.id === user.dealershipId)?.name || user.dealershipId;
+  }, [dealerships, user.dealershipId]);
+
+  async function handleAssignDealership() {
+    setIsAssigning(true);
+    try {
+        await assignUserToDealership(user.userId, selectedDealership);
+        toast({
+            title: 'Success',
+            description: `${user.name} has been assigned to a new dealership.`,
+        });
+        onAssignment(); // This will trigger a re-fetch in the parent
+    } catch(e) {
+        toast({
+            variant: 'destructive',
+            title: 'Assignment Failed',
+            description: (e as Error).message || 'An error occurred.',
+        });
+    } finally {
+        setIsAssigning(false);
+    }
+  }
 
   const recentActivity = useMemo(() => {
     if (!activity.length) return null;
@@ -82,10 +117,34 @@ export function TeamMemberCard({ user }: TeamMemberCardProps) {
                 </Avatar>
                 <div>
                     <CardTitle className="text-2xl">{user.name}</CardTitle>
-                    <CardDescription>{user.role} at {user.dealershipId}</CardDescription>
+                    <CardDescription>{user.role} at {currentDealershipName}</CardDescription>
                 </div>
             </CardHeader>
         </Card>
+
+        {currentUser.role === 'Owner' && ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager'].includes(user.role) && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Assign Dealership</CardTitle>
+                    <CardDescription>Move this manager to another dealership in your organization.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center gap-4">
+                    <Select onValueChange={setSelectedDealership} defaultValue={user.dealershipId}>
+                        <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select a dealership..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {dealerships.map(d => (
+                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button onClick={handleAssignDealership} disabled={isAssigning || selectedDealership === user.dealershipId}>
+                        {isAssigning ? <Spinner size="sm" /> : "Assign"}
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
       
        <Card>
         <CardHeader>

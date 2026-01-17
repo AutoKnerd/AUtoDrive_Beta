@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import type { User, LessonLog, Lesson, LessonRole, CxTrait } from '@/lib/definitions';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership } from '@/lib/definitions';
 import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity, getDealerships, getDealershipById } from '@/lib/data';
 import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle, Store, Mail } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,64 +39,62 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
   const [isRegisterOpen, setRegisterOpen] = useState(false);
 
-  // New state for dealership selection
-  const [dealerships, setDealerships] = useState<string[]>([]);
-  const [selectedDealership, setSelectedDealership] = useState<string | null>(null);
+  const [dealerships, setDealerships] = useState<Dealership[]>([]);
+  const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchInitialData() {
         if(['Owner', 'Admin', 'Trainer'].includes(user.role)) {
             const fetchedDealerships = await getDealerships(user);
             setDealerships(fetchedDealerships);
-            setSelectedDealership('all'); // Owners/Admins start with an 'all' view.
+            setSelectedDealershipId('all');
         } else {
             const dealership = await getDealershipById(user.dealershipId);
             if (dealership) {
-                setSelectedDealership(dealership.name);
-            } else {
-                setSelectedDealership(user.dealershipId);
+                setDealerships([dealership]);
+                setSelectedDealershipId(dealership.id);
             }
         }
     }
     fetchInitialData();
   }, [user]);
 
-  useEffect(() => {
-    // Don't fetch data until a dealership is selected
-    if (!selectedDealership) return;
+  const fetchData = useCallback(async () => {
+    if (!selectedDealershipId) return;
 
-    async function fetchData() {
-      setLoading(true);
+    setLoading(true);
 
-      const promises: Promise<any>[] = [
-        getManagerStats(selectedDealership!, user.role),
-        getTeamActivity(selectedDealership!, user.role),
-      ];
+    const promises: Promise<any>[] = [
+      getManagerStats(selectedDealershipId, user.role),
+      getTeamActivity(selectedDealershipId, user.role),
+    ];
 
-      if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
-        promises.push(getLessons(user.role as LessonRole));
-        promises.push(getConsultantActivity(user.userId));
-      } else {
-        // Ensure promises array has same length
-        promises.push(Promise.resolve([]));
-        promises.push(Promise.resolve([]));
-      }
-
-      const [managerStats, activity, fetchedLessons, fetchedManagerActivity] = await Promise.all(promises);
-      
-      setStats(managerStats as { totalLessons: number, avgEmpathy: number });
-      setTeamActivity(activity as TeamMemberStats[]);
-      if (fetchedLessons) {
-        setLessons(fetchedLessons as Lesson[]);
-      }
-      if (fetchedManagerActivity) {
-        setManagerActivity(fetchedManagerActivity as LessonLog[]);
-      }
-
-      setLoading(false);
+    if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+      promises.push(getLessons(user.role as LessonRole));
+      promises.push(getConsultantActivity(user.userId));
+    } else {
+      promises.push(Promise.resolve([]));
+      promises.push(Promise.resolve([]));
     }
+
+    const [managerStats, activity, fetchedLessons, fetchedManagerActivity] = await Promise.all(promises);
+    
+    setStats(managerStats as { totalLessons: number, avgEmpathy: number });
+    setTeamActivity(activity as TeamMemberStats[]);
+    if (fetchedLessons) {
+      setLessons(fetchedLessons as Lesson[]);
+    }
+    if (fetchedManagerActivity) {
+      setManagerActivity(fetchedManagerActivity as LessonLog[]);
+    }
+
+    setLoading(false);
+  }, [user.userId, user.role, selectedDealershipId]);
+
+  useEffect(() => {
     fetchData();
-  }, [user.userId, user.role, selectedDealership]); // Re-fetch when selectedDealership changes
+  }, [fetchData]);
+
 
   const managerAverageScores = useMemo(() => {
       if (['Owner', 'Admin', 'Trainer'].includes(user.role)) return null;
@@ -142,24 +140,24 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const statDescription = useMemo(() => {
     if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
-      return selectedDealership === 'all' ? 'Across all dealerships' : `For ${selectedDealership}`;
+      const dealershipName = dealerships.find(d => d.id === selectedDealershipId)?.name;
+      return selectedDealershipId === 'all' ? 'Across all dealerships' : `For ${dealershipName}`;
     }
     return 'Across your entire team';
-  }, [user.role, selectedDealership]);
+  }, [user.role, selectedDealershipId, dealerships]);
   
   async function handleDealershipRegistered() {
-    if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+    if (['Admin', 'Trainer'].includes(user.role)) {
         const fetchedDealerships = await getDealerships(user);
         setDealerships(fetchedDealerships);
     }
-    // We keep the dialog open if the user is an Admin/Trainer/Owner to allow multiple invitations
     if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
         setRegisterOpen(false);
     }
   }
 
   const canInvite = ['Admin', 'Trainer', 'Owner', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
-  const isPrivilegedInviter = ['Admin', 'Trainer', 'Owner'].includes(user.role);
+  const isPrivilegedInviter = ['Admin', 'Trainer'].includes(user.role);
   const inviteDialogTitle = isPrivilegedInviter ? 'Invite New User' : 'Invite Team Member';
   const inviteDialogDescription = isPrivilegedInviter
     ? 'Send an invitation to a user for a new or existing dealership.'
@@ -175,14 +173,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 <CardDescription>Select a dealership to view its performance statistics.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Select value={selectedDealership || 'all'} onValueChange={setSelectedDealership}>
+                <Select value={selectedDealershipId || 'all'} onValueChange={setSelectedDealershipId}>
                     <SelectTrigger className="w-full md:w-1/3">
                         <SelectValue placeholder="Select a dealership" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Dealerships</SelectItem>
                         {dealerships.map(d => (
-                            <SelectItem key={d} value={d}>{d}</SelectItem>
+                            <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
@@ -265,9 +263,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     Dealer report
                 </CardTitle>
                 <CardDescription>
-                    {selectedDealership === 'all'
+                    {selectedDealershipId === 'all'
                         ? 'Select a dealership to view its team performance.'
-                        : `Performance overview of staff at ${selectedDealership}.`}
+                        : `Performance overview of staff at ${dealerships.find(d => d.id === selectedDealershipId)?.name}.`}
                 </CardDescription>
             </div>
              <div className="flex gap-2">
@@ -316,7 +314,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
-          ) : selectedDealership && selectedDealership !== 'all' ? (
+          ) : selectedDealershipId && selectedDealershipId !== 'all' ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -361,7 +359,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <DialogHeader>
                             <DialogTitle>Performance Snapshot</DialogTitle>
                         </DialogHeader>
-                        <TeamMemberCard user={member.consultant} />
+                        <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignment={fetchData} />
                     </DialogContent>
                   </Dialog>
                 )) : (
@@ -377,13 +375,13 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {dealerships.map(dealership => (
                     <Card 
-                    key={dealership} 
+                    key={dealership.id} 
                     className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-1"
-                    onClick={() => setSelectedDealership(dealership)}
+                    onClick={() => setSelectedDealershipId(dealership.id)}
                     >
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
-                        {dealership}
+                        {dealership.name}
                         <Store className="h-5 w-5 text-muted-foreground" />
                         </CardTitle>
                     </CardHeader>
