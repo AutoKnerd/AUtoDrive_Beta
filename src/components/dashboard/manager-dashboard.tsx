@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait } from '@/lib/definitions';
 import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity, getDealerships } from '@/lib/data';
-import { StatCard } from './stat-card';
 import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -191,38 +190,41 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {loading ? (
-            Array.from({length: 4}).map((_, i) => <Skeleton key={i} className="h-32"/>)
-        ) : (
-          <>
-            <StatCard 
-              title="Total Lessons Completed"
-              value={stats?.totalLessons.toString() || '0'}
-              description={statDescription}
-              Icon={CheckCircle}
-            />
-            <StatCard 
-              title="Team Members"
-              value={teamActivity.length.toString()}
-              description={statDescription}
-              Icon={Users}
-            />
-            <StatCard 
-              title="Average Empathy Score"
-              value={`${stats?.avgEmpathy || 0}%`}
-              description={statDescription}
-              Icon={Smile}
-            />
-            <StatCard 
-              title="Total XP Gained"
-              value={teamActivity.reduce((sum, member) => sum + member.totalXp, 0).toLocaleString()}
-              description={statDescription}
-              Icon={Star}
-            />
-          </>
-        )}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Team Statistics</CardTitle>
+          <CardDescription>{statDescription}</CardDescription>
+        </CardHeader>
+        <CardContent>
+            {loading ? (
+                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4">
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><CheckCircle className="h-4 w-4"/>Total Lessons</p>
+                        <p className="text-2xl font-bold">{stats?.totalLessons.toString() || '0'}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4"/>Team Members</p>
+                        <p className="text-2xl font-bold">{teamActivity.length.toString()}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Smile className="h-4 w-4"/>Avg. Empathy</p>
+                        <p className="text-2xl font-bold">{`${stats?.avgEmpathy || 0}%`}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Star className="h-4 w-4"/>Total XP</p>
+                        <p className="text-2xl font-bold">{teamActivity.reduce((sum, member) => sum + member.totalXp, 0).toLocaleString()}</p>
+                    </div>
+                </div>
+            )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
