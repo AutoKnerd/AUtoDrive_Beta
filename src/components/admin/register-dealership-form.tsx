@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { MailCheck } from 'lucide-react';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface RegisterDealershipFormProps {
   user: User;
@@ -38,7 +39,7 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
   const [isNewDealership, setIsNewDealership] = useState(false);
   const [managerDealershipName, setManagerDealershipName] = useState('');
 
-  const canManageAllDealerships = ['Admin', 'Trainer'].includes(user.role);
+  const canManageAllDealerships = ['Admin', 'Trainer', 'Owner'].includes(user.role);
   const registrationRoles = getTeamMemberRoles(user.role);
 
   useEffect(() => {
@@ -101,6 +102,9 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
 
       if (canManageAllDealerships) {
         setIsNewDealership(false);
+        // Refresh dealership list
+        const d = await getDealerships(user);
+        setDealerships(d);
       }
 
     } catch (error) {
@@ -135,102 +139,104 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
-        <FormField
-          control={form.control}
-          name="dealershipName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Dealership</FormLabel>
-                { !canManageAllDealerships ? (
-                    <Input value={managerDealershipName} disabled />
-                ) : (
-                    <>
-                        <Select 
-                            onValueChange={(value) => {
-                                if (value === '---new---') {
-                                    setIsNewDealership(true);
-                                    field.onChange('');
-                                } else {
-                                    setIsNewDealership(false);
-                                    field.onChange(value);
-                                }
-                            }} 
-                            value={isNewDealership ? '---new---' : (field.value || '')}
-                        >
-                        <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select an existing dealership..." />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="---new---">
-                                <span className="font-semibold">-- Add New Dealership --</span>
-                            </SelectItem>
-                            {dealerships.map(d => (
-                                <SelectItem key={d} value={d}>{d}</SelectItem>
-                            ))}
-                        </SelectContent>
-                        </Select>
-                        {isNewDealership && (
-                            <FormControl>
-                                <Input
-                                    placeholder="Enter new dealership name"
-                                    {...field}
-                                    className="mt-2"
-                                />
-                            </FormControl>
-                        )}
-                    </>
-                )}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FormField
+       <ScrollArea className="max-h-[70vh] -mx-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4 px-6">
+          <FormField
             control={form.control}
-            name="userEmail"
+            name="dealershipName"
             render={({ field }) => (
-                <FormItem>
-                <FormLabel>New User's Email</FormLabel>
-                <FormControl>
-                    <Input placeholder="user@example.com" {...field} />
-                </FormControl>
+              <FormItem>
+                <FormLabel>Dealership</FormLabel>
+                  { !canManageAllDealerships ? (
+                      <Input value={managerDealershipName} disabled />
+                  ) : (
+                      <>
+                          <Select 
+                              onValueChange={(value) => {
+                                  if (value === '---new---') {
+                                      setIsNewDealership(true);
+                                      field.onChange('');
+                                  } else {
+                                      setIsNewDealership(false);
+                                      field.onChange(value);
+                                  }
+                              }} 
+                              value={isNewDealership ? '---new---' : (field.value || '')}
+                          >
+                          <FormControl>
+                              <SelectTrigger>
+                                  <SelectValue placeholder="Select an existing dealership..." />
+                              </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                              <SelectItem value="---new---">
+                                  <span className="font-semibold">-- Add New Dealership --</span>
+                              </SelectItem>
+                              {dealerships.map(d => (
+                                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
+                          </SelectContent>
+                          </Select>
+                          {isNewDealership && (
+                              <FormControl>
+                                  <Input
+                                      placeholder="Enter new dealership name"
+                                      {...field}
+                                      className="mt-2"
+                                  />
+                              </FormControl>
+                          )}
+                      </>
+                  )}
                 <FormMessage />
-                </FormItem>
+              </FormItem>
             )}
-            />
-            <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel>New User's Role</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a role..." />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {registrationRoles.length === 0 && <SelectItem value="" disabled>No roles available to invite.</SelectItem>}
-                            {registrationRoles.map(role => (
-                                <SelectItem key={role} value={role}>
-                                    {role === 'manager' ? 'Sales Manager' : role}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-        <Button type="submit" disabled={isSubmitting || registrationRoles.length === 0}>
-          {isSubmitting ? <Spinner size="sm" /> : 'Send Invitation'}
-        </Button>
-      </form>
+          />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+              control={form.control}
+              name="userEmail"
+              render={({ field }) => (
+                  <FormItem>
+                  <FormLabel>New User's Email</FormLabel>
+                  <FormControl>
+                      <Input placeholder="user@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                  </FormItem>
+              )}
+              />
+              <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>New User's Role</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                          <SelectTrigger>
+                              <SelectValue placeholder="Select a role..." />
+                          </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                              {registrationRoles.length === 0 && <SelectItem value="" disabled>No roles available to invite.</SelectItem>}
+                              {registrationRoles.map(role => (
+                                  <SelectItem key={role} value={role}>
+                                      {role === 'manager' ? 'Sales Manager' : role}
+                                  </SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                  </FormItem>
+              )}
+              />
+          </div>
+          <Button type="submit" disabled={isSubmitting || registrationRoles.length === 0}>
+            {isSubmitting ? <Spinner size="sm" /> : 'Send Invitation'}
+          </Button>
+        </form>
+      </ScrollArea>
     </Form>
   );
 }

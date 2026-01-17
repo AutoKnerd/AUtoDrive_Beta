@@ -152,14 +152,19 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         const fetchedDealerships = await getDealerships(user);
         setDealerships(fetchedDealerships);
     }
-    setRegisterOpen(false);
+    // We keep the dialog open if the user is an Admin/Trainer/Owner to allow multiple invitations
+    if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+        setRegisterOpen(false);
+    }
   }
 
   const canInvite = ['Admin', 'Trainer', 'Owner', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
-  const inviteDialogTitle = ['Admin', 'Trainer'].includes(user.role) ? 'Invite New User' : 'Invite Team Member';
-  const inviteDialogDescription = ['Admin', 'Trainer'].includes(user.role) 
+  const isPrivilegedInviter = ['Admin', 'Trainer', 'Owner'].includes(user.role);
+  const inviteDialogTitle = isPrivilegedInviter ? 'Invite New User' : 'Invite Team Member';
+  const inviteDialogDescription = isPrivilegedInviter
     ? 'Send an invitation to a user for a new or existing dealership.'
     : `Send an invitation to a new member of your team.`;
+
 
   return (
     <>
@@ -340,7 +345,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             </div>
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline">{member.consultant.role}</Badge>
+                                <Badge variant="outline">{member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}</Badge>
                             </TableCell>
                             <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
                             <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
