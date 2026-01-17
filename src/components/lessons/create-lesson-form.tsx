@@ -27,8 +27,24 @@ const createLessonSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters long.'),
   targetRole: z.string().min(1, 'You must select a target role for this lesson.'),
   associatedTrait: z.enum(cxTraits),
-  category: z.enum(lessonCategories as [string, ...string[]]),
+  category: z.string(),
   scenario: z.string().min(20, 'The scenario must be at least 20 characters long.'),
+}).refine((data) => {
+    const role = data.targetRole as UserRole | 'global';
+    const availableCategories = role === 'global' 
+      ? lessonCategories 
+      : (lessonCategoriesByRole[role] || []);
+
+    // If categories are available for the selected role, one must be chosen.
+    if (availableCategories.length > 0) {
+      return data.category && availableCategories.includes(data.category as LessonCategory);
+    }
+    
+    // If no categories are available, this field is not required.
+    return true;
+}, {
+  message: 'Please select a category from the list.',
+  path: ['category'],
 });
 
 type CreateLessonFormValues = z.infer<typeof createLessonSchema>;
@@ -44,7 +60,7 @@ export function CreateLessonForm({ user, onLessonCreated }: CreateLessonFormProp
       title: '',
       targetRole: '',
       associatedTrait: 'empathy',
-      category: '' as any,
+      category: '',
       scenario: '',
     },
   });
@@ -95,7 +111,7 @@ export function CreateLessonForm({ user, onLessonCreated }: CreateLessonFormProp
         lessonTitle: title,
         targetRole: (targetRole === 'global' ? 'consultant' : targetRole) as UserRole, // AI needs a concrete role
         cxTrait: associatedTrait,
-        category: category,
+        category: category as LessonCategory,
       });
       form.setValue('scenario', result.scenario, { shouldValidate: true });
       toast({
@@ -119,7 +135,7 @@ export function CreateLessonForm({ user, onLessonCreated }: CreateLessonFormProp
     try {
       await createLesson({
         title: data.title,
-        category: data.category,
+        category: data.category as LessonCategory,
         associatedTrait: data.associatedTrait,
         targetRole: data.targetRole as UserRole | 'global',
         scenario: data.scenario,
