@@ -31,7 +31,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDealershipFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activationCode, setActivationCode] = useState<string | null>(null);
+  const [registrationResult, setRegistrationResult] = useState<{ activationCode: string; uses: number } | null>(null);
   const { toast } = useToast();
 
   const form = useForm<RegisterFormValues>({
@@ -45,11 +45,11 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
 
   async function onSubmit(data: RegisterFormValues) {
     setIsSubmitting(true);
-    setActivationCode(null);
+    setRegistrationResult(null);
     try {
       const result = await registerDealership(data.dealershipName, data.userEmail, data.role);
       
-      setActivationCode(result.activationCode);
+      setRegistrationResult(result);
       toast({
         title: 'Dealership Registered!',
         description: `${data.dealershipName} has been created.`,
@@ -67,16 +67,19 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
     }
   }
   
-  if (activationCode) {
+  if (registrationResult) {
+    const roleDisplay = form.getValues('role');
     return (
         <Alert>
             <Terminal className="h-4 w-4" />
             <AlertTitle>Registration Successful!</AlertTitle>
             <AlertDescription>
-                <p className="mb-2">The dealership has been created. Provide the following one-time activation code to the new user.</p>
+                <p className="mb-2">An activation code has been generated. Provide this to the new user.</p>
                 <div className="rounded-md bg-muted p-3 font-mono text-sm">
                     <p>Email: {form.getValues('userEmail')}</p>
-                    <p>Activation Code: <span className="font-bold text-primary">{activationCode}</span></p>
+                    <p>Role: {roleDisplay === 'manager' ? 'Sales Manager' : roleDisplay}</p>
+                    <p>Activation Code: <span className="font-bold text-primary">{registrationResult.activationCode}</span></p>
+                    <p>Code Uses: {registrationResult.uses}</p>
                 </div>
             </AlertDescription>
         </Alert>

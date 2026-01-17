@@ -268,7 +268,7 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
 }
 
 
-export async function registerDealership(dealershipName: string, userEmail: string, role: UserRole): Promise<{ activationCode: string }> {
+export async function registerDealership(dealershipName: string, userEmail: string, role: UserRole): Promise<{ activationCode: string; uses: number; }> {
     await simulateNetworkDelay();
 
     if (users.some(u => u.email.toLowerCase() === userEmail.toLowerCase())) {
@@ -294,8 +294,15 @@ export async function registerDealership(dealershipName: string, userEmail: stri
 
     users.push(newUser);
     
-    console.log(`Registered new dealership: ${dealershipName} (${dealershipId})`);
-    console.log(`New ${role}: ${userEmail} with activation code: ${activationCode}`);
+    let uses = 30; // Default for other roles
+    if (role === 'Owner') {
+        uses = 1;
+    } else if (['manager', 'Service Manager', 'Parts Manager', 'Finance Manager'].includes(role)) {
+        uses = 10;
+    }
 
-    return { activationCode };
+    console.log(`Registered new dealership: ${dealershipName} (${dealershipId})`);
+    console.log(`New ${role}: ${userEmail} with activation code: ${activationCode} (${uses} uses)`);
+
+    return { activationCode, uses };
 }
