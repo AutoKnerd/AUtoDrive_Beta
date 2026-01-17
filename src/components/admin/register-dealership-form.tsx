@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { sendInvitation, getDealerships } from '@/lib/data';
-import { UserRole } from '@/lib/definitions';
+import { sendInvitation, getDealerships, getTeamMemberRoles } from '@/lib/data';
+import { User, UserRole } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -16,20 +16,19 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { MailCheck } from 'lucide-react';
 
 interface RegisterDealershipFormProps {
+  user: User;
   onDealershipRegistered?: () => void;
 }
 
-const registrationRoles: UserRole[] = ['Owner', 'manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'consultant', 'Service Writer', 'Parts Consultant'];
-
 const registerSchema = z.object({
-  dealershipName: z.string().min(3, 'Dealership name must be at least 3 characters long.'),
+  dealershipName: z.string().min(1, 'Dealership name is required.'),
   userEmail: z.string().email('Please enter a valid email address for the intended user.'),
-  role: z.enum(registrationRoles as [UserRole, ...UserRole[]]),
+  role: z.string().min(1, "A role must be selected."),
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDealershipFormProps) {
+export function RegisterDealershipForm({ user, onDealershipRegistered }: RegisterDealershipFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invitationSent, setInvitationSent] = useState(false);
   const { toast } = useToast();
@@ -37,23 +36,28 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
   const [dealerships, setDealerships] = useState<string[]>([]);
   const [isNewDealership, setIsNewDealership] = useState(false);
 
+  const canManageAllDealerships = ['Admin', 'Trainer'].includes(user.role);
+  const registrationRoles = getTeamMemberRoles(user.role);
+
   useEffect(() => {
     async function fetchDealerships() {
-        const d = await getDealerships();
-        setDealerships(d);
-        if (d.length === 0) {
-            setIsNewDealership(true);
+        if (canManageAllDealerships) {
+            const d = await getDealerships();
+            setDealerships(d);
+            if (d.length === 0) {
+                setIsNewDealership(true);
+            }
         }
     }
     fetchDealerships();
-  }, []);
+  }, [canManageAllDealerships]);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      dealershipName: '',
+      dealershipName: canManageAllDealerships ? '' : user.dealershipId,
       userEmail: '',
-      role: 'Owner',
+      role: '',
     },
   });
 
@@ -61,7 +65,12 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
     setIsSubmitting(true);
     setInvitationSent(false);
     try {
-      await sendInvitation(data.dealershipName, data.userEmail, data.role);
+      const dealershipToUse = canManageAllDealerships ? data.dealershipName : user.dealershipId;
+      if (!dealershipToUse) {
+        throw new Error('Dealership name is missing.');
+      }
+      
+      await sendInvitation(dealershipToUse, data.userEmail, data.role as UserRole);
       
       setInvitationSent(true);
       toast({
@@ -70,8 +79,15 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
       });
       
       onDealershipRegistered?.();
-      form.reset();
-      setIsNewDealership(false);
+      form.reset({
+        dealershipName: canManageAllDealerships ? '' : user.dealershipId,
+        userEmail: '',
+        role: '',
+      });
+
+      if (canManageAllDealerships) {
+        setIsNewDealership(false);
+      }
 
     } catch (error) {
       toast({
@@ -96,7 +112,7 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
             </p>
           </AlertDescription>
         </Alert>
-        <Button onClick={() => { setInvitationSent(false); setIsNewDealership(false); } } className="mt-4">
+        <Button onClick={() => { setInvitationSent(false); if (canManageAllDealerships) setIsNewDealership(false); } } className="mt-4">
             Send Another Invitation
         </Button>
       </div>
@@ -112,41 +128,47 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
           render={({ field }) => (
             <FormItem>
               <FormLabel>Dealership</FormLabel>
-                <Select 
-                    onValueChange={(value) => {
-                        if (value === '---new---') {
-                            setIsNewDealership(true);
-                            field.onChange('');
-                        } else {
-                            setIsNewDealership(false);
-                            field.onChange(value);
-                        }
-                    }} 
-                    value={isNewDealership ? '---new---' : (field.value || '')}
-                >
-                  <FormControl>
-                      <SelectTrigger>
-                          <SelectValue placeholder="Select an existing dealership..." />
-                      </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                      <SelectItem value="---new---">
-                        <span className="font-semibold">-- Add New Dealership --</span>
-                      </SelectItem>
-                      {dealerships.map(d => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              {isNewDealership && (
-                <FormControl>
-                    <Input
-                        placeholder="Enter new dealership name"
-                        {...field}
-                        className="mt-2"
-                    />
-                </FormControl>
-              )}
+                { !canManageAllDealerships ? (
+                    <Input value={user.dealershipId} disabled />
+                ) : (
+                    <>
+                        <Select 
+                            onValueChange={(value) => {
+                                if (value === '---new---') {
+                                    setIsNewDealership(true);
+                                    field.onChange('');
+                                } else {
+                                    setIsNewDealership(false);
+                                    field.onChange(value);
+                                }
+                            }} 
+                            value={isNewDealership ? '---new---' : (field.value || '')}
+                        >
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select an existing dealership..." />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="---new---">
+                                <span className="font-semibold">-- Add New Dealership --</span>
+                            </SelectItem>
+                            {dealerships.map(d => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        {isNewDealership && (
+                            <FormControl>
+                                <Input
+                                    placeholder="Enter new dealership name"
+                                    {...field}
+                                    className="mt-2"
+                                />
+                            </FormControl>
+                        )}
+                    </>
+                )}
               <FormMessage />
             </FormItem>
           )}
@@ -178,11 +200,12 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
                         </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                        {registrationRoles.map(role => (
-                            <SelectItem key={role} value={role}>
-                                {role === 'manager' ? 'Sales Manager' : role}
-                            </SelectItem>
-                        ))}
+                            {registrationRoles.length === 0 && <SelectItem value="" disabled>No roles available to invite.</SelectItem>}
+                            {registrationRoles.map(role => (
+                                <SelectItem key={role} value={role}>
+                                    {role === 'manager' ? 'Sales Manager' : role}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     <FormMessage />
@@ -190,7 +213,7 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
             )}
             />
         </div>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting || registrationRoles.length === 0}>
           {isSubmitting ? <Spinner size="sm" /> : 'Send Invitation'}
         </Button>
       </form>

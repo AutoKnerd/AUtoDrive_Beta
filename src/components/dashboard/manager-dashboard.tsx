@@ -142,10 +142,18 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [user.role, selectedDealership]);
   
   async function handleDealershipRegistered() {
-    const fetchedDealerships = await getDealerships();
-    setDealerships(fetchedDealerships);
+    if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+        const fetchedDealerships = await getDealerships();
+        setDealerships(fetchedDealerships);
+    }
     setRegisterOpen(false);
   }
+
+  const canInvite = ['Admin', 'Trainer', 'Owner', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
+  const inviteDialogTitle = ['Admin', 'Trainer'].includes(user.role) ? 'Invite New User' : 'Invite Team Member';
+  const inviteDialogDescription = ['Admin', 'Trainer'].includes(user.role) 
+    ? 'Send an invitation to a user for a new or existing dealership.'
+    : `Send an invitation to a new member of your team.`;
 
   return (
     <>
@@ -252,7 +260,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 </CardDescription>
             </div>
              <div className="flex gap-2">
-                {['Admin', 'Trainer'].includes(user.role) && (
+                {canInvite && (
                     <Dialog open={isRegisterOpen} onOpenChange={setRegisterOpen}>
                         <DialogTrigger asChild>
                                 <Button variant="outline">
@@ -262,12 +270,12 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[525px]">
                             <DialogHeader>
-                                <DialogTitle>Invite New User</DialogTitle>
+                                <DialogTitle>{inviteDialogTitle}</DialogTitle>
                                 <DialogDescription>
-                                    Send an invitation to a user for a new or existing dealership.
+                                    {inviteDialogDescription}
                                 </DialogDescription>
                             </DialogHeader>
-                            <RegisterDealershipForm onDealershipRegistered={handleDealershipRegistered} />
+                            <RegisterDealershipForm user={user} onDealershipRegistered={handleDealershipRegistered} />
                         </DialogContent>
                     </Dialog>
                 )}
