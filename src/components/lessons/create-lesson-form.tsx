@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Sparkles } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CreateLessonFormProps {
   user: User;
@@ -160,121 +161,123 @@ export function CreateLessonForm({ user, onLessonCreated }: CreateLessonFormProp
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Lesson Title</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Handling Price Objections" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-4">
+      <ScrollArea className="max-h-[70vh]">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 px-1 py-4">
           <FormField
             control={form.control}
-            name="targetRole"
+            name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Target Role</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {availableRoles.map(role => (
-                      <SelectItem key={role} value={role}>
-                        {role === 'global' ? 'All Roles (Global)' : role}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Lesson Title</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., Handling Price Objections" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="targetRole"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Target Role</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a role..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {availableRoles.map(role => (
+                        <SelectItem key={role} value={role}>
+                          {role === 'global' ? 'All Roles (Global)' : role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="associatedTrait"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>CX Trait</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a trait..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {cxTraits.map(trait => (
+                        <SelectItem key={trait} value={trait}>
+                          {trait.charAt(0).toUpperCase() + trait.slice(1).replace(/([A-Z])/g, ' $1')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!targetRole || availableCategories.length === 0}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {availableCategories.map(cat => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           <FormField
             control={form.control}
-            name="associatedTrait"
+            name="scenario"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>CX Trait</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a trait..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {cxTraits.map(trait => (
-                      <SelectItem key={trait} value={trait}>
-                        {trait.charAt(0).toUpperCase() + trait.slice(1).replace(/([A-Z])/g, ' $1')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Training Scenario</FormLabel>
+                  <Button type="button" variant="ghost" size="sm" onClick={handleSuggestScenario} disabled={isSuggesting}>
+                    {isSuggesting ? <Spinner size="sm" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Suggest with AI
+                  </Button>
+                </div>
+                <FormControl>
+                  <Textarea
+                    placeholder="Describe a customer interaction or situation. The AI will use this to start the lesson."
+                    className="min-h-[100px]"
+                    {...field}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
-         <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!targetRole || availableCategories.length === 0}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {availableCategories.map(cat => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        <FormField
-          control={form.control}
-          name="scenario"
-          render={({ field }) => (
-            <FormItem>
-              <div className="flex items-center justify-between">
-                <FormLabel>Training Scenario</FormLabel>
-                <Button type="button" variant="ghost" size="sm" onClick={handleSuggestScenario} disabled={isSuggesting}>
-                  {isSuggesting ? <Spinner size="sm" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                  Suggest with AI
-                </Button>
-              </div>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe a customer interaction or situation. The AI will use this to start the lesson."
-                  className="min-h-[100px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <Spinner size="sm" /> : 'Create Lesson'}
-        </Button>
-      </form>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <Spinner size="sm" /> : 'Create Lesson'}
+          </Button>
+        </form>
+      </ScrollArea>
     </Form>
   );
 }

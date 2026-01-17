@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Terminal } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface RegisterDealershipFormProps {
   onDealershipRegistered?: () => void;
@@ -81,16 +82,18 @@ export function RegisterDealershipForm({ onDealershipRegistered }: RegisterDeale
               ? 'Invitation codes have been generated for the new dealership. Provide these to the Owner to distribute to their team.'
               : 'An invitation code has been generated. Provide this to the new user to activate their account.'}
           </p>
-          <div className="space-y-3">
-            {registrationResult.codes.map((reg, index) => (
-              <div key={reg.activationCode} className="rounded-md bg-muted p-3 font-mono text-sm">
-                {index === 0 && <p className="mb-1">Intended for: {primaryUserEmail}</p>}
-                <p>Role: <span className="font-semibold">{reg.role === 'manager' ? 'Sales Manager' : reg.role}</span></p>
-                <p>Invitation Code: <span className="font-bold text-primary">{reg.activationCode}</span></p>
-                <p>Uses: {reg.uses}</p>
-              </div>
-            ))}
-          </div>
+          <ScrollArea className="h-48 rounded-md border">
+            <div className="space-y-3 p-4">
+              {registrationResult.codes.map((reg, index) => (
+                <div key={reg.activationCode} className="rounded-md bg-muted p-3 font-mono text-sm">
+                  {index === 0 && <p className="mb-1">Intended for: {primaryUserEmail}</p>}
+                  <p>Role: <span className="font-semibold">{reg.role === 'manager' ? 'Sales Manager' : reg.role}</span></p>
+                  <p>Invitation Code: <span className="font-bold text-primary">{reg.activationCode}</span></p>
+                  <p>Uses: {reg.uses}</p>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </AlertDescription>
       </Alert>
     );
