@@ -246,7 +246,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     Team Performance Summary
                 </CardTitle>
                 <CardDescription>
-                    {`Performance overview of staff ${selectedDealership === 'all' ? 'at all dealerships' : `at ${selectedDealership}`}.`}
+                    {selectedDealership === 'all'
+                        ? 'Select a dealership to view its team performance.'
+                        : `Performance overview of staff at ${selectedDealership}.`}
                 </CardDescription>
             </div>
              <div className="flex gap-2">
@@ -262,7 +264,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             <DialogHeader>
                                 <DialogTitle>Register New Dealership</DialogTitle>
                                 <DialogDescription>
-                                    Create a new dealership and generate an activation code for the owner.
+                                    Create a new dealership and generate an activation code for the new user.
                                 </DialogDescription>
                             </DialogHeader>
                             <RegisterDealershipForm onDealershipRegistered={handleDealershipRegistered} />
@@ -295,7 +297,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
-          ) : (
+          ) : selectedDealership && selectedDealership !== 'all' ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -346,12 +348,32 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 )) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      No team activity found for the selected dealership.
+                      No team activity found for this dealership.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {dealerships.map(dealership => (
+                    <Card 
+                    key={dealership} 
+                    className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-1"
+                    onClick={() => setSelectedDealership(dealership)}
+                    >
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                        {dealership}
+                        <Store className="h-5 w-5 text-muted-foreground" />
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">Click to view team performance.</p>
+                    </CardContent>
+                    </Card>
+                ))}
+            </div>
           )}
         </CardContent>
       </Card>
