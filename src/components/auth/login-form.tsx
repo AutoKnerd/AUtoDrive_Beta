@@ -190,7 +190,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card>
+    <Card className="bg-card/80 backdrop-blur-sm">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-4 pt-6">

@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { Header } from '@/components/layout/header';
 import { ConsultantDashboard } from '@/components/dashboard/consultant-dashboard';
 import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { Spinner } from '@/components/ui/spinner';
 import type { UserRole } from '@/lib/definitions';
+import { BottomNav } from '@/components/layout/bottom-nav';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -21,7 +21,7 @@ export default function Home() {
 
   if (loading || !user) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="flex h-screen w-full items-center justify-center bg-transparent">
         <Spinner size="lg" />
       </div>
     );
@@ -29,16 +29,18 @@ export default function Home() {
 
   const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin'];
 
+  const isManager = managerialRoles.includes(user.role);
+
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header />
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        {managerialRoles.includes(user.role) ? (
+      <main className="flex-1 p-4 md:p-6 lg:p-8">
+        {isManager ? (
           <ManagerDashboard user={user} />
         ) : (
           <ConsultantDashboard user={user} />
         )}
       </main>
+      {!isManager && <BottomNav />}
     </div>
   );
 }

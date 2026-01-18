@@ -155,7 +155,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
-        <Card className="w-full max-w-3xl h-[80vh] flex flex-col">
+        <Card className="w-full max-w-3xl h-[85vh] flex flex-col bg-card/80 backdrop-blur-sm">
             <CardHeader>
                 <CardTitle>{lesson.title}</CardTitle>
             </CardHeader>
@@ -170,11 +170,11 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                         {messages.map((message, index) => (
                         <div key={index} className={`flex items-start gap-4 ${message.sender === 'user' ? 'justify-end' : ''}`}>
                             {message.sender === 'ai' && (
-                                <Avatar className="h-8 w-8">
-                                    <AvatarFallback><Bot /></AvatarFallback>
+                                <Avatar className="h-8 w-8 bg-primary flex items-center justify-center">
+                                    <Bot className="text-primary-foreground" />
                                 </Avatar>
                             )}
-                            <div className={`rounded-lg p-3 text-sm ${message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                            <div className={`rounded-lg p-3 text-sm max-w-[80%] ${message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                 <p style={{whiteSpace: 'pre-wrap'}}>{message.text}</p>
                             </div>
                             {message.sender === 'user' && user && (
@@ -187,8 +187,8 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                         ))}
                         {isLoading && messages.length > 0 && (
                             <div className="flex items-start gap-4">
-                                <Avatar className="h-8 w-8">
-                                    <AvatarFallback><Bot /></AvatarFallback>
+                                <Avatar className="h-8 w-8 bg-primary flex items-center justify-center">
+                                    <Bot className="text-primary-foreground" />
                                 </Avatar>
                                 <div className="rounded-lg p-3 bg-muted flex items-center">
                                     <Spinner size="sm" />

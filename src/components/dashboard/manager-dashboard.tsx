@@ -169,6 +169,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   return (
     <>
+      <CardHeader>
+        <CardTitle>Manager Dashboard</CardTitle>
+      </CardHeader>
       {(['Owner', 'Admin', 'Trainer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
         <Card className="mb-4">
             <CardHeader>
