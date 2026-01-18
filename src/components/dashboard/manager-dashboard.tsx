@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership } from '@/lib/definitions';
 import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity, getDealerships, getDealershipById } from '@/lib/data';
-import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle, Store, Mail, LogOut, User as UserIcon, UserPlus } from 'lucide-react';
+import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle, Store, Mail, LogOut, User as UserIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -353,15 +353,15 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     <Dialog open={isAssignUserOpen} onOpenChange={setAssignUserOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline">
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                Assign User
+                                <Users className="mr-2 h-4 w-4" />
+                                Manage Users
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
-                                <DialogTitle>Assign Existing User</DialogTitle>
+                                <DialogTitle>Manage User Assignments</DialogTitle>
                                 <DialogDescription>
-                                    Find a user by email and assign them to dealerships you manage.
+                                    Find a user by email to manage their dealership assignments. You can add, move, or release them from dealerships you oversee.
                                 </DialogDescription>
                             </DialogHeader>
                             <AssignUserForm currentUser={user} onUserAssigned={handleUserAssigned} />

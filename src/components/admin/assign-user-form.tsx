@@ -179,7 +179,7 @@ export function AssignUserForm({ currentUser, onUserAssigned }: AssignUserFormPr
             </div>
 
           <Button onClick={handleAssignDealerships} disabled={isAssigning || isEqual([...foundUser.dealershipIds].sort(), [...selectedDealerships].sort())} className="w-full">
-            {isAssigning ? <Spinner size="sm" /> : `Assign to ${selectedDealerships.length} Dealership(s)`}
+            {isAssigning ? <Spinner size="sm" /> : 'Update Assignments'}
           </Button>
         </div>
       )}
