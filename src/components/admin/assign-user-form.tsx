@@ -12,10 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import isEqual from 'lodash.isequal';
+import { Label } from '@/components/ui/label';
 
 interface AssignUserFormProps {
   currentUser: User;
@@ -150,7 +151,7 @@ export function AssignUserForm({ currentUser, onUserAssigned }: AssignUserFormPr
             </div>
             
             <div>
-                <FormLabel>Assign to Dealership(s)</FormLabel>
+                <Label>Assign to Dealership(s)</Label>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-start text-left font-normal mt-2">
