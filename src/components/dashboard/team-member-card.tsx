@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership } from '@/lib/definitions';
 import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles } from '@/lib/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon } from 'lucide-react';
+import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -42,6 +42,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [assignableLessons, setAssignableLessons] = useState<Lesson[]>([]);
   const [selectedLessonToAssign, setSelectedLessonToAssign] = useState('');
   const [isAssigningLesson, setIsAssigningLesson] = useState(false);
+  const [isModifying, setIsModifying] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -75,6 +76,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             title: 'Success',
             description: `${user.name}'s assignments have been updated.`,
         });
+        setIsModifying(false);
         onAssignmentUpdated(); // This will trigger a re-fetch in the parent
     } catch(e) {
         toast({
@@ -172,36 +174,58 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             <Card>
                 <CardHeader>
                     <CardTitle>Dealership Assignments</CardTitle>
-                    <CardDescription>Assign or un-assign this user from dealerships you manage.</CardDescription>
+                    <CardDescription>
+                        Modify which dealerships this user is assigned to.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="flex items-center gap-4">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start text-left font-normal">
-                                <span className="truncate">
-                                    {selectedDealerships.length > 0 ? 
-                                        dealerships.filter(d => selectedDealerships.includes(d.id)).map(d => d.name).join(', ') :
-                                        "Unassigned"}
-                                </span>
+                <CardContent>
+                    {!isModifying ? (
+                         <div className='flex items-center justify-between'>
+                            <p className='text-sm text-muted-foreground'>
+                                Assigned to: <span className='font-medium text-foreground'>{currentDealershipNames}</span>
+                            </p>
+                            <Button variant="outline" onClick={() => setIsModifying(true)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Modify
                             </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-64" align="start">
-                            <DropdownMenuLabel>Managed Dealerships</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {dealerships.map(dealership => (
-                                <DropdownMenuCheckboxItem
-                                    key={dealership.id}
-                                    checked={selectedDealerships.includes(dealership.id)}
-                                    onCheckedChange={(checked) => handleCheckedChange(dealership.id, !!checked)}
-                                >
-                                    {dealership.name}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button onClick={handleUpdateAssignments} disabled={isUpdating || isEqual([...user.dealershipIds].sort(), [...selectedDealerships].sort())}>
-                        {isUpdating ? <Spinner size="sm" /> : "Update"}
-                    </Button>
+                         </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <p className="text-sm text-muted-foreground">Select the dealerships this user should be assigned to. Unselect all to unassign them.</p>
+                            <div className="flex items-center gap-4">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                            <span className="truncate">
+                                                {selectedDealerships.length > 0 ? 
+                                                    dealerships.filter(d => selectedDealerships.includes(d.id)).map(d => d.name).join(', ') :
+                                                    "Unassigned"}
+                                            </span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="w-64" align="start">
+                                        <DropdownMenuLabel>Managed Dealerships</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {dealerships.map(dealership => (
+                                            <DropdownMenuCheckboxItem
+                                                key={dealership.id}
+                                                checked={selectedDealerships.includes(dealership.id)}
+                                                onCheckedChange={(checked) => handleCheckedChange(dealership.id, !!checked)}
+                                            >
+                                                {dealership.name}
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                             <div className='flex justify-end gap-2'>
+                                <Button variant="ghost" onClick={() => { setIsModifying(false); setSelectedDealerships(user.dealershipIds); }}>Cancel</Button>
+                                <Button onClick={handleUpdateAssignments} disabled={isUpdating || isEqual([...user.dealershipIds].sort(), [...selectedDealerships].sort())}>
+                                    {isUpdating ? <Spinner size="sm" /> : "Update Assignments"}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         )}
@@ -295,5 +319,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     </div>
   );
 }
+
+    
 
     
