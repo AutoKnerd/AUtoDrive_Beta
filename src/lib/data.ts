@@ -73,9 +73,38 @@ export async function getUserById(userId: string): Promise<User | null> {
     return users.find(u => u.userId === userId) || null;
 }
 
-export async function findUserByEmail(email: string): Promise<User | null> {
+export async function findUserByEmail(email: string, requestingUserId: string): Promise<User | null> {
     await simulateNetworkDelay();
-    return users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+    const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (!foundUser) {
+        return null;
+    }
+
+    const requestingUser = users.find(u => u.userId === requestingUserId);
+    if (!requestingUser) {
+        // This case should ideally not happen if the app is consistent.
+        // Returning null is a safe default.
+        return null; 
+    }
+
+    // Admins and Trainers have universal access
+    if (['Admin', 'Trainer'].includes(requestingUser.role)) {
+        return foundUser;
+    }
+
+    // Allow seeing unassigned users
+    if (foundUser.dealershipIds.length === 0) {
+        return foundUser;
+    }
+
+    // Allow seeing users in one of the manager/owner's dealerships
+    const inManagedDealership = foundUser.dealershipIds.some(id => requestingUser.dealershipIds.includes(id));
+    if (inManagedDealership) {
+        return foundUser;
+    }
+
+    // If none of the above, the user is not visible to the requester
+    return null;
 }
 
 export async function redeemInvitation(token: string, name: string, email: string): Promise<User> {

@@ -62,12 +62,12 @@ export function AssignUserForm({ currentUser, onUserAssigned }: AssignUserFormPr
     setFoundUser(null);
     setSearchMessage('');
     try {
-      const user = await findUserByEmail(data.email);
+      const user = await findUserByEmail(data.email, currentUser.userId);
       if (user) {
         setFoundUser(user);
         setSelectedDealerships(user.dealershipIds);
       } else {
-        setSearchMessage('No user found with that email address.');
+        setSearchMessage('No user found with that email or you do not have permission to view them.');
       }
     } catch (error) {
       setSearchMessage('An error occurred during the search.');
