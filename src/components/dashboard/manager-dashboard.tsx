@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AssignUserForm } from '../admin/assign-user-form';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface ManagerDashboardProps {
   user: User;
@@ -438,7 +439,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <DialogHeader>
                             <DialogTitle>Performance Snapshot</DialogTitle>
                         </DialogHeader>
-                        <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignment={fetchData} />
+                        <ScrollArea className="max-h-[70vh]">
+                            <div className="pr-6">
+                                <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignment={fetchData} />
+                            </div>
+                        </ScrollArea>
                     </DialogContent>
                   </Dialog>
                 )) : (
