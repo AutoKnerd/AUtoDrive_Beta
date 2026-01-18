@@ -31,6 +31,7 @@ import {
 import { AssignUserForm } from '../admin/assign-user-form';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RemoveUserForm } from '../admin/remove-user-form';
 
 interface ManagerDashboardProps {
   user: User;
@@ -331,20 +332,21 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <DialogTrigger asChild>
                             <Button variant="outline">
                                 <Users className="mr-2 h-4 w-4" />
-                                Manage Users
+                                Manage Team
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[625px]">
                             <DialogHeader>
                                 <DialogTitle>Manage Team</DialogTitle>
                                 <DialogDescription>
-                                    Assign existing users to dealerships or invite new members to your team.
+                                    Invite new members, assign users to dealerships, or remove them from their assignments.
                                 </DialogDescription>
                             </DialogHeader>
                             <Tabs defaultValue="assign" className="pt-4">
-                                <TabsList className="grid w-full grid-cols-2">
+                                <TabsList className="grid w-full grid-cols-3">
                                     <TabsTrigger value="assign">Assign Existing</TabsTrigger>
                                     <TabsTrigger value="invite">Invite New</TabsTrigger>
+                                    <TabsTrigger value="remove">Remove Existing</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="assign" className="pt-4">
                                     <AssignUserForm 
@@ -355,6 +357,12 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 </TabsContent>
                                 <TabsContent value="invite" className="pt-4">
                                     <RegisterDealershipForm user={user} onDealershipRegistered={handleUserManaged} />
+                                </TabsContent>
+                                <TabsContent value="remove" className="pt-4">
+                                    <RemoveUserForm
+                                        manageableUsers={manageableUsers}
+                                        onUserRemoved={handleUserManaged}
+                                    />
                                 </TabsContent>
                             </Tabs>
                         </DialogContent>
@@ -473,3 +481,5 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     </div>
   );
 }
+
+    
