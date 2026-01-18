@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership } from '@/lib/definitions';
 import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles } from '@/lib/data';
+import { calculateLevel } from '@/lib/xp';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
@@ -46,6 +47,8 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [isModifying, setIsModifying] = useState(false);
   const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
   const [confirmationInput, setConfirmationInput] = useState('');
+
+  const { level } = calculateLevel(user.xp);
 
   useEffect(() => {
     async function fetchData() {
@@ -184,18 +187,24 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   return (
     <div className="space-y-4">
         <Card>
-            <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-                 <Avatar className="h-16 w-16">
-                    <AvatarImage src={user.avatarUrl} data-ai-hint="person portrait" />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <CardTitle className="text-2xl">{user.name}</CardTitle>
-                    <CardDescription>{user.role} at {currentDealershipNames}</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+                <div className="flex items-center gap-4">
+                    <Avatar className="h-16 w-16">
+                        <AvatarImage src={user.avatarUrl} data-ai-hint="person portrait" />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <CardTitle className="text-2xl">{user.name}</CardTitle>
+                        <CardDescription>{user.role} at {currentDealershipNames}</CardDescription>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <p className="text-sm font-medium text-muted-foreground">Level {level}</p>
+                    <p className="font-bold text-lg">{user.xp.toLocaleString()} XP</p>
                 </div>
             </CardHeader>
         </Card>
-        
+
         <Card>
             <CardHeader>
             <CardTitle>Average CX Scores</CardTitle>
@@ -223,7 +232,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             )}
             </CardContent>
         </Card>
-
+        
         {canManageAssignments && (
             <Card>
                 <CardHeader>
