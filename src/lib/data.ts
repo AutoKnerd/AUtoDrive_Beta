@@ -410,6 +410,42 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
     return activity.sort((a, b) => b.totalXp - a.totalXp);
 }
 
+export async function getManageableUsers(managerId: string): Promise<User[]> {
+    await simulateNetworkDelay();
+    
+    const manager = users.find(u => u.userId === managerId);
+    if (!manager) return [];
+
+    const manageableRoles = getTeamMemberRoles(manager.role);
+
+    if (['Admin', 'Trainer'].includes(manager.role)) {
+        // Admins/Trainers can manage everyone in manageable roles, regardless of dealership.
+        return users.filter(u => manageableRoles.includes(u.role) && u.userId !== managerId)
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    
+    // For Owners and Managers
+    const manageableUsers = users.filter(u => {
+        if (u.userId === managerId) return false; // Can't manage self
+        if (!manageableRoles.includes(u.role)) return false; // Not a role they can manage
+
+        // Is the user unassigned?
+        if (u.dealershipIds.length === 0) {
+            return true;
+        }
+
+        // Is the user in one of the manager's dealerships?
+        const inManagedDealership = u.dealershipIds.some(id => manager.dealershipIds.includes(id));
+        if (inManagedDealership) {
+            return true;
+        }
+
+        return false;
+    });
+
+    return manageableUsers.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 
 export async function sendInvitation(
     dealershipName: string, 

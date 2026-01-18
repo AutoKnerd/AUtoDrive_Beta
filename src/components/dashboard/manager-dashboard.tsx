@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership } from '@/lib/definitions';
-import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity, getDealerships, getDealershipById } from '@/lib/data';
+import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers } from '@/lib/data';
 import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle, Store, Mail, LogOut, User as UserIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -54,6 +54,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
 
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
+  const [manageableUsers, setManageableUsers] = useState<User[]>([]);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
   const { logout } = useAuth();
   const router = useRouter();
@@ -74,6 +75,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 setSelectedDealershipId(validDealerships[0].id);
             }
         }
+        const usersToManage = await getManageableUsers(user.userId);
+        setManageableUsers(usersToManage);
     }
     fetchInitialData();
   }, [user]);
@@ -173,11 +176,15 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
         setRegisterOpen(false);
     }
+    const usersToManage = await getManageableUsers(user.userId);
+    setManageableUsers(usersToManage);
   }
 
   async function handleUserAssigned() {
     setAssignUserOpen(false);
     fetchData();
+    const usersToManage = await getManageableUsers(user.userId);
+    setManageableUsers(usersToManage);
   }
 
   const canInvite = ['Admin', 'Trainer', 'Owner', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
@@ -361,10 +368,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             <DialogHeader>
                                 <DialogTitle>Manage User Assignments</DialogTitle>
                                 <DialogDescription>
-                                    Find a user by email to manage their dealership assignments. You can add, move, or release them from dealerships you oversee.
+                                    Select a user to manage their dealership assignments. You can add, move, or release them from dealerships you oversee.
                                 </DialogDescription>
                             </DialogHeader>
-                            <AssignUserForm currentUser={user} onUserAssigned={handleUserAssigned} />
+                            <AssignUserForm 
+                                manageableUsers={manageableUsers}
+                                dealerships={dealerships}
+                                onUserAssigned={handleUserAssigned} 
+                            />
                         </DialogContent>
                     </Dialog>
                 )}
