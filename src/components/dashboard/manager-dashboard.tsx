@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AssignUserForm } from '../admin/assign-user-form';
 import { ScrollArea } from '../ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ManagerDashboardProps {
   user: User;
@@ -49,8 +50,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [managerActivity, setManagerActivity] = useState<LessonLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
-  const [isRegisterOpen, setRegisterOpen] = useState(false);
-  const [isAssignUserOpen, setAssignUserOpen] = useState(false);
+  const [isManageUsersOpen, setManageUsersOpen] = useState(false);
 
 
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
@@ -168,32 +168,21 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return 'Across your entire team';
   }, [user.role, selectedDealershipId, dealerships]);
   
-  async function handleDealershipRegistered() {
+  async function handleUserManaged() {
     if (['Admin', 'Trainer'].includes(user.role)) {
         const fetchedDealerships = await getDealerships(user);
         setDealerships(fetchedDealerships);
     }
     if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
-        setRegisterOpen(false);
+        setManageUsersOpen(false);
     }
     const usersToManage = await getManageableUsers(user.userId);
     setManageableUsers(usersToManage);
+    fetchData(); // Refetch dashboard data after user management
   }
 
-  async function handleUserAssigned() {
-    setAssignUserOpen(false);
-    fetchData();
-    const usersToManage = await getManageableUsers(user.userId);
-    setManageableUsers(usersToManage);
-  }
 
-  const canInvite = ['Admin', 'Trainer', 'Owner', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
-  const isPrivilegedInviter = ['Admin', 'Trainer'].includes(user.role);
-  const inviteDialogTitle = isPrivilegedInviter ? 'Invite New User' : 'Invite Team Member';
-  const inviteDialogDescription = isPrivilegedInviter
-    ? 'Send an invitation to a user for a new or existing dealership.'
-    : `Send an invitation to a new member of your team.`;
-
+  const canManage = ['Admin', 'Trainer', 'Owner', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
 
   return (
     <div className="space-y-8">
@@ -337,45 +326,37 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 </CardDescription>
             </div>
              <div className="flex gap-2">
-                {canInvite && (
-                    <Dialog open={isRegisterOpen} onOpenChange={setRegisterOpen}>
-                        <DialogTrigger asChild>
-                                <Button variant="outline">
-                                    <Mail className="mr-2 h-4 w-4" />
-                                    Invite User
-                                </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[525px]">
-                            <DialogHeader>
-                                <DialogTitle>{inviteDialogTitle}</DialogTitle>
-                                <DialogDescription>
-                                    {inviteDialogDescription}
-                                </DialogDescription>
-                            </DialogHeader>
-                            <RegisterDealershipForm user={user} onDealershipRegistered={handleDealershipRegistered} />
-                        </DialogContent>
-                    </Dialog>
-                )}
-                {canInvite && (
-                    <Dialog open={isAssignUserOpen} onOpenChange={setAssignUserOpen}>
+                {canManage && (
+                    <Dialog open={isManageUsersOpen} onOpenChange={setManageUsersOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline">
                                 <Users className="mr-2 h-4 w-4" />
                                 Manage Users
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
+                        <DialogContent className="sm:max-w-[625px]">
                             <DialogHeader>
-                                <DialogTitle>Manage User Assignments</DialogTitle>
+                                <DialogTitle>Manage Team</DialogTitle>
                                 <DialogDescription>
-                                    Select a user to manage their dealership assignments. You can add, move, or release them from dealerships you oversee.
+                                    Assign existing users to dealerships or invite new members to your team.
                                 </DialogDescription>
                             </DialogHeader>
-                            <AssignUserForm 
-                                manageableUsers={manageableUsers}
-                                dealerships={dealerships}
-                                onUserAssigned={handleUserAssigned} 
-                            />
+                            <Tabs defaultValue="assign" className="pt-4">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="assign">Assign Existing</TabsTrigger>
+                                    <TabsTrigger value="invite">Invite New</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="assign" className="pt-4">
+                                    <AssignUserForm 
+                                        manageableUsers={manageableUsers}
+                                        dealerships={dealerships}
+                                        onUserAssigned={handleUserManaged} 
+                                    />
+                                </TabsContent>
+                                <TabsContent value="invite" className="pt-4">
+                                    <RegisterDealershipForm user={user} onDealershipRegistered={handleUserManaged} />
+                                </TabsContent>
+                            </Tabs>
                         </DialogContent>
                     </Dialog>
                 )}
