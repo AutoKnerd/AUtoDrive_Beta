@@ -2,10 +2,11 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import type { User, Lesson, LessonLog, CxTrait } from '@/lib/definitions';
 import { getLessons, getConsultantActivity, getDailyLessonLimits, getAssignedLessons } from '@/lib/data';
 import { calculateLevel } from '@/lib/xp';
-import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, LogOut } from 'lucide-react';
+import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, LogOut, User as UserIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
@@ -102,6 +103,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [lessonLimits, setLessonLimits] = useState({ recommendedTaken: false, otherTaken: false });
   const [loading, setLoading] = useState(true);
   const { logout } = useAuth();
+  const router = useRouter();
 
 
   useEffect(() => {
@@ -187,6 +189,10 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => router.push('/profile')}>
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => logout()}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>

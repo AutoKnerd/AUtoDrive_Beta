@@ -1,4 +1,11 @@
 
+export type Address = {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+
 export type UserRole = 
   | 'Sales Consultant' 
   | 'manager' 
@@ -19,6 +26,8 @@ export type User = {
   dealershipIds: string[];
   avatarUrl: string;
   xp: number;
+  phone?: string;
+  address?: Address;
 };
 
 export type LessonRole = Exclude<UserRole, 'Owner' | 'Admin'> | 'global';
