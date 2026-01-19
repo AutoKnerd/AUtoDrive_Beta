@@ -1,5 +1,5 @@
 import { RegisterForm } from '@/components/auth/register-form';
-import { Cog } from 'lucide-react';
+import { Logo } from '@/components/layout/logo';
 import Link from 'next/link';
 
 export default function RegisterPage() {
@@ -8,7 +8,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center justify-center text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
-                <Cog className="h-8 w-8 text-primary-foreground" />
+                <Logo width={48} height={48} />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-foreground">AutoDrive</h1>

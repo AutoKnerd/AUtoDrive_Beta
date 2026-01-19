@@ -1,6 +1,6 @@
 'use client';
 
-import { Cog, LogOut, User as UserIcon } from 'lucide-react';
+import { LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/layout/logo';
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -22,7 +23,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <Link href="/" className="flex items-center gap-2 font-semibold">
-        <Cog className="h-6 w-6 text-primary" />
+        <Logo width={24} height={24} />
         <div className="flex flex-col">
           <span className="text-lg font-bold leading-tight">AutoDrive</span>
           <span className="text-[10px] font-medium text-muted-foreground -mt-1">powered by AutoKnerd</span>
