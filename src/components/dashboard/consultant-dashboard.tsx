@@ -246,7 +246,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                 <div>
                     <LevelDisplay xp={user.xp} />
                     {user.memberSince && (
-                        <p className="text-center text-sm text-muted-foreground mt-2">
+                        <p className="text-sm text-muted-foreground mt-2">
                             Member since {new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                         </p>
                     )}
@@ -383,5 +383,3 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     </div>
   );
 }
-
-    
