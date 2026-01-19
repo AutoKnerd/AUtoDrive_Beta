@@ -11,8 +11,6 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Carousel, CarouselContent, CarouselItem } from '../ui/carousel';
-import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import {
   DropdownMenu,
@@ -23,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '../ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -49,6 +48,15 @@ const lessonIcons: Record<string, LucideIcon | React.FC<React.SVGProps<SVGSVGEle
   'Confident Closing': Target,
   'Service Follow-up Excellence': Repeat,
   'The Perfect Service Greeting': Smile,
+};
+
+const metricIcons: Record<CxTrait, LucideIcon> = {
+  empathy: Smile,
+  listening: Ear,
+  trust: Handshake,
+  followUp: Repeat,
+  closing: Target,
+  relationshipBuilding: Users,
 };
 
 function LevelDisplay({ xp }: { xp: number }) {
@@ -201,6 +209,42 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             </DropdownMenu>
         </header>
 
+        {/* Level & XP */}
+        <section className="space-y-3">
+             {loading ? <Skeleton className="h-20 w-full" /> : <LevelDisplay xp={user.xp} />}
+        </section>
+
+        {/* My Stats */}
+        <section>
+            <Card className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30">
+                <CardHeader>
+                <CardTitle>My Average CX Scores</CardTitle>
+                <CardDescription>Your average performance across all completed lessons.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                {loading ? (
+                    Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
+                ) : averageScores ? (
+                    Object.entries(averageScores).map(([key, value]) => {
+                    const Icon = metricIcons[key as keyof typeof metricIcons];
+                    const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                    return (
+                        <div key={key} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Icon className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-sm font-medium text-foreground">{title}</span>
+                        </div>
+                        <span className="font-bold text-cyan-400">{value}%</span>
+                        </div>
+                    );
+                    })
+                ) : (
+                    <p className="text-muted-foreground col-span-full text-center">No scores available yet.</p>
+                )}
+                </CardContent>
+            </Card>
+        </section>
+
         {/* Recommended Lesson */}
         <section>
              <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10">
@@ -259,12 +303,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             )}
         </section>
 
-
-        {/* Level & XP */}
-        <section className="space-y-3">
-             {loading ? <Skeleton className="h-20 w-full" /> : <LevelDisplay xp={user.xp} />}
-        </section>
-
         {/* Recent Activity */}
         <section className="space-y-2">
             <h2 className="text-xl font-bold text-white">Recent Activity</h2>
@@ -288,5 +326,3 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     </div>
   );
 }
-
-    
