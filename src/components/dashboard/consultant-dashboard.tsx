@@ -292,16 +292,16 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                     {assignedLessons.map((lesson) => {
                          const Icon = lessonIcons[lesson.title] || BookOpen;
                          return (
-                            <Link key={lesson.lessonId} href={`/lesson/${lesson.lessonId}`}>
-                                <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10 transition-all hover:border-cyan-400/80">
+                            <Link key={lesson.lessonId} href={`/lesson/${lesson.lessonId}`} className="block group">
+                                <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10 transition-all group-hover:border-cyan-400/80 group-hover:bg-slate-900/70">
                                     <div className="p-3 bg-slate-900/70 rounded-lg border border-white/10">
                                         <Icon className="h-12 w-12 text-cyan-400 drop-shadow-[0_0_8px_hsl(var(--primary))]" strokeWidth={1.5} />
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="text-xl font-bold text-white">{lesson.title}</h3>
                                         <p className="text-sm text-muted-foreground">{lesson.category}</p>
-                                        <div className="text-sm font-medium text-cyan-400 hover:text-cyan-300 mt-1 flex items-center gap-1">
-                                            Start Lesson <ChevronRight className="h-4 w-4" />
+                                        <div className="text-sm font-medium text-cyan-400 mt-1 flex items-center gap-1 transition-colors group-hover:text-cyan-300">
+                                            Start Lesson <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                                         </div>
                                     </div>
                                 </div>
