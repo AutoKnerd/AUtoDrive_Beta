@@ -247,26 +247,39 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
         {/* Recommended Lesson */}
         <section>
-             <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10">
-                <div className="p-3 bg-slate-900/70 rounded-lg border border-white/10">
-                    <SteeringWheelIcon className="h-12 w-12 text-cyan-400 drop-shadow-[0_0_8px_hsl(var(--primary))]" strokeWidth={1.5} />
+            {loading ? (
+                <Skeleton className="h-28 w-full rounded-2xl" />
+            ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
+                <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className="block group">
+                    <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10 transition-all group-hover:border-cyan-400/80 group-hover:bg-slate-900/70">
+                        <div className="p-3 bg-slate-900/70 rounded-lg border border-white/10">
+                            <SteeringWheelIcon className="h-12 w-12 text-cyan-400 drop-shadow-[0_0_8px_hsl(var(--primary))]" strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1">
+                            <h2 className="text-2xl font-bold text-white">Recommended Lesson</h2>
+                            <p className="text-sm text-muted-foreground">A daily lesson focused on your area for greatest improvement.</p>
+                            <div className="text-sm font-medium text-cyan-400 mt-1 flex items-center gap-1 transition-colors group-hover:text-cyan-300">
+                               Start: {recommendedLesson.title} <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                           </div>
+                        </div>
+                    </div>
+                </Link>
+            ) : (
+                <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10 opacity-70 cursor-not-allowed">
+                    <div className="p-3 bg-slate-900/70 rounded-lg border border-white/10">
+                        <SteeringWheelIcon className="h-12 w-12 text-cyan-400" strokeWidth={1.5} />
+                    </div>
+                    <div className="flex-1">
+                        <h2 className="text-2xl font-bold text-white">Recommended Lesson</h2>
+                        <p className="text-sm text-muted-foreground">A daily lesson focused on your area for greatest improvement.</p>
+                        {lessonLimits.recommendedTaken ? (
+                           <p className="text-sm font-medium text-green-400 mt-1 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Completed for today!</p>
+                        ) : (
+                            <p className="text-sm text-muted-foreground mt-1">No recommended lessons available.</p>
+                        )}
+                    </div>
                 </div>
-                <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-white">Recommended Lesson</h2>
-                    <p className="text-sm text-muted-foreground">A daily lesson focused on your area for greatest improvement.</p>
-                     {loading ? (
-                        <Skeleton className="h-5 w-3/4 mt-2" />
-                    ) : lessonLimits.recommendedTaken ? (
-                       <p className="text-sm font-medium text-green-400 mt-1 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Completed for today!</p>
-                    ) : recommendedLesson ? (
-                       <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className="text-sm font-medium text-cyan-400 hover:text-cyan-300 mt-1 flex items-center gap-1">
-                           Start: {recommendedLesson.title} <ChevronRight className="h-4 w-4" />
-                       </Link>
-                    ) : (
-                        <p className="text-sm text-muted-foreground mt-1">No recommended lessons available.</p>
-                    )}
-                </div>
-            </div>
+            )}
         </section>
 
         {/* Assigned Lessons */}
