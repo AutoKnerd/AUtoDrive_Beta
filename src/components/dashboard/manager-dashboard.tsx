@@ -43,6 +43,11 @@ type TeamMemberStats = {
   avgScore: number;
 };
 
+type DealershipInsight = {
+    trait: string;
+    score: number;
+};
+
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
@@ -56,6 +61,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
   const [manageableUsers, setManageableUsers] = useState<User[]>([]);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
+  const [allDealershipStats, setAllDealershipStats] = useState<Record<string, { bestStat: DealershipInsight | null, watchStat: DealershipInsight | null }>>({});
   const { logout } = useAuth();
   const router = useRouter();
 
@@ -111,6 +117,33 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             }
         }
        
+        if (currentSelectedId === 'all' && ['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+            const statsPromises = initialDealerships.map(d => getManagerStats(d.id, user.role));
+            const results = await Promise.all(statsPromises);
+            
+            const newAllDealershipStats: Record<string, { bestStat: DealershipInsight | null, watchStat: DealershipInsight | null }> = {};
+            
+            results.forEach((result, index) => {
+                const dealershipId = initialDealerships[index].id;
+                let insights: { bestStat: DealershipInsight | null, watchStat: DealershipInsight | null } = { bestStat: null, watchStat: null };
+
+                if (result && result.avgScores) {
+                    const scores = Object.entries(result.avgScores) as [CxTrait, number][];
+                    if (scores.length > 0) {
+                         const bestStatEntry = scores.reduce((max, entry) => entry[1] > max[1] ? entry : max, scores[0]);
+                         const watchStatEntry = scores.reduce((min, entry) => entry[1] < min[1] ? entry : min, scores[0]);
+                         const formatTrait = (trait: CxTrait) => trait.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                         insights = {
+                            bestStat: { trait: formatTrait(bestStatEntry[0]), score: bestStatEntry[1] },
+                            watchStat: { trait: formatTrait(watchStatEntry[0]), score: watchStatEntry[1] }
+                         };
+                    }
+                }
+                newAllDealershipStats[dealershipId] = insights;
+            });
+            setAllDealershipStats(newAllDealershipStats);
+        }
+
         if (currentSelectedId) {
             if (selectedDealershipId === null) { // Set initial ID if not set
                 setSelectedDealershipId(currentSelectedId);
@@ -509,23 +542,45 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             </Table>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {dealerships.map(dealership => (
-                    <Card 
-                    key={dealership.id} 
-                    className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-1"
-                    onClick={() => handleDealershipChange(dealership.id)}
-                    >
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                        {dealership.name}
-                        <Store className="h-5 w-5 text-muted-foreground" />
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">Click to view team performance.</p>
-                    </CardContent>
-                    </Card>
-                ))}
+                {dealerships.map(dealership => {
+                    const insights = allDealershipStats[dealership.id];
+                    return (
+                        <Card 
+                        key={dealership.id} 
+                        className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-1"
+                        onClick={() => handleDealershipChange(dealership.id)}
+                        >
+                        <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                            {dealership.name}
+                            <Store className="h-5 w-5 text-muted-foreground" />
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {(!insights || (!insights.bestStat && !insights.watchStat)) ? (
+                                <p className="text-sm text-muted-foreground">Click to view team performance.</p>
+                            ) : (
+                                <>
+                                    {insights.bestStat && (
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <TrendingUp className="h-4 w-4 text-green-500" />
+                                            <span className="font-medium text-muted-foreground">Top Skill:</span>
+                                            <span className="font-semibold">{insights.bestStat.trait}</span>
+                                        </div>
+                                    )}
+                                    {insights.watchStat && (
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <TrendingDown className="h-4 w-4 text-amber-500" />
+                                            <span className="font-medium text-muted-foreground">Watch Area:</span>
+                                            <span className="font-semibold">{insights.watchStat.trait}</span>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </CardContent>
+                        </Card>
+                    );
+                })}
             </div>
           )}
         </CardContent>
