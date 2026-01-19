@@ -32,6 +32,7 @@ import { AssignUserForm } from '../admin/assign-user-form';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RemoveUserForm } from '../admin/remove-user-form';
+import { cn } from '@/lib/utils';
 
 interface ManagerDashboardProps {
   user: User;
@@ -388,7 +389,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     </div>
                     <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingDown className="h-4 w-4 text-amber-500"/>Watch Area</p>
-                        <p className="text-2xl font-bold">{dealershipInsights.watchStat?.trait || 'N/A'}</p>
+                        <p className={cn("text-2xl font-bold", dealershipInsights.watchStat && dealershipInsights.watchStat.score < 50 && "text-destructive")}>
+                            {dealershipInsights.watchStat?.trait || 'N/A'}
+                        </p>
                     </div>
                      <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Smile className="h-4 w-4"/>Avg. Empathy</p>
@@ -610,3 +613,5 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     </div>
   );
 }
+
+    
