@@ -66,6 +66,19 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const { logout } = useAuth();
   const router = useRouter();
 
+  const teamContext = useMemo(() => {
+    switch (user.role) {
+      case 'manager':
+        return { memberLabel: 'Sales Consultants', description: 'Across your sales team' };
+      case 'Service Manager':
+        return { memberLabel: 'Service Writers', description: 'Across your service team' };
+      case 'Parts Manager':
+        return { memberLabel: 'Parts Consultants', description: 'Across your parts team' };
+      default:
+        return { memberLabel: 'Team Members', description: 'Across your entire team' };
+    }
+  }, [user.role]);
+
   const fetchData = useCallback(async (dealershipId: string | null) => {
       if (!dealershipId) return;
 
@@ -209,8 +222,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       const dealershipName = dealerships.find(d => d.id === selectedDealershipId)?.name;
       return selectedDealershipId === 'all' ? 'Across all dealerships' : `For ${dealershipName}`;
     }
-    return 'Across your entire team';
-  }, [user.role, selectedDealershipId, dealerships]);
+    return teamContext.description;
+  }, [user.role, selectedDealershipId, dealerships, teamContext.description]);
 
   const dealershipInsights = useMemo(() => {
     if (!stats?.avgScores) {
@@ -362,7 +375,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <p className="text-2xl font-bold">{stats?.totalLessons.toString() || '0'}</p>
                     </div>
                     <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4"/>Team Members</p>
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4"/>{teamContext.memberLabel}</p>
                         <p className="text-2xl font-bold">{teamActivity.length.toString()}</p>
                     </div>
                     <div className="space-y-1">
