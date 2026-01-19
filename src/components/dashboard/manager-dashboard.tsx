@@ -382,21 +382,17 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Star className="h-4 w-4"/>Total XP</p>
                         <p className="text-2xl font-bold">{teamActivity.reduce((sum, member) => sum + member.totalXp, 0).toLocaleString()}</p>
                     </div>
-                    {dealershipInsights.bestStat && (
-                        <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-500"/>Top Skill</p>
-                            <p className="text-2xl font-bold">{dealershipInsights.bestStat.trait}</p>
-                        </div>
-                    )}
-                    {dealershipInsights.watchStat && (
-                        <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingDown className="h-4 w-4 text-amber-500"/>Watch Area</p>
-                            <p className="text-2xl font-bold">{dealershipInsights.watchStat.trait}</p>
-                        </div>
-                    )}
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-500"/>Top Skill</p>
+                        <p className="text-2xl font-bold">{dealershipInsights.bestStat?.trait || 'N/A'}</p>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingDown className="h-4 w-4 text-amber-500"/>Watch Area</p>
+                        <p className="text-2xl font-bold">{dealershipInsights.watchStat?.trait || 'N/A'}</p>
+                    </div>
                      <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Smile className="h-4 w-4"/>Avg. Empathy</p>
-                        <p className="text-2xl font-bold">{`${stats?.avgScores?.empathy || 0}%`}</p>
+                        <p className="text-2xl font-bold">{stats?.avgScores ? `${stats.avgScores.empathy}%` : 'N/A'}</p>
                     </div>
                 </div>
             )}
