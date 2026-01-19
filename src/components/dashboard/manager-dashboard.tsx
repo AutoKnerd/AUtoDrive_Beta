@@ -33,6 +33,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RemoveUserForm } from '../admin/remove-user-form';
 import { cn } from '@/lib/utils';
+import { calculateLevel } from '@/lib/xp';
 
 interface ManagerDashboardProps {
   user: User;
@@ -49,6 +50,32 @@ type DealershipInsight = {
     trait: string;
     score: number;
 };
+
+function LevelDisplay({ xp }: { xp: number }) {
+    const { level, levelXp, nextLevelXp, progress } = calculateLevel(xp);
+
+    if (level >= 100) {
+        return (
+             <div className="space-y-2">
+                <p className="text-2xl font-bold">Level 100 - Master</p>
+                <p className="text-sm text-cyan-400">You have reached the pinnacle of sales excellence!</p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="w-full space-y-2">
+            <div className="flex items-baseline gap-4">
+                <p className="text-3xl font-bold text-white">Level {level}</p>
+                <Progress value={progress} className="h-4 bg-slate-700/50 border border-slate-600 [&>div]:bg-gradient-to-r [&>div]:from-cyan-400 [&>div]:to-blue-500" />
+            </div>
+            <div className="flex justify-between text-xs font-semibold">
+                <span className="text-muted-foreground">{levelXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
+                <span className="text-cyan-400">Total: {xp.toLocaleString()} XP</span>
+            </div>
+        </div>
+    );
+}
 
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
@@ -300,6 +327,21 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             </DropdownMenuContent>
           </DropdownMenu>
       </header>
+      
+      {!['Owner', 'Admin', 'Trainer'].includes(user.role) && (
+        <section className="space-y-3">
+             {loading ? <Skeleton className="h-24 w-full" /> : (
+                <div>
+                    <LevelDisplay xp={user.xp} />
+                    {user.memberSince && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                            Member since {new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                    )}
+                </div>
+             )}
+        </section>
+      )}
 
       {(['Owner', 'Admin', 'Trainer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
         <Card>
@@ -613,5 +655,3 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     </div>
   );
 }
-
-    
