@@ -155,19 +155,50 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   }, [lessons, averageScores]);
 
   const recentActivities = useMemo(() => {
-    if (!activity.length) return [];
-    
-    const allLessons = [...lessons, ...assignedLessons];
-    const activities = activity.slice(0, 4).map(log => {
-      const lessonTitle = allLessons.find(l => l.lessonId === log.lessonId)?.title || 'a lesson';
-      return {
-        icon: activityIcons.completed,
-        text: `Completed: ${lessonTitle} on ${new Date(log.timestamp).toLocaleDateString()}`
-      };
-    });
+    if (!activity || !user) return [];
 
-    return activities;
-  }, [activity, lessons, assignedLessons]);
+    const allLessons = [...lessons, ...assignedLessons];
+    const combinedActivities: { type: string; timestamp: Date; text: string }[] = [];
+    let currentXp = user.xp;
+
+    // The activity is sorted from newest to oldest. We'll iterate backwards.
+    for (const log of activity) {
+        const xpAfter = currentXp;
+        const levelAfter = calculateLevel(xpAfter).level;
+        
+        const xpBefore = xpAfter - log.xpGained;
+        const levelBefore = calculateLevel(xpBefore).level;
+
+        // Add the lesson completion activity
+        const lessonTitle = allLessons.find(l => l.lessonId === log.lessonId)?.title || 'a lesson';
+        combinedActivities.push({
+            type: 'completed',
+            timestamp: new Date(log.timestamp),
+            text: `Completed "${lessonTitle}" and earned ${log.xpGained} XP.`
+        });
+
+        // Check if a level up occurred after this lesson
+        if (levelAfter > levelBefore) {
+            combinedActivities.push({
+                type: 'levelup',
+                // Place level-up event slightly after the lesson for correct sorting
+                timestamp: new Date(new Date(log.timestamp).getTime() + 1),
+                text: `Congratulations! You've reached Level ${levelAfter}!`
+            });
+        }
+        
+        currentXp = xpBefore;
+    }
+
+    // Sort all generated activities by timestamp (newest first) and take the top 4
+    return combinedActivities
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 4)
+        .map(act => ({
+            icon: activityIcons[act.type],
+            text: act.text
+        }));
+  }, [activity, lessons, assignedLessons, user]);
 
   return (
     <div className="space-y-8 pb-24 text-gray-300">
