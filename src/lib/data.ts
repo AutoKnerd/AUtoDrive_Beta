@@ -346,7 +346,7 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
     return relevantDealerships;
 }
 
-export async function getManagerStats(dealershipId: string, userRole: UserRole): Promise<{ totalLessons: number; avgEmpathy: number }> {
+export async function getManagerStats(dealershipId: string, userRole: UserRole): Promise<{ totalLessons: number; avgScores: Record<CxTrait, number> | null }> {
     await simulateNetworkDelay();
 
     const teamRoles = getTeamMemberRoles(userRole);
@@ -364,14 +364,19 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
     }
     
     if (relevantLogs.length === 0) {
-        return { totalLessons: 0, avgEmpathy: 0 };
+        return { totalLessons: 0, avgScores: null };
     }
 
     const totalLessons = relevantLogs.length;
-    const totalEmpathy = relevantLogs.reduce((sum, log) => sum + log.empathy, 0);
-    const avgEmpathy = Math.round(totalEmpathy / totalLessons);
+    const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
 
-    return { totalLessons, avgEmpathy };
+    const avgScores = cxTraits.reduce((acc, trait) => {
+        const totalScore = relevantLogs.reduce((sum, log) => sum + log[trait], 0);
+        acc[trait] = Math.round(totalScore / totalLessons);
+        return acc;
+    }, {} as Record<CxTrait, number>);
+
+    return { totalLessons, avgScores };
 }
 
 export async function getTeamActivity(dealershipId: string, userRole: UserRole): Promise<{ consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[]> {

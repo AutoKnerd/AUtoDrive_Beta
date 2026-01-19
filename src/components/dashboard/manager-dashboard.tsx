@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership } from '@/lib/definitions';
 import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers } from '@/lib/data';
-import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle, Store, Mail, LogOut, User as UserIcon, ShieldOff } from 'lucide-react';
+import { BarChart, BookOpen, CheckCircle, Smile, Star, Users, PlusCircle, Store, Mail, LogOut, User as UserIcon, ShieldOff, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -44,7 +44,7 @@ type TeamMemberStats = {
 };
 
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
-  const [stats, setStats] = useState<{ totalLessons: number, avgEmpathy: number } | null>(null);
+  const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [managerActivity, setManagerActivity] = useState<LessonLog[]>([]);
@@ -177,6 +177,28 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     }
     return 'Across your entire team';
   }, [user.role, selectedDealershipId, dealerships]);
+
+  const dealershipInsights = useMemo(() => {
+    if (!stats?.avgScores) {
+        return { bestStat: null, watchStat: null };
+    }
+
+    const scores = Object.entries(stats.avgScores) as [CxTrait, number][];
+    
+    if (scores.length === 0) {
+        return { bestStat: null, watchStat: null };
+    }
+
+    const bestStat = scores.reduce((max, entry) => entry[1] > max[1] ? entry : max, scores[0]);
+    const watchStat = scores.reduce((min, entry) => entry[1] < min[1] ? entry : min, scores[0]);
+
+    const formatTrait = (trait: CxTrait) => trait.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+
+    return {
+        bestStat: { trait: formatTrait(bestStat[0]), score: bestStat[1] },
+        watchStat: { trait: formatTrait(watchStat[0]), score: watchStat[1] }
+    };
+  }, [stats]);
   
   async function handleUserManaged() {
     if (['Admin', 'Trainer'].includes(user.role)) {
@@ -291,14 +313,16 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </CardHeader>
         <CardContent>
             {loading ? (
-                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                 </div>
             ) : (
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-8 md:grid-cols-3">
                     <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><CheckCircle className="h-4 w-4"/>Total Lessons</p>
                         <p className="text-2xl font-bold">{stats?.totalLessons.toString() || '0'}</p>
@@ -308,12 +332,24 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <p className="text-2xl font-bold">{teamActivity.length.toString()}</p>
                     </div>
                     <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Smile className="h-4 w-4"/>Avg. Empathy</p>
-                        <p className="text-2xl font-bold">{`${stats?.avgEmpathy || 0}%`}</p>
-                    </div>
-                    <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Star className="h-4 w-4"/>Total XP</p>
                         <p className="text-2xl font-bold">{teamActivity.reduce((sum, member) => sum + member.totalXp, 0).toLocaleString()}</p>
+                    </div>
+                    {dealershipInsights.bestStat && (
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-500"/>Top Skill</p>
+                            <p className="text-2xl font-bold">{dealershipInsights.bestStat.trait}</p>
+                        </div>
+                    )}
+                    {dealershipInsights.watchStat && (
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingDown className="h-4 w-4 text-amber-500"/>Watch Area</p>
+                            <p className="text-2xl font-bold">{dealershipInsights.watchStat.trait}</p>
+                        </div>
+                    )}
+                     <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Smile className="h-4 w-4"/>Avg. Empathy</p>
+                        <p className="text-2xl font-bold">{`${stats?.avgScores?.empathy || 0}%`}</p>
                     </div>
                 </div>
             )}
