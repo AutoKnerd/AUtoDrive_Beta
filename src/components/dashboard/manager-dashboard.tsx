@@ -88,39 +88,70 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [selectedDealershipId, user.userId, user.role]);
 
   useEffect(() => {
-    async function fetchInitialDealerships() {
-      let initialDealerships: Dealership[];
-      if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
-        initialDealerships = await getDealerships(user);
-      } else {
-        const managedDealerships = await Promise.all(
-          user.dealershipIds.map(id => getDealershipById(id))
-        );
-        initialDealerships = managedDealerships.filter((d): d is Dealership => d !== null);
-      }
-      setDealerships(initialDealerships);
+    const fetchInitialData = async () => {
+        setLoading(true);
+        let initialDealerships: Dealership[];
 
-      // Set the initial selected dealership ID, only if it's not already set
-      if (selectedDealershipId === null) {
         if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
-          setSelectedDealershipId('all');
-        } else if (initialDealerships.length > 0) {
-          setSelectedDealershipId(initialDealerships[0].id);
+            initialDealerships = await getDealerships(user);
         } else {
-          // If no dealerships, set loading to false to prevent infinite spinner
-          setLoading(false);
+            const managedDealerships = await Promise.all(
+                user.dealershipIds.map(id => getDealershipById(id))
+            );
+            initialDealerships = managedDealerships.filter((d): d is Dealership => d !== null);
         }
-      }
-    }
-    fetchInitialDealerships();
-  }, [user.userId, user.role, user.dealershipIds, selectedDealershipId]);
+        setDealerships(initialDealerships);
+        
+        let currentSelectedId = selectedDealershipId;
 
+        if (currentSelectedId === null) {
+            if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+                currentSelectedId = 'all';
+            } else if (initialDealerships.length > 0) {
+                currentSelectedId = initialDealerships[0].id;
+            } else {
+                 setLoading(false); // No dealerships to view
+                 return;
+            }
+            setSelectedDealershipId(currentSelectedId);
+        }
+
+        if (currentSelectedId) {
+             const [managerStats, activity, usersToManage] = await Promise.all([
+                getManagerStats(currentSelectedId, user.role),
+                getTeamActivity(currentSelectedId, user.role),
+                getManageableUsers(user.userId)
+            ]);
+            
+            setStats(managerStats);
+            setTeamActivity(activity);
+            setManageableUsers(usersToManage);
+
+            if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+                const [fetchedLessons, fetchedManagerActivity] = await Promise.all([
+                    getLessons(user.role as LessonRole),
+                    getConsultantActivity(user.userId)
+                ]);
+                setLessons(fetchedLessons);
+                setManagerActivity(fetchedManagerActivity);
+            }
+        }
+        setLoading(false);
+    };
+
+    fetchInitialData();
+  }, [user.role, user.userId, user.dealershipIds]);
+
+  const handleDealershipChange = (dealershipId: string) => {
+    setSelectedDealershipId(dealershipId);
+  };
 
   useEffect(() => {
     if (selectedDealershipId) {
-      fetchData();
+        fetchData();
     }
-  }, [fetchData, selectedDealershipId]);
+  }, [selectedDealershipId, fetchData]);
+
 
 
   const managerAverageScores = useMemo(() => {
@@ -233,7 +264,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 <CardDescription>Select a dealership to view its performance statistics.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Select value={selectedDealershipId || ''} onValueChange={setSelectedDealershipId}>
+                <Select value={selectedDealershipId || ''} onValueChange={handleDealershipChange}>
                     <SelectTrigger className="w-full md:w-1/3">
                         <SelectValue placeholder="Select a dealership" />
                     </SelectTrigger>
@@ -349,14 +380,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                     <TabsTrigger value="assign">Assign Existing</TabsTrigger>
                                     <TabsTrigger value="invite">Invite New</TabsTrigger>
                                 </TabsList>
-                                <TabsContent value="assign" className="pt-4">
+                                <TabsContent value="assign" className="pt-2">
                                     <AssignUserForm 
                                         manageableUsers={manageableUsers}
                                         dealerships={dealerships}
                                         onUserAssigned={handleUserManaged} 
                                     />
                                 </TabsContent>
-                                <TabsContent value="invite" className="pt-4">
+                                <TabsContent value="invite" className="pt-2">
                                     <RegisterDealershipForm user={user} onDealershipRegistered={handleUserManaged} />
                                 </TabsContent>
                             </Tabs>
@@ -408,20 +439,28 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                       return (
                           <TableRow key={member.consultant.userId}>
                               <TableCell>
-                                  <div className="flex items-center gap-3">
-                                      <Avatar>
-                                          <AvatarFallback><ShieldOff className="h-5 w-5 text-muted-foreground" /></AvatarFallback>
-                                      </Avatar>
-                                      <div>
-                                          <p className="font-medium">Anonymous Consultant</p>
-                                      </div>
-                                  </div>
+                                <div className="flex items-center gap-3">
+                                    <Avatar>
+                                      <AvatarImage src={member.consultant.avatarUrl} data-ai-hint="person portrait" />
+                                      <AvatarFallback>{member.consultant.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="font-medium">{member.consultant.name}</p>
+                                      <p className="text-sm text-muted-foreground">{member.consultant.email}</p>
+                                    </div>
+                                </div>
                               </TableCell>
                               <TableCell>
                                   <Badge variant="outline">{member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}</Badge>
                               </TableCell>
                               <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
-                              <TableCell colSpan={2} className="text-center text-muted-foreground italic">Stats are hidden for privacy</TableCell>
+                              <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2 text-muted-foreground italic">
+                                    <ShieldOff className="h-4 w-4" />
+                                    <span>Metrics Hidden</span>
+                                </div>
+                              </TableCell>
                           </TableRow>
                       );
                   }
@@ -482,7 +521,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     <Card 
                     key={dealership.id} 
                     className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-1"
-                    onClick={() => setSelectedDealershipId(dealership.id)}
+                    onClick={() => handleDealershipChange(dealership.id)}
                     >
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
