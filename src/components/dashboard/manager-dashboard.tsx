@@ -31,6 +31,7 @@ import {
 import { AssignUserForm } from '../admin/assign-user-form';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RemoveUserForm } from '../admin/remove-user-form';
 
 interface ManagerDashboardProps {
   user: User;
@@ -415,13 +416,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             <DialogHeader>
                                 <DialogTitle>Manage Team</DialogTitle>
                                 <DialogDescription>
-                                    Invite new members or assign existing unassigned users to dealerships.
+                                    Invite new members, assign existing users, or remove users from the system.
                                 </DialogDescription>
                             </DialogHeader>
                             <Tabs defaultValue="assign" className="pt-4">
-                                <TabsList className="grid w-full grid-cols-2">
+                                <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-3' : 'grid-cols-2'}`}>
                                     <TabsTrigger value="assign">Assign Existing</TabsTrigger>
                                     <TabsTrigger value="invite">Invite New</TabsTrigger>
+                                    {user.role === 'Admin' && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
                                 </TabsList>
                                 <TabsContent value="assign" className="pt-2">
                                     <AssignUserForm 
@@ -433,6 +435,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 <TabsContent value="invite" className="pt-2">
                                     <RegisterDealershipForm user={user} onDealershipRegistered={handleUserManaged} />
                                 </TabsContent>
+                                {user.role === 'Admin' && (
+                                    <TabsContent value="remove" className="pt-2">
+                                        <RemoveUserForm 
+                                            manageableUsers={manageableUsers}
+                                            onUserRemoved={handleUserManaged} 
+                                        />
+                                    </TabsContent>
+                                )}
                             </Tabs>
                         </DialogContent>
                     </Dialog>

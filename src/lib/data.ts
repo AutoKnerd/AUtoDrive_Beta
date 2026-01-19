@@ -185,6 +185,23 @@ export async function updateUserDealerships(userId: string, newDealershipIds: st
     return users[userIndex];
 }
 
+export async function deleteUser(userId: string): Promise<void> {
+    await simulateNetworkDelay();
+    const userIndex = users.findIndex(u => u.userId === userId);
+    if (userIndex === -1) {
+        throw new Error("User not found.");
+    }
+    
+    // Remove user
+    users.splice(userIndex, 1);
+    
+    // Remove associated data
+    lessonLogs = lessonLogs.filter(log => log.userId !== userId);
+    lessonAssignments = lessonAssignments.filter(assign => assign.userId !== userId);
+
+    console.log(`Permanently deleted user ${userId} and their associated data.`);
+}
+
 
 // LESSONS
 export async function getLessons(role: LessonRole): Promise<Lesson[]> {
