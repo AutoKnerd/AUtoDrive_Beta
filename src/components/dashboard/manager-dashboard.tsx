@@ -59,33 +59,32 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const { logout } = useAuth();
   const router = useRouter();
 
-  const fetchData = useCallback(async () => {
-    if (!selectedDealershipId) return;
+  const fetchData = useCallback(async (dealershipId: string | null) => {
+      if (!dealershipId) return;
 
-    setLoading(true);
+      setLoading(true);
 
-    const [managerStats, activity, usersToManage] = await Promise.all([
-      getManagerStats(selectedDealershipId, user.role),
-      getTeamActivity(selectedDealershipId, user.role),
-      getManageableUsers(user.userId)
-    ]);
-    
-    setStats(managerStats);
-    setTeamActivity(activity);
-    setManageableUsers(usersToManage);
+      const [managerStats, activity, usersToManage] = await Promise.all([
+        getManagerStats(dealershipId, user.role),
+        getTeamActivity(dealershipId, user.role),
+        getManageableUsers(user.userId)
+      ]);
+      
+      setStats(managerStats);
+      setTeamActivity(activity);
+      setManageableUsers(usersToManage);
 
-    // This part only for non-admins
-    if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
-        const [fetchedLessons, fetchedManagerActivity] = await Promise.all([
-            getLessons(user.role as LessonRole),
-            getConsultantActivity(user.userId)
-        ]);
-        setLessons(fetchedLessons);
-        setManagerActivity(fetchedManagerActivity);
-    }
+      if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+          const [fetchedLessons, fetchedManagerActivity] = await Promise.all([
+              getLessons(user.role as LessonRole),
+              getConsultantActivity(user.userId)
+          ]);
+          setLessons(fetchedLessons);
+          setManagerActivity(fetchedManagerActivity);
+      }
 
-    setLoading(false);
-  }, [selectedDealershipId, user.userId, user.role]);
+      setLoading(false);
+  }, [user.userId, user.role]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -109,50 +108,25 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 currentSelectedId = 'all';
             } else if (initialDealerships.length > 0) {
                 currentSelectedId = initialDealerships[0].id;
-            } else {
-                 setLoading(false); // No dealerships to view
-                 return;
             }
-            setSelectedDealershipId(currentSelectedId);
         }
-
+       
         if (currentSelectedId) {
-             const [managerStats, activity, usersToManage] = await Promise.all([
-                getManagerStats(currentSelectedId, user.role),
-                getTeamActivity(currentSelectedId, user.role),
-                getManageableUsers(user.userId)
-            ]);
-            
-            setStats(managerStats);
-            setTeamActivity(activity);
-            setManageableUsers(usersToManage);
-
-            if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
-                const [fetchedLessons, fetchedManagerActivity] = await Promise.all([
-                    getLessons(user.role as LessonRole),
-                    getConsultantActivity(user.userId)
-                ]);
-                setLessons(fetchedLessons);
-                setManagerActivity(fetchedManagerActivity);
+            if (selectedDealershipId === null) { // Set initial ID if not set
+                setSelectedDealershipId(currentSelectedId);
             }
+            await fetchData(currentSelectedId);
+        } else {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     fetchInitialData();
-  }, [user.role, user.userId, user.dealershipIds]);
+  }, [user.role, user.userId, user.dealershipIds, selectedDealershipId, fetchData]);
 
   const handleDealershipChange = (dealershipId: string) => {
     setSelectedDealershipId(dealershipId);
   };
-
-  useEffect(() => {
-    if (selectedDealershipId) {
-        fetchData();
-    }
-  }, [selectedDealershipId, fetchData]);
-
-
 
   const managerAverageScores = useMemo(() => {
       if (['Owner', 'Admin', 'Trainer'].includes(user.role)) return null;
@@ -212,7 +186,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
         setManageUsersOpen(false);
     }
-    fetchData(); // Refetch dashboard data after user management
+    fetchData(selectedDealershipId);
   }
 
 
@@ -435,36 +409,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 {teamActivity.length > 0 ? teamActivity.map(member => {
                   const isPrivate = member.consultant.isPrivate && !['Owner', 'Admin'].includes(user.role);
 
-                  if (isPrivate) {
-                      return (
-                          <TableRow key={member.consultant.userId}>
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <Avatar>
-                                      <AvatarImage src={member.consultant.avatarUrl} data-ai-hint="person portrait" />
-                                      <AvatarFallback>{member.consultant.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                      <p className="font-medium">{member.consultant.name}</p>
-                                      <p className="text-sm text-muted-foreground">{member.consultant.email}</p>
-                                    </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                  <Badge variant="outline">{member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}</Badge>
-                              </TableCell>
-                              <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
-                              <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2 text-muted-foreground italic">
-                                    <ShieldOff className="h-4 w-4" />
-                                    <span>Metrics Hidden</span>
-                                </div>
-                              </TableCell>
-                          </TableRow>
-                      );
-                  }
-
                   return (
                     <Dialog key={member.consultant.userId}>
                       <DialogTrigger asChild>
@@ -487,10 +431,17 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                               <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
                               <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
                               <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                  <span className="font-medium">{member.avgScore}%</span>
-                                  <Progress value={member.avgScore} className="h-2 w-20" />
-                              </div>
+                                {isPrivate ? (
+                                    <div className="flex items-center justify-end gap-2 text-muted-foreground italic">
+                                        <ShieldOff className="h-4 w-4" />
+                                        <span>Metrics Hidden</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-end gap-2">
+                                        <span className="font-medium">{member.avgScore}%</span>
+                                        <Progress value={member.avgScore} className="h-2 w-20" />
+                                    </div>
+                                )}
                               </TableCell>
                           </TableRow>
                       </DialogTrigger>
@@ -500,7 +451,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                           </DialogHeader>
                           <ScrollArea className="max-h-[70vh]">
                               <div className="pr-6">
-                                  <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={fetchData} />
+                                  <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={() => fetchData(selectedDealershipId)} />
                               </div>
                           </ScrollArea>
                       </DialogContent>

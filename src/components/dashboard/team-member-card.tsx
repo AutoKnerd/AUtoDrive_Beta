@@ -6,7 +6,7 @@ import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership } from '@
 import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles } from '@/lib/data';
 import { calculateLevel } from '@/lib/xp';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil } from 'lucide-react';
+import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, PlusCircle } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuChe
 import { Input } from '../ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreateLessonForm } from '../lessons/create-lesson-form';
-
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 
 interface TeamMemberCardProps {
   user: User;
@@ -45,8 +45,12 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [isModifying, setIsModifying] = useState(false);
   const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
   const [confirmationInput, setConfirmationInput] = useState('');
+  const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
+
 
   const { level } = calculateLevel(user.xp);
+  const isPrivate = user.isPrivate && !['Owner', 'Admin'].includes(currentUser.role);
+
 
   useEffect(() => {
     async function fetchData() {
@@ -125,8 +129,11 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   }
 
   const handleLessonCreated = () => {
-    // The form handles its own state and success message.
-    // Re-fetching activity could be a future enhancement to show the new assigned lesson.
+    setCreateLessonOpen(false);
+    toast({
+      title: "Lesson Created & Assigned!",
+      description: "The new lesson has been assigned to the user."
+    })
   };
 
   const recentActivity = useMemo(() => {
@@ -175,7 +182,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                     </Avatar>
                     <div>
                         <CardTitle className="text-2xl">{user.name}</CardTitle>
-                        <CardDescription>{user.role} at {currentDealershipNames}</CardDescription>
+                        <CardDescription>{user.role === 'manager' ? 'Sales Manager' : user.role} at {currentDealershipNames}</CardDescription>
                     </div>
                 </div>
                 <div className="text-right">
@@ -185,33 +192,35 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             </CardHeader>
         </Card>
 
-        <Card>
-            <CardHeader>
-            <CardTitle>Average CX Scores</CardTitle>
-            <CardDescription>Average performance across all completed lessons.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-            {loading ? (
-                Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
-            ) : Object.keys(averageScores).length > 0 && averageScores.empathy > 0 ? (
-                Object.entries(averageScores).map(([key, value]) => {
-                const Icon = metricIcons[key as keyof typeof metricIcons];
-                const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                return (
-                    <div key={key} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Icon className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-sm font-medium">{title}</span>
-                    </div>
-                    <span className="font-bold">{value}%</span>
-                    </div>
-                );
-                })
-            ) : (
-                <p className="text-muted-foreground col-span-full text-center">No scores available yet.</p>
-            )}
-            </CardContent>
-        </Card>
+        {!isPrivate && (
+            <Card>
+                <CardHeader>
+                <CardTitle>Average CX Scores</CardTitle>
+                <CardDescription>Average performance across all completed lessons.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                {loading ? (
+                    Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
+                ) : Object.keys(averageScores).length > 0 && averageScores.empathy > 0 ? (
+                    Object.entries(averageScores).map(([key, value]) => {
+                    const Icon = metricIcons[key as keyof typeof metricIcons];
+                    const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                    return (
+                        <div key={key} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Icon className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-sm font-medium">{title}</span>
+                        </div>
+                        <span className="font-bold">{value}%</span>
+                        </div>
+                    );
+                    })
+                ) : (
+                    <p className="text-muted-foreground col-span-full text-center">No scores available yet.</p>
+                )}
+                </CardContent>
+            </Card>
+        )}
         
         <Card>
           <CardHeader>
@@ -243,7 +252,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
         </Card>
 
         {canAssignLessons && (
-             <Card>
+            <Card>
                 <CardHeader>
                     <CardTitle>Create & Assign Custom Lesson</CardTitle>
                     <CardDescription>Design a new lesson and assign it directly to this team member.</CardDescription>
