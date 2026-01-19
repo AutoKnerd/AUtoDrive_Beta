@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '../ui/spinner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Separator } from '../ui/separator';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -29,8 +31,22 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const quickLoginRoles = [
+  { value: 'consultant@autodrive.com', label: 'Sales Consultant' },
+  { value: 'manager@autodrive.com', label: 'Sales Manager' },
+  { value: 'service.writer@autodrive.com', label: 'Service Writer' },
+  { value: 'service.manager@autodrive.com', label: 'Service Manager' },
+  { value: 'finance.manager@autodrive.com', label: 'Finance Manager' },
+  { value: 'parts.consultant@autodrive.com', label: 'Parts Consultant' },
+  { value: 'parts.manager@autodrive.com', label: 'Parts Manager' },
+  { value: 'owner@autodrive.com', label: 'Owner' },
+  { value: 'trainer@autoknerd.com', label: 'Trainer' },
+  { value: 'admin@autoknerd.com', label: 'Admin' },
+];
+
 export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedQuickLogin, setSelectedQuickLogin] = useState<string>('');
   const router = useRouter();
   const { login, user, loading } = useAuth();
   const { toast } = useToast();
@@ -69,120 +85,31 @@ export function LoginForm() {
     }
   }
   
-  async function handleManagerLogin() {
-    setIsSubmitting(true);
-    try {
-      await login('manager@autodrive.com', 'password'); // Using manager credentials
-      toast({
-        title: 'Login Successful',
-        description: 'Logged in as Sales Manager.',
-      });
-      router.push('/');
-    } catch (error) {
+  async function handleQuickLogin() {
+    if (!selectedQuickLogin) {
       toast({
         variant: 'destructive',
-        title: 'Sales Manager Login Failed',
-        description: 'Could not log in as sales manager user.',
+        title: 'Quick Login Failed',
+        description: 'Please select a role from the dropdown.',
       });
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
-  }
 
-  async function handleConsultantLogin() {
     setIsSubmitting(true);
-    try {
-      await login('consultant@autodrive.com', 'password'); // Using consultant credentials
-      toast({
-        title: 'Login Successful',
-        description: 'Logged in as Sales Consultant.',
-      });
-      router.push('/');
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Consultant Login Failed',
-        description: 'Could not log in as consultant user.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+    const roleInfo = quickLoginRoles.find(r => r.value === selectedQuickLogin);
 
-  async function handleOwnerLogin() {
-    setIsSubmitting(true);
     try {
-      await login('owner@autodrive.com', 'password'); 
+      await login(selectedQuickLogin, 'password');
       toast({
         title: 'Login Successful',
-        description: 'Logged in as Owner.',
+        description: `Logged in as ${roleInfo?.label}.`,
       });
       router.push('/');
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Owner Login Failed',
-        description: 'Could not log in as owner user.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-  
-  async function handleServiceManagerLogin() {
-    setIsSubmitting(true);
-    try {
-      await login('service.manager@autodrive.com', 'password');
-      toast({
-        title: 'Login Successful',
-        description: 'Logged in as Service Manager.',
-      });
-      router.push('/');
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Service Manager Login Failed',
-        description: 'Could not log in as service manager user.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-  
-  async function handleTrainerLogin() {
-    setIsSubmitting(true);
-    try {
-      await login('trainer@autoknerd.com', 'password');
-      toast({
-        title: 'Login Successful',
-        description: 'Logged in as Trainer.',
-      });
-      router.push('/');
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Trainer Login Failed',
-        description: 'Could not log in as trainer user.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleAdminLogin() {
-    setIsSubmitting(true);
-    try {
-      await login('admin@autoknerd.com', 'password');
-      toast({
-        title: 'Login Successful',
-        description: 'Logged in as Admin.',
-      });
-      router.push('/');
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Admin Login Failed',
-        description: 'Could not log in as admin user.',
+        title: `${roleInfo?.label} Login Failed`,
+        description: `Could not log in as ${roleInfo?.label.toLowerCase()} user.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -221,33 +148,35 @@ export function LoginForm() {
               )}
             />
           </CardContent>
-          <CardFooter className="flex flex-col gap-2">
+          <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? <Spinner size="sm" /> : 'Sign In'}
             </Button>
-            <div className='flex w-full gap-2'>
-              <Button type="button" variant="outline" className="w-full" onClick={handleConsultantLogin} disabled={isSubmitting}>
-                Sales Consultant
-              </Button>
-              <Button type="button" variant="outline" className="w-full" onClick={handleManagerLogin} disabled={isSubmitting}>
-                Sales Manager
-              </Button>
+            
+            <div className="relative w-full">
+              <Separator />
+              <span className="absolute left-1/2 -translate-x-1/2 -top-2.5 bg-card px-2 text-xs text-muted-foreground">
+                OR
+              </span>
             </div>
-            <div className='flex w-full gap-2'>
-              <Button type="button" variant="outline" className="w-full" onClick={handleServiceManagerLogin} disabled={isSubmitting}>
-                Service Manager
-              </Button>
-              <Button type="button" variant="outline" className="w-full" onClick={handleOwnerLogin} disabled={isSubmitting}>
-                Owner
-              </Button>
-            </div>
-            <div className='flex w-full gap-2'>
-              <Button type="button" variant="outline" className="w-full" onClick={handleTrainerLogin} disabled={isSubmitting}>
-                Trainer
-              </Button>
-              <Button type="button" variant="outline" className="w-full" onClick={handleAdminLogin} disabled={isSubmitting}>
-                Admin
-              </Button>
+
+            <div className="w-full space-y-2">
+                <p className="text-center text-sm text-muted-foreground">Quick login as developer role</p>
+                <Select onValueChange={setSelectedQuickLogin} value={selectedQuickLogin}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a role to log in..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {quickLoginRoles.map(role => (
+                            <SelectItem key={role.value} value={role.value}>
+                                {role.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" className="w-full" onClick={handleQuickLogin} disabled={isSubmitting || !selectedQuickLogin}>
+                  {isSubmitting ? <Spinner size="sm" /> : 'Quick Login'}
+                </Button>
             </div>
           </CardFooter>
         </form>
