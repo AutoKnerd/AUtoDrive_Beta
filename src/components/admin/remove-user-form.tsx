@@ -149,7 +149,7 @@ export function RemoveUserForm({ manageableUsers, onUserRemoved }: RemoveUserFor
         )}
 
       <AlertDialog open={isConfirming} onOpenChange={setIsConfirming}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>

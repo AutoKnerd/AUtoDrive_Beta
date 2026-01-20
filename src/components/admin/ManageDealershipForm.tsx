@@ -137,7 +137,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       )}
 
       <AlertDialog open={!!isConfirming} onOpenChange={() => setIsConfirming(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>

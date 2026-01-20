@@ -431,7 +431,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         </div>
       </form>
       <AlertDialog open={!!dealershipToRemove} onOpenChange={(open) => !open && setDealershipToRemove(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
