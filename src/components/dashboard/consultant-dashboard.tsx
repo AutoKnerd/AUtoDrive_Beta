@@ -277,6 +277,99 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                 </div>
              )}
         </section>
+        
+        {/* Today's Lessons */}
+        <section className="space-y-4">
+            <h2 className="text-xl font-bold text-white">Today's Lessons</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Recommended Lesson Card */}
+                {loading ? (
+                    <Skeleton className="h-full min-h-[160px] rounded-2xl" />
+                ) : (
+                    <Card className={cn(
+                        "flex flex-col justify-between p-6 bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 shadow-lg shadow-cyan-500/10",
+                        isPaused && "opacity-50 pointer-events-none"
+                    )}>
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <SteeringWheelIcon className="h-8 w-8 text-cyan-400" />
+                                <h3 className="text-2xl font-bold text-white">Recommended</h3>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-4">A daily lesson focused on your area for greatest improvement.</p>
+                        </div>
+                        {recommendedLesson && !lessonLimits.recommendedTaken ? (
+                            <Button asChild className="w-full bg-cyan-500/80 hover:bg-cyan-500 text-slate-900 font-bold">
+                                <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`}>
+                                    Start: {recommendedLesson.title}
+                                </Link>
+                            </Button>
+                        ) : (
+                            <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                                {recommendedLesson ? 
+                                    <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</> :
+                                    "No lesson available"
+                                }
+                            </Button>
+                        )}
+                    </Card>
+                )}
+                
+                {/* Assigned Lesson Card */}
+                {loading ? (
+                    <Skeleton className="h-full min-h-[160px] rounded-2xl" />
+                ) : (
+                    <Card className={cn(
+                        "flex flex-col justify-between p-6 bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 shadow-lg shadow-cyan-500/10",
+                        isPaused && "opacity-50 pointer-events-none"
+                    )}>
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <BookOpen className="h-8 w-8 text-cyan-400" />
+                                <h3 className="text-2xl font-bold text-white">Assigned</h3>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-4">Lessons assigned to you by your manager.</p>
+                        </div>
+                        {assignedLessons.length > 0 ? (
+                            <Button asChild className="w-full">
+                                <Link href={`/lesson/${assignedLessons[0].lessonId}`}>
+                                    Start: {assignedLessons[0].title}
+                                </Link>
+                            </Button>
+                        ) : (
+                            <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                                No assigned lessons
+                            </Button>
+                        )}
+                    </Card>
+                )}
+            </div>
+        </section>
+
+        {/* Additional Assigned Lessons */}
+        {assignedLessons.length > 1 && (
+            <section className="space-y-4">
+                <h3 className="text-lg font-bold text-white">More Assigned Lessons</h3>
+                <div className="space-y-3">
+                    {assignedLessons.slice(1).map((lesson) => {
+                        const Icon = lessonIcons[lesson.title] || BookOpen;
+                        return (
+                            <Link key={lesson.lessonId} href={`/lesson/${lesson.lessonId}`} className={cn("block group", isPaused && "pointer-events-none opacity-50")}>
+                                <div className="bg-slate-900/50 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 transition-colors group-hover:bg-slate-800/70">
+                                    <div className="p-2 bg-slate-900/70 rounded-lg border border-white/10">
+                                        <Icon className="h-8 w-8 text-cyan-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-semibold text-white">{lesson.title}</h4>
+                                        <p className="text-sm text-muted-foreground">{lesson.category}</p>
+                                    </div>
+                                    <ChevronRight className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                                </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+            </section>
+        )}
 
         {/* My Stats */}
         <section>
@@ -318,77 +411,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
              )}
         </section>
 
-        {/* Recommended Lesson */}
-        <section>
-            {loading ? (
-                <Skeleton className="h-28 w-full rounded-2xl" />
-            ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
-                <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("block group", isPaused && "pointer-events-none opacity-50")}>
-                    <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10 transition-all group-hover:border-cyan-400/80 group-hover:bg-slate-900/70">
-                        <div className="p-3 bg-slate-900/70 rounded-lg border border-white/10">
-                            <SteeringWheelIcon className="h-12 w-12 text-cyan-400 drop-shadow-[0_0_8px_hsl(var(--primary))]" strokeWidth={1.5} />
-                        </div>
-                        <div className="flex-1">
-                            <h2 className="text-2xl font-bold text-white">Recommended Lesson</h2>
-                            <p className="text-sm text-muted-foreground">A daily lesson focused on your area for greatest improvement.</p>
-                            <div className="text-sm font-medium text-cyan-400 mt-1 flex items-center gap-1 transition-colors group-hover:text-cyan-300">
-                               Start: {recommendedLesson.title} <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                           </div>
-                        </div>
-                    </div>
-                </Link>
-            ) : (
-                <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10 opacity-70 cursor-not-allowed">
-                    <div className="p-3 bg-slate-900/70 rounded-lg border border-white/10">
-                        <SteeringWheelIcon className="h-12 w-12 text-cyan-400" strokeWidth={1.5} />
-                    </div>
-                    <div className="flex-1">
-                        <h2 className="text-2xl font-bold text-white">Recommended Lesson</h2>
-                        <p className="text-sm text-muted-foreground">A daily lesson focused on your area for greatest improvement.</p>
-                        {lessonLimits.recommendedTaken ? (
-                           <p className="text-sm font-medium text-green-400 mt-1 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Completed for today!</p>
-                        ) : (
-                            <p className="text-sm text-muted-foreground mt-1">No recommended lessons available.</p>
-                        )}
-                    </div>
-                </div>
-            )}
-        </section>
-
-        {/* Assigned Lessons */}
-        <section className="space-y-4">
-            <h2 className="text-xl font-bold text-white">Assigned Lessons</h2>
-            {loading ? (
-                <Skeleton className="h-28 w-full rounded-xl" />
-            ) : assignedLessons.length > 0 ? (
-                <div className="space-y-4">
-                    {assignedLessons.map((lesson) => {
-                         const Icon = lessonIcons[lesson.title] || BookOpen;
-                         return (
-                            <Link key={lesson.lessonId} href={`/lesson/${lesson.lessonId}`} className={cn("block group", isPaused && "pointer-events-none opacity-50")}>
-                                <div className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-cyan-500/10 transition-all group-hover:border-cyan-400/80 group-hover:bg-slate-900/70">
-                                    <div className="p-3 bg-slate-900/70 rounded-lg border border-white/10">
-                                        <Icon className="h-12 w-12 text-cyan-400 drop-shadow-[0_0_8px_hsl(var(--primary))]" strokeWidth={1.5} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-white">{lesson.title}</h3>
-                                        <p className="text-sm text-muted-foreground">{lesson.category}</p>
-                                        <div className="text-sm font-medium text-cyan-400 mt-1 flex items-center gap-1 transition-colors group-hover:text-cyan-300">
-                                            Start Lesson <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </Link>
-                         );
-                    })}
-                </div>
-            ) : (
-                <div className="bg-slate-900/50 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center justify-center gap-3 text-muted-foreground">
-                    <p className="font-medium text-sm text-center">You have no lessons assigned by your manager.</p>
-                </div>
-            )}
-        </section>
-
         {/* Recent Activity */}
         <section className="space-y-2">
             <h2 className="text-xl font-bold text-white">Recent Activity</h2>
@@ -416,3 +438,5 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     </div>
   );
 }
+
+    
