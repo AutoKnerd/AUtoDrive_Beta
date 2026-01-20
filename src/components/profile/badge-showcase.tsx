@@ -3,7 +3,14 @@
 
 import * as icons from 'lucide-react';
 import type { Badge } from '@/lib/definitions';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { cn } from '@/lib/utils';
 
@@ -30,30 +37,31 @@ export function BadgeShowcase({ badges, className }: BadgeShowcaseProps) {
     <Card className={cn(className)}>
       <CardHeader>
         <CardTitle>My Badges</CardTitle>
-        <CardDescription>Your collection of earned achievements.</CardDescription>
+        <CardDescription>Your collection of earned achievements. Click a badge to see its details.</CardDescription>
       </CardHeader>
       <CardContent>
-        <TooltipProvider>
-          <div className="flex flex-wrap gap-4">
-            {badges.map((badge) => {
-              const Icon = icons[badge.icon as keyof typeof icons] || icons['Badge'];
-              return (
-                <Tooltip key={badge.id}>
-                  <TooltipTrigger asChild>
-                    <div className="flex h-20 w-20 flex-col items-center justify-center gap-2 rounded-lg bg-muted p-2 text-center transition-transform hover:scale-105">
-                      <Icon className="h-8 w-8 text-primary" />
-                      <span className="text-xs font-semibold leading-tight">{badge.name}</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="font-bold">{badge.name}</p>
-                    <p>{badge.description}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
-        </TooltipProvider>
+        <div className="flex flex-wrap gap-4">
+          {badges.map((badge) => {
+            const Icon = icons[badge.icon as keyof typeof icons] || icons['Badge'];
+            return (
+              <Dialog key={badge.id}>
+                <DialogTrigger asChild>
+                  <button className="flex h-20 w-20 flex-col items-center justify-center gap-2 rounded-lg bg-muted p-2 text-center transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring">
+                    <Icon className="h-8 w-8 text-primary" />
+                    <span className="text-xs font-semibold leading-tight">{badge.name}</span>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-xs">
+                  <DialogHeader className="items-center p-4 text-center">
+                    <Icon className="mb-2 h-16 w-16 text-primary" />
+                    <DialogTitle className="text-2xl">{badge.name}</DialogTitle>
+                    <DialogDescription className="text-base">{badge.description}</DialogDescription>
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
