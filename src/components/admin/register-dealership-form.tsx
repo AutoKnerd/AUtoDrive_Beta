@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,6 +16,9 @@ import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { MailCheck } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
+
+// This lets TypeScript know that the `google` object will be available on the window
+declare const google: any;
 
 interface RegisterDealershipFormProps {
   user: User;
@@ -38,12 +41,99 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invitationSent, setInvitationSent] = useState(false);
   const { toast } = useToast();
+  const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
 
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
   const [isNewDealership, setIsNewDealership] = useState(false);
 
   const canManageAllDealerships = ['Admin', 'Trainer'].includes(user.role);
   const registrationRoles = getTeamMemberRoles(user.role);
+
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      dealershipName: '',
+      street: '',
+      city: '',
+      state: '',
+      zip: '',
+      userEmail: '',
+      role: '',
+    },
+  });
+
+  useEffect(() => {
+    if (!isNewDealership) {
+      return;
+    }
+
+    const initAutocomplete = () => {
+      if (window.google && autocompleteInputRef.current) {
+        const autocomplete = new google.maps.places.Autocomplete(autocompleteInputRef.current, {
+          types: ['establishment'],
+          fields: ['address_components', 'name', 'place_id'],
+          componentRestrictions: { country: ["us", "ca"] },
+        });
+
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (place && place.address_components) {
+            const address = { street: '', city: '', state: '', zip: '' };
+            let streetNumber = '';
+            let route = '';
+
+            for (const component of place.address_components) {
+              const componentType = component.types[0];
+              switch (componentType) {
+                case "street_number":
+                  streetNumber = component.long_name;
+                  break;
+                case "route":
+                  route = component.long_name;
+                  break;
+                case "locality":
+                  address.city = component.long_name;
+                  break;
+                case "administrative_area_level_1":
+                  address.state = component.short_name;
+                  break;
+                case "postal_code":
+                  address.zip = component.long_name;
+                  break;
+              }
+            }
+            
+            address.street = `${streetNumber} ${route}`.trim();
+
+            form.setValue('dealershipName', place.name || '', { shouldValidate: true });
+            form.setValue('street', address.street, { shouldValidate: true });
+            form.setValue('city', address.city, { shouldValidate: true });
+            form.setValue('state', address.state, { shouldValidate: true });
+            form.setValue('zip', address.zip, { shouldValidate: true });
+          }
+        });
+      }
+    };
+
+    if (!(window as any).google) {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&callback=initAutocomplete`;
+      script.async = true;
+      (window as any).initAutocomplete = initAutocomplete;
+      document.head.appendChild(script);
+      
+      return () => {
+        // Cleanup script and window function
+        const scriptTag = document.querySelector(`script[src*="maps.googleapis.com"]`);
+        if (scriptTag) {
+          document.head.removeChild(scriptTag);
+        }
+        delete (window as any).initAutocomplete;
+      }
+    } else {
+      initAutocomplete();
+    }
+  }, [isNewDealership, form]);
 
   useEffect(() => {
     async function fetchDealershipData() {
@@ -61,19 +151,6 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
     }
     fetchDealershipData();
   }, [canManageAllDealerships, user]);
-
-  const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      dealershipName: '',
-      street: '',
-      city: '',
-      state: '',
-      zip: '',
-      userEmail: '',
-      role: '',
-    },
-  });
   
   useEffect(() => {
     if (dealerships.length === 1 && !canManageAllDealerships && user.role !== 'Owner') {
@@ -163,7 +240,9 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
           <FormField
             control={form.control}
             name="dealershipName"
-            render={({ field }) => (
+            render={({ field }) => {
+              const { ref, ...restOfField } = field;
+              return (
               <FormItem>
                 <FormLabel>Dealership</FormLabel>
                   { !showDealershipSelect ? (
@@ -200,16 +279,16 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
                           </Select>
                           {isNewDealership && canManageAllDealerships && (
                             <div className="mt-4 space-y-4 rounded-lg border p-4">
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    First, search for the dealership. If it's not found, you can enter the details manually.
-                                </p>
-                                
                                 <div className="space-y-2">
                                     <FormLabel>Dealership Name</FormLabel>
                                     <FormControl>
                                     <Input
                                         placeholder="Search by name or address with Google..."
-                                        {...field}
+                                        {...restOfField}
+                                        ref={(el) => {
+                                          ref(el);
+                                          autocompleteInputRef.current = el;
+                                        }}
                                         autoFocus
                                     />
                                     </FormControl>
@@ -270,7 +349,8 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
                   )}
                 <FormMessage />
               </FormItem>
-            )}
+              )
+            }}
           />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField
