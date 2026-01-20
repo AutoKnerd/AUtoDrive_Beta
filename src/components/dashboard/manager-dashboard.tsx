@@ -128,7 +128,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       setTeamActivity(activity);
       setManageableUsers(usersToManage);
 
-      if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+      if (!['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) {
           const [fetchedLessons, fetchedManagerActivity, fetchedBadges] = await Promise.all([
               getLessons(user.role as LessonRole),
               getConsultantActivity(user.userId),
@@ -215,7 +215,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   };
 
   const managerAverageScores = useMemo(() => {
-      if (['Owner', 'Admin', 'Trainer'].includes(user.role)) return null;
+      if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) return null;
       if (!managerActivity.length) return {
           empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85
       };
@@ -242,7 +242,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [managerActivity, user.role]);
 
   const recommendedLesson = useMemo(() => {
-    if (['Owner', 'Admin', 'Trainer'].includes(user.role) || loading || lessons.length === 0 || !managerAverageScores) return null;
+    if (loading || lessons.length === 0 || !managerAverageScores) return null;
 
     const lowestScoringTrait = Object.entries(managerAverageScores).reduce((lowest, [trait, score]) => {
         if (score < lowest.score) {
@@ -254,7 +254,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     const lesson = lessons.find(l => l.associatedTrait === lowestScoringTrait.trait);
 
     return lesson || lessons[0];
-  }, [loading, lessons, managerAverageScores, user.role]);
+  }, [loading, lessons, managerAverageScores]);
 
   const statDescription = useMemo(() => {
     if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) {
@@ -478,7 +478,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       
       {user.role !== 'Finance Manager' && (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-6 sm:items-center">
                 <div>
                     <CardTitle className="flex items-center gap-2">
                         <BarChart className="h-5 w-5" />
@@ -490,7 +490,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             : `Performance overview of staff at ${dealerships.find(d => d.id === selectedDealershipId)?.name}.`}
                     </CardDescription>
                 </div>
-                 <div className="flex gap-2">
+                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     {canManage && (
                         <Dialog open={isManageUsersOpen} onOpenChange={setManageUsersOpen}>
                             <DialogTrigger asChild>
@@ -506,7 +506,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                         Invite new members, assign existing users, or remove users from the system.
                                     </DialogDescription>
                                 </DialogHeader>
-                                <ScrollArea className="max-h-[70vh] -mx-6 px-6 pb-6">
+                                <ScrollArea className="max-h-[70vh]">
                                     <Tabs defaultValue="assign" className="pt-4">
                                         <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-4' : 'grid-cols-2'}`}>
                                             <TabsTrigger value="assign">Assign Existing</TabsTrigger>
