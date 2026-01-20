@@ -8,7 +8,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center justify-center text-center">
             <div className="mb-4">
-                <Logo variant="full" width={252} height={84} />
+                <Logo variant="full" width={423} height={141} />
             </div>
             <p className="mt-4 text-muted-foreground">Sign in to your account</p>
         </div>
