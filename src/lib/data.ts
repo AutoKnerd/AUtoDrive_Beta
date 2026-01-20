@@ -70,7 +70,13 @@ let lessonAssignments: LessonAssignment[] = [
     { assignmentId: 'assign-1', userId: 'user-1', lessonId: 'lesson-3', assignerId: 'user-2', timestamp: new Date(), completed: false }
 ];
 
-let earnedBadges: EarnedBadge[] = [];
+let earnedBadges: EarnedBadge[] = [
+    { userId: 'user-1', badgeId: 'first-drive', timestamp: new Date('2024-07-09T11:00:00Z') },
+    { userId: 'user-1', badgeId: 'xp-1000', timestamp: new Date('2024-07-10T10:00:00Z') },
+    { userId: 'user-1', badgeId: 'top-performer', timestamp: new Date('2024-07-10T10:00:00Z') },
+    { userId: 'user-1', badgeId: 'relationship-ace', timestamp: new Date('2024-07-11T14:00:00Z') },
+    { userId: 'user-1', badgeId: 'night-owl', timestamp: new Date('2024-07-11T01:00:00Z') },
+];
 
 
 // --- MOCK API FUNCTIONS ---
