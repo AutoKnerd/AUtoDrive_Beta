@@ -7,13 +7,17 @@ interface LogoProps {
     width?: number;
     height?: number;
     className?: string;
+    variant?: 'full' | 'icon';
 }
 
-export function Logo({ width = 64, height = 64, className }: LogoProps) {
+export function Logo({ width = 24, height = 24, className, variant = 'icon' }: LogoProps) {
+  const src = variant === 'full' ? '/logo-full.png' : '/logo-icon.png';
+  const alt = variant === 'full' ? 'AutoDrive Logo' : 'AutoDrive Icon';
+  
   return (
     <Image
-      src="/logo.png"
-      alt="AutoDrive Logo"
+      src={src}
+      alt={alt}
       width={width}
       height={height}
       className={cn('object-contain', className)}

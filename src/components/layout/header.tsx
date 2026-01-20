@@ -23,7 +23,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <Link href="/" className="flex items-center gap-2 font-semibold">
-        <Logo width={24} height={24} />
+        <Logo variant="icon" width={24} height={24} />
         <div className="flex flex-col">
           <span className="text-lg font-bold leading-tight">AutoDrive</span>
           <span className="text-[10px] font-medium text-muted-foreground -mt-1">powered by AutoKnerd</span>
