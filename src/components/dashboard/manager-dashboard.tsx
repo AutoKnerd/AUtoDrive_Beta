@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -455,212 +454,215 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             )}
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
-            <div>
-                <CardTitle className="flex items-center gap-2">
-                    <BarChart className="h-5 w-5" />
-                    Dealer report
-                </CardTitle>
-                <CardDescription>
-                    {selectedDealershipId === 'all'
-                        ? 'Select a dealership to view its team performance.'
-                        : `Performance overview of staff at ${dealerships.find(d => d.id === selectedDealershipId)?.name}.`}
-                </CardDescription>
-            </div>
-             <div className="flex gap-2">
-                {canManage && (
-                    <Dialog open={isManageUsersOpen} onOpenChange={setManageUsersOpen}>
+      
+      {user.role !== 'Finance Manager' && (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+                <div>
+                    <CardTitle className="flex items-center gap-2">
+                        <BarChart className="h-5 w-5" />
+                        Dealer report
+                    </CardTitle>
+                    <CardDescription>
+                        {selectedDealershipId === 'all'
+                            ? 'Select a dealership to view its team performance.'
+                            : `Performance overview of staff at ${dealerships.find(d => d.id === selectedDealershipId)?.name}.`}
+                    </CardDescription>
+                </div>
+                 <div className="flex gap-2">
+                    {canManage && (
+                        <Dialog open={isManageUsersOpen} onOpenChange={setManageUsersOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline">
+                                    <Users className="mr-2 h-4 w-4" />
+                                    Manage Team
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[625px]">
+                                <DialogHeader>
+                                    <DialogTitle>Manage Team</DialogTitle>
+                                    <DialogDescription>
+                                        Invite new members, assign existing users, or remove users from the system.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Tabs defaultValue="assign" className="pt-4">
+                                    <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                                        <TabsTrigger value="assign">Assign Existing</TabsTrigger>
+                                        <TabsTrigger value="invite">Invite New</TabsTrigger>
+                                        {user.role === 'Admin' && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
+                                    </TabsList>
+                                    <TabsContent value="assign" className="pt-2">
+                                        <AssignUserForm 
+                                            manageableUsers={manageableUsers}
+                                            dealerships={dealerships}
+                                            onUserAssigned={handleUserManaged} 
+                                        />
+                                    </TabsContent>
+                                    <TabsContent value="invite" className="pt-2">
+                                        <RegisterDealershipForm user={user} onDealershipRegistered={handleUserManaged} />
+                                    </TabsContent>
+                                    {user.role === 'Admin' && (
+                                        <TabsContent value="remove" className="pt-2">
+                                            <RemoveUserForm 
+                                                manageableUsers={manageableUsers}
+                                                onUserRemoved={handleUserManaged} 
+                                            />
+                                        </TabsContent>
+                                    )}
+                                </Tabs>
+                            </DialogContent>
+                        </Dialog>
+                    )}
+                    <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline">
-                                <Users className="mr-2 h-4 w-4" />
-                                Manage Team
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Create Lesson
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[625px]">
                             <DialogHeader>
-                                <DialogTitle>Manage Team</DialogTitle>
+                                <DialogTitle>Create New Training Lesson</DialogTitle>
                                 <DialogDescription>
-                                    Invite new members, assign existing users, or remove users from the system.
+                                    Design a new lesson for your team. Use AI to suggest a scenario based on your team's performance.
                                 </DialogDescription>
                             </DialogHeader>
-                            <Tabs defaultValue="assign" className="pt-4">
-                                <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                                    <TabsTrigger value="assign">Assign Existing</TabsTrigger>
-                                    <TabsTrigger value="invite">Invite New</TabsTrigger>
-                                    {user.role === 'Admin' && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
-                                </TabsList>
-                                <TabsContent value="assign" className="pt-2">
-                                    <AssignUserForm 
-                                        manageableUsers={manageableUsers}
-                                        dealerships={dealerships}
-                                        onUserAssigned={handleUserManaged} 
-                                    />
-                                </TabsContent>
-                                <TabsContent value="invite" className="pt-2">
-                                    <RegisterDealershipForm user={user} onDealershipRegistered={handleUserManaged} />
-                                </TabsContent>
-                                {user.role === 'Admin' && (
-                                    <TabsContent value="remove" className="pt-2">
-                                        <RemoveUserForm 
-                                            manageableUsers={manageableUsers}
-                                            onUserRemoved={handleUserManaged} 
-                                        />
-                                    </TabsContent>
-                                )}
-                            </Tabs>
+                            <CreateLessonForm user={user} onLessonCreated={() => setCreateLessonOpen(false)} />
                         </DialogContent>
                     </Dialog>
-                )}
-                <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Create Lesson
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[625px]">
-                        <DialogHeader>
-                            <DialogTitle>Create New Training Lesson</DialogTitle>
-                            <DialogDescription>
-                                Design a new lesson for your team. Use AI to suggest a scenario based on your team's performance.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <CreateLessonForm user={user} onLessonCreated={() => setCreateLessonOpen(false)} />
-                    </DialogContent>
-                </Dialog>
-            </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : selectedDealershipId && selectedDealershipId !== 'all' ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Team Member</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="text-center">Lessons Completed</TableHead>
-                  <TableHead className="text-center">Total XP</TableHead>
-                  <TableHead className="text-right">Average Score</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {teamActivity.length > 0 ? teamActivity.map(member => {
-                  const consultant = member.consultant;
-                  const viewerIsAdmin = user.role === 'Admin';
-                  const viewerIsOwner = user.role === 'Owner';
-                  
-                  const hideMetrics = (consultant.isPrivate && !viewerIsAdmin && !viewerIsOwner) || 
-                                    (consultant.isPrivate && consultant.isPrivateFromOwner && viewerIsOwner);
+                </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : selectedDealershipId && selectedDealershipId !== 'all' ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Team Member</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead className="text-center">Lessons Completed</TableHead>
+                      <TableHead className="text-center">Total XP</TableHead>
+                      <TableHead className="text-right">Average Score</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {teamActivity.length > 0 ? teamActivity.map(member => {
+                      const consultant = member.consultant;
+                      const viewerIsAdmin = user.role === 'Admin';
+                      const viewerIsOwner = user.role === 'Owner';
+                      
+                      const hideMetrics = (consultant.isPrivate && !viewerIsAdmin && !viewerIsOwner) || 
+                                        (consultant.isPrivate && consultant.isPrivateFromOwner && viewerIsOwner);
 
-                  return (
-                    <Dialog key={member.consultant.userId}>
-                      <DialogTrigger asChild>
-                          <TableRow className="cursor-pointer">
-                              <TableCell>
-                              <div className="flex items-center gap-3">
-                                  <Avatar>
-                                  <AvatarImage src={member.consultant.avatarUrl} data-ai-hint="person portrait" />
-                                  <AvatarFallback>{member.consultant.name.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                  <p className="font-medium">{member.consultant.name}</p>
-                                  <p className="text-sm text-muted-foreground">{member.consultant.email}</p>
+                      return (
+                        <Dialog key={member.consultant.userId}>
+                          <DialogTrigger asChild>
+                              <TableRow className="cursor-pointer">
+                                  <TableCell>
+                                  <div className="flex items-center gap-3">
+                                      <Avatar>
+                                      <AvatarImage src={member.consultant.avatarUrl} data-ai-hint="person portrait" />
+                                      <AvatarFallback>{member.consultant.name.charAt(0)}</AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                      <p className="font-medium">{member.consultant.name}</p>
+                                      <p className="text-sm text-muted-foreground">{member.consultant.email}</p>
+                                      </div>
                                   </div>
-                              </div>
-                              </TableCell>
-                              <TableCell>
-                                  <UiBadge variant="outline">{member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}</UiBadge>
-                              </TableCell>
-                              <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
-                              <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">
-                                {hideMetrics ? (
-                                    <div className="flex items-center justify-end gap-2 text-muted-foreground italic">
-                                        <ShieldOff className="h-4 w-4" />
-                                        <span>Metrics Hidden</span>
-                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                      <UiBadge variant="outline">{member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}</UiBadge>
+                                  </TableCell>
+                                  <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
+                                  <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
+                                  <TableCell className="text-right">
+                                    {hideMetrics ? (
+                                        <div className="flex items-center justify-end gap-2 text-muted-foreground italic">
+                                            <ShieldOff className="h-4 w-4" />
+                                            <span>Metrics Hidden</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-end gap-2">
+                                            <span className="font-medium">{member.avgScore}%</span>
+                                            <Progress value={member.avgScore} className="h-2 w-20" />
+                                        </div>
+                                    )}
+                                  </TableCell>
+                              </TableRow>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-2xl">
+                              <DialogHeader>
+                                  <DialogTitle>Performance Snapshot</DialogTitle>
+                              </DialogHeader>
+                              <ScrollArea className="max-h-[70vh]">
+                                  <div className="pr-6">
+                                      <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={() => fetchData(selectedDealershipId)} />
+                                  </div>
+                              </ScrollArea>
+                          </DialogContent>
+                        </Dialog>
+                      );
+                    }) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No team activity found for this dealership.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {dealerships.map(dealership => {
+                        const insights = allDealershipStats[dealership.id];
+                        return (
+                            <Card 
+                            key={dealership.id} 
+                            className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-1"
+                            onClick={() => handleDealershipChange(dealership.id)}
+                            >
+                            <CardHeader>
+                                <CardTitle className="flex items-center justify-between">
+                                {dealership.name}
+                                <Store className="h-5 w-5 text-muted-foreground" />
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {(!insights || (!insights.bestStat && !insights.watchStat)) ? (
+                                    <p className="text-sm text-muted-foreground">Click to view team performance.</p>
                                 ) : (
-                                    <div className="flex items-center justify-end gap-2">
-                                        <span className="font-medium">{member.avgScore}%</span>
-                                        <Progress value={member.avgScore} className="h-2 w-20" />
-                                    </div>
+                                    <>
+                                        {insights.bestStat && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <TrendingUp className="h-4 w-4 text-green-500" />
+                                                <span className="font-medium text-muted-foreground">Top Skill:</span>
+                                                <span className="font-semibold">{insights.bestStat.trait}</span>
+                                            </div>
+                                        )}
+                                        {insights.watchStat && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <TrendingDown className="h-4 w-4 text-amber-500" />
+                                                <span className="font-medium text-muted-foreground">Watch Area:</span>
+                                                <span className="font-semibold">{insights.watchStat.trait}</span>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
-                              </TableCell>
-                          </TableRow>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-2xl">
-                          <DialogHeader>
-                              <DialogTitle>Performance Snapshot</DialogTitle>
-                          </DialogHeader>
-                          <ScrollArea className="max-h-[70vh]">
-                              <div className="pr-6">
-                                  <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={() => fetchData(selectedDealershipId)} />
-                              </div>
-                          </ScrollArea>
-                      </DialogContent>
-                    </Dialog>
-                  );
-                }) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      No team activity found for this dealership.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {dealerships.map(dealership => {
-                    const insights = allDealershipStats[dealership.id];
-                    return (
-                        <Card 
-                        key={dealership.id} 
-                        className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-1"
-                        onClick={() => handleDealershipChange(dealership.id)}
-                        >
-                        <CardHeader>
-                            <CardTitle className="flex items-center justify-between">
-                            {dealership.name}
-                            <Store className="h-5 w-5 text-muted-foreground" />
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            {(!insights || (!insights.bestStat && !insights.watchStat)) ? (
-                                <p className="text-sm text-muted-foreground">Click to view team performance.</p>
-                            ) : (
-                                <>
-                                    {insights.bestStat && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <TrendingUp className="h-4 w-4 text-green-500" />
-                                            <span className="font-medium text-muted-foreground">Top Skill:</span>
-                                            <span className="font-semibold">{insights.bestStat.trait}</span>
-                                        </div>
-                                    )}
-                                    {insights.watchStat && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <TrendingDown className="h-4 w-4 text-amber-500" />
-                                            <span className="font-medium text-muted-foreground">Watch Area:</span>
-                                            <span className="font-semibold">{insights.watchStat.trait}</span>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </CardContent>
-                        </Card>
-                    );
-                })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                            </CardContent>
+                            </Card>
+                        );
+                    })}
+                </div>
+              )}
+            </CardContent>
+        </Card>
+      )}
+
       <p className="pt-4 text-center text-xs text-muted-foreground">
         *XP is earned based on the quality of the interaction during lessons.
       </p>
