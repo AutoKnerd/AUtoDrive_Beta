@@ -14,7 +14,8 @@ export type UserRole =
   | 'Service Manager' 
   | 'Finance Manager' 
   | 'Parts Consultant' 
-  | 'Parts Manager' 
+  | 'Parts Manager'
+  | 'General Manager' 
   | 'Owner'
   | 'Trainer'
   | 'Admin';

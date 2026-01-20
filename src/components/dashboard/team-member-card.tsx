@@ -180,7 +180,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   }, [activity]);
   
   const canManageAssignments = currentUser.userId !== user.userId && getTeamMemberRoles(currentUser.role).includes(user.role);
-  const canAssignLessons = ['Owner', 'Admin', 'Trainer', 'manager', 'Service Manager', 'Parts Manager'].includes(currentUser.role);
+  const canAssignLessons = ['Owner', 'Admin', 'Trainer', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(currentUser.role);
 
 
   return (

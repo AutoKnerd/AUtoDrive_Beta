@@ -39,6 +39,7 @@ const quickLoginRoles = [
   { value: 'finance.manager@autodrive.com', label: 'Finance Manager' },
   { value: 'parts.consultant@autodrive.com', label: 'Parts Consultant' },
   { value: 'parts.manager@autodrive.com', label: 'Parts Manager' },
+  { value: 'gm@autodrive.com', label: 'General Manager' },
   { value: 'owner@autodrive.com', label: 'Owner' },
   { value: 'trainer@autoknerd.com', label: 'Trainer' },
   { value: 'admin@autoknerd.com', label: 'Admin' },

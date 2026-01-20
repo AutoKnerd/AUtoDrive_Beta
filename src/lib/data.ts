@@ -29,6 +29,7 @@ let users: User[] = [
   { userId: 'user-13', name: 'Andy Admin', email: 'admin@autoknerd.com', role: 'Admin', dealershipIds: ['autoknerd-hq'], avatarUrl: 'https://picsum.photos/seed/113/200/200', xp: 20000, isPrivate: false, isPrivateFromOwner: false, memberSince: '2022-01-01T09:00:00Z' },
   { userId: 'user-14', name: 'Manager B', email: 'manager.b@autodrive.com', role: 'manager', dealershipIds: ['dealership-B'], avatarUrl: 'https://picsum.photos/seed/114/200/200', xp: 4585, isPrivate: false, isPrivateFromOwner: false, memberSince: '2023-03-01T09:00:00Z' },
   { userId: 'user-15', name: 'Consultant B1', email: 'consultant.b1@autodrive.com', role: 'Sales Consultant', dealershipIds: ['dealership-B'], avatarUrl: 'https://picsum.photos/seed/115/200/200', xp: 30, isPrivate: false, isPrivateFromOwner: false, memberSince: '2024-06-01T09:00:00Z' },
+  { userId: 'user-16', name: 'Gerry Manager', email: 'gm@autodrive.com', role: 'General Manager', dealershipIds: ['dealership-A', 'dealership-B'], avatarUrl: 'https://picsum.photos/seed/116/200/200', xp: 9000, isPrivate: false, isPrivateFromOwner: false, memberSince: '2021-06-01T09:00:00Z' },
 ];
 
 let emailInvitations: EmailInvitation[] = [];
@@ -406,8 +407,9 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
             return ['Service Writer'];
         case 'Parts Manager':
             return ['Parts Consultant'];
+        case 'General Manager':
         case 'Owner':
-             const ownerRoles = users.filter(u => u.role !== 'Owner' && u.role !== 'Admin' && u.role !== 'Trainer').map(u => u.role)
+             const ownerRoles = users.filter(u => u.role !== 'Owner' && u.role !== 'Admin' && u.role !== 'Trainer' && u.role !== 'General Manager').map(u => u.role)
              return [...new Set(ownerRoles)];
         case 'Trainer':
             const trainerRoles = users.filter(u => u.role !== 'Admin' && u.role !== 'Trainer').map(u => u.role);
@@ -439,8 +441,8 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
     
     let relevantLogs: LessonLog[];
 
-    if ((['Owner', 'Admin', 'Trainer'].includes(userRole)) && dealershipId === 'all') {
-        const teamUserIds = users.filter(u => !['Owner', 'Admin', 'Trainer'].includes(u.role)).map(u => u.userId);
+    if ((['Owner', 'Admin', 'Trainer', 'General Manager'].includes(userRole)) && dealershipId === 'all') {
+        const teamUserIds = users.filter(u => !['Owner', 'Admin', 'Trainer', 'General Manager'].includes(u.role)).map(u => u.userId);
         relevantLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
     } else {
         const teamUserIds = users
@@ -472,7 +474,7 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
 
     let teamMembers: User[];
 
-    if (['Owner', 'Admin', 'Trainer'].includes(userRole)) {
+    if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(userRole)) {
         if (dealershipId === 'all') {
             teamMembers = users.filter(u => teamRoles.includes(u.role));
         } else {

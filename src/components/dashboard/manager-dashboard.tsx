@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -124,7 +125,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       setTeamActivity(activity);
       setManageableUsers(usersToManage);
 
-      if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+      if (!['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) {
           const [fetchedLessons, fetchedManagerActivity, fetchedBadges] = await Promise.all([
               getLessons(user.role as LessonRole),
               getConsultantActivity(user.userId),
@@ -143,7 +144,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         setLoading(true);
         let initialDealerships: Dealership[];
 
-        if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+        if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) {
             initialDealerships = await getDealerships(user);
         } else {
             const managedDealerships = await Promise.all(
@@ -156,14 +157,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         let currentSelectedId = selectedDealershipId;
 
         if (currentSelectedId === null) {
-            if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+            if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) {
                 currentSelectedId = 'all';
             } else if (initialDealerships.length > 0) {
                 currentSelectedId = initialDealerships[0].id;
             }
         }
        
-        if (currentSelectedId === 'all' && ['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+        if (currentSelectedId === 'all' && ['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) {
             const statsPromises = initialDealerships.map(d => getManagerStats(d.id, user.role));
             const results = await Promise.all(statsPromises);
             
@@ -208,7 +209,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   };
 
   const managerAverageScores = useMemo(() => {
-      if (['Owner', 'Admin', 'Trainer'].includes(user.role)) return null;
+      if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) return null;
       if (!managerActivity.length) return {
           empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85
       };
@@ -235,7 +236,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [managerActivity, user.role]);
 
   const recommendedLesson = useMemo(() => {
-    if (['Owner', 'Admin', 'Trainer'].includes(user.role) || loading || lessons.length === 0 || !managerAverageScores) return null;
+    if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role) || loading || lessons.length === 0 || !managerAverageScores) return null;
 
     const lowestScoringTrait = Object.entries(managerAverageScores).reduce((lowest, [trait, score]) => {
         if (score < lowest.score) {
@@ -250,7 +251,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [loading, lessons, managerAverageScores, user.role]);
 
   const statDescription = useMemo(() => {
-    if (['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+    if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) {
       const dealershipName = dealerships.find(d => d.id === selectedDealershipId)?.name;
       return selectedDealershipId === 'all' ? 'Across all dealerships' : `For ${dealershipName}`;
     }
@@ -284,14 +285,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         const fetchedDealerships = await getDealerships(user);
         setDealerships(fetchedDealerships);
     }
-    if (!['Owner', 'Admin', 'Trainer'].includes(user.role)) {
+    if (!['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role)) {
         setManageUsersOpen(false);
     }
     fetchData(selectedDealershipId);
   }
 
 
-  const canManage = ['Admin', 'Trainer', 'Owner', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
+  const canManage = ['Admin', 'Trainer', 'Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
 
   return (
     <div className="space-y-8 pb-8">
@@ -329,7 +330,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           </DropdownMenu>
       </header>
       
-      {!['Owner', 'Admin', 'Trainer'].includes(user.role) && (
+      {!['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role) && (
         <section className="space-y-3">
              {loading ? <Skeleton className="h-24 w-full" /> : (
                 <div>
@@ -344,7 +345,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </section>
       )}
 
-      {!['Owner', 'Admin', 'Trainer'].includes(user.role) && (
+      {!['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role) && (
         <section>
              {loading ? (
                 <Skeleton className="h-40 w-full" />
@@ -354,7 +355,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </section>
       )}
 
-      {(['Owner', 'Admin', 'Trainer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
+      {(['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
         <Card>
             <CardHeader>
                 <CardTitle>Dealership Overview</CardTitle>
@@ -366,7 +367,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <SelectValue placeholder="Select a dealership" />
                     </SelectTrigger>
                     <SelectContent>
-                        {['Owner', 'Admin', 'Trainer'].includes(user.role) && <SelectItem value="all">All Dealerships</SelectItem>}
+                        {['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role) && <SelectItem value="all">All Dealerships</SelectItem>}
                         {dealerships.map(d => (
                             <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                         ))}
@@ -376,7 +377,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </Card>
       )}
 
-      {!['Owner', 'Admin', 'Trainer'].includes(user.role) && (
+      {!['Owner', 'Admin', 'Trainer', 'General Manager'].includes(user.role) && (
         <Card className="mb-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
