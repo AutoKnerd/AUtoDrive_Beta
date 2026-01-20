@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership } from '@/lib/definitions';
-import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles } from '@/lib/data';
+import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership, Badge } from '@/lib/definitions';
+import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles, getEarnedBadgesByUserId } from '@/lib/data';
 import { calculateLevel } from '@/lib/xp';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, PlusCircle, ShieldOff } from 'lucide-react';
@@ -18,6 +18,7 @@ import { Input } from '../ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { BadgeShowcase } from '../profile/badge-showcase';
 
 interface TeamMemberCardProps {
   user: User;
@@ -38,6 +39,7 @@ const metricIcons: Record<CxTrait, LucideIcon> = {
 export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpdated }: TeamMemberCardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [activity, setActivity] = useState<LessonLog[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [selectedDealerships, setSelectedDealerships] = useState(user.dealershipIds);
@@ -64,12 +66,14 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     async function fetchData() {
       setLoading(true);
       if (!user) return;
-      const [fetchedLessons, fetchedActivity] = await Promise.all([
+      const [fetchedLessons, fetchedActivity, fetchedBadges] = await Promise.all([
         getLessons(user.role as LessonRole),
         getConsultantActivity(user.userId),
+        getEarnedBadgesByUserId(user.userId),
       ]);
       setLessons(fetchedLessons);
       setActivity(fetchedActivity);
+      setBadges(fetchedBadges);
       setLoading(false);
     }
     fetchData();
@@ -206,33 +210,36 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
         </Card>
 
         {!hideMetrics && (
-            <Card>
-                <CardHeader>
-                <CardTitle>Average CX Scores</CardTitle>
-                <CardDescription>Average performance across all completed lessons.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-                {loading ? (
-                    Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
-                ) : Object.keys(averageScores).length > 0 && averageScores.empathy > 0 ? (
-                    Object.entries(averageScores).map(([key, value]) => {
-                    const Icon = metricIcons[key as keyof typeof metricIcons];
-                    const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                    return (
-                        <div key={key} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Icon className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm font-medium">{title}</span>
-                        </div>
-                        <span className="font-bold">{value}%</span>
-                        </div>
-                    );
-                    })
-                ) : (
-                    <p className="text-muted-foreground col-span-full text-center">No scores available yet.</p>
-                )}
-                </CardContent>
-            </Card>
+            <>
+                <Card>
+                    <CardHeader>
+                    <CardTitle>Average CX Scores</CardTitle>
+                    <CardDescription>Average performance across all completed lessons.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                    {loading ? (
+                        Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
+                    ) : Object.keys(averageScores).length > 0 && averageScores.empathy > 0 ? (
+                        Object.entries(averageScores).map(([key, value]) => {
+                        const Icon = metricIcons[key as keyof typeof metricIcons];
+                        const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        return (
+                            <div key={key} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Icon className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-sm font-medium">{title}</span>
+                            </div>
+                            <span className="font-bold">{value}%</span>
+                            </div>
+                        );
+                        })
+                    ) : (
+                        <p className="text-muted-foreground col-span-full text-center">No scores available yet.</p>
+                    )}
+                    </CardContent>
+                </Card>
+                <BadgeShowcase badges={badges} />
+            </>
         )}
         
         <Card>
@@ -370,3 +377,5 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     </div>
   );
 }
+
+    
