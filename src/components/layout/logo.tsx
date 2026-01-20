@@ -20,7 +20,7 @@ export function Logo({ width = 24, height = 24, className, variant = 'icon' }: L
       alt={alt}
       width={width}
       height={height}
-      className={cn('object-contain', className)}
+      className={cn('object-contain dark:mix-blend-multiply', className)}
     />
   );
 }
