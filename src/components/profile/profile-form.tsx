@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { User, Dealership } from '@/lib/definitions';
+import { User, Dealership, Badge } from '@/lib/definitions';
 import { updateUser, getDealerships, updateUserDealerships } from '@/lib/data';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { Badge as UiBadge } from '@/components/ui/badge';
 import placeholderImagesData from '@/lib/placeholder-images.json';
 import { Camera, X } from 'lucide-react';
 import {
@@ -29,9 +30,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Switch } from '../ui/switch';
+import { BadgeShowcase } from './badge-showcase';
+import { Skeleton } from '../ui/skeleton';
 
 interface ProfileFormProps {
   user: User;
+  badges: Badge[];
+  loadingBadges: boolean;
 }
 
 const profileSchema = z.object({
@@ -51,7 +56,7 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-export function ProfileForm({ user }: ProfileFormProps) {
+export function ProfileForm({ user, badges, loadingBadges }: ProfileFormProps) {
   const { setUser } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -334,6 +339,15 @@ export function ProfileForm({ user }: ProfileFormProps) {
           </CardContent>
         </Card>
 
+        {loadingBadges ? (
+            <Card>
+                <CardHeader><CardTitle>My Badges</CardTitle></CardHeader>
+                <CardContent><Skeleton className="h-24 w-full" /></CardContent>
+            </Card>
+        ) : (
+            <BadgeShowcase badges={badges} />
+        )}
+
         <Card>
             <CardHeader>
                 <CardTitle>Work Information</CardTitle>
@@ -349,7 +363,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     <div className="flex flex-wrap gap-2 pt-2">
                         {userDealerships.length > 0 ? (
                             userDealerships.map(dealership => (
-                                <Badge key={dealership.id} variant="secondary" className="flex items-center gap-1.5 py-1 pl-2.5 pr-1 text-sm">
+                                <UiBadge key={dealership.id} variant="secondary" className="flex items-center gap-1.5 py-1 pl-2.5 pr-1 text-sm">
                                     {dealership.name}
                                     <button
                                         type="button"
@@ -359,7 +373,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                                     >
                                         <X className="h-3.5 w-3.5" />
                                     </button>
-                                </Badge>
+                                </UiBadge>
                             ))
                         ) : (
                             <p className="text-sm text-muted-foreground">Not assigned to any dealership.</p>

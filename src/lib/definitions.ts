@@ -1,4 +1,5 @@
 
+
 export type Address = {
   street: string;
   city: string;
@@ -167,4 +168,38 @@ export type LessonAssignment = {
   assignerId: string;
   timestamp: Date;
   completed: boolean;
+};
+
+export type BadgeId =
+  | 'first-drive'
+  | 'xp-1000'
+  | 'xp-5000'
+  | 'xp-10000'
+  | 'level-10'
+  | 'level-25'
+  | 'top-performer'
+  | 'perfectionist'
+  | 'empathy-expert'
+  | 'listening-expert'
+  | 'trust-builder'
+  | 'follow-up-pro'
+  | 'closing-champ'
+  | 'relationship-ace'
+  | 'managers-pick'
+  | 'night-owl'
+  | 'early-bird'
+  | 'sales-specialist'
+  | 'service-specialist';
+
+export type Badge = {
+  id: BadgeId;
+  name: string;
+  description: string;
+  icon: string; // lucide-react icon name
+};
+
+export type EarnedBadge = {
+  userId: string;
+  badgeId: BadgeId;
+  timestamp: Date;
 };

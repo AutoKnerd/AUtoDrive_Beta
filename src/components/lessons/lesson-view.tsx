@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Lesson } from '@/lib/definitions';
+import { Lesson, Badge } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { conductLesson } from '@/ai/flows/lesson-flow';
 import { Spinner } from '../ui/spinner';
 import { getConsultantActivity, logLessonCompletion } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -43,6 +44,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
   const [cxScores, setCxScores] = useState<CxScores | null>(null);
   const [inputDisabled, setInputDisabled] = useState(false);
   const lessonStarted = useRef(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function fetchScores() {
@@ -88,7 +90,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
         setIsCompleted(true);
 
         if (user && cxScores) {
-            const updatedUser = await logLessonCompletion({
+            const { updatedUser, newBadges } = await logLessonCompletion({
                 userId: user.userId,
                 lessonId: lesson.lessonId,
                 xpGained: result.xpAwarded,
@@ -96,6 +98,15 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                 scores: cxScores,
             });
             setUser(updatedUser);
+
+            newBadges.forEach((badge, index) => {
+                setTimeout(() => {
+                    toast({
+                        title: `Badge Unlocked: ${badge.name}!`,
+                        description: badge.description,
+                    });
+                }, index * 1200);
+            });
         }
         return;
       }

@@ -1,6 +1,9 @@
 
+
 import { isToday } from 'date-fns';
-import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment } from './definitions';
+import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge } from './definitions';
+import { allBadges } from './badges';
+import { calculateLevel } from './xp';
 
 // --- MOCK DATABASE ---
 
@@ -66,6 +69,9 @@ let lessonLogs: LessonLog[] = [
 let lessonAssignments: LessonAssignment[] = [
     { assignmentId: 'assign-1', userId: 'user-1', lessonId: 'lesson-3', assignerId: 'user-2', timestamp: new Date(), completed: false }
 ];
+
+let earnedBadges: EarnedBadge[] = [];
+
 
 // --- MOCK API FUNCTIONS ---
 
@@ -215,6 +221,8 @@ export async function deleteUser(userId: string): Promise<void> {
     // Remove associated data
     lessonLogs = lessonLogs.filter(log => log.userId !== userId);
     lessonAssignments = lessonAssignments.filter(assign => assign.userId !== userId);
+    earnedBadges = earnedBadges.filter(b => b.userId !== userId);
+
 
     console.log(`Permanently deleted user ${userId} and their associated data.`);
 }
@@ -309,16 +317,14 @@ export async function logLessonCompletion(data: {
     xpGained: number;
     isRecommended: boolean;
     scores: Omit<LessonLog, 'logId' | 'timestamp' | 'userId' | 'lessonId' | 'stepResults' | 'xpGained' | 'isRecommended'>;
-}): Promise<User> {
+}): Promise<{ updatedUser: User, newBadges: Badge[] }> {
     await simulateNetworkDelay();
 
-    // 1. Find user and update XP
+    // 1. Find user and create new log
     const userIndex = users.findIndex(u => u.userId === data.userId);
     if (userIndex === -1) throw new Error('User not found');
-    
-    users[userIndex].xp += data.xpGained;
+    const user = users[userIndex];
 
-    // 2. Create and add new lesson log
     const newLog: LessonLog = {
         logId: `log-${lessonLogs.length + 1}`,
         timestamp: new Date(),
@@ -326,22 +332,62 @@ export async function logLessonCompletion(data: {
         lessonId: data.lessonId,
         xpGained: data.xpGained,
         isRecommended: data.isRecommended,
-        stepResults: { final: 'pass' }, // Simplified for this implementation
+        stepResults: { final: 'pass' },
         ...data.scores,
     };
-    lessonLogs.unshift(newLog);
+    
+    // 2. Get user history for badge checks
+    const userLogs = lessonLogs.filter(log => log.userId === data.userId);
+    const userBadgeIds = earnedBadges.filter(b => b.userId === data.userId).map(b => b.badgeId);
+    const newlyAwardedBadges: Badge[] = [];
+    
+    const awardBadge = (badgeId: BadgeId) => {
+        if (!userBadgeIds.includes(badgeId)) {
+            earnedBadges.push({ userId: data.userId, badgeId, timestamp: new Date() });
+            const badge = allBadges.find(b => b.id === badgeId);
+            if (badge) newlyAwardedBadges.push(badge);
+        }
+    };
+    
+    // 3. Check for badges
+    // Milestone Badges
+    if (userLogs.length === 0) awardBadge('first-drive');
+    const newXp = user.xp + data.xpGained;
+    if (user.xp < 1000 && newXp >= 1000) awardBadge('xp-1000');
+    if (user.xp < 5000 && newXp >= 5000) awardBadge('xp-5000');
+    if (user.xp < 10000 && newXp >= 10000) awardBadge('xp-10000');
 
-    // 3. Mark assignment as complete
+    const levelBefore = calculateLevel(user.xp).level;
+    const levelAfter = calculateLevel(newXp).level;
+    if (levelBefore < 10 && levelAfter >= 10) awardBadge('level-10');
+    if (levelBefore < 25 && levelAfter >= 25) awardBadge('level-25');
+
+    // Performance Badges
+    const lessonScore = Object.values(data.scores).reduce((sum, score) => sum + score, 0) / 6;
+    if (lessonScore >= 95) awardBadge('top-performer');
+    if (lessonScore === 100) awardBadge('perfectionist');
+    
+    // Special Achievement Badges
+    const hour = newLog.timestamp.getHours();
+    if (hour >= 0 && hour < 4) awardBadge('night-owl');
+    if (hour >= 4 && hour < 7) awardBadge('early-bird');
+    
     const assignmentIndex = lessonAssignments.findIndex(a => a.userId === data.userId && a.lessonId === data.lessonId && !a.completed);
     if (assignmentIndex !== -1) {
         lessonAssignments[assignmentIndex].completed = true;
-        console.log(`Marked assignment as complete for user ${data.userId} and lesson ${data.lessonId}`);
+        awardBadge('managers-pick');
     }
 
+    // 4. Update state
+    users[userIndex].xp = newXp;
+    lessonLogs.unshift(newLog);
+    
     console.log(`Logged lesson ${data.lessonId} for ${data.userId}. XP Gained: ${data.xpGained}. New total XP: ${users[userIndex].xp}`);
+    if (newlyAwardedBadges.length > 0) {
+        console.log(`Awarded badges: ${newlyAwardedBadges.map(b => b.name).join(', ')}`);
+    }
 
-    // 4. Return updated user object
-    return users[userIndex];
+    return { updatedUser: users[userIndex], newBadges: newlyAwardedBadges };
 }
 
 
@@ -541,4 +587,12 @@ export async function sendInvitation(
     console.log('Subject: You are invited to join AutoDrive!');
     console.log(`Click here to register: http://localhost:9002/register?token=${token}`);
     console.log('------------------------------------');
+}
+
+
+// BADGES
+export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> {
+    await simulateNetworkDelay();
+    const userBadgeIds = earnedBadges.filter(b => b.userId === userId).map(b => b.badgeId);
+    return allBadges.filter(b => userBadgeIds.includes(b.id));
 }
