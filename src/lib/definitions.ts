@@ -160,6 +160,7 @@ export type EmailInvitation = {
 export type Dealership = {
   id: string;
   name: string;
+  address?: Address;
   trainerId?: string;
   status: 'active' | 'paused' | 'deactivated';
 };

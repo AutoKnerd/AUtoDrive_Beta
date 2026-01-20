@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { sendInvitation, getDealerships, getTeamMemberRoles, getDealershipById } from '@/lib/data';
-import { User, UserRole, Dealership } from '@/lib/definitions';
+import { User, UserRole, Dealership, Address } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -24,6 +24,10 @@ interface RegisterDealershipFormProps {
 
 const registerSchema = z.object({
   dealershipName: z.string().min(1, 'Dealership name is required.'),
+  street: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
   userEmail: z.string().email('Please enter a valid email address for the intended user.'),
   role: z.string().min(1, "A role must be selected."),
 });
@@ -62,6 +66,10 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
     resolver: zodResolver(registerSchema),
     defaultValues: {
       dealershipName: '',
+      street: '',
+      city: '',
+      state: '',
+      zip: '',
       userEmail: '',
       role: '',
     },
@@ -83,7 +91,14 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
         throw new Error('Dealership name is missing.');
       }
       
-      await sendInvitation(dealershipToUse, data.userEmail, data.role as UserRole, user.userId);
+      const newDealershipAddress = (isNewDealership && data.street) ? {
+          street: data.street,
+          city: data.city || '',
+          state: data.state || '',
+          zip: data.zip || '',
+      } : undefined;
+
+      await sendInvitation(dealershipToUse, data.userEmail, data.role as UserRole, user.userId, newDealershipAddress);
       
       setInvitationSent(true);
       toast({
@@ -96,6 +111,10 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
         dealershipName: (dealerships.length === 1 && !canManageAllDealerships && user.role !== 'Owner') ? dealerships[0].name : '',
         userEmail: '',
         role: '',
+        street: '',
+        city: '',
+        state: '',
+        zip: '',
       });
 
       if (canManageAllDealerships) {
@@ -139,7 +158,7 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
 
   return (
     <Form {...form}>
-       <ScrollArea className="max-h-[450px] -mx-6">
+       <ScrollArea className="max-h-[60vh] -mx-6">
         <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4 px-6">
           <FormField
             control={form.control}
@@ -180,13 +199,72 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
                           </SelectContent>
                           </Select>
                           {isNewDealership && canManageAllDealerships && (
-                              <FormControl>
-                                  <Input
-                                      placeholder="Enter new dealership name"
-                                      {...field}
-                                      className="mt-2"
-                                  />
-                              </FormControl>
+                            <div className="mt-4 space-y-4 rounded-lg border p-4">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    First, search for the dealership. If it's not found, you can enter the details manually.
+                                </p>
+                                
+                                <div className="space-y-2">
+                                    <FormLabel>Dealership Name</FormLabel>
+                                    <FormControl>
+                                    <Input
+                                        placeholder="Search by name or address with Google..."
+                                        {...field}
+                                        autoFocus
+                                    />
+                                    </FormControl>
+                                    <FormMessage />
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <FormField
+                                    control={form.control}
+                                    name="street"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Street</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="city"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>City</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <FormField
+                                    control={form.control}
+                                    name="state"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>State / Province</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="zip"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>ZIP / Postal Code</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                </div>
+                            </div>
                           )}
                       </>
                   )}

@@ -1,16 +1,16 @@
 
 
 import { isToday } from 'date-fns';
-import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge } from './definitions';
+import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address } from './definitions';
 import { allBadges } from './badges';
 import { calculateLevel } from './xp';
 
 // --- MOCK DATABASE ---
 
 let dealerships: Dealership[] = [
-  { id: 'dealership-A', name: 'Dealership A', trainerId: 'user-12', status: 'active' },
-  { id: 'dealership-B', name: 'Dealership B', status: 'active' },
-  { id: 'autoknerd-hq', name: 'AutoKnerd HQ', status: 'active' },
+  { id: 'dealership-A', name: 'Dealership A', address: { street: '100 Auto Drive', city: 'Carville', state: 'CA', zip: '90210' }, trainerId: 'user-12', status: 'active' },
+  { id: 'dealership-B', name: 'Dealership B', address: { street: '200 Electric Ave', city: 'Motor City', state: 'MI', zip: '48226' }, status: 'active' },
+  { id: 'autoknerd-hq', name: 'AutoKnerd HQ', address: { street: '1 Nerd Way', city: 'Palo Alto', state: 'CA', zip: '94304' }, status: 'active' },
 ];
 
 let users: User[] = [
@@ -572,7 +572,8 @@ export async function sendInvitation(
     dealershipName: string, 
     userEmail: string, 
     role: UserRole,
-    creatorId: string
+    creatorId: string,
+    dealershipAddress?: Address
 ): Promise<void> {
     await simulateNetworkDelay();
 
@@ -588,6 +589,7 @@ export async function sendInvitation(
                 id: dealershipId,
                 name: dealershipName,
                 status: 'active',
+                address: dealershipAddress ? { ...dealershipAddress } : undefined
             };
             if (creator.role === 'Trainer') {
                 newDealership.trainerId = creatorId;
