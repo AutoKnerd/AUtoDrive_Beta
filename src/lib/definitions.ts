@@ -78,15 +78,6 @@ export const lessonCategoriesByRole: Record<string, LessonCategory[]> = {
     'Product Knowledge',
   ],
   manager: [ // Sales Manager
-    'Sales - Meet and Greet',
-    'Sales - Needs Assessment',
-    'Sales - Vehicle Presentation',
-    'Sales - Test Drive',
-    'Sales - Negotiation',
-    'Sales - Closing',
-    'Sales - Delivery',
-    'Sales - Follow-up',
-    'Product Knowledge',
     'Management - Coaching',
     'Management - Performance Review',
   ],
@@ -107,6 +98,8 @@ export const lessonCategoriesByRole: Record<string, LessonCategory[]> = {
     'Service - Status Updates',
     'Service - Active Delivery',
     'Product Knowledge',
+    'Management - Coaching',
+    'Management - Performance Review',
   ],
   'Finance Manager': [
     'F&I - Menu Selling',
@@ -122,6 +115,8 @@ export const lessonCategoriesByRole: Record<string, LessonCategory[]> = {
     'Parts - Identifying Needs',
     'Parts - Sourcing',
     'Product Knowledge',
+    'Management - Coaching',
+    'Management - Performance Review',
   ],
    'General Manager': [
     'Leadership - Team Motivation',

@@ -4,7 +4,7 @@
 import { Header } from '@/components/layout/header';
 import { LessonView } from '@/components/lessons/lesson-view';
 import { getDealershipById, getLessonById } from '@/lib/data';
-import { Lesson } from '@/lib/definitions';
+import { Lesson, UserRole } from '@/lib/definitions';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { BottomNav } from '@/components/layout/bottom-nav';
 
 export default function LessonPage() {
     const params = useParams<{ lessonId: string }>();
@@ -59,11 +60,14 @@ export default function LessonPage() {
         );
     }
     
+    const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin', 'General Manager'];
+    const isManager = managerialRoles.includes(user.role);
+
     if (isPaused) {
         return (
             <div className="flex flex-col min-h-screen w-full">
                 <Header />
-                 <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
+                 <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 pb-24 md:pb-8">
                     <div className="w-full max-w-2xl">
                         <Alert variant="destructive">
                             <AlertCircle className="h-4 w-4" />
@@ -80,6 +84,7 @@ export default function LessonPage() {
                         </Button>
                     </div>
                 </main>
+                {!isManager && <BottomNav />}
             </div>
         )
     }
@@ -95,9 +100,10 @@ export default function LessonPage() {
     return (
         <div className="flex min-h-screen w-full flex-col">
             <Header />
-            <main className="flex flex-1 flex-col">
+            <main className="flex flex-1 flex-col pb-20 md:pb-0">
                 <LessonView lesson={lesson} isRecommended={isRecommended} />
             </main>
+            {!isManager && <BottomNav />}
         </div>
     );
 }
