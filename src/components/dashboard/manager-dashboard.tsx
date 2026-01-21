@@ -478,7 +478,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       
       {user.role !== 'Finance Manager' && (
         <Card>
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-6 sm:items-center">
+            <CardHeader className="flex flex-col gap-4">
                 <div>
                     <CardTitle className="flex items-center gap-2">
                         <BarChart className="h-5 w-5" />
@@ -490,7 +490,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             : `Performance overview of staff at ${dealerships.find(d => d.id === selectedDealershipId)?.name}.`}
                     </CardDescription>
                 </div>
-                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                 <div className="flex flex-col gap-2 sm:flex-row">
                     {canManage && (
                         <Dialog open={isManageUsersOpen} onOpenChange={setManageUsersOpen}>
                             <DialogTrigger asChild>
@@ -506,7 +506,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                         Invite new members, assign existing users, or remove users from the system.
                                     </DialogDescription>
                                 </DialogHeader>
-                                <ScrollArea className="max-h-[70vh]">
+                                <ScrollArea className="max-h-[70vh] p-1">
                                     <Tabs defaultValue="assign" className="pt-4">
                                         <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-4' : 'grid-cols-2'}`}>
                                             <TabsTrigger value="assign">Assign Existing</TabsTrigger>
