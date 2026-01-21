@@ -23,6 +23,7 @@ import { BadgeShowcase } from '../profile/badge-showcase';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { cn } from '@/lib/utils';
 import { UserNav } from '../layout/user-nav';
+import { Button, buttonVariants } from '@/components/ui/button';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -400,5 +401,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     </div>
   );
 }
+
+    
 
     
