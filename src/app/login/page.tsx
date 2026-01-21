@@ -1,10 +1,73 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { Logo } from '@/components/layout/logo';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { Spinner } from '@/components/ui/spinner';
+
+const quickLoginRoles = [
+  { value: 'consultant@autodrive.com', label: 'Sales Consultant' },
+  { value: 'manager@autodrive.com', label: 'Sales Manager' },
+  { value: 'service.writer@autodrive.com', label: 'Service Writer' },
+  { value: 'service.manager@autodrive.com', label: 'Service Manager' },
+  { value: 'finance.manager@autodrive.com', label: 'Finance Manager' },
+  { value: 'parts.consultant@autodrive.com', label: 'Parts Consultant' },
+  { value: 'parts.manager@autodrive.com', label: 'Parts Manager' },
+  { value: 'gm@autodrive.com', label: 'General Manager' },
+  { value: 'owner@autodrive.com', label: 'Owner' },
+  { value: 'trainer@autoknerd.com', label: 'Trainer' },
+  { value: 'admin@autoknerd.com', label: 'Admin' },
+];
 
 export default function LoginPage() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedQuickLogin, setSelectedQuickLogin] = useState<string>('');
+  const router = useRouter();
+  const { login, user, loading } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/');
+    }
+  }, [user, loading, router]);
+
+  async function handleQuickLogin() {
+    if (!selectedQuickLogin) {
+      toast({
+        variant: 'destructive',
+        title: 'Quick Login Failed',
+        description: 'Please select a role from the dropdown.',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const roleInfo = quickLoginRoles.find(r => r.value === selectedQuickLogin);
+
+    try {
+      await login(selectedQuickLogin, 'password');
+      toast({
+        title: 'Login Successful',
+        description: `Logged in as ${roleInfo?.label}.`,
+      });
+      router.push('/');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: `${roleInfo?.label} Login Failed`,
+        description: `Could not log in as ${roleInfo?.label.toLowerCase()} user.`,
+      });
+      setIsSubmitting(false);
+    }
+  }
+  
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -22,13 +85,23 @@ export default function LoginPage() {
             </span>
         </div>
 
-        <div className="mt-6 w-full text-center">
-            <Button asChild className="w-full font-semibold" variant="secondary">
-                <Link href="/register">Shift Into Drive</Link>
+        <div className="mt-6 w-full space-y-2">
+            <p className="text-center text-sm text-muted-foreground">Quick login as developer role</p>
+            <Select onValueChange={setSelectedQuickLogin} value={selectedQuickLogin}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Select a role to log in..." />
+                </SelectTrigger>
+                <SelectContent>
+                    {quickLoginRoles.map(role => (
+                        <SelectItem key={role.value} value={role.value}>
+                            {role.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" className="w-full" onClick={handleQuickLogin} disabled={isSubmitting || !selectedQuickLogin}>
+              {isSubmitting ? <Spinner size="sm" /> : 'Quick Login'}
             </Button>
-            <p className="mt-2 text-xs text-muted-foreground">
-                Create Your AutoDrive Account
-            </p>
         </div>
       </div>
     </main>

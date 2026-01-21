@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '../ui/spinner';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
+import Link from 'next/link';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -31,23 +31,8 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const quickLoginRoles = [
-  { value: 'consultant@autodrive.com', label: 'Sales Consultant' },
-  { value: 'manager@autodrive.com', label: 'Sales Manager' },
-  { value: 'service.writer@autodrive.com', label: 'Service Writer' },
-  { value: 'service.manager@autodrive.com', label: 'Service Manager' },
-  { value: 'finance.manager@autodrive.com', label: 'Finance Manager' },
-  { value: 'parts.consultant@autodrive.com', label: 'Parts Consultant' },
-  { value: 'parts.manager@autodrive.com', label: 'Parts Manager' },
-  { value: 'gm@autodrive.com', label: 'General Manager' },
-  { value: 'owner@autodrive.com', label: 'Owner' },
-  { value: 'trainer@autoknerd.com', label: 'Trainer' },
-  { value: 'admin@autoknerd.com', label: 'Admin' },
-];
-
 export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedQuickLogin, setSelectedQuickLogin] = useState<string>('');
   const router = useRouter();
   const { login, user, loading } = useAuth();
   const { toast } = useToast();
@@ -82,37 +67,6 @@ export function LoginForm() {
         title: 'Login Failed',
         description: 'Invalid email or password. Please try again.',
       });
-      setIsSubmitting(false);
-    }
-  }
-  
-  async function handleQuickLogin() {
-    if (!selectedQuickLogin) {
-      toast({
-        variant: 'destructive',
-        title: 'Quick Login Failed',
-        description: 'Please select a role from the dropdown.',
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    const roleInfo = quickLoginRoles.find(r => r.value === selectedQuickLogin);
-
-    try {
-      await login(selectedQuickLogin, 'password');
-      toast({
-        title: 'Login Successful',
-        description: `Logged in as ${roleInfo?.label}.`,
-      });
-      router.push('/');
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: `${roleInfo?.label} Login Failed`,
-        description: `Could not log in as ${roleInfo?.label.toLowerCase()} user.`,
-      });
-    } finally {
       setIsSubmitting(false);
     }
   }
@@ -164,23 +118,13 @@ export function LoginForm() {
               </span>
             </div>
 
-            <div className="w-full space-y-2">
-                <p className="text-center text-sm text-muted-foreground">Quick login as developer role</p>
-                <Select onValueChange={setSelectedQuickLogin} value={selectedQuickLogin}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a role to log in..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {quickLoginRoles.map(role => (
-                            <SelectItem key={role.value} value={role.value}>
-                                {role.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Button type="button" variant="outline" className="w-full" onClick={handleQuickLogin} disabled={isSubmitting || !selectedQuickLogin}>
-                  {isSubmitting ? <Spinner size="sm" /> : 'Quick Login'}
+            <div className="w-full text-center">
+                <Button asChild className="w-full font-semibold" variant="secondary">
+                    <Link href="/register">Shift Into Drive</Link>
                 </Button>
+                <p className="mt-2 text-xs text-muted-foreground">
+                    Create Your AutoDrive Account
+                </p>
             </div>
           </CardFooter>
         </form>
