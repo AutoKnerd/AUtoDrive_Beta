@@ -68,6 +68,11 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
     const [messages, setMessages] = useState<Message[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     useEffect(() => {
         if (!user) return;
@@ -107,7 +112,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 {withBlur && <div className="absolute inset-0 rounded-full border-2 border-cyan-400 blur-md" />}
-                {unreadCount > 0 && (
+                {isClient && unreadCount > 0 && (
                 <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-background" />
                 )}
             </Button>
@@ -130,7 +135,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                 <DropdownMenuItem>
                     <MessageSquare className="mr-2 h-4 w-4" />
                     <span>Messages</span>
-                    {unreadCount > 0 && <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">{unreadCount}</span>}
+                    {isClient && unreadCount > 0 && <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">{unreadCount}</span>}
                 </DropdownMenuItem>
             </DialogTrigger>
             <DropdownMenuItem onSelect={() => logout()}>
@@ -149,5 +154,3 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
     </Dialog>
   );
 }
-
-    
