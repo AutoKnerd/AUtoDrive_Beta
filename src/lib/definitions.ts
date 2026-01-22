@@ -34,6 +34,8 @@ export type User = {
   isPrivateFromOwner?: boolean;
   memberSince?: string;
   selfDeclaredDealershipId?: string;
+  stripeCustomerId?: string;
+  subscriptionStatus?: 'active' | 'inactive';
 };
 
 export type LessonRole = Exclude<UserRole, 'Owner' | 'Admin'> | 'global';

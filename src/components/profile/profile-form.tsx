@@ -18,7 +18,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge as UiBadge } from '@/components/ui/badge';
 import placeholderImagesData from '@/lib/placeholder-images.json';
-import { Camera, X } from 'lucide-react';
+import { Camera, X, CheckCircle, ExternalLink } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,8 @@ import {
 import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
+import { createCustomerPortalSession } from '@/app/actions/stripe';
 
 interface ProfileFormProps {
   user: User;
@@ -59,6 +61,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const { setUser } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
   const [allDealerships, setAllDealerships] = useState<Dealership[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -137,6 +140,20 @@ export function ProfileForm({ user }: ProfileFormProps) {
         setIsRemoving(false);
         setDealershipToRemove(null);
         setConfirmationInput('');
+    }
+  }
+
+  const handleManageSubscription = async () => {
+    if (!user.stripeCustomerId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Stripe customer ID not found.'});
+        return;
+    }
+    setIsPortalLoading(true);
+    try {
+        await createCustomerPortalSession(user.stripeCustomerId);
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'Error', description: (e as Error).message });
+        setIsPortalLoading(false);
     }
   }
 
@@ -336,6 +353,43 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 )}
                 />
             </div>
+          </CardContent>
+        </Card>
+
+         <Card>
+          <CardHeader>
+            <CardTitle>Subscription</CardTitle>
+            <CardDescription>Manage your AutoDrive Pro subscription.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {user.subscriptionStatus === 'active' ? (
+              <div className="space-y-4 rounded-lg border border-green-500/50 bg-green-500/10 p-4">
+                <div className="flex items-center justify-between">
+                    <div className='flex items-center gap-2'>
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <h4 className="font-semibold text-green-300">AutoDrive Pro is Active</h4>
+                    </div>
+                    <form action={handleManageSubscription}>
+                        <Button type="submit" variant="ghost" disabled={isPortalLoading} className="text-sm">
+                            {isPortalLoading ? <Spinner size="sm" /> : <>Manage <ExternalLink className="ml-2 h-4 w-4" /></>}
+                        </Button>
+                    </form>
+                </div>
+                <p className="text-sm text-green-200/80">
+                  You have full access to all features. You can manage your billing information, invoices, and subscription status through our secure payment portal.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-lg border p-4">
+                 <h4 className="font-semibold">Upgrade to AutoDrive Pro</h4>
+                <p className="text-sm text-muted-foreground">
+                  You are currently on the free plan. Upgrade now to unlock unlimited lessons, advanced analytics, and powerful management tools.
+                </p>
+                 <Button asChild>
+                    <Link href="/subscribe">Upgrade to Pro</Link>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
