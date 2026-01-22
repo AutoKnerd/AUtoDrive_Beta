@@ -22,6 +22,14 @@ import { LogOut, User as UserIcon, MessageSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 function MessageItem({ message }: { message: Message }) {
+    const [relativeTime, setRelativeTime] = useState('');
+
+    useEffect(() => {
+        if (message.timestamp) {
+            setRelativeTime(formatDistanceToNow(new Date(message.timestamp), { addSuffix: true }));
+        }
+    }, [message.timestamp]);
+
     return (
         <div key={message.id} className="flex items-start gap-3">
             <Avatar className="h-9 w-9 border">
@@ -30,8 +38,8 @@ function MessageItem({ message }: { message: Message }) {
             <div className="flex-1">
                 <div className="flex items-baseline justify-between">
                     <p className="font-semibold">{message.senderName}</p>
-                    <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
+                    <p className="text-xs text-muted-foreground h-4">
+                        {relativeTime}
                     </p>
                 </div>
                 <p className="text-sm text-muted-foreground">{message.content}</p>
