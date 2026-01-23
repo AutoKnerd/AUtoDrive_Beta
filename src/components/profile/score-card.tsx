@@ -30,9 +30,10 @@ const metricIcons: Record<CxTrait, icons.LucideIcon> = {
 
 export function ScoreCard({ user, activity, badges }: ScoreCardProps) {
   const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
+  const hasActivity = activity.length > 0;
 
   const averageScores = useMemo(() => {
-    if (!activity.length) {
+    if (!hasActivity) {
       return {
         empathy: 0,
         listening: 0,
@@ -57,7 +58,7 @@ export function ScoreCard({ user, activity, badges }: ScoreCardProps) {
     return Object.fromEntries(
       Object.entries(total).map(([key, value]) => [key, Math.round(value / count)])
     ) as typeof total;
-  }, [activity]);
+  }, [activity, hasActivity]);
 
   return (
     <TooltipProvider>
@@ -101,6 +102,7 @@ export function ScoreCard({ user, activity, badges }: ScoreCardProps) {
         <div className="text-center text-white">
           <h1 className="text-3xl font-bold tracking-tight">{user.name}</h1>
           <p className="text-cyan-400 font-medium">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
+          {user.brand && <p className="text-sm text-muted-foreground">{user.brand}</p>}
         </div>
         
         <Separator className="my-4 bg-cyan-400/20" />
@@ -113,7 +115,7 @@ export function ScoreCard({ user, activity, badges }: ScoreCardProps) {
                 return (
                     <div key={key} className="flex flex-col items-center">
                         <Icon className="h-6 w-6 text-muted-foreground" />
-                        <span className="text-xl font-bold text-white">{value}%</span>
+                        <span className="text-xl font-bold text-white">{hasActivity ? `${value}%` : '--'}</span>
                         <span className="text-xs text-muted-foreground">{title}</span>
                     </div>
                 );
