@@ -732,7 +732,7 @@ export async function sendMessage(
 export async function getMessagesForUser(user: User): Promise<Message[]> {
     await simulateNetworkDelay();
     
-    const fourteenDaysAgo = subDays(new Date(), 14);
+    const fourteenDaysAgo = subDays(new Date('2024-07-15T10:00:00Z'), 14);
 
     const userMessages = messages.filter(msg => {
         // Filter out old messages
@@ -752,6 +752,7 @@ export async function getMessagesForUser(user: User): Promise<Message[]> {
 
     return userMessages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
+
 
 
 
