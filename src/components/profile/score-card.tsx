@@ -87,7 +87,7 @@ export function ScoreCard({ user, activity, badges }: ScoreCardProps) {
 
         {/* Avatar */}
         <div className="flex-grow flex items-center justify-center my-4">
-          <div className="relative w-48 h-48">
+          <div className="relative w-36 h-36">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 blur-xl animate-pulse" />
               <Avatar className="relative w-full h-full border-4 border-slate-700">
                   <AvatarImage src={user.avatarUrl} alt={user.name} />
@@ -127,7 +127,7 @@ export function ScoreCard({ user, activity, badges }: ScoreCardProps) {
           <>
             <Separator className="my-4 bg-cyan-400/20" />
             <div className="flex flex-wrap gap-2 justify-center">
-              {badges.slice(0, 8).map((badge) => {
+              {badges.map((badge) => {
                 const Icon = icons[badge.icon as keyof typeof icons] || icons['Badge'];
                 return (
                   <Tooltip key={badge.id}>
