@@ -1,5 +1,14 @@
 
 
+export const carBrands = [
+  'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'Cadillac', 'Chevrolet', 
+  'Chrysler', 'Dodge', 'Fiat', 'Ford', 'Genesis', 'GMC', 'Honda', 'Hyundai', 
+  'Infiniti', 'Jaguar', 'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Lincoln', 
+  'Maserati', 'Mazda', 'Mercedes-Benz', 'Mini', 'Mitsubishi', 'Nissan', 
+  'Polestar', 'Porsche', 'Ram', 'Rivian', 'Subaru', 'Tesla', 'Toyota', 
+  'Volkswagen', 'Volvo'
+];
+
 export type Address = {
   street: string;
   city: string;
@@ -28,6 +37,7 @@ export type User = {
   dealershipIds: string[];
   avatarUrl: string;
   xp: number;
+  brand?: string;
   phone?: string;
   address?: Address;
   isPrivate?: boolean;

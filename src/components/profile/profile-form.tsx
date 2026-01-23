@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { User, Dealership } from '@/lib/definitions';
+import { User, Dealership, carBrands } from '@/lib/definitions';
 import { updateUser, getDealerships, updateUserDealerships } from '@/lib/data';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +42,7 @@ interface ProfileFormProps {
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   email: z.string().email('Please enter a valid email.'),
+  brand: z.string().optional(),
   phone: z.string().optional(),
   avatarUrl: z.string().min(1, 'An avatar image is required.'),
   address: z.object({
@@ -75,6 +76,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
     defaultValues: {
       name: user.name,
       email: user.email,
+      brand: user.brand || '',
       phone: user.phone || '',
       avatarUrl: user.avatarUrl,
       address: {
@@ -399,6 +401,29 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <CardDescription>Your role and dealership assignments.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="brand"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Primary Brand</FormLabel>
+                            <Select onValueChange={(value) => field.onChange(value === 'none' ? '' : value)} value={field.value || 'none'}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select the brand you primarily sell/service..." />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="none">-- Not Specified --</SelectItem>
+                                    {carBrands.map(brand => (
+                                        <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <div>
                     <FormLabel>Role</FormLabel>
                     <Input value={user.role} readOnly disabled />

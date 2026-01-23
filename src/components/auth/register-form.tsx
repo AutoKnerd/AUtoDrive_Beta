@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -9,6 +10,7 @@ import * as z from 'zod';
 import { useAuth } from '@/hooks/use-auth';
 import { redeemInvitation, getInvitationByToken } from '@/lib/data';
 import type { EmailInvitation } from '@/lib/definitions';
+import { carBrands } from '@/lib/definitions';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '../ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
@@ -31,6 +34,7 @@ const registerSchema = z.object({
   name: z.string().min(2, { message: 'Please enter your full name.' }),
   email: z.string().email(), // Will be disabled, so no validation message needed for user
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+  brand: z.string().min(1, { message: 'Please select your primary brand.' }),
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -55,6 +59,7 @@ function RegisterFormComponent() {
       name: '',
       email: '',
       password: '',
+      brand: '',
     },
   });
 
@@ -89,7 +94,7 @@ function RegisterFormComponent() {
     if (!token || !invitation) return;
     setIsSubmitting(true);
     try {
-      await redeemInvitation(token, data.name, data.email);
+      await redeemInvitation(token, data.name, data.email, data.brand);
       await login(data.email, data.password);
       
       toast({
@@ -154,6 +159,30 @@ function RegisterFormComponent() {
                   <FormControl>
                     <Input {...field} readOnly disabled />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="brand"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Primary Brand</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select the brand you represent..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {carBrands.map(brand => (
+                        <SelectItem key={brand} value={brand}>
+                          {brand}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
