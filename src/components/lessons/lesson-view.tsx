@@ -3,13 +3,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Lesson, Badge } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/use-auth';
-import { Bot, Send, ArrowLeft } from 'lucide-react';
+import { Send, ArrowLeft } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { conductLesson } from '@/ai/flows/lesson-flow';
 import { Spinner } from '../ui/spinner';
@@ -188,8 +189,8 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                         {messages.map((message, index) => (
                         <div key={index} className={`flex items-start gap-4 ${message.sender === 'user' ? 'justify-end' : ''}`}>
                             {message.sender === 'ai' && (
-                                <Avatar className="h-8 w-8 bg-primary flex items-center justify-center">
-                                    <Bot className="text-primary-foreground" />
+                                <Avatar className="h-8 w-8">
+                                    <Image src="/autodrive-ai-icon.png" alt="AutoDrive AI" width={32} height={32} />
                                 </Avatar>
                             )}
                             <div className={`rounded-lg p-3 text-sm max-w-[80%] ${message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
@@ -206,7 +207,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                         {isLoading && messages.length > 0 && (
                             <div className="flex items-start gap-4">
                                 <Avatar className="h-8 w-8 bg-primary flex items-center justify-center">
-                                    <Bot className="text-primary-foreground" />
+                                    <Spinner size="sm" className="text-primary-foreground" />
                                 </Avatar>
                                 <div className="rounded-lg p-3 bg-muted flex items-center">
                                     <Spinner size="sm" />
