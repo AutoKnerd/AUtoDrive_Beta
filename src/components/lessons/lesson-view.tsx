@@ -206,8 +206,8 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                         ))}
                         {isLoading && messages.length > 0 && (
                             <div className="flex items-start gap-4">
-                                <Avatar className="h-8 w-8 bg-primary flex items-center justify-center">
-                                    <Spinner size="sm" className="text-primary-foreground" />
+                                <Avatar className="h-8 w-8">
+                                    <Image src="/autodrive-ai-icon.png" alt="AutoDrive AI" width={32} height={32} />
                                 </Avatar>
                                 <div className="rounded-lg p-3 bg-muted flex items-center">
                                     <Spinner size="sm" />
