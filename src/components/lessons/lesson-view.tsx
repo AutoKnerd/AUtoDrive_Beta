@@ -81,7 +81,14 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
 
   const handleAiResponse = async (responseText: string) => {
     try {
-      const result = JSON.parse(responseText);
+      let textToParse = responseText;
+      // Strip markdown code block if the AI sends it
+      if (textToParse.trim().startsWith('```json')) {
+        textToParse = textToParse.substring(textToParse.indexOf('{'), textToParse.lastIndexOf('}') + 1);
+      }
+
+      const result = JSON.parse(textToParse);
+
       if (result && result.xpAwarded) {
         const summaryText = `Lesson Complete!\n\nFocus Area: ${result.trainedTrait}\nXP Awarded: ${result.xpAwarded}\nSummary: ${result.coachSummary}\nNext Steps: Focus on ${result.recommendedNextFocus}.`;
         const finalMessage: Message = { sender: 'ai', text: summaryText };
