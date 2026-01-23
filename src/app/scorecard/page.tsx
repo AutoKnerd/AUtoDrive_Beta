@@ -54,7 +54,7 @@ export default function ScoreCardPage() {
       .then((htmlToImage) => {
         htmlToImage.toPng(scoreCardRef.current!, { 
             cacheBust: true,
-            pixelRatio: 2, // Use higher pixel ratio for better quality on high-res screens
+            pixelRatio: 2,
         })
         .then((dataUrl) => {
             const link = document.createElement('a');

@@ -94,7 +94,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
           <div className="relative w-20 h-20">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 blur-lg" />
               <Avatar className="relative w-full h-full border-4 border-slate-700">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
+                  <AvatarImage src={user.avatarUrl} alt={user.name} crossOrigin="anonymous" />
                   <AvatarFallback className="text-3xl bg-slate-800 text-white">
                       {user.name.charAt(0)}
                   </AvatarFallback>
@@ -107,6 +107,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
           <h1 className="text-xl font-bold tracking-tight">{user.name}</h1>
           <p className="text-sm text-cyan-400 font-medium">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
           {user.brand && <p className="text-xs text-muted-foreground">{user.brand}</p>}
+          {user.phone && <p className="text-xs text-muted-foreground">{user.phone}</p>}
         </div>
         
         <Separator className="my-1.5 bg-cyan-400/20" />
