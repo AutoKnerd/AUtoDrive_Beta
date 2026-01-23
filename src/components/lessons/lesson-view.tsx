@@ -209,8 +209,8 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                                 <Avatar className="h-8 w-8">
                                     <Image src="/autodrive-ai-icon1.png" alt="AutoDrive AI" width={32} height={32} />
                                 </Avatar>
-                                <div className="rounded-lg p-3 bg-muted flex items-center">
-                                    <Spinner size="sm" />
+                                <div className="rounded-lg bg-muted p-3">
+                                    <Image src="/autodrive-ai-icon1.png" alt="Thinking..." width={24} height={24} className="animate-spin" />
                                 </div>
                             </div>
                         )}
