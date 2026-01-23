@@ -3,13 +3,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ClipboardList, BarChart, User } from 'lucide-react';
+import { Home, ClipboardList, CreditCard, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/#lessons', icon: ClipboardList, label: 'Lessons' },
-  { href: '/#stats', icon: BarChart, label: 'Stats' },
+  { href: '/scorecard', icon: CreditCard, label: 'Score Card' },
   { href: '/profile', icon: User, label: 'Profile' },
 ];
 
