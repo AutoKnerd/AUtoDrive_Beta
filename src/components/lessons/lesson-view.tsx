@@ -44,7 +44,12 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
   const [cxScores, setCxScores] = useState<CxScores | null>(null);
   const [inputDisabled, setInputDisabled] = useState(false);
   const lessonStarted = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
   useEffect(() => {
     async function fetchScores() {
@@ -203,13 +208,14 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                             )}
                         </div>
                         ))}
-                        {isLoading && messages.length > 0 && (
+                        {isLoading && messages.length > 0 && messages[messages.length-1].sender === 'user' && (
                             <div className="flex items-start gap-4">
-                                <Avatar className="h-8 w-8">
-                                    <Image src="/autodrive-ai-icon1.png" alt="Thinking..." width={32} height={32} className="animate-spin" />
+                                <Avatar className="h-8 w-8 animate-spin">
+                                    <Image src="/autodrive-ai-icon1.png" alt="Thinking..." width={32} height={32} />
                                 </Avatar>
                             </div>
                         )}
+                        <div ref={messagesEndRef} />
                     </div>
                 </ScrollArea>
             </CardContent>
