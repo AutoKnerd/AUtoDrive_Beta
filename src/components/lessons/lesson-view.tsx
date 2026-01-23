@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -207,11 +206,8 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                         {isLoading && messages.length > 0 && (
                             <div className="flex items-start gap-4">
                                 <Avatar className="h-8 w-8">
-                                    <Image src="/autodrive-ai-icon1.png" alt="AutoDrive AI" width={32} height={32} />
+                                    <Image src="/autodrive-ai-icon1.png" alt="Thinking..." width={32} height={32} className="animate-spin" />
                                 </Avatar>
-                                <div className="rounded-lg bg-muted p-3">
-                                    <Image src="/autodrive-ai-icon1.png" alt="Thinking..." width={24} height={24} className="animate-spin" />
-                                </div>
                             </div>
                         )}
                     </div>
