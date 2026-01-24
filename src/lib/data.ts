@@ -7,6 +7,8 @@ import { calculateLevel } from './xp';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { db } from './firebase'; // Assuming db is your exported Firestore instance
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // --- MOCK DATABASE (to be replaced) ---
 
@@ -147,8 +149,17 @@ export async function getUserById(userId: string): Promise<User | null> {
 
 export async function adminUserExists(): Promise<boolean> {
     const q = query(usersCollection, where("role", "==", "Admin"));
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
+    try {
+        const snapshot = await getDocs(q);
+        return !snapshot.empty;
+    } catch(serverError: any) {
+        const contextualError = new FirestorePermissionError({
+            path: 'users',
+            operation: 'list'
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 }
 
 export async function createFirstAdminUser(name: string, email: string, brand: string, password: string): Promise<User> {
@@ -163,20 +174,40 @@ export async function createFirstAdminUser(name: string, email: string, brand: s
 
     const dealershipQuery = query(dealershipsCollection, where("name", "==", "AutoKnerd HQ"));
     let dealershipId = '';
-    const dSnapshot = await getDocs(dealershipQuery);
-    if(dSnapshot.empty) {
-        const newDealershipRef = doc(dealershipsCollection);
-        dealershipId = newDealershipRef.id;
-        const newDealership: Dealership = {
-            id: dealershipId,
-            name: "AutoKnerd HQ",
-            status: 'active',
-            address: { street: '123 AI Lane', city: 'Cybertown', state: 'CA', zip: '90210' }
-        };
-        await setDoc(newDealershipRef, newDealership);
-    } else {
-        dealershipId = dSnapshot.docs[0].id;
+    
+    try {
+        const dSnapshot = await getDocs(dealershipQuery);
+        if(dSnapshot.empty) {
+            const newDealershipRef = doc(dealershipsCollection);
+            dealershipId = newDealershipRef.id;
+            const newDealership: Dealership = {
+                id: dealershipId,
+                name: "AutoKnerd HQ",
+                status: 'active',
+                address: { street: '123 AI Lane', city: 'Cybertown', state: 'CA', zip: '90210' }
+            };
+            await setDoc(newDealershipRef, newDealership).catch(e => {
+                const contextualError = new FirestorePermissionError({
+                    path: newDealershipRef.path,
+                    operation: 'create',
+                    requestResourceData: newDealership,
+                });
+                errorEmitter.emit('permission-error', contextualError);
+                throw contextualError;
+            });
+        } else {
+            dealershipId = dSnapshot.docs[0].id;
+        }
+    } catch (e: any) {
+        if (e instanceof FirestorePermissionError) throw e;
+        const contextualError = new FirestorePermissionError({
+            path: 'dealerships',
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
     }
+
 
     const newUser: User = {
         userId: newUserId,
@@ -193,7 +224,17 @@ export async function createFirstAdminUser(name: string, email: string, brand: s
         subscriptionStatus: 'active', // First admin gets active sub
     };
 
-    await setDoc(doc(usersCollection, newUserId), newUser);
+    const userDocRef = doc(usersCollection, newUserId);
+    await setDoc(userDocRef, newUser).catch(e => {
+        const contextualError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'create',
+            requestResourceData: newUser,
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    });
+
     return newUser;
 }
 
