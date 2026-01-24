@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
+  originalUser: User | null;
   loading: boolean;
   isTouring: boolean;
   login: (email: string, pass: string) => Promise<void>;
@@ -29,6 +30,7 @@ const demoUserEmails = [
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [originalUser, setOriginalUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTouring, setIsTouring] = useState(false);
   const router = useRouter();
@@ -39,11 +41,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (firebaseUser) {
         const userProfile = await getUserById(firebaseUser.uid);
         setUser(userProfile);
+        if (userProfile?.role === 'Developer') {
+          setOriginalUser(userProfile);
+        } else {
+          setOriginalUser(null);
+        }
         if(userProfile?.email) {
             setIsTouring(demoUserEmails.includes(userProfile.email));
         }
       } else {
         setUser(null);
+        setOriginalUser(null);
         setIsTouring(false);
       }
       setLoading(false);
@@ -94,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await login(email, 'readyplayer1');
   }, [login]);
 
-  const value = { user, loading, isTouring, login, logout, register, setUser, switchTourRole };
+  const value = { user, originalUser, loading, isTouring, login, logout, register, setUser, switchTourRole };
 
   return (
     <AuthContext.Provider value={value}>
