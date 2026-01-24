@@ -16,20 +16,20 @@ export default function AboutPage() {
         <section className="relative h-[60vh] flex items-center justify-center text-center text-white bg-slate-900">
           <Image
             src="https://picsum.photos/seed/about-hero/1200/800"
-            alt="Modern car dashboard"
+            alt="Interior of a modern luxury car"
             fill
             className="absolute inset-0 z-0 object-cover opacity-30"
-            data-ai-hint="modern dashboard"
+            data-ai-hint="modern car interior"
           />
           <div className="relative z-10 p-4">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4">
-              Welcome to AutoDrive
+              The Future of Automotive Training is Here
             </h1>
             <p className="text-lg md:text-xl max-w-3xl mx-auto text-muted-foreground mb-8">
-              The AI-powered training platform designed to shift your automotive team into high gear.
+              Stop settling for inconsistent results. AutoDrive uses AI to build elite sales and service teams that consistently delight customers and smash targets.
             </p>
             <Button asChild size="lg">
-              <Link href="/register">Get Started Now</Link>
+              <Link href="/register">Start Your Free Tour</Link>
             </Button>
           </div>
         </section>
@@ -37,9 +37,9 @@ export default function AboutPage() {
         {/* What is AutoDrive Section */}
         <section className="py-16 md:py-24 bg-background">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-4">What is AutoDrive?</h2>
+            <h2 className="text-3xl font-bold mb-4">Why Choose AutoDrive?</h2>
             <p className="max-w-3xl mx-auto text-lg text-muted-foreground">
-              AutoDrive is a revolutionary training and performance tool for the modern automotive industry. We replace outdated, inconsistent training methods with interactive, AI-driven lessons that adapt to each team member. From sales consultants to service writers, AutoDrive provides personalized coaching, tracks performance with precision, and gives managers the insights they need to build an elite team.
+              In today's competitive market, a highly skilled team is your biggest advantage. AutoDrive replaces outdated, one-size-fits-all training with a dynamic, on-demand platform. We use sophisticated AI to simulate thousands of real-world customer interactions, providing a safe space for your team to practice, make mistakes, and master their craft. Our system doesn't just train—it transforms, turning potential into peak performance and driving measurable ROI for your dealership.
             </p>
           </div>
         </section>
@@ -47,17 +47,20 @@ export default function AboutPage() {
         {/* Features Section */}
         <section className="py-16 md:py-24 bg-muted/20">
           <div className="container mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold">A Smarter Way to Train</h2>
+              <p className="text-lg text-muted-foreground mt-2">Powerful features designed for modern dealerships.</p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               <Card>
                 <CardHeader className="items-center">
                   <div className="p-4 bg-primary/10 rounded-full mb-2">
                     <Bot className="h-8 w-8 text-primary" />
                   </div>
-                  <CardTitle>AI-Powered Role-Play</CardTitle>
+                  <CardTitle>Hyper-Realistic AI Role-Play</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center text-muted-foreground">
-                  Engage in realistic customer scenarios with our advanced AI coach. Practice handling objections, building rapport, and closing deals in a safe, supportive environment.
+                  Practice any scenario, from handling tough objections to navigating complex service issues. Our AI coach provides instant, unbiased feedback 24/7.
                 </CardContent>
               </Card>
               <Card>
@@ -65,10 +68,10 @@ export default function AboutPage() {
                   <div className="p-4 bg-primary/10 rounded-full mb-2">
                     <Target className="h-8 w-8 text-primary" />
                   </div>
-                  <CardTitle>Targeted Skill Improvement</CardTitle>
+                  <CardTitle>Personalized Skill Paths</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center text-muted-foreground">
-                  Our system identifies each user's weakest Customer Experience (CX) traits and automatically recommends lessons to turn those weaknesses into strengths.
+                  AutoDrive identifies individual weaknesses in core CX traits and automatically assigns lessons to create well-rounded, confident professionals.
                 </CardContent>
               </Card>
               <Card>
@@ -76,10 +79,10 @@ export default function AboutPage() {
                   <div className="p-4 bg-primary/10 rounded-full mb-2">
                     <BarChart className="h-8 w-8 text-primary" />
                   </div>
-                  <CardTitle>Manager Dashboards</CardTitle>
+                  <CardTitle>Actionable Manager Insights</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center text-muted-foreground">
-                  Get a bird's-eye view of your team's performance. Track progress, identify coaching opportunities, and see dealership-wide stats at a glance.
+                  Go beyond numbers. Our dashboards reveal team-wide trends and individual progress, empowering you to coach with precision and impact.
                 </CardContent>
               </Card>
               <Card>
@@ -87,10 +90,10 @@ export default function AboutPage() {
                   <div className="p-4 bg-primary/10 rounded-full mb-2">
                     <BrainCircuit className="h-8 w-8 text-primary" />
                   </div>
-                  <CardTitle>Custom Lesson Creation</CardTitle>
+                  <CardTitle>AI-Assisted Content Creation</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center text-muted-foreground">
-                  Need to train on a specific process or a new product? Managers can create and assign custom lessons, with or without help from our scenario-generating AI.
+                  Quickly build and assign custom lessons for your dealership's unique processes. Let our AI suggest realistic scenarios to save you time.
                 </CardContent>
               </Card>
               <Card>
@@ -98,10 +101,10 @@ export default function AboutPage() {
                   <div className="p-4 bg-primary/10 rounded-full mb-2">
                     <Award className="h-8 w-8 text-primary" />
                   </div>
-                  <CardTitle>Gamified Progression</CardTitle>
+                  <CardTitle>Motivating Gamification</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center text-muted-foreground">
-                  Keep your team motivated with XP, levels, and badges. Celebrate milestones and foster a culture of continuous improvement and friendly competition.
+                  Experience points (XP), levels, and achievement badges foster healthy competition and a culture of continuous learning and improvement.
                 </CardContent>
               </Card>
                <Card>
@@ -109,10 +112,10 @@ export default function AboutPage() {
                   <div className="p-4 bg-primary/10 rounded-full mb-2">
                     <Users className="h-8 w-8 text-primary" />
                   </div>
-                  <CardTitle>Built for Every Role</CardTitle>
+                  <CardTitle>Enterprise-Ready Platform</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center text-muted-foreground">
-                  From the sales floor to the service drive, AutoDrive offers tailored training for Sales Consultants, Service Writers, Parts, F&I, and Managers.
+                  Tailored training paths for every role: Sales, Service, Parts, F&I, and Management. Unify your entire dealership's training strategy.
                 </CardContent>
               </Card>
             </div>
@@ -122,9 +125,9 @@ export default function AboutPage() {
         {/* Final CTA */}
         <section className="py-16 md:py-24 bg-background">
             <div className="container mx-auto px-4 text-center">
-                <h2 className="text-3xl font-bold mb-4">Ready to Accelerate Your Team's Growth?</h2>
+                <h2 className="text-3xl font-bold mb-4">Stop Training. Start Performing.</h2>
                 <p className="max-w-2xl mx-auto text-lg text-muted-foreground mb-8">
-                    Join the growing number of dealerships transforming their training and driving real results with AutoDrive.
+                    See firsthand how AutoDrive can revolutionize your dealership's performance. Take a free, no-obligation tour today.
                 </p>
                 <div className="flex justify-center gap-4">
                     <Button asChild size="lg">
