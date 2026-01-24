@@ -102,7 +102,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center justify-center text-center">
-            <div className="mb-4">
+            <div className="mb-4 w-full">
                 <Logo variant="full" width={610} height={203} />
             </div>
         </div>
