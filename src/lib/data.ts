@@ -18,20 +18,6 @@ const lessonsCollection = collection(db, 'lessons');
 const assignmentsCollection = collection(db, 'lessonAssignments');
 const messagesCollection = collection(db, 'messages');
 
-const getCollectionData = async <T>(collectionRef: any): Promise<T[]> => {
-    try {
-        const snapshot = await getDocs(collectionRef);
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
-    } catch(e: any) {
-        const contextualError = new FirestorePermissionError({
-            path: (collectionRef as any).path,
-            operation: 'list'
-        });
-        errorEmitter.emit('permission-error', contextualError);
-        throw contextualError;
-    }
-};
-
 const getDataById = async <T>(collectionRef: any, id: string): Promise<T | null> => {
     const docRef = doc(collectionRef, id);
     try {
@@ -276,7 +262,14 @@ export async function updateUserSubscriptionStatus(stripeCustomerId: string, new
 // LESSONS
 export async function getLessons(role: LessonRole): Promise<Lesson[]> {
     const q = query(lessonsCollection, where("role", "in", [role, 'global']));
-    return getCollectionData<Lesson>(q);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Lesson));
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 }
 
 export async function getLessonById(lessonId: string): Promise<Lesson | null> {
@@ -319,12 +312,30 @@ export async function createLesson(lessonData: {
 
 export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
     const q = query(assignmentsCollection, where("userId", "==", userId), where("completed", "==", false));
-    const assignments = await getCollectionData<LessonAssignment>(q);
+    
+    let assignments: LessonAssignment[];
+    try {
+        const snapshot = await getDocs(q);
+        assignments = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as LessonAssignment));
+    } catch (e) {
+        const contextualError = new FirestorePermissionError({ path: assignmentsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
     if (assignments.length === 0) return [];
     
     const lessonIds = assignments.map(a => a.lessonId);
     const lessonsQuery = query(lessonsCollection, where("lessonId", "in", lessonIds));
-    return getCollectionData<Lesson>(lessonsQuery);
+    
+    try {
+        const snapshot = await getDocs(lessonsQuery);
+        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Lesson));
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 }
 
 export async function assignLesson(userId: string, lessonId: string, assignerId: string): Promise<LessonAssignment> {
@@ -354,13 +365,28 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
 
 export async function getConsultantActivity(userId: string): Promise<LessonLog[]> {
     const logsCollection = collection(db, `users/${userId}/lessonLogs`);
-    const logs = await getCollectionData<any>(logsCollection);
-    return logs.map(log => ({...log, timestamp: log.timestamp.toDate()})).sort((a,b) => b.timestamp - a.timestamp);
+    try {
+        const snapshot = await getDocs(logsCollection);
+        const logs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
+        return logs.map(log => ({...log, timestamp: log.timestamp.toDate()})).sort((a,b) => b.timestamp - a.timestamp);
+    } catch(e) {
+        const contextualError = new FirestorePermissionError({ path: logsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 }
 
 export async function getDailyLessonLimits(userId: string): Promise<{ recommendedTaken: boolean, otherTaken: boolean }> {
     const logsCollection = collection(db, `users/${userId}/lessonLogs`);
-    const logs = await getCollectionData<any>(logsCollection);
+    let logs: any[];
+    try {
+        const snapshot = await getDocs(logsCollection);
+        logs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    } catch(e) {
+        const contextualError = new FirestorePermissionError({ path: logsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
     
     const todayLogs = logs.filter(log => {
       return isToday(log.timestamp.toDate());
@@ -490,7 +516,15 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
         q = query(dealershipsCollection, where("trainerId", "==", user.userId));
     }
     
-    const dealerships = await getCollectionData<Dealership>(q);
+    let dealerships: Dealership[];
+    try {
+        const snapshot = await getDocs(q);
+        dealerships = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Dealership));
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({ path: dealershipsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
     
     let relevantDealerships = dealerships.filter(d => d.id !== 'autoknerd-hq');
 
@@ -516,7 +550,16 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
         userQuery = query(usersCollection, where("dealershipIds", "array-contains", dealershipId), where("role", "in", teamRoles));
     }
     
-    const teamUsers = await getCollectionData<User>(userQuery);
+    let teamUsers: User[];
+    try {
+        const snapshot = await getDocs(userQuery);
+        teamUsers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({ path: usersCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+    
     if (teamUsers.length === 0) return { totalLessons: 0, avgScores: null };
 
     const teamUserIds = teamUsers.map(u => u.userId);
@@ -557,7 +600,16 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
     } else {
         userQuery = query(usersCollection, where("dealershipIds", "array-contains", dealershipId), where("role", "in", teamRoles));
     }
-    const teamMembers = await getCollectionData<User>(userQuery);
+    
+    let teamMembers: User[];
+    try {
+        const snapshot = await getDocs(userQuery);
+        teamMembers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({ path: usersCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
     
     const activityPromises = teamMembers.map(async (member) => {
         const memberLogs = await getConsultantActivity(member.userId);
@@ -586,7 +638,16 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
     if (!manager) return [];
 
     const manageableRoles = getTeamMemberRoles(manager.role);
-    const allUsers = await getCollectionData<User>(usersCollection);
+    
+    let allUsers: User[];
+    try {
+        const snapshot = await getDocs(usersCollection);
+        allUsers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({ path: usersCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 
     const manageableUsers = allUsers.filter(u => {
         if (u.userId === managerId) return false;
@@ -603,7 +664,17 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
 // BADGES
 export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> {
     const badgesCollection = collection(db, `users/${userId}/earnedBadges`);
-    const badgeDocs = await getCollectionData<EarnedBadge>(badgesCollection);
+    
+    let badgeDocs: EarnedBadge[];
+    try {
+        const snapshot = await getDocs(badgesCollection);
+        badgeDocs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as EarnedBadge));
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({ path: badgesCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
     const badgeIds = badgeDocs.map(b => b.badgeId);
     return allBadges.filter(b => badgeIds.includes(b.id));
 }
