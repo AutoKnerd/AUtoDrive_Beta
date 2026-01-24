@@ -208,7 +208,7 @@ export function LoginForm() {
               <TakeATour />
             </div>
              <p className="pt-2 text-center text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              Have an invitation?{' '}
               <Link
                 href="/register"
                 className="underline underline-offset-4 hover:text-primary"
@@ -216,6 +216,12 @@ export function LoginForm() {
                 Sign Up
               </Link>
             </p>
+            <div className="w-full text-center text-sm">
+                <Separator className="my-3"/>
+                <Link href="/register?setup=true" className="text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
+                    First-time Admin Setup
+                </Link>
+            </div>
           </CardFooter>
         </form>
       </Form>

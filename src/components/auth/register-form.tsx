@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '@/hooks/use-auth';
-import { redeemInvitation, getInvitationByToken } from '@/lib/data';
+import { redeemInvitation, getInvitationByToken, createFirstAdminUser, adminUserExists } from '@/lib/data';
 import type { EmailInvitation } from '@/lib/definitions';
 import { carBrands } from '@/lib/definitions';
 
@@ -32,7 +32,7 @@ import { AlertCircle } from 'lucide-react';
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: 'Please enter your full name.' }),
-  email: z.string().email(), // Will be disabled, so no validation message needed for user
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
   brand: z.string().min(1, { message: 'Please select your primary brand.' }),
 });
@@ -47,10 +47,12 @@ function RegisterFormComponent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const isSetupFlow = searchParams.get('setup') === 'true';
 
   const [invitation, setInvitation] = useState<EmailInvitation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdminSetup, setIsAdminSetup] = useState(false);
 
 
   const form = useForm<RegisterFormValues>({
@@ -64,13 +66,24 @@ function RegisterFormComponent() {
   });
 
   useEffect(() => {
-    if (!token) {
-      setError('No invitation token provided. Please use the link from your invitation email.');
-      setLoading(false);
-      return;
-    }
+    async function validate() {
+      if (isSetupFlow) {
+        const alreadyExists = await adminUserExists();
+        if (alreadyExists) {
+          setError("An Admin account already exists. Please use the login page.");
+        } else {
+          setIsAdminSetup(true);
+        }
+        setLoading(false);
+        return;
+      }
 
-    async function validateToken() {
+      if (!token) {
+        setError('No invitation token provided. Please use the link from your invitation email.');
+        setLoading(false);
+        return;
+      }
+
       try {
         const inv = await getInvitationByToken(token as string);
         if (!inv) {
@@ -87,25 +100,30 @@ function RegisterFormComponent() {
         setLoading(false);
       }
     }
-    validateToken();
-  }, [token, form]);
+    validate();
+  }, [token, isSetupFlow, form]);
 
   async function onSubmit(data: RegisterFormValues) {
-    if (!token || !invitation) return;
     setIsSubmitting(true);
     try {
-      await redeemInvitation(token, data.name, data.email, data.brand, data.password);
+      if (isAdminSetup) {
+        await createFirstAdminUser(data.name, data.email, data.brand, data.password);
+      } else {
+        if (!token || !invitation) return;
+        await redeemInvitation(token, data.name, data.email, data.brand, data.password);
+      }
+      
       await login(data.email, data.password);
       
       toast({
-        title: 'Account Activated!',
+        title: 'Account Created!',
         description: 'Welcome to AutoDrive!',
       });
       router.push('/');
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Activation Failed',
+        title: 'Registration Failed',
         description: (error as Error).message || 'An unexpected error occurred.',
       });
     } finally {
@@ -114,16 +132,16 @@ function RegisterFormComponent() {
   }
   
   if (loading) {
-    return <div className="flex items-center justify-center p-8"><Spinner /> <span className="ml-2">Validating invitation...</span></div>;
+    return <div className="flex items-center justify-center p-8"><Spinner /> <span className="ml-2">Validating...</span></div>;
   }
   
-  if (error || !invitation) {
+  if (error && !isAdminSetup) {
     return (
          <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>
-                {error || 'Invalid invitation details.'}
+                {error}
             </AlertDescription>
         </Alert>
     );
@@ -132,11 +150,22 @@ function RegisterFormComponent() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-center text-xl font-semibold tracking-tight">Activate your account</CardTitle>
+        <CardTitle className="text-center text-xl font-semibold tracking-tight">
+            {isAdminSetup ? 'Create Admin Account' : 'Activate Your Account'}
+        </CardTitle>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
+             {error && isAdminSetup && (
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Cannot Create Admin</AlertTitle>
+                    <AlertDescription>
+                        {error}
+                    </AlertDescription>
+                </Alert>
+            )}
             <FormField
               control={form.control}
               name="name"
@@ -157,7 +186,7 @@ function RegisterFormComponent() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input {...field} readOnly disabled />
+                    <Input {...field} readOnly={!isAdminSetup} disabled={!isAdminSetup} placeholder={isAdminSetup ? "admin@example.com" : ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -202,8 +231,8 @@ function RegisterFormComponent() {
             />
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? <Spinner size="sm" /> : 'Activate Account'}
+            <Button type="submit" className="w-full" disabled={isSubmitting || (isAdminSetup && !!error)}>
+              {isSubmitting ? <Spinner size="sm" /> : (isAdminSetup ? 'Create Admin Account' : 'Activate Account')}
             </Button>
           </CardFooter>
         </form>

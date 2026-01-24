@@ -145,6 +145,58 @@ export async function getUserById(userId: string): Promise<User | null> {
     return getDataById<User>(usersCollection, userId);
 }
 
+export async function adminUserExists(): Promise<boolean> {
+    const q = query(usersCollection, where("role", "==", "Admin"));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+}
+
+export async function createFirstAdminUser(name: string, email: string, brand: string, password: string): Promise<User> {
+    const adminExists = await adminUserExists();
+    if (adminExists) {
+        throw new Error("An Admin account already exists in the system.");
+    }
+
+    const auth = getAuth();
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const newUserId = userCredential.user.uid;
+
+    const dealershipQuery = query(dealershipsCollection, where("name", "==", "AutoKnerd HQ"));
+    let dealershipId = '';
+    const dSnapshot = await getDocs(dealershipQuery);
+    if(dSnapshot.empty) {
+        const newDealershipRef = doc(dealershipsCollection);
+        dealershipId = newDealershipRef.id;
+        const newDealership: Dealership = {
+            id: dealershipId,
+            name: "AutoKnerd HQ",
+            status: 'active',
+            address: { street: '123 AI Lane', city: 'Cybertown', state: 'CA', zip: '90210' }
+        };
+        await setDoc(newDealershipRef, newDealership);
+    } else {
+        dealershipId = dSnapshot.docs[0].id;
+    }
+
+    const newUser: User = {
+        userId: newUserId,
+        name: name,
+        email: email,
+        role: 'Admin',
+        dealershipIds: [dealershipId],
+        avatarUrl: 'https://images.unsplash.com/photo-1515086828834-023d61380316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzdGVlcmluZyUyMHdoZWVsfGVufDB8fHx8MTc2ODkxMTAyM3ww&ixlib=rb-4.1.0&q=80&w=1080',
+        xp: 0,
+        brand: brand,
+        isPrivate: false,
+        isPrivateFromOwner: false,
+        memberSince: new Date().toISOString(),
+        subscriptionStatus: 'active', // First admin gets active sub
+    };
+
+    await setDoc(doc(usersCollection, newUserId), newUser);
+    return newUser;
+}
+
 
 export async function findUserByEmail(email: string, requestingUserId: string): Promise<User | null> {
      const q = query(usersCollection, where("email", "==", email.toLowerCase()));
