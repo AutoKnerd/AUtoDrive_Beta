@@ -99,13 +99,12 @@ export default function LoginPage() {
   }
   
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+    <main className="flex min-h-screen flex-col items-center justify-evenly p-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center justify-center text-center">
-            <div className="mb-4 w-full">
-                <Logo variant="full" width={610} height={203} />
-            </div>
-        </div>
+        <Logo variant="full" width={610} height={203} />
+      </div>
+      
+      <div className="w-full max-w-sm">
         <LoginForm />
         
         <div className="relative mt-8 w-full">
