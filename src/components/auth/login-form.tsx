@@ -60,7 +60,6 @@ export function LoginForm() {
         title: 'Login Successful',
         description: 'Welcome back!',
       });
-      router.push('/');
     } catch (error) {
       toast({
         variant: 'destructive',
