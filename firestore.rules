@@ -143,7 +143,8 @@ service cloud.firestore {
      */
     match /lessons/{lessonId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow create: if isManager();
+      allow update, delete: if false;
     }
 
     /**
