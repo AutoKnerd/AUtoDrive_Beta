@@ -77,7 +77,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
             <p className="font-bold text-2xl">Level {level}</p>
             <p className="text-xs text-muted-foreground">{user.xp.toLocaleString()} XP</p>
           </div>
-          <Logo variant="full" width={113} height={38} />
+          <Logo variant="full" width={144} height={48} />
         </header>
 
         {/* XP Progress */}
