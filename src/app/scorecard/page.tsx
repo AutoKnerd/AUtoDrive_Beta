@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { Header } from '@/components/layout/header';
 import { Spinner } from '@/components/ui/spinner';
 import { BottomNav } from '@/components/layout/bottom-nav';
@@ -13,6 +13,7 @@ import { ScoreCard } from '@/components/profile/score-card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import QRCode from 'react-qr-code';
 
 export default function ScoreCardPage() {
   const { user, loading } = useAuth();
@@ -47,6 +48,28 @@ export default function ScoreCardPage() {
       fetchData();
     }
   }, [user]);
+
+  const dealershipName = useMemo(() => {
+    if (!user || !dealerships || dealerships.length === 0) return 'AutoDrive';
+    const userDealershipId = user.dealershipIds?.[0] || user.selfDeclaredDealershipId;
+    if (userDealershipId) {
+        const dealership = dealerships.find(d => d.id === userDealershipId);
+        return dealership?.name || 'AutoDrive';
+    }
+    return 'AutoDrive';
+  }, [user, dealerships]);
+
+  const vCardData = useMemo(() => {
+    if (!user) return '';
+    return `BEGIN:VCARD
+VERSION:3.0
+FN:${user.name}
+ORG:${dealershipName}
+TITLE:${user.role}
+TEL;TYPE=WORK,VOICE:${user.phone || ''}
+EMAIL:${user.email}
+END:VCARD`;
+  }, [user, dealershipName]);
 
   const handleDownload = () => {
     if (scoreCardRef.current === null) {
@@ -99,11 +122,22 @@ export default function ScoreCardPage() {
     <div className="flex min-h-screen w-full flex-col">
       <Header />
       <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6 lg:p-8 pb-24 md:pb-6 lg:pb-8">
-        <ScoreCard ref={scoreCardRef} user={user} activity={activity} badges={badges} dealerships={dealerships} />
-        <Button onClick={handleDownload} className="mt-4">
-            <Download className="mr-2 h-4 w-4" />
-            Save as Image
-        </Button>
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-8">
+            <div>
+                <ScoreCard ref={scoreCardRef} user={user} activity={activity} badges={badges} dealerships={dealerships} />
+                <Button onClick={handleDownload} className="mt-4 w-full">
+                    <Download className="mr-2 h-4 w-4" />
+                    Save as Image
+                </Button>
+            </div>
+            <div className="hidden lg:flex flex-col items-center gap-4 text-center">
+                <div className="bg-white p-4 rounded-lg border-4 border-cyan-400/50">
+                    <QRCode value={vCardData} size={192} />
+                </div>
+                <h3 className="font-bold text-lg">Scan to Add Contact</h3>
+                <p className="text-sm text-muted-foreground max-w-xs">Open your phone's camera and point it at the QR code to save {user.name}'s contact information.</p>
+            </div>
+        </div>
       </main>
       {!isManager && <BottomNav />}
     </div>
