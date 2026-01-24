@@ -58,26 +58,25 @@ export async function createUserProfile(userId: string, name: string, email: str
     let dealershipId = '';
     const isHqRole = ['Admin', 'Developer', 'Trainer'].includes(role);
     if (isHqRole) {
-        const dealershipQuery = query(dealershipsCollection, where("name", "==", "AutoKnerd HQ"));
+        const hqDealershipId = 'autoknerd-hq';
+        const dealershipRef = doc(dealershipsCollection, hqDealershipId);
         try {
-            const dSnapshot = await getDocs(dealershipQuery);
-            if (dSnapshot.empty) {
-                const newDealershipRef = doc(dealershipsCollection);
-                dealershipId = newDealershipRef.id;
+            const docSnap = await getDoc(dealershipRef);
+            if (!docSnap.exists()) {
                 const newDealership: Dealership = {
-                    id: dealershipId,
+                    id: hqDealershipId,
                     name: "AutoKnerd HQ",
                     status: 'active',
                     address: { street: '123 AI Lane', city: 'Cybertown', state: 'CA', zip: '90210' }
                 };
-                await setDoc(newDealershipRef, newDealership);
-            } else {
-                dealershipId = dSnapshot.docs[0].id;
+                // This setDoc is now protected by the new security rule
+                await setDoc(dealershipRef, newDealership);
             }
+            dealershipId = hqDealershipId;
         } catch(e: any) {
              const contextualError = new FirestorePermissionError({
-                path: 'dealerships',
-                operation: 'list'
+                path: dealershipRef.path,
+                operation: 'write' // Generic write, covers get/set
             });
             errorEmitter.emit('permission-error', contextualError);
             throw contextualError;

@@ -146,12 +146,13 @@ service cloud.firestore {
      * @description Rules for the global, read-only collection of dealerships.
      * @path /dealerships/{dealershipId}
      * @allow (read) Anyone can read dealership information. This is necessary for the initial user registration flow.
-     * @deny (write) No client is allowed to create, update, or delete dealership data.
+     * @deny (write) No client is allowed to create, update, or delete dealership data, except for the HQ dealership.
      * @principle Protects global application data from being modified by clients. Assumes writes are handled by a trusted admin environment.
      */
     match /dealerships/{dealershipId} {
       allow read: if true;
-      allow write: if false;
+      allow create: if dealershipId == 'autoknerd-hq';
+      allow update, delete: if false;
     }
   }
 }
