@@ -125,8 +125,8 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
                     <p className="text-muted-foreground">{user.phone || ''}</p>
                 </div>
                 <div className="flex flex-col items-end gap-0 text-xs text-right">
-                    <p className="text-muted-foreground truncate">{dealershipName}</p>
-                    <p className="text-muted-foreground">{user.brand || ''}</p>
+                    <p className="text-muted-foreground truncate">{[dealershipName, user.brand].filter(Boolean).join(' - ')}</p>
+                    <p className="text-muted-foreground truncate">{user.email}</p>
                 </div>
             </div>
         </div>
@@ -177,3 +177,5 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
   );
 });
 ScoreCard.displayName = 'ScoreCard';
+
+    
