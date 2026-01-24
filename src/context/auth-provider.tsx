@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -28,6 +27,14 @@ const demoUserEmails = [
     'manager.demo@autodrive.com',
     'owner.demo@autodrive.com',
 ];
+
+const tourUserRoles: Record<string, UserRole> = {
+  'consultant.demo@autodrive.com': 'Sales Consultant',
+  'service.writer.demo@autodrive.com': 'Service Writer',
+  'manager.demo@autodrive.com': 'manager',
+  'owner.demo@autodrive.com': 'Owner',
+};
+
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -60,12 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => unsubscribe();
   }, [auth]);
-
-  const login = useCallback(async (email: string, password: string): Promise<void> => {
-    await signInWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged will handle the rest
-  }, [auth]);
-
+  
   const register = useCallback(async (name: string, email: string, password: string, brand: string, role: UserRole) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     try {
@@ -77,6 +79,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
     }
   }, [auth]);
+
+  const login = useCallback(async (email: string, password: string): Promise<void> => {
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+        if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') && demoUserEmails.includes(email)) {
+            try {
+                const role = tourUserRoles[email];
+                const name = `Demo ${role === 'manager' ? 'Sales Manager' : role}`;
+                await register(name, email, password, 'Toyota', role);
+                return; // User is created and signed in, onAuthStateChanged will handle the rest.
+            } catch (registrationError) {
+                console.error("Failed to auto-register demo user:", registrationError);
+                // If registration fails, throw the original login error to be displayed.
+                throw error;
+            }
+        }
+        // For non-demo users or other types of errors, re-throw the original error.
+        throw error;
+    }
+  }, [auth, register]);
 
   const logout = async () => {
     await auth.signOut();
