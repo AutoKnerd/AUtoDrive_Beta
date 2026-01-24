@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -13,7 +12,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isTouring: boolean;
-  login: (email: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string) => Promise<User | null>;
   logout: () => Promise<void>;
   register: (name: string, email: string, password: string, brand: string, role: UserRole) => Promise<void>;
   setUser: (user: User | null) => void;
@@ -40,7 +39,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (firebaseUser) {
         const userProfile = await getUserById(firebaseUser.uid);
         setUser(userProfile);
-        // This logic is for the tour, which we are keeping for now.
         if(userProfile?.email) {
             setIsTouring(demoUserEmails.includes(userProfile.email));
         }
@@ -54,16 +52,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, [auth]);
 
-  const login = async (email: string, password: string) => {
-    await authenticateUser(email, password);
-    // The onAuthStateChanged listener will handle setting the user state
-  };
+  const login = useCallback(async (email: string, password: string): Promise<User | null> => {
+    setLoading(true);
+    try {
+      const userProfile = await authenticateUser(email, password);
+      setUser(userProfile);
+      if (userProfile?.email) {
+        setIsTouring(demoUserEmails.includes(userProfile.email));
+      }
+      return userProfile;
+    } catch (error) {
+      setUser(null);
+      setIsTouring(false);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const register = async (name: string, email: string, password: string, brand: string, role: UserRole) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    await createUserProfile(userCredential.user.uid, name, email, role, brand);
-    // onAuthStateChanged will automatically sign the user in and update state.
-  };
+  const register = useCallback(async (name: string, email: string, password: string, brand: string, role: UserRole) => {
+    setLoading(true);
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const newUserProfile = await createUserProfile(userCredential.user.uid, name, email, role, brand);
+        setUser(newUserProfile);
+        if (newUserProfile?.email) {
+            setIsTouring(demoUserEmails.includes(newUserProfile.email));
+        }
+    } catch(error) {
+        // Log user out if profile creation fails after auth user is created
+        await auth.signOut();
+        setUser(null);
+        setIsTouring(false);
+        throw error;
+    }
+    finally {
+        setLoading(false);
+    }
+  }, [auth]);
 
   const logout = async () => {
     await auth.signOut();
@@ -87,8 +113,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           default:
               return;
       }
-      await authenticateUser(email, 'readyplayer1');
-  }, []);
+      await login(email, 'readyplayer1');
+  }, [login]);
 
   const value = { user, loading, isTouring, login, logout, register, setUser, switchTourRole };
 
