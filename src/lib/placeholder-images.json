@@ -29,6 +29,12 @@
       "description": "A modern car dashboard at night.",
       "imageUrl": "https://images.unsplash.com/photo-1762448884906-e27b998e340a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxtb2Rlcm4lMjBkYXNoYm9hcmR8ZW58MHx8fHwxNzY5MjI3MjQxfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "modern dashboard"
+    },
+    {
+      "id": "usa-heatmap",
+      "description": "A map of the United States showing user locations",
+      "imageUrl": "https://picsum.photos/seed/usa-heatmap/1200/675",
+      "imageHint": "USA map heatmap"
     }
   ]
 }

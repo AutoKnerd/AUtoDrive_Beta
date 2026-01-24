@@ -122,6 +122,25 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Nationwide Presence Section */}
+        <section className="py-16 md:py-24 bg-background">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-3xl font-bold mb-4">Trusted by Professionals Nationwide</h2>
+            <p className="max-w-3xl mx-auto text-lg text-muted-foreground mb-12">
+              From coast to coast, top-performing dealerships and automotive groups rely on AutoDrive to elevate their teams and drive exceptional customer experiences.
+            </p>
+            <div className="relative aspect-video max-w-5xl mx-auto">
+              <Image
+                src="https://picsum.photos/seed/usa-heatmap/1200/675"
+                alt="A map of the United States showing user locations"
+                fill
+                className="object-contain"
+                data-ai-hint="USA map heatmap"
+              />
+            </div>
+          </div>
+        </section>
+
         {/* Final CTA */}
         <section className="py-16 md:py-24 bg-background">
             <div className="container mx-auto px-4 text-center">
