@@ -7,7 +7,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { Header } from '@/components/layout/header';
 import { Spinner } from '@/components/ui/spinner';
 import { BottomNav } from '@/components/layout/bottom-nav';
-import { UserRole, LessonLog, Badge as BadgeType, Dealership } from '@/lib/definitions';
+import { UserRole, LessonLog, Badge as BadgeType, Dealership, managerialRoles } from '@/lib/definitions';
 import { getConsultantActivity, getEarnedBadgesByUserId, getDealerships } from '@/lib/data';
 import { ScoreCard } from '@/components/profile/score-card';
 import { Button } from '@/components/ui/button';
@@ -126,7 +126,6 @@ END:VCARD`;
     );
   }
 
-  const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin', 'General Manager', 'Developer'];
   const isManager = managerialRoles.includes(user.role);
 
   return (

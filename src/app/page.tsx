@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { ConsultantDashboard } from '@/components/dashboard/consultant-dashboard';
 import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { Spinner } from '@/components/ui/spinner';
-import type { UserRole } from '@/lib/definitions';
+import { managerialRoles } from '@/lib/definitions';
 import { BottomNav } from '@/components/layout/bottom-nav';
 
 export default function Home() {
@@ -27,8 +27,6 @@ export default function Home() {
       </div>
     );
   }
-
-  const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin', 'General Manager', 'Developer'];
 
   const isManager = managerialRoles.includes(user.role);
 

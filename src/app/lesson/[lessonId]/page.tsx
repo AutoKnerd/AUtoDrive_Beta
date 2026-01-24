@@ -4,7 +4,7 @@
 import { Header } from '@/components/layout/header';
 import { LessonView } from '@/components/lessons/lesson-view';
 import { getDealershipById, getLessonById } from '@/lib/data';
-import { Lesson, UserRole } from '@/lib/definitions';
+import { Lesson, managerialRoles } from '@/lib/definitions';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
@@ -60,7 +60,6 @@ export default function LessonPage() {
         );
     }
     
-    const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin', 'General Manager', 'Developer'];
     const isManager = managerialRoles.includes(user.role);
 
     if (isPaused) {

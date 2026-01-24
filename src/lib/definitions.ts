@@ -45,6 +45,18 @@ export const allRoles: UserRole[] = [
     'Parts Consultant',
 ];
 
+export const managerialRoles: UserRole[] = [
+  'manager',
+  'Service Manager',
+  'Parts Manager',
+  'Finance Manager',
+  'Owner',
+  'Trainer',
+  'Admin',
+  'General Manager',
+  'Developer',
+];
+
 export type User = {
   userId: string;
   name: string;

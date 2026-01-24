@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/header';
 import { ProfileForm } from '@/components/profile/profile-form';
 import { Spinner } from '@/components/ui/spinner';
 import { BottomNav } from '@/components/layout/bottom-nav';
-import { UserRole } from '@/lib/definitions';
+import { managerialRoles } from '@/lib/definitions';
 
 export default function ProfilePage() {
   const { user, loading } = useAuth();
@@ -28,7 +28,6 @@ export default function ProfilePage() {
     );
   }
 
-  const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin', 'General Manager', 'Developer'];
   const isManager = managerialRoles.includes(user.role);
 
   return (
