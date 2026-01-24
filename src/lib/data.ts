@@ -69,7 +69,6 @@ export async function createUserProfile(userId: string, name: string, email: str
                     status: 'active',
                     address: { street: '123 AI Lane', city: 'Cybertown', state: 'CA', zip: '90210' }
                 };
-                // This setDoc is now protected by the new security rule
                 await setDoc(dealershipRef, newDealership);
             }
             dealershipId = hqDealershipId;
@@ -115,9 +114,20 @@ export async function createUserProfile(userId: string, name: string, email: str
 }
 
 
-export async function findUserByEmail(email: string, requestingUserId: string): Promise<User | null> {
+export async function findUserByEmail(email: string, requestingUserId:string): Promise<User | null> {
      const q = query(usersCollection, where("email", "==", email.toLowerCase()));
-    const querySnapshot = await getDocs(q);
+     let querySnapshot;
+     try {
+        querySnapshot = await getDocs(q);
+     } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: usersCollection.path,
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+     }
+
     if (querySnapshot.empty) {
         return null;
     }
@@ -147,47 +157,119 @@ export async function findUserByEmail(email: string, requestingUserId: string): 
 
 export async function updateUser(userId: string, data: Partial<Omit<User, 'userId' | 'role' | 'xp' | 'dealershipIds'>>): Promise<User> {
     const userRef = doc(usersCollection, userId);
-    await updateDoc(userRef, data);
-    const updatedUser = await getDoc(userRef);
-    return { ...updatedUser.data(), id: updatedUser.id } as User;
+    try {
+        await updateDoc(userRef, data);
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'update',
+            requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+    const updatedUser = await getDataById<User>(usersCollection, userId);
+    if (!updatedUser) throw new Error("User not found after update");
+    return updatedUser;
 }
 
 export async function updateUserDealerships(userId: string, newDealershipIds: string[]): Promise<User> {
     const userRef = doc(usersCollection, userId);
-    await updateDoc(userRef, { dealershipIds: newDealershipIds });
-    const updatedUser = await getDoc(userRef);
-    return { ...updatedUser.data(), id: updatedUser.id } as User;
+    const updateData = { dealershipIds: newDealershipIds };
+    try {
+        await updateDoc(userRef, updateData);
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+    const updatedUser = await getDataById<User>(usersCollection, userId);
+    if (!updatedUser) throw new Error("User not found after update");
+    return updatedUser;
 }
 
 export async function deleteUser(userId: string): Promise<void> {
     const batch = writeBatch(db);
-
+    
     batch.delete(doc(usersCollection, userId));
 
-    const logsQuery = query(collection(db, `users/${userId}/lessonLogs`));
-    const logsSnapshot = await getDocs(logsQuery);
-    logsSnapshot.forEach(logDoc => batch.delete(logDoc.ref));
+    const logsCollectionRef = collection(db, `users/${userId}/lessonLogs`);
+    try {
+        const logsSnapshot = await getDocs(logsCollectionRef);
+        logsSnapshot.forEach(logDoc => batch.delete(logDoc.ref));
+    } catch (e) {
+        const contextualError = new FirestorePermissionError({ path: logsCollectionRef.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 
     const assignmentsQuery = query(assignmentsCollection, where("userId", "==", userId));
-    const assignmentsSnapshot = await getDocs(assignmentsQuery);
-    assignmentsSnapshot.forEach(assignDoc => batch.delete(assignDoc.ref));
+    try {
+        const assignmentsSnapshot = await getDocs(assignmentsQuery);
+        assignmentsSnapshot.forEach(assignDoc => batch.delete(assignDoc.ref));
+    } catch (e) {
+        const contextualError = new FirestorePermissionError({ path: assignmentsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
     
-    const badgesQuery = query(collection(db, `users/${userId}/earnedBadges`));
-    const badgesSnapshot = await getDocs(badgesQuery);
-    badgesSnapshot.forEach(badgeDoc => batch.delete(badgeDoc.ref));
+    const badgesCollectionRef = collection(db, `users/${userId}/earnedBadges`);
+    try {
+        const badgesSnapshot = await getDocs(badgesCollectionRef);
+        badgesSnapshot.forEach(badgeDoc => batch.delete(badgeDoc.ref));
+    } catch (e) {
+        const contextualError = new FirestorePermissionError({ path: badgesCollectionRef.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 
-    await batch.commit();
+    try {
+        await batch.commit();
+    } catch (e) {
+        const contextualError = new FirestorePermissionError({ path: `users/${userId}`, operation: 'delete' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 }
 
 
 export async function updateUserSubscriptionStatus(stripeCustomerId: string, newStatus: 'active' | 'inactive'): Promise<User | null> {
     const q = query(usersCollection, where("stripeCustomerId", "==", stripeCustomerId));
-    const snapshot = await getDocs(q);
+    let snapshot;
+    try {
+        snapshot = await getDocs(q);
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: usersCollection.path,
+            operation: 'list'
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
     if (snapshot.empty) return null;
 
     const userDoc = snapshot.docs[0];
-    await updateDoc(userDoc.ref, { subscriptionStatus: newStatus });
-    return { ...userDoc.data(), id: userDoc.id, subscriptionStatus: newStatus } as User;
+    const userDocRef = userDoc.ref;
+    const updateData = { subscriptionStatus: newStatus };
+    try {
+        await updateDoc(userDocRef, updateData);
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'update',
+            requestResourceData: updateData
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+    
+    const updatedUser = await getDoc(userDocRef);
+    return { ...updatedUser.data(), id: updatedUser.id } as User;
 }
 
 
@@ -221,7 +303,17 @@ export async function createLesson(lessonData: {
         role: lessonData.targetRole as LessonRole,
         customScenario: lessonData.scenario,
     };
-    await setDoc(newLessonRef, newLesson);
+    try {
+        await setDoc(newLessonRef, newLesson);
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: newLessonRef.path,
+            operation: 'create',
+            requestResourceData: newLesson,
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
     return newLesson;
 }
 
@@ -245,7 +337,17 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
         timestamp: new Date(),
         completed: false,
     };
-    await setDoc(assignmentRef, newAssignment);
+    try {
+        await setDoc(assignmentRef, newAssignment);
+    } catch(e: any) {
+         const contextualError = new FirestorePermissionError({
+            path: assignmentRef.path,
+            operation: 'create',
+            requestResourceData: newAssignment
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
     return newAssignment;
 }
 
@@ -340,7 +442,16 @@ export async function logLessonCompletion(data: {
     batch.set(logRef, newLogData);
     batch.update(doc(usersCollection, data.userId), { xp: newXp });
 
-    await batch.commit();
+    try {
+        await batch.commit();
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: `users/${data.userId}`,
+            operation: 'write',
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
     
     const updatedUserDoc = await getDoc(doc(usersCollection, data.userId));
     const updatedUser = { ...updatedUserDoc.data(), id: updatedUserDoc.id } as User;
@@ -366,6 +477,8 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
             return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Developer'];
         case 'Admin':
             return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Developer'];
+        case 'Developer':
+             return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Admin'];
         default:
             return [];
     }
@@ -397,7 +510,7 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
     const teamRoles = getTeamMemberRoles(userRole);
     let userQuery;
 
-    if ((['Owner', 'Admin', 'Trainer', 'General Manager'].includes(userRole)) && dealershipId === 'all') {
+    if ((['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(userRole)) && dealershipId === 'all') {
         userQuery = query(usersCollection, where("role", "in", teamRoles));
     } else {
         userQuery = query(usersCollection, where("dealershipIds", "array-contains", dealershipId), where("role", "in", teamRoles));
@@ -439,7 +552,7 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
     const teamRoles = getTeamMemberRoles(userRole);
     let userQuery;
 
-    if (['Owner', 'Admin', 'Trainer', 'General Manager'].includes(userRole) && dealershipId === 'all') {
+    if (['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(userRole) && dealershipId === 'all') {
         userQuery = query(usersCollection, where("role", "in", teamRoles));
     } else {
         userQuery = query(usersCollection, where("dealershipIds", "array-contains", dealershipId), where("role", "in", teamRoles));
@@ -498,7 +611,19 @@ export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> 
 // DEALERSHIPS
 export async function updateDealershipStatus(dealershipId: string, status: 'active' | 'paused' | 'deactivated'): Promise<Dealership> {
     const dealershipRef = doc(dealershipsCollection, dealershipId);
-    await updateDoc(dealershipRef, { status });
+
+    try {
+        await updateDoc(dealershipRef, { status });
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: { status }
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
 
     if (status === 'deactivated') {
         const usersToUpdateQuery = query(usersCollection, where("dealershipIds", "array-contains", dealershipId));
@@ -509,7 +634,16 @@ export async function updateDealershipStatus(dealershipId: string, status: 'acti
             const newIds = userData.dealershipIds.filter(id => id !== dealershipId);
             batch.update(userDoc.ref, { dealershipIds: newIds });
         });
-        await batch.commit();
+        try {
+            await batch.commit();
+        } catch (e: any) {
+            const contextualError = new FirestorePermissionError({
+                path: 'users',
+                operation: 'write'
+            });
+            errorEmitter.emit('permission-error', contextualError);
+            throw contextualError;
+        }
     }
     
     const updatedDealership = await getDoc(dealershipRef);
@@ -533,7 +667,17 @@ export async function sendMessage(
         targetId: target.targetId,
         targetRole: target.targetRole,
     };
-    await setDoc(messageRef, { ...newMessage, timestamp: Timestamp.fromDate(newMessage.timestamp) });
+    try {
+        await setDoc(messageRef, { ...newMessage, timestamp: Timestamp.fromDate(newMessage.timestamp) });
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: messageRef.path,
+            operation: 'create',
+            requestResourceData: newMessage
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
     return newMessage;
 }
 
@@ -542,17 +686,31 @@ export async function getMessagesForUser(user: User): Promise<Message[]> {
     let relevantMessages: Message[] = [];
     
     const globalQuery = query(messagesCollection, where("scope", "==", "global"), where("timestamp", ">=", Timestamp.fromDate(fourteenDaysAgo)));
-    const globalSnap = await getDocs(globalQuery);
-    globalSnap.forEach(doc => relevantMessages.push({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp.toDate()} as Message));
+    
+    try {
+        const globalSnap = await getDocs(globalQuery);
+        globalSnap.forEach(doc => relevantMessages.push({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp.toDate()} as Message));
+    } catch(e: any) {
+        // Fail silently on message fetch is acceptable
+    }
     
     if(user.dealershipIds.length > 0) {
         const dealershipQuery = query(messagesCollection, where("scope", "==", "dealership"), where("targetId", "in", user.dealershipIds), where("timestamp", ">=", Timestamp.fromDate(fourteenDaysAgo)));
-        const dealershipSnap = await getDocs(dealershipQuery);
-        dealershipSnap.forEach(doc => relevantMessages.push({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp.toDate()} as Message));
+        try {
+            const dealershipSnap = await getDocs(dealershipQuery);
+            dealershipSnap.forEach(doc => relevantMessages.push({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp.toDate()} as Message));
+        } catch(e: any) {
+            // Fail silently
+        }
+
 
         const departmentQuery = query(messagesCollection, where("scope", "==", "department"), where("targetId", "in", user.dealershipIds), where("targetRole", "==", user.role), where("timestamp", ">=", Timestamp.fromDate(fourteenDaysAgo)));
-        const departmentSnap = await getDocs(departmentQuery);
-        departmentSnap.forEach(doc => relevantMessages.push({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp.toDate()} as Message));
+        try {
+            const departmentSnap = await getDocs(departmentQuery);
+            departmentSnap.forEach(doc => relevantMessages.push({ ...doc.data(), id: doc.id, timestamp: doc.data().timestamp.toDate()} as Message));
+        } catch(e: any) {
+            // Fail silently
+        }
     }
     
     const uniqueMessages = Array.from(new Map(relevantMessages.map(item => [item['id'], item])).values());
