@@ -3,9 +3,9 @@
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useAuth as useFirebaseAuth } from '@/firebase'; // Using alias to avoid naming conflict
-import { getUserById, authenticateUser } from '@/lib/data';
+import { getUserById, authenticateUser, createUserProfile } from '@/lib/data';
 import type { User, UserRole } from '@/lib/definitions';
 import { useRouter } from 'next/navigation';
 
@@ -15,6 +15,7 @@ interface AuthContextType {
   isTouring: boolean;
   login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
+  register: (name: string, email: string, password: string, brand: string, role: UserRole) => Promise<void>;
   setUser: (user: User | null) => void;
   switchTourRole: (role: UserRole) => Promise<void>;
 }
@@ -39,7 +40,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (firebaseUser) {
         const userProfile = await getUserById(firebaseUser.uid);
         setUser(userProfile);
-        setIsTouring(demoUserEmails.includes(userProfile?.email || ''));
+        // This logic is for the tour, which we are keeping for now.
+        if(userProfile?.email) {
+            setIsTouring(demoUserEmails.includes(userProfile.email));
+        }
       } else {
         setUser(null);
         setIsTouring(false);
@@ -51,12 +55,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [auth]);
 
   const login = async (email: string, password: string) => {
-    const loggedInUser = await authenticateUser(email, password);
-    if (loggedInUser) {
-      // The onAuthStateChanged listener will handle setting the user
-    } else {
-      throw new Error("Invalid credentials");
-    }
+    await authenticateUser(email, password);
+    // The onAuthStateChanged listener will handle setting the user state
+  };
+
+  const register = async (name: string, email: string, password: string, brand: string, role: UserRole) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await createUserProfile(userCredential.user.uid, name, email, role, brand);
+    // onAuthStateChanged will automatically sign the user in and update state.
   };
 
   const logout = async () => {
@@ -81,11 +87,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           default:
               return;
       }
-      // Re-authenticate as the demo user. The listener will update the state.
       await authenticateUser(email, 'readyplayer1');
   }, []);
 
-  const value = { user, loading, isTouring, login, logout, setUser, switchTourRole };
+  const value = { user, loading, isTouring, login, logout, register, setUser, switchTourRole };
 
   return (
     <AuthContext.Provider value={value}>

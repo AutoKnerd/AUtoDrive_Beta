@@ -19,15 +19,6 @@ import { Button, buttonVariants } from '../ui/button';
 import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeamMemberCard } from './team-member-card';
-import { RegisterDealershipForm } from '../admin/register-dealership-form';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { AssignUserForm } from '../admin/assign-user-form';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -456,14 +447,13 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 <DialogHeader>
                                     <DialogTitle>Manage Team</DialogTitle>
                                     <DialogDescription>
-                                        Invite new members, assign existing users, or remove users from the system.
+                                        Assign existing users or remove users from the system.
                                     </DialogDescription>
                                 </DialogHeader>
                                 <ScrollArea className="max-h-[70vh] p-1">
-                                    <Tabs defaultValue="invite" className="pt-4">
-                                        <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                                    <Tabs defaultValue="assign" className="pt-4">
+                                        <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-3' : 'grid-cols-1'}`}>
                                             <TabsTrigger value="assign">Assign Existing</TabsTrigger>
-                                            <TabsTrigger value="invite">Invite New</TabsTrigger>
                                             {user.role === 'Admin' && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
                                             {user.role === 'Admin' && <TabsTrigger value="dealerships">Dealerships</TabsTrigger>}
                                         </TabsList>
@@ -473,9 +463,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                 dealerships={dealerships}
                                                 onUserAssigned={handleUserManaged} 
                                             />
-                                        </TabsContent>
-                                        <TabsContent value="invite" className="pt-2">
-                                            <RegisterDealershipForm user={user} onDealershipRegistered={handleUserManaged} />
                                         </TabsContent>
                                         {user.role === 'Admin' && (
                                             <TabsContent value="remove" className="pt-2">
@@ -579,14 +566,13 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                       <DialogHeader>
                                           <DialogTitle>Manage Team</DialogTitle>
                                           <DialogDescription>
-                                              Invite new members, assign existing users, or remove users from the system.
+                                              Assign existing users or remove users from the system.
                                           </DialogDescription>
                                       </DialogHeader>
                                       <ScrollArea className="max-h-[70vh] p-1">
                                           <Tabs defaultValue="assign" className="pt-4">
-                                              <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                                              <TabsList className={`grid w-full ${user.role === 'Admin' ? 'grid-cols-3' : 'grid-cols-1'}`}>
                                                   <TabsTrigger value="assign">Assign Existing</TabsTrigger>
-                                                  <TabsTrigger value="invite">Invite New</TabsTrigger>
                                                   {user.role === 'Admin' && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
                                                   {user.role === 'Admin' && <TabsTrigger value="dealerships">Dealerships</TabsTrigger>}
                                               </TabsList>
@@ -596,9 +582,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                       dealerships={dealerships}
                                                       onUserAssigned={handleUserManaged} 
                                                   />
-                                              </TabsContent>
-                                              <TabsContent value="invite" className="pt-2">
-                                                  <RegisterDealershipForm user={user} onDealershipRegistered={handleUserManaged} />
                                               </TabsContent>
                                               {user.role === 'Admin' && (
                                                   <TabsContent value="remove" className="pt-2">

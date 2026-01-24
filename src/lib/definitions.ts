@@ -27,7 +27,8 @@ export type UserRole =
   | 'General Manager' 
   | 'Owner'
   | 'Trainer'
-  | 'Admin';
+  | 'Admin'
+  | 'Developer';
 
 export type User = {
   userId: string;
@@ -136,6 +137,7 @@ export const lessonCategoriesByRole: Record<string, LessonCategory[]> = {
     'Operations - Financial Acumen',
     'Operations - Process Improvement',
   ],
+  'Developer': [],
   // No categories for trainer
 };
 

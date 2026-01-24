@@ -10,98 +10,42 @@ import { db } from './firebase'; // Assuming db is your exported Firestore insta
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-// --- MOCK DATABASE (to be replaced) ---
-
 // --- HELPER FUNCTIONS ---
 
 const usersCollection = collection(db, 'users');
 const dealershipsCollection = collection(db, 'dealerships');
 const lessonsCollection = collection(db, 'lessons');
-const invitationsCollection = collection(db, 'emailInvitations');
 const assignmentsCollection = collection(db, 'lessonAssignments');
 const messagesCollection = collection(db, 'messages');
 
 const getCollectionData = async <T>(collectionRef: any): Promise<T[]> => {
-    const snapshot = await getDocs(collectionRef);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+    try {
+        const snapshot = await getDocs(collectionRef);
+        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: (collectionRef as any).path,
+            operation: 'list'
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
 };
 
 const getDataById = async <T>(collectionRef: any, id: string): Promise<T | null> => {
     const docRef = doc(collectionRef, id);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? ({ ...docSnap.data(), id: docSnap.id } as T) : null;
-};
-
-// A list of developer and demo emails that can be auto-created.
-const seedUserEmails: Record<string, UserRole> = {
-    // Quick Login
-    'consultant@autodrive.com': 'Sales Consultant',
-    'manager@autodrive.com': 'manager',
-    'service.writer@autodrive.com': 'Service Writer',
-    'service.manager@autodrive.com': 'Service Manager',
-    'finance.manager@autodrive.com': 'Finance Manager',
-    'parts.consultant@autodrive.com': 'Parts Consultant',
-    'parts.manager@autodrive.com': 'Parts Manager',
-    'gm@autodrive.com': 'General Manager',
-    'owner@autodrive.com': 'Owner',
-    'trainer@autoknerd.com': 'Trainer',
-    'admin@autoknerd.com': 'Admin',
-    // Tour Users
-    'consultant.demo@autodrive.com': 'Sales Consultant',
-    'service.writer.demo@autodrive.com': 'Service Writer',
-    'owner.demo@autodrive.com': 'Owner',
-};
-
-async function createSeedUser(email: string, role: UserRole, password_from_login_attempt: string): Promise<User> {
-    const auth = getAuth();
-    const password = "readyplayer1";
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const newUserId = userCredential.user.uid;
-
-    const isHq = email.endsWith('@autoknerd.com');
-    const dealershipQuery = query(dealershipsCollection, where("name", "==", isHq ? "AutoKnerd HQ" : "AutoDrive Demo Dealership"));
-    let dealershipId = '';
-    const dSnapshot = await getDocs(dealershipQuery);
-    if(dSnapshot.empty) {
-        const newDealershipRef = doc(dealershipsCollection);
-        dealershipId = newDealershipRef.id;
-        const newDealership: Dealership = {
-            id: dealershipId,
-            name: isHq ? "AutoKnerd HQ" : "AutoDrive Demo Dealership",
-            status: 'active',
-            address: {
-                street: '123 AI Lane',
-                city: 'Cybertown',
-                state: 'CA',
-                zip: '90210'
-            }
-        };
-        await setDoc(newDealershipRef, newDealership);
-    } else {
-        dealershipId = dSnapshot.docs[0].id;
+    try {
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists() ? ({ ...docSnap.data(), id: docSnap.id } as T) : null;
+    } catch(e: any) {
+         const contextualError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'get'
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
     }
-
-
-    const name = role.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-
-    const newUser: User = {
-        userId: newUserId,
-        name: `${name} User`,
-        email: email,
-        role: role,
-        dealershipIds: [dealershipId],
-        avatarUrl: 'https://images.unsplash.com/photo-1515086828834-023d61380316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzdGVlcmluZyUyMHdoZWVsfGVufDB8fHx8MTc2ODkxMTAyM3ww&ixlib=rb-4.1.0&q=80&w=1080',
-        xp: 0,
-        brand: 'Ford',
-        isPrivate: false,
-        isPrivateFromOwner: false,
-        memberSince: new Date().toISOString(),
-        subscriptionStatus: 'active', // Give seed users active subscription
-    };
-
-    await setDoc(doc(usersCollection, newUserId), newUser);
-    return newUser;
-}
+};
 
 
 // AUTH
@@ -112,32 +56,6 @@ export async function authenticateUser(email: string, pass: string): Promise<Use
         const user = await getUserById(userCredential.user.uid);
         return user;
     } catch (error: any) {
-        const roleForEmail = seedUserEmails[email.toLowerCase()];
-
-        // If it's not a known seed user, re-throw the original error.
-        if (!roleForEmail) {
-            console.error(`Authentication failed for ${email}:`, error.message);
-            throw error;
-        }
-
-        // For seed users, a login failure might mean they need to be created.
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-             try {
-                console.log(`Attempting to create seed user '${email}' after login failure.`);
-                const newUser = await createSeedUser(email.toLowerCase(), roleForEmail, pass);
-                return newUser;
-            } catch (creationError: any) {
-                if (creationError.code === 'auth/email-already-in-use') {
-                    // This is the key part. It means the user exists but the password was wrong.
-                    const specificError = new Error(`Login failed for seed user. The user '${email}' exists but the password provided is incorrect. You may need to delete this user from the Firebase Authentication console to allow automatic re-creation with the correct password.`);
-                    console.error(specificError.message);
-                    throw specificError;
-                }
-                console.error(`Failed to create seed user '${email}':`, creationError.message);
-                throw creationError;
-            }
-        }
-        
         console.error(`Authentication failed for ${email}:`, error.message);
         throw error;
     }
@@ -147,85 +65,56 @@ export async function getUserById(userId: string): Promise<User | null> {
     return getDataById<User>(usersCollection, userId);
 }
 
-export async function adminUserExists(): Promise<boolean> {
-    const q = query(usersCollection, where("role", "==", "Admin"));
-    try {
-        const snapshot = await getDocs(q);
-        return !snapshot.empty;
-    } catch(serverError: any) {
-        const contextualError = new FirestorePermissionError({
-            path: 'users',
-            operation: 'list'
-        });
-        errorEmitter.emit('permission-error', contextualError);
-        throw contextualError;
-    }
-}
 
-export async function createFirstAdminUser(name: string, email: string, brand: string, password: string): Promise<User> {
-    const adminExists = await adminUserExists();
-    if (adminExists) {
-        throw new Error("An Admin account already exists in the system.");
-    }
-
-    const auth = getAuth();
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const newUserId = userCredential.user.uid;
-
-    const dealershipQuery = query(dealershipsCollection, where("name", "==", "AutoKnerd HQ"));
+export async function createUserProfile(userId: string, name: string, email: string, role: UserRole, brand: string): Promise<User> {
     let dealershipId = '';
-    
-    try {
-        const dSnapshot = await getDocs(dealershipQuery);
-        if(dSnapshot.empty) {
-            const newDealershipRef = doc(dealershipsCollection);
-            dealershipId = newDealershipRef.id;
-            const newDealership: Dealership = {
-                id: dealershipId,
-                name: "AutoKnerd HQ",
-                status: 'active',
-                address: { street: '123 AI Lane', city: 'Cybertown', state: 'CA', zip: '90210' }
-            };
-            await setDoc(newDealershipRef, newDealership).catch(e => {
-                const contextualError = new FirestorePermissionError({
-                    path: newDealershipRef.path,
-                    operation: 'create',
-                    requestResourceData: newDealership,
-                });
-                errorEmitter.emit('permission-error', contextualError);
-                throw contextualError;
+    const isHqRole = ['Admin', 'Developer', 'Trainer'].includes(role);
+    if (isHqRole) {
+        const dealershipQuery = query(dealershipsCollection, where("name", "==", "AutoKnerd HQ"));
+        try {
+            const dSnapshot = await getDocs(dealershipQuery);
+            if (dSnapshot.empty) {
+                const newDealershipRef = doc(dealershipsCollection);
+                dealershipId = newDealershipRef.id;
+                const newDealership: Dealership = {
+                    id: dealershipId,
+                    name: "AutoKnerd HQ",
+                    status: 'active',
+                    address: { street: '123 AI Lane', city: 'Cybertown', state: 'CA', zip: '90210' }
+                };
+                await setDoc(newDealershipRef, newDealership);
+            } else {
+                dealershipId = dSnapshot.docs[0].id;
+            }
+        } catch(e: any) {
+             const contextualError = new FirestorePermissionError({
+                path: 'dealerships',
+                operation: 'list'
             });
-        } else {
-            dealershipId = dSnapshot.docs[0].id;
+            errorEmitter.emit('permission-error', contextualError);
+            throw contextualError;
         }
-    } catch (e: any) {
-        if (e instanceof FirestorePermissionError) throw e;
-        const contextualError = new FirestorePermissionError({
-            path: 'dealerships',
-            operation: 'list',
-        });
-        errorEmitter.emit('permission-error', contextualError);
-        throw contextualError;
     }
-
 
     const newUser: User = {
-        userId: newUserId,
+        userId: userId,
         name: name,
         email: email,
-        role: 'Admin',
-        dealershipIds: [dealershipId],
+        role: role,
+        dealershipIds: dealershipId ? [dealershipId] : [],
         avatarUrl: 'https://images.unsplash.com/photo-1515086828834-023d61380316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzdGVlcmluZyUyMHdoZWVsfGVufDB8fHx8MTc2ODkxMTAyM3ww&ixlib=rb-4.1.0&q=80&w=1080',
         xp: 0,
         brand: brand,
         isPrivate: false,
         isPrivateFromOwner: false,
         memberSince: new Date().toISOString(),
-        subscriptionStatus: 'active', // First admin gets active sub
+        subscriptionStatus: ['Admin', 'Developer', 'Owner', 'Trainer', 'General Manager'].includes(role) ? 'active' : 'inactive',
     };
 
-    const userDocRef = doc(usersCollection, newUserId);
-    await setDoc(userDocRef, newUser).catch(e => {
+    const userDocRef = doc(usersCollection, userId);
+    try {
+        await setDoc(userDocRef, newUser);
+    } catch(e: any) {
         const contextualError = new FirestorePermissionError({
             path: userDocRef.path,
             operation: 'create',
@@ -233,8 +122,8 @@ export async function createFirstAdminUser(name: string, email: string, brand: s
         });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;
-    });
-
+    }
+    
     return newUser;
 }
 
@@ -267,50 +156,6 @@ export async function findUserByEmail(email: string, requestingUserId: string): 
     }
 
     return null;
-}
-
-export async function redeemInvitation(token: string, name: string, email: string, brand: string, password: string): Promise<User> {
-    const auth = getAuth();
-    const invitation = await getDataById<EmailInvitation>(invitationsCollection, token);
-    
-    if (!invitation) throw new Error("Invalid invitation link.");
-    if (invitation.claimed) throw new Error("This invitation has already been used.");
-    if (invitation.email.toLowerCase() !== email.toLowerCase()) throw new Error("This invitation is for a different email address.");
-
-    const userQuery = query(usersCollection, where("email", "==", email.toLowerCase()));
-    const userSnapshot = await getDocs(userQuery);
-    if (!userSnapshot.empty) {
-        throw new Error("An account with this email already exists.");
-    }
-    
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const newUserId = userCredential.user.uid;
-
-    const newUser: User = {
-        userId: newUserId,
-        name: name,
-        email: email,
-        role: invitation.role,
-        dealershipIds: [invitation.dealershipId],
-        avatarUrl: 'https://images.unsplash.com/photo-1515086828834-023d61380316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzdGVlcmluZyUyMHdoZWVsfGVufDB8fHx8MTc2ODkxMTAyM3ww&ixlib=rb-4.1.0&q=80&w=1080',
-        xp: 0,
-        brand: brand,
-        isPrivate: false,
-        isPrivateFromOwner: false,
-        memberSince: new Date().toISOString(),
-        subscriptionStatus: 'inactive',
-    };
-
-    const batch = writeBatch(db);
-    batch.set(doc(usersCollection, newUserId), newUser);
-    batch.update(doc(invitationsCollection, token), { claimed: true });
-    
-    await batch.commit();
-    return newUser;
-}
-
-export async function getInvitationByToken(token: string): Promise<EmailInvitation | null> {
-    return getDataById<EmailInvitation>(invitationsCollection, token);
 }
 
 export async function updateUser(userId: string, data: Partial<Omit<User, 'userId' | 'role' | 'xp' | 'dealershipIds'>>): Promise<User> {
@@ -531,9 +376,9 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
         case 'Owner':
              return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager'];
         case 'Trainer':
-            return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner'];
+            return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Developer'];
         case 'Admin':
-            return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer'];
+            return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Developer'];
         default:
             return [];
     }
@@ -652,54 +497,6 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
     });
 
     return manageableUsers.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-
-export async function sendInvitation(
-    dealershipName: string, 
-    userEmail: string, 
-    role: UserRole,
-    creatorId: string,
-    address?: Partial<Address>
-): Promise<void> {
-    const dQuery = query(dealershipsCollection, where("name", "==", dealershipName));
-    const dSnapshot = await getDocs(dQuery);
-
-    let dealershipId: string;
-
-    if (dSnapshot.empty) {
-        const creator = await getUserById(creatorId);
-        if (!creator || !['Admin', 'Trainer'].includes(creator.role)) {
-            throw new Error('You do not have permission to create a new dealership.');
-        }
-        
-        const newDealershipRef = doc(dealershipsCollection);
-        dealershipId = newDealershipRef.id;
-
-        const newDealership: Dealership = {
-            id: dealershipId,
-            name: dealershipName,
-            status: 'active',
-            address: address as Address,
-            trainerId: creator.role === 'Trainer' ? creatorId : undefined
-        };
-        await setDoc(newDealershipRef, newDealership);
-    } else {
-        dealershipId = dSnapshot.docs[0].id;
-    }
-
-    const token = doc(invitationsCollection).id;
-    
-    const newInvitation: EmailInvitation = {
-        token,
-        dealershipId: dealershipId,
-        role: role,
-        email: userEmail,
-        claimed: false,
-    };
-    
-    await setDoc(doc(invitationsCollection, token), newInvitation);
-    console.log(`Invitation created with token: ${token}`);
 }
 
 
