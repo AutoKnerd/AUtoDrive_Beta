@@ -60,7 +60,7 @@ export default function LessonPage() {
         );
     }
     
-    const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin', 'General Manager'];
+    const managerialRoles: UserRole[] = ['manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Owner', 'Trainer', 'Admin', 'General Manager', 'Developer'];
     const isManager = managerialRoles.includes(user.role);
 
     if (isPaused) {
