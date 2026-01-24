@@ -17,7 +17,7 @@
  * - Subcollection Ownership: By nesting `lessonLogs` under `/users/{userId}`, ownership is enforced by the path,
  *   making rules simple, secure, and performant for list queries.
  * - Read-Only Global Data: The `/lessons` and `/dealerships` collections are configured to be read-only for clients.
- *   This assumes that this data is managed by a trusted backend service or admin SDK, which is a secure pattern
+ *   This assumes that this data is managed by a trusted backend service or an admin SDK, which is a secure pattern
  *   for foundational application data.
  * - Immutable Fields: Critical relational fields like a user's ID, role, and dealershipId are made immutable after
  *   creation to maintain system integrity and prevent users from escalating their own privileges.
@@ -116,17 +116,13 @@ service cloud.firestore {
     /**
      * @description Rules for the global, read-only collection of lessons.
      * @path /lessons/{lessonId}
-     * @allow (get) Any authenticated user can read a lesson document.
-     * @allow (list) Any authenticated user can list all available lessons.
-     * @deny (create) No client is allowed to create, update, or delete global lessons.
+     * @allow (read) Any authenticated user can read lesson documents.
+     * @deny (write) No client is allowed to create, update, or delete global lessons.
      * @principle Protects global application data from being modified by clients. Assumes writes are handled by a trusted admin environment.
      */
     match /lessons/{lessonId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow read: if isSignedIn();
+      allow write: if false;
     }
 
     /**
@@ -149,17 +145,13 @@ service cloud.firestore {
     /**
      * @description Rules for the global, read-only collection of dealerships.
      * @path /dealerships/{dealershipId}
-     * @allow (get) Any authenticated user can read a dealership's information.
-     * @allow (list) Any authenticated user can list all dealerships.
-     * @deny (create) No client is allowed to create, update, or delete dealership data.
+     * @allow (read) Any authenticated user can read a dealership's information.
+     * @deny (write) No client is allowed to create, update, or delete dealership data.
      * @principle Protects global application data from being modified by clients. Assumes writes are handled by a trusted admin environment.
      */
     match /dealerships/{dealershipId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow read: if isSignedIn();
+      allow write: if false;
     }
   }
 }
