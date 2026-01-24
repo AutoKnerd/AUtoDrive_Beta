@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 export default function PrivacyPolicyPage() {
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setLastUpdated(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+    setIsClient(true);
   }, []);
 
   return (
@@ -19,7 +19,9 @@ export default function PrivacyPolicyPage() {
         <div className="w-full max-w-4xl mx-auto space-y-6">
           <div className="space-y-2 text-center">
             <h1 className="text-3xl font-bold">Privacy Policy</h1>
-            <p className="text-muted-foreground h-5" suppressHydrationWarning>{lastUpdated ? `Last updated: ${lastUpdated}` : ''}</p>
+            <p className="text-muted-foreground h-5">
+              {isClient ? `Last updated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
+            </p>
           </div>
           <div className="border-l-4 border-destructive p-4 bg-destructive/10 text-destructive-foreground rounded-r-lg">
               <p><strong>Disclaimer:</strong> This is a template and not a legally binding privacy policy. You should consult with a legal professional to create a policy that is compliant with all applicable laws and regulations for your business.</p>
