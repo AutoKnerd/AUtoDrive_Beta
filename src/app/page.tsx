@@ -17,10 +17,12 @@ export default function Home() {
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
+    } else if (!loading && user?.role === 'Developer') {
+      router.push('/developer');
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
+  if (loading || !user || user.role === 'Developer') {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-transparent">
         <Spinner size="lg" />

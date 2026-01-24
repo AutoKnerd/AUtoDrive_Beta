@@ -108,13 +108,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [allDealershipStats, setAllDealershipStats] = useState<Record<string, { bestStat: DealershipInsight | null, watchStat: DealershipInsight | null }>>({});
   const router = useRouter();
 
-  const isDeveloper = originalUser?.role === 'Developer';
-
-  const handleSwitchRole = (newRole: UserRole) => {
-    if (originalUser) {
-        setUser({ ...originalUser, role: newRole });
-    }
-  };
 
   const teamContext = useMemo(() => {
     switch (user.role) {
@@ -325,7 +318,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }
 
   const noPersonalDevelopmentRoles: UserRole[] = ['Owner', 'Trainer', 'Admin'];
-  const showPersonalDevelopment = !noPersonalDevelopmentRoles.includes(user.role) && !isDeveloper;
+  const showPersonalDevelopment = !noPersonalDevelopmentRoles.includes(user.role) && user.role !== 'Developer';
   const isSoloManager = teamActivity.length === 0 && selectedDealershipId !== 'all' && !loading;
   const canManage = ['Admin', 'Trainer', 'Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Developer'].includes(user.role);
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
@@ -349,32 +342,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             </div>
             )}
       </section>
-
-      {isDeveloper && (
-        <Card className="border-cyan-400/50">
-          <CardHeader>
-            <CardTitle>Developer Tools</CardTitle>
-            <CardDescription>
-              As a developer, you can view the application from the perspective of any user role.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center gap-4">
-            <span className="text-sm font-medium">Viewing as:</span>
-            <Select onValueChange={(role) => handleSwitchRole(role as UserRole)} value={user.role}>
-              <SelectTrigger className="w-[240px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {allRoles.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role === 'manager' ? 'Sales Manager' : role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-      )}
 
         <section>
             {loading ? (
