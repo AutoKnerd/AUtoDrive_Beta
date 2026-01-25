@@ -354,6 +354,10 @@ export async function getLessonById(lessonId: string): Promise<Lesson | null> {
 }
 
 export async function getDealershipById(dealershipId: string): Promise<Dealership | null> {
+    if (isTouringUser()) {
+        const { dealerships } = getTourData();
+        return dealerships.find(d => d.id === dealershipId) || null;
+    }
     return getDataById<Dealership>(dealershipsCollection, dealershipId);
 }
 
