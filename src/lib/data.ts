@@ -356,7 +356,10 @@ export async function getLessonById(lessonId: string): Promise<Lesson | null> {
 export async function getDealershipById(dealershipId: string): Promise<Dealership | null> {
     if (isTouringUser()) {
         const { dealerships } = getTourData();
-        return dealerships.find(d => d.id === dealershipId) || null;
+        const dealership = dealerships.find(d => d.id === dealershipId);
+        // Ensure tour dealerships are always active
+        if (dealership) return { ...dealership, status: 'active' };
+        return null;
     }
     return getDataById<Dealership>(dealershipsCollection, dealershipId);
 }
@@ -674,7 +677,7 @@ export async function getCombinedTeamData(dealershipId: string, userRole: UserRo
             }, 0);
             const avgScore = Math.round(totalScore / (memberLogs.length * 6));
             return { consultant: member, lessonsCompleted, totalXp, avgScore };
-        }).sort((a, b) => b.totalXp - a.totalXp);
+        }).sort((a, b) => a.consultant.name.localeCompare(b.consultant.name));
         
         const allLogs = lessonLogs.filter(log => teamMembers.some(member => member.userId === log.userId));
         if (allLogs.length === 0) {
@@ -718,9 +721,26 @@ export async function getCombinedTeamData(dealershipId: string, userRole: UserRo
         return { teamActivity: [], managerStats: { totalLessons: 0, avgScores: null } };
     }
 
-    // Fetch all logs in parallel
     const allLogsPerUserPromises = teamMembers.map(member => getConsultantActivity(member.userId));
     const allLogsPerUser = await Promise.all(allLogsPerUserPromises);
+
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    const activeUserCount = allLogsPerUser.filter(logs => {
+        if (logs.length === 0) return false;
+        const lastLogDate = logs[0].timestamp; // Assumes logs are sorted descending
+        return lastLogDate > thirtyDaysAgo;
+    }).length;
+
+    if (activeUserCount < 3 && dealershipId !== 'all') {
+        const teamActivity = teamMembers.map(member => ({
+            consultant: member,
+            lessonsCompleted: 0,
+            totalXp: member.xp,
+            avgScore: 0,
+        })).sort((a,b) => a.consultant.name.localeCompare(b.consultant.name));
+        return { teamActivity, managerStats: { totalLessons: -1, avgScores: null }}; // Use -1 as insufficient data flag
+    }
+    
     const allLogsFlat: LessonLog[] = allLogsPerUser.flat();
 
     // Calculate per-member stats
@@ -740,7 +760,7 @@ export async function getCombinedTeamData(dealershipId: string, userRole: UserRo
         const avgScore = Math.round(totalScore / (memberLogs.length * 6));
 
         return { consultant: member, lessonsCompleted, totalXp, avgScore };
-    }).sort((a, b) => b.totalXp - a.totalXp);
+    }).sort((a, b) => a.consultant.name.localeCompare(b.consultant.name));
 
 
     // Calculate aggregate stats

@@ -90,6 +90,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
       selfDeclaredDealershipId: user.selfDeclaredDealershipId || '',
     },
   });
+  
+  const isPrivateValue = form.watch('isPrivate');
 
   useEffect(() => {
     async function fetchDealerships() {
@@ -192,6 +194,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
     form.setValue('isPrivateFromOwner', true);
     setShowOwnerPrivacyDialog(false);
   };
+  
+  useEffect(() => {
+    if (!isPrivateValue) {
+      form.setValue('isPrivateFromOwner', false);
+    }
+  }, [isPrivateValue, form]);
+
 
   return (
     <Form {...form}>
@@ -385,7 +394,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <p className="text-sm text-muted-foreground">
                   You are currently on the free plan. Upgrade now to unlock unlimited lessons, advanced analytics, and powerful management tools.
                 </p>
-                 <Button asChild>
+                 <Button type="button" asChild>
                     <Link href="/subscribe">Upgrade to Pro</Link>
                 </Button>
               </div>
@@ -486,8 +495,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
         <Card>
             <CardHeader>
-                <CardTitle>Privacy Settings</CardTitle>
-                <CardDescription>Control how your performance metrics are displayed to management.</CardDescription>
+                <CardTitle>Selective Visibility</CardTitle>
+                <CardDescription>Your personal performance metrics may be hidden from management, but they still contribute anonymously to dealership improvement.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <FormField
@@ -497,10 +506,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                         <FormLabel className="text-base">
-                        Private Mode
+                        Hide Performance from Managers
                         </FormLabel>
                         <FormDescription>
-                        When enabled, your detailed CX scores will be hidden from non-administrator roles on dashboards. Your anonymized data will still contribute to dealership-wide average statistics.
+                        When enabled, your detailed performance insights will be hidden from Manager-level roles on dashboards.
                         </FormDescription>
                     </div>
                     <FormControl>
@@ -519,17 +528,17 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                         <FormLabel className="text-base">
-                        Hide from Owner
+                        Hide Performance from Owners
                         </FormLabel>
                         <FormDescription>
-                        When enabled, your profile metrics will also be hidden from users with the &apos;Owner&apos; role.
+                        When enabled, your performance insights will also be hidden from users with the &apos;Owner&apos; role.
                         </FormDescription>
                     </div>
                     <FormControl>
                         <Switch
                             checked={field.value}
                             onCheckedChange={handleOwnerPrivacyChange}
-                            disabled={!form.watch('isPrivate')}
+                            disabled={!isPrivateValue}
                         />
                     </FormControl>
                     </FormItem>
@@ -575,9 +584,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
       <AlertDialog open={showOwnerPrivacyDialog} onOpenChange={setShowOwnerPrivacyDialog}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogTitle>Confirm Privacy Setting</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Hiding your data from ownership may result in lost opportunities for recognition, bonuses, or promotions that are based on performance metrics visible to company leadership.
+                    Hiding your data from ownership may result in lost opportunities for recognition, bonuses, or promotions that are based on performance metrics visible to company leadership. Are you sure you want to proceed?
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -75,6 +75,14 @@ service cloud.firestore {
                'Parts Manager'
              ];
     }
+    
+    /**
+     * Checks if the user has a specific 'Owner' role.
+     */
+    function isOwnerRole() {
+       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Owner';
+    }
 
     /**
      * For update/delete operations, checks if the document exists AND the user is the owner.
@@ -83,6 +91,34 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
+    
+    /**
+     * Checks if a user has permission to view performance data of another user,
+     * based on the requester's role and the target user's privacy settings.
+     */
+    function canViewPerformance(targetUserId) {
+        let requester = get(/databases/$(database)/documents/users/$(request.auth.uid));
+        let targetUser = get(/databases/$(database)/documents/users/$(targetUserId));
+        // Must exist to proceed
+        if (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) || !exists(/databases/$(database)/documents/users/$(targetUserId))) {
+          return false;
+        }
+
+        // Admin, Developer, and Trainer roles have full visibility
+        if (requester.data.role in ['Admin', 'Developer', 'Trainer']) {
+            return true;
+        }
+        // Owner role can view if user has not opted-out
+        if (requester.data.role == 'Owner' && targetUser.data.isPrivateFromOwner != true) {
+            return true;
+        }
+        // General managers and other managers can view if user has not opted-out
+        if (isManager() && targetUser.data.isPrivate != true) {
+            return true;
+        }
+        return false;
+    }
+
 
     /**
      * Validates that a new User document has a 'userId' field matching the document's ID (the user's UID).
@@ -127,7 +163,7 @@ service cloud.firestore {
      * @principle Restricts access to a user's own data tree and prevents user enumeration by non-managers.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isManager();
       allow list: if isManager();
       allow create: if isOwner(userId) && isCreatingOwnUserDocument(userId);
       allow update: if isExistingOwner(userId) && isUpdatingOwnUserDocument();
@@ -157,8 +193,7 @@ service cloud.firestore {
      * @principle Enforces document ownership for all operations within a user-specific subcollection.
      */
     match /users/{userId}/lessonLogs/{lessonLogId} {
-      allow get: if isOwner(userId) || isManager();
-      allow list: if isOwner(userId) || isManager();
+      allow get, list: if isOwner(userId) || canViewPerformance(userId);
       allow create: if isOwner(userId) && isCreatingOwnLessonLog(userId);
       allow update: if isExistingOwner(userId) && isUpdatingOwnLessonLog();
       allow delete: if isExistingOwner(userId);
@@ -173,7 +208,7 @@ service cloud.firestore {
      * @principle Enforces ownership for reading and creating badges, while making them immutable.
      */
     match /users/{userId}/earnedBadges/{badgeId} {
-      allow get, list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isManager();
       allow create: if isOwner(userId);
       allow update, delete: if false;
     }
@@ -188,7 +223,7 @@ service cloud.firestore {
      * @principle Enforces ownership for reads and updates, and managerial role for creation.
      */
     match /lessonAssignments/{assignmentId} {
-      allow read: if isOwner(resource.data.userId);
+      allow read: if isOwner(resource.data.userId) || isManager();
       allow create: if isManager() && request.resource.data.assignerId == request.auth.uid;
       allow update: if isOwner(resource.data.userId) && request.resource.data.completed == true && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completed']);
       allow delete: if false;
@@ -204,7 +239,7 @@ service cloud.firestore {
     match /dealerships/{dealershipId} {
       allow read: if true;
       allow create: if dealershipId == 'autoknerd-hq';
-      allow update, delete: if false;
+      allow update, delete: if isManager();
     }
   }
 }

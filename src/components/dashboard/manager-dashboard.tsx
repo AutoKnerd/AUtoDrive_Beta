@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole } from '@/lib/definitions';
 import { managerialRoles } from '@/lib/definitions';
 import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits } from '@/lib/data';
-import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target } from 'lucide-react';
+import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -328,6 +328,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const isSoloManager = teamActivity.length === 0 && selectedDealershipId !== 'all' && !loading;
   const canManage = ['Admin', 'Trainer', 'Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Developer'].includes(user.role);
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
+  const showInsufficientDataWarning = stats?.totalLessons === -1;
 
   return (
     <div className="space-y-8 pb-8">
@@ -521,6 +522,12 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                           <Skeleton className="h-12 w-full" />
                           <Skeleton className="h-12 w-full" />
                       </div>
+                  ) : showInsufficientDataWarning ? (
+                    <div className="flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-6 text-center">
+                        <Info className="h-8 w-8 text-muted-foreground" />
+                        <h3 className="font-semibold">Insufficient Data for Reporting</h3>
+                        <p className="max-w-md text-sm text-muted-foreground">To protect individual privacy, aggregated performance statistics are only shown for active teams of 3 or more members.</p>
+                    </div>
                   ) : (
                       <div className="grid grid-cols-2 gap-8 md:grid-cols-3">
                           <div className="space-y-1">
@@ -560,12 +567,12 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                       <div>
                           <CardTitle className="flex items-center gap-2">
                               <BarChart className="h-5 w-5" />
-                              Dealer report
+                              Team Activity
                           </CardTitle>
                           <CardDescription>
                               {selectedDealershipId === 'all'
-                                  ? 'Select a dealership to view its team performance.'
-                                  : `Performance overview of staff at ${dealerships.find(d => d.id === selectedDealershipId)?.name}.`}
+                                  ? 'Select a dealership to view its team activity.'
+                                  : `Activity overview for ${dealerships.find(d => d.id === selectedDealershipId)?.name}.`}
                           </CardDescription>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -669,18 +676,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             <TableHead>Role</TableHead>
                             <TableHead className="text-center">Lessons Completed</TableHead>
                             <TableHead className="text-center">Total XP</TableHead>
-                            <TableHead className="text-right">Average Score</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {teamActivity.length > 0 ? teamActivity.map(member => {
-                            const consultant = member.consultant;
-                            const viewerIsAdmin = user.role === 'Admin';
-                            const viewerIsOwner = user.role === 'Owner';
-                            
-                            const hideMetrics = (consultant.isPrivate && !viewerIsAdmin && !viewerIsOwner) || 
-                                              (consultant.isPrivate && consultant.isPrivateFromOwner && viewerIsOwner);
-
                             return (
                               <Dialog key={member.consultant.userId}>
                                 <DialogTrigger asChild>
@@ -702,18 +701,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                         </TableCell>
                                         <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
                                         <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">
-                                          {hideMetrics ? (
-                                              <div className="flex items-center justify-end gap-2 text-muted-foreground italic">
-                                                  <UiBadge variant="outline" className="flex items-center gap-2"><ShieldOff className="h-3 w-3" /> Private</UiBadge>
-                                              </div>
-                                          ) : (
-                                              <div className="flex items-center justify-end gap-2">
-                                                  <span className="font-medium">{member.avgScore}%</span>
-                                                  <Progress value={member.avgScore} className="h-2 w-20" />
-                                              </div>
-                                          )}
-                                        </TableCell>
                                     </TableRow>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-2xl">
@@ -730,7 +717,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             );
                           }) : (
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center text-muted-foreground">
+                              <TableCell colSpan={4} className="text-center text-muted-foreground">
                                 No team activity found for this dealership.
                               </TableCell>
                             </TableRow>

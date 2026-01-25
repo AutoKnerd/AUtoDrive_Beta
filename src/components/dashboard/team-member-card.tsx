@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { BadgeShowcase } from '../profile/badge-showcase';
+import { managerialRoles } from '@/lib/definitions';
 
 interface TeamMemberCardProps {
   user: User;
@@ -54,20 +55,24 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
 
   const { level } = calculateLevel(user.xp);
 
-  const viewerIsAdmin = currentUser.role === 'Admin';
+  const viewerIsAdmin = currentUser.role === 'Admin' || currentUser.role === 'Developer';
+  const viewerIsTrainer = currentUser.role === 'Trainer';
   const viewerIsOwner = currentUser.role === 'Owner';
-  const consultantIsPrivate = user.isPrivate;
-  const consultantIsPrivateFromOwner = user.isPrivateFromOwner;
+  const viewerIsManager = managerialRoles.includes(currentUser.role) && !viewerIsAdmin && !viewerIsOwner && !viewerIsTrainer;
 
   const hideMetrics =
-    (consultantIsPrivate && !viewerIsAdmin && !viewerIsOwner) ||
-    (consultantIsPrivate && consultantIsPrivateFromOwner && viewerIsOwner);
+    (viewerIsManager && user.isPrivate) ||
+    (viewerIsOwner && user.isPrivateFromOwner);
 
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       if (!user) return;
+      if (hideMetrics) {
+        setLoading(false);
+        return;
+      }
       const [fetchedLessons, fetchedActivity, fetchedBadges] = await Promise.all([
         getLessons(user.role as LessonRole),
         getConsultantActivity(user.userId),
@@ -87,7 +92,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
       setLoading(false);
     }
     fetchData();
-  }, [user]);
+  }, [user, hideMetrics]);
   
   const currentDealershipNames = useMemo(() => {
     if (user.dealershipIds && user.dealershipIds.length > 0) {
@@ -226,7 +231,15 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             </CardHeader>
         </Card>
 
-        {!hideMetrics && (
+        {hideMetrics ? (
+            <Card>
+                <CardHeader className="text-center items-center">
+                    <ShieldOff className="h-10 w-10 text-muted-foreground" />
+                    <CardTitle>Metrics are Private</CardTitle>
+                    <CardDescription>This user has chosen to hide their detailed performance metrics.</CardDescription>
+                </CardHeader>
+            </Card>
+        ) : (
             <>
                 <Card>
                     <CardHeader>
@@ -256,37 +269,39 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                     </CardContent>
                 </Card>
                 <BadgeShowcase badges={badges} />
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5" />
+                        Most Recent Activity
+                        </CardTitle>
+                        <CardDescription>Performance from the last completed lesson.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {loading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="h-8 w-3/4" />
+                            <Skeleton className="h-4 w-1/2" />
+                            <Skeleton className="h-4 w-1/4" />
+                        </div>
+                        ) : recentActivity && recentActivityDate ? (
+                        <div className="space-y-2">
+                            <p className="text-lg font-semibold text-primary">{lessons.find(l => l.lessonId === recentActivity.lessonId)?.title || 'Unknown Lesson'}</p>
+                            <p className="text-sm text-muted-foreground">
+                            Completed on {recentActivityDate}
+                            </p>
+                            <p className="text-2xl font-bold text-accent">+{recentActivity.xpGained} XP</p>
+                        </div>
+                        ) : (
+                        <p className="text-muted-foreground">No recent activity found.</p>
+                        )}
+                    </CardContent>
+                </Card>
+
             </>
         )}
         
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Most Recent Activity
-            </CardTitle>
-            <CardDescription>Performance from the last completed lesson.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-8 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-4 w-1/4" />
-              </div>
-            ) : recentActivity && recentActivityDate ? (
-              <div className="space-y-2">
-                <p className="text-lg font-semibold text-primary">{lessons.find(l => l.lessonId === recentActivity.lessonId)?.title || 'Unknown Lesson'}</p>
-                <p className="text-sm text-muted-foreground">
-                  Completed on {recentActivityDate}
-                </p>
-                <p className="text-2xl font-bold text-accent">+{recentActivity.xpGained} XP</p>
-              </div>
-            ) : (
-              <p className="text-muted-foreground">No recent activity found.</p>
-            )}
-          </CardContent>
-        </Card>
+       
 
         {canAssignLessons && (
             <Card>
