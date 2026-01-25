@@ -59,8 +59,8 @@ const metricIcons: Record<CxTrait, React.ElementType> = {
   relationshipBuilding: Users,
 };
 
-function LevelDisplay({ xp }: { xp: number }) {
-    const { level, levelXp, nextLevelXp, progress } = calculateLevel(xp);
+function LevelDisplay({ user }: { user: User }) {
+    const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
 
     if (level >= 100) {
         return (
@@ -79,7 +79,10 @@ function LevelDisplay({ xp }: { xp: number }) {
             </div>
             <div className="flex justify-between text-xs font-semibold">
                 <span className="text-muted-foreground">{levelXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
-                <span className="text-cyan-400">Total: {xp.toLocaleString()} XP</span>
+                <div className="text-right">
+                    <p className="text-cyan-400">Total: {user.xp.toLocaleString()} XP</p>
+                    <p className="text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
+                </div>
             </div>
         </div>
     );
@@ -341,7 +344,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       <section className="space-y-3">
             {loading ? <Skeleton className="h-24 w-full" /> : (
             <div>
-                <LevelDisplay xp={user.xp} />
+                <LevelDisplay user={user} />
                 {memberSince && (
                     <p className="text-sm text-muted-foreground mt-2">
                         Member since {memberSince}
@@ -787,3 +790,5 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     </div>
   );
 }
+
+    
