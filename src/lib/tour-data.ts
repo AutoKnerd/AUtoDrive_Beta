@@ -1,7 +1,7 @@
 
 'use client';
 
-import { User, Dealership, LessonLog, UserRole, Badge, EarnedBadge } from './definitions';
+import { User, Dealership, LessonLog, UserRole, Badge, EarnedBadge, Lesson } from './definitions';
 import { calculateLevel } from './xp';
 import { allBadges }from './badges';
 
@@ -41,6 +41,81 @@ export const generateTourData = () => {
             }
         });
     }
+    
+    const lessons: Lesson[] = [
+        {
+            lessonId: 'tour-lesson-1',
+            title: 'Building Rapport on the Lot',
+            role: 'Sales Consultant',
+            category: 'Sales - Meet and Greet',
+            associatedTrait: 'relationshipBuilding',
+            customScenario: 'A customer has been looking at a new SUV for about 5 minutes. They seem interested but also a little hesitant to engage. How do you approach them without being pushy?'
+        },
+        {
+            lessonId: 'tour-lesson-2',
+            title: 'Uncovering Customer Needs',
+            role: 'Sales Consultant',
+            category: 'Sales - Needs Assessment',
+            associatedTrait: 'listening',
+            customScenario: 'A couple comes in saying they "need a safe family car." That\'s a very broad statement. What questions do you ask to truly understand their specific needs and priorities?'
+        },
+        {
+            lessonId: 'tour-lesson-3',
+            title: 'Handling Price Objections',
+            role: 'Sales Consultant',
+            category: 'Sales - Negotiation',
+            associatedTrait: 'trust',
+            customScenario: 'After a test drive, the customer loves the car but says, "Your competitor down the street offered me the same model for $1,500 less." How do you respond while holding value in your dealership\'s offer?'
+        },
+        {
+            lessonId: 'tour-lesson-4',
+            title: 'Confident Closing',
+            role: 'Sales Consultant',
+            category: 'Sales - Closing',
+            associatedTrait: 'closing',
+            customScenario: 'The customer is on the fence. They\'ve agreed the car meets their needs and the price is fair, but they say "I need to think about it." What techniques can you use to create urgency and close the deal today?'
+        },
+        {
+            lessonId: 'tour-lesson-5',
+            title: 'The Perfect Service Greeting',
+            role: 'Service Writer',
+            category: 'Service - Write-up',
+            associatedTrait: 'empathy',
+            customScenario: 'A customer pulls into the service drive. They look visibly stressed and are in a hurry. What are the first three things you say and do to de-escalate the situation and start the visit off right?'
+        },
+        {
+            lessonId: 'tour-lesson-6',
+            title: 'Presenting the MPI with Confidence',
+            role: 'Service Writer',
+            category: 'Service - Presenting MPI',
+            associatedTrait: 'trust',
+            customScenario: 'Your technician found an additional issue during the multi-point inspection. The customer only came in for an oil change. How do you present the recommended service without sounding like you\'re just trying to upsell them?'
+        },
+        {
+            lessonId: 'tour-lesson-7',
+            title: 'Coaching for Performance',
+            role: 'manager',
+            category: 'Management - Coaching',
+            associatedTrait: 'relationshipBuilding',
+            customScenario: 'One of your sales consultants has had a great month, but their "listening" score in AutoDrive is consistently low. How do you approach this coaching conversation to be effective and not discouraging?'
+        },
+        {
+            lessonId: 'tour-lesson-8',
+            title: 'Driving a High-Performance Culture',
+            role: 'General Manager',
+            category: 'Leadership - Team Motivation',
+            associatedTrait: 'relationshipBuilding',
+            customScenario: 'It\'s the middle of the month and sales are tracking below forecast. The team seems a bit demoralized. What actions can you take in the next 24 hours to re-energize the sales floor and service drive?'
+        },
+        {
+            lessonId: 'tour-lesson-9',
+            title: 'Service Follow-up Excellence',
+            role: 'global',
+            category: 'Service - Follow-up',
+            associatedTrait: 'followUp',
+            customScenario: 'A customer had a significant repair done on their vehicle last week. What does a world-class follow-up call sound like a few days later?'
+        }
+    ];
 
     // 2. Generate Users
     const rolesToGenerate: UserRole[] = [
@@ -79,7 +154,7 @@ export const generateTourData = () => {
                     logId: `tour-log-${user.userId}-${j}`,
                     timestamp: new Date(new Date().getTime() - Math.random() * 90 * 24 * 60 * 60 * 1000),
                     userId: user.userId,
-                    lessonId: `lesson-id-${j % 5}`,
+                    lessonId: `tour-lesson-${(j % 9) + 1}`,
                     stepResults: { final: 'pass' },
                     xpGained: xpGained,
                     empathy: generateRandomScore(75),
@@ -107,5 +182,5 @@ export const generateTourData = () => {
         }
     }
     
-    return { dealerships, users, lessonLogs, earnedBadges };
+    return { dealerships, users, lessonLogs, earnedBadges, lessons };
 };

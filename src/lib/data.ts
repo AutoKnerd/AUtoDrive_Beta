@@ -296,6 +296,11 @@ export async function updateUserSubscriptionStatus(stripeCustomerId: string, new
 
 // LESSONS
 export async function getLessons(role: LessonRole): Promise<Lesson[]> {
+    if (isOwnerTour()) {
+        const { lessons } = getTourData();
+        return lessons.filter(lesson => lesson.role === role || lesson.role === 'global');
+    }
+
     const q = query(lessonsCollection, where("role", "in", [role, 'global']));
     try {
         const snapshot = await getDocs(q);
