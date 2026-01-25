@@ -177,8 +177,8 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
-        <Card className="w-full max-w-3xl h-[85vh] flex flex-col bg-card/80 backdrop-blur-sm">
+    <div className="flex-1 flex flex-col items-center p-4 md:p-8">
+        <Card className="w-full max-w-3xl h-full flex flex-col bg-card/80 backdrop-blur-sm">
             <CardHeader>
                 <CardTitle>{lesson.title}</CardTitle>
             </CardHeader>

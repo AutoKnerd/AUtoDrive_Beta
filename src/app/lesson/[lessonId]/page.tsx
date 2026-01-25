@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -19,7 +18,7 @@ export default function LessonPage() {
     const params = useParams<{ lessonId: string }>();
     const searchParams = useSearchParams();
     const isRecommended = searchParams.get('recommended') === 'true';
-    const { user } = useAuth();
+    const { user, isTouring } = useAuth();
     const [isPaused, setIsPaused] = useState(false);
 
     const [lesson, setLesson] = useState<Lesson | null>(null);
@@ -66,7 +65,7 @@ export default function LessonPage() {
         return (
             <div className="flex flex-col min-h-screen w-full">
                 <Header />
-                 <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 pb-24 md:pb-8">
+                 <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 pb-20 md:pb-8">
                     <div className="w-full max-w-2xl">
                         <Alert variant="destructive">
                             <AlertCircle className="h-4 w-4" />
@@ -83,7 +82,7 @@ export default function LessonPage() {
                         </Button>
                     </div>
                 </main>
-                {!isManager && <BottomNav />}
+                {!isManager && !isTouring && <BottomNav />}
             </div>
         )
     }
@@ -102,7 +101,7 @@ export default function LessonPage() {
             <main className="flex flex-1 flex-col pb-20 md:pb-0">
                 <LessonView lesson={lesson} isRecommended={isRecommended} />
             </main>
-            {!isManager && <BottomNav />}
+            {!isManager && !isTouring && <BottomNav />}
         </div>
     );
 }
