@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole } from '@/lib/definitions';
 import { managerialRoles } from '@/lib/definitions';
-import { getManagerStats, getTeamActivity, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits } from '@/lib/data';
+import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits } from '@/lib/data';
 import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -126,10 +126,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       if (!dealershipId) return;
 
       setLoading(true);
+      
+      const combinedDataPromise = getCombinedTeamData(dealershipId, user.role);
 
-      const [managerStats, activity, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, limits] = await Promise.all([
-        getManagerStats(dealershipId, user.role),
-        getTeamActivity(dealershipId, user.role),
+      const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, limits] = await Promise.all([
+        combinedDataPromise,
         getManageableUsers(user.userId),
         getLessons(user.role as LessonRole),
         getConsultantActivity(user.userId),
@@ -137,8 +138,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         getDailyLessonLimits(user.userId),
       ]);
       
-      setStats(managerStats);
-      setTeamActivity(activity);
+      setStats(combinedData.managerStats);
+      setTeamActivity(combinedData.teamActivity);
       setManageableUsers(usersToManage);
       setLessons(fetchedLessons);
       setManagerActivity(fetchedManagerActivity);
@@ -179,7 +180,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         }
        
         if (currentSelectedId === 'all' && ['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role)) {
-            const statsPromises = initialDealerships.map(d => getManagerStats(d.id, user.role));
+            const statsPromises = initialDealerships.map(d => getCombinedTeamData(d.id, user.role).then(data => data.managerStats));
             const results = await Promise.all(statsPromises);
             
             const newAllDealershipStats: Record<string, { bestStat: DealershipInsight | null, watchStat: DealershipInsight | null }> = {};
@@ -231,12 +232,17 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const managerAverageScores = useMemo(() => {
       if (!managerActivity.length) {
         return {
-            empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85
+            empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0
         };
       }
 
       const total = managerActivity.reduce((acc, log) => {
-        Object.keys(acc).forEach(key => acc[key as CxTrait] += log[key as CxTrait]);
+        acc.empathy += log.empathy || 0;
+        acc.listening += log.listening || 0;
+        acc.trust += log.trust || 0;
+        acc.followUp += log.followUp || 0;
+        acc.closing += log.closing || 0;
+        acc.relationshipBuilding += log.relationshipBuilding || 0;
         return acc;
       }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
 

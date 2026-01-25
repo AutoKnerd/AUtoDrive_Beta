@@ -646,86 +646,11 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
     return relevantDealerships.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function getManagerStats(dealershipId: string, userRole: UserRole): Promise<{ totalLessons: number; avgScores: Record<CxTrait, number> | null }> {
-    if (isTouringUser()) {
-        const { users, lessonLogs } = getTourData();
-        const teamRoles = getTeamMemberRoles(userRole);
-        
-        let teamUserIds: string[];
-        if (dealershipId === 'all') {
-            teamUserIds = users.filter(u => teamRoles.includes(u.role)).map(u => u.userId);
-        } else {
-            teamUserIds = users.filter(u => u.dealershipIds.includes(dealershipId) && teamRoles.includes(u.role)).map(u => u.userId);
-        }
-        
-        const allLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
 
-        if (allLogs.length === 0) {
-            return { totalLessons: 0, avgScores: null };
-        }
-        const totalLessons = allLogs.length;
-        const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
-
-        const avgScores = cxTraits.reduce((acc, trait) => {
-            const totalScore = allLogs.reduce((sum, log) => sum + (log[trait] || 0), 0);
-            acc[trait] = Math.round(totalScore / totalLessons);
-            return acc;
-        }, {} as Record<CxTrait, number>);
-
-        return { totalLessons, avgScores };
-    }
-
-    const selectedDealership = await getDealershipById(dealershipId);
-    if (selectedDealership?.status === 'paused') {
-        return { totalLessons: 0, avgScores: null };
-    }
-
-    const teamRoles = getTeamMemberRoles(userRole);
-    let userQuery;
-
-    if ((['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(userRole)) && dealershipId === 'all') {
-        userQuery = query(usersCollection, where("role", "in", teamRoles));
-    } else {
-        userQuery = query(usersCollection, where("dealershipIds", "array-contains", dealershipId), where("role", "in", teamRoles));
-    }
-    
-    let teamUsers: User[];
-    try {
-        const snapshot = await getDocs(userQuery);
-        teamUsers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
-    } catch(e: any) {
-        const contextualError = new FirestorePermissionError({ path: usersCollection.path, operation: 'list' });
-        errorEmitter.emit('permission-error', contextualError);
-        throw contextualError;
-    }
-    
-    if (teamUsers.length === 0) return { totalLessons: 0, avgScores: null };
-
-    const teamUserIds = teamUsers.map(u => u.userId);
-    let allLogs: LessonLog[] = [];
-    
-    for(const userId of teamUserIds) {
-        const userLogs = await getConsultantActivity(userId);
-        allLogs = allLogs.concat(userLogs);
-    }
-    
-    if (allLogs.length === 0) {
-        return { totalLessons: 0, avgScores: null };
-    }
-
-    const totalLessons = allLogs.length;
-    const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
-
-    const avgScores = cxTraits.reduce((acc, trait) => {
-        const totalScore = allLogs.reduce((sum, log) => sum + (log[trait] || 0), 0);
-        acc[trait] = Math.round(totalScore / totalLessons);
-        return acc;
-    }, {} as Record<CxTrait, number>);
-
-    return { totalLessons, avgScores };
-}
-
-export async function getTeamActivity(dealershipId: string, userRole: UserRole): Promise<{ consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[]> {
+export async function getCombinedTeamData(dealershipId: string, userRole: UserRole): Promise<{
+    teamActivity: { consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[],
+    managerStats: { totalLessons: number; avgScores: Record<CxTrait, number> | null }
+}> {
     if (isTouringUser()) {
         const { users, lessonLogs } = getTourData();
         const teamRoles = getTeamMemberRoles(userRole);
@@ -737,7 +662,7 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
             teamMembers = users.filter(u => u.dealershipIds.includes(dealershipId) && teamRoles.includes(u.role));
         }
 
-        const activity = teamMembers.map(member => {
+        const teamActivity = teamMembers.map(member => {
             const memberLogs = lessonLogs.filter(log => log.userId === member.userId);
             if (memberLogs.length === 0) {
                 return { consultant: member, lessonsCompleted: 0, totalXp: member.xp, avgScore: 0 };
@@ -749,21 +674,33 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
             }, 0);
             const avgScore = Math.round(totalScore / (memberLogs.length * 6));
             return { consultant: member, lessonsCompleted, totalXp, avgScore };
-        });
-        return activity.sort((a, b) => b.totalXp - a.totalXp);
-    }
+        }).sort((a, b) => b.totalXp - a.totalXp);
+        
+        const allLogs = lessonLogs.filter(log => teamMembers.some(member => member.userId === log.userId));
+        if (allLogs.length === 0) {
+            return { teamActivity, managerStats: { totalLessons: 0, avgScores: null } };
+        }
+        const totalLessons = allLogs.length;
+        const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+        const avgScores = cxTraits.reduce((acc, trait) => {
+            const totalScore = allLogs.reduce((sum, log) => sum + (log[trait] || 0), 0);
+            acc[trait] = Math.round(totalScore / totalLessons);
+            return acc;
+        }, {} as Record<CxTrait, number>);
 
-    const selectedDealership = await getDealershipById(dealershipId);
-    if (selectedDealership?.status === 'paused') {
-        return [];
+        return { teamActivity, managerStats: { totalLessons, avgScores } };
     }
 
     const teamRoles = getTeamMemberRoles(userRole);
     let userQuery;
 
-    if (['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(userRole) && dealershipId === 'all') {
+    if ((['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(userRole)) && dealershipId === 'all') {
         userQuery = query(usersCollection, where("role", "in", teamRoles));
     } else {
+        const selectedDealership = await getDealershipById(dealershipId);
+        if (selectedDealership?.status === 'paused') {
+            return { teamActivity: [], managerStats: { totalLessons: 0, avgScores: null } };
+        }
         userQuery = query(usersCollection, where("dealershipIds", "array-contains", dealershipId), where("role", "in", teamRoles));
     }
     
@@ -777,8 +714,18 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
         throw contextualError;
     }
     
-    const activityPromises = teamMembers.map(async (member) => {
-        const memberLogs = await getConsultantActivity(member.userId);
+    if (teamMembers.length === 0) {
+        return { teamActivity: [], managerStats: { totalLessons: 0, avgScores: null } };
+    }
+
+    // Fetch all logs in parallel
+    const allLogsPerUserPromises = teamMembers.map(member => getConsultantActivity(member.userId));
+    const allLogsPerUser = await Promise.all(allLogsPerUserPromises);
+    const allLogsFlat: LessonLog[] = allLogsPerUser.flat();
+
+    // Calculate per-member stats
+    const teamActivity = teamMembers.map((member, index) => {
+        const memberLogs = allLogsPerUser[index];
         if (memberLogs.length === 0) {
             return { consultant: member, lessonsCompleted: 0, totalXp: member.xp, avgScore: 0 };
         }
@@ -793,11 +740,25 @@ export async function getTeamActivity(dealershipId: string, userRole: UserRole):
         const avgScore = Math.round(totalScore / (memberLogs.length * 6));
 
         return { consultant: member, lessonsCompleted, totalXp, avgScore };
-    });
+    }).sort((a, b) => b.totalXp - a.totalXp);
 
-    const activity = await Promise.all(activityPromises);
-    return activity.sort((a, b) => b.totalXp - a.totalXp);
+
+    // Calculate aggregate stats
+    if (allLogsFlat.length === 0) {
+        return { teamActivity, managerStats: { totalLessons: 0, avgScores: null }};
+    }
+    const totalLessons = allLogsFlat.length;
+    const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+    const avgScores = cxTraits.reduce((acc, trait) => {
+        const totalScore = allLogsFlat.reduce((sum, log) => sum + (log[trait] || 0), 0);
+        acc[trait] = Math.round(totalScore / totalLessons);
+        return acc;
+    }, {} as Record<CxTrait, number>);
+    const managerStats = { totalLessons, avgScores };
+    
+    return { teamActivity, managerStats };
 }
+
 
 export async function getManageableUsers(managerId: string): Promise<User[]> {
     const manager = await getUserById(managerId);
