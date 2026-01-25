@@ -9,6 +9,18 @@ import { getAuth } from 'firebase/auth';
 import { db } from './firebase'; // Assuming db is your exported Firestore instance
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { generateTourData } from './tour-data';
+
+// --- FAKE DATA INJECTION FOR TOUR ---
+let tourData: ReturnType<typeof generateTourData> | null = null;
+const getTourData = () => {
+    if (!tourData) {
+        tourData = generateTourData();
+    }
+    return tourData;
+}
+const isOwnerTour = () => getAuth().currentUser?.email === 'owner.demo@autodrive.com';
+
 
 // --- HELPER FUNCTIONS ---
 
@@ -36,6 +48,29 @@ const getDataById = async <T>(collectionRef: any, id: string): Promise<T | null>
 
 // AUTH
 export async function getUserById(userId: string): Promise<User | null> {
+    if (isOwnerTour()) {
+        const currentUser = getAuth().currentUser;
+        if (currentUser?.uid === userId) {
+            const { users } = getTourData();
+            // Find the owner in the generated users or create a representation
+            let owner = users.find(u => u.role === 'Owner');
+            if (!owner) {
+                 return {
+                    userId: currentUser.uid,
+                    name: 'Demo Owner',
+                    email: 'owner.demo@autodrive.com',
+                    role: 'Owner',
+                    dealershipIds: getTourData().dealerships.map(d => d.id),
+                    avatarUrl: 'https://i.pravatar.cc/150?u=tour-owner-user',
+                    xp: 12500,
+                    isPrivate: false,
+                    memberSince: new Date(new Date().getTime() - 365 * 2 * 24 * 60 * 60 * 1000).toISOString(),
+                    subscriptionStatus: 'active'
+                };
+            }
+            return owner;
+        }
+    }
     return getDataById<User>(usersCollection, userId);
 }
 
@@ -364,6 +399,12 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
 
 
 export async function getConsultantActivity(userId: string): Promise<LessonLog[]> {
+    if (isOwnerTour()) {
+        const { lessonLogs } = getTourData();
+        const userLogs = lessonLogs.filter(log => log.userId === userId);
+        return userLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    }
+
     const logsCollection = collection(db, `users/${userId}/lessonLogs`);
     try {
         const snapshot = await getDocs(logsCollection);
@@ -511,6 +552,10 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
 };
 
 export async function getDealerships(user?: User): Promise<Dealership[]> {
+    if (user?.email === 'owner.demo@autodrive.com') {
+        return getTourData().dealerships;
+    }
+
     let q = query(dealershipsCollection);
     if (user && user.role === 'Trainer') {
         q = query(dealershipsCollection, where("trainerId", "==", user.userId));
@@ -536,6 +581,34 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
 }
 
 export async function getManagerStats(dealershipId: string, userRole: UserRole): Promise<{ totalLessons: number; avgScores: Record<CxTrait, number> | null }> {
+    if (isOwnerTour()) {
+        const { users, lessonLogs } = getTourData();
+        const teamRoles = getTeamMemberRoles(userRole);
+        
+        let teamUserIds: string[];
+        if (dealershipId === 'all') {
+            teamUserIds = users.filter(u => teamRoles.includes(u.role)).map(u => u.userId);
+        } else {
+            teamUserIds = users.filter(u => u.dealershipIds.includes(dealershipId) && teamRoles.includes(u.role)).map(u => u.userId);
+        }
+        
+        const allLogs = lessonLogs.filter(log => teamUserIds.includes(log.userId));
+
+        if (allLogs.length === 0) {
+            return { totalLessons: 0, avgScores: null };
+        }
+        const totalLessons = allLogs.length;
+        const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+
+        const avgScores = cxTraits.reduce((acc, trait) => {
+            const totalScore = allLogs.reduce((sum, log) => sum + (log[trait] || 0), 0);
+            acc[trait] = Math.round(totalScore / totalLessons);
+            return acc;
+        }, {} as Record<CxTrait, number>);
+
+        return { totalLessons, avgScores };
+    }
+
     const selectedDealership = await getDealershipById(dealershipId);
     if (selectedDealership?.status === 'paused') {
         return { totalLessons: 0, avgScores: null };
@@ -587,6 +660,33 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
 }
 
 export async function getTeamActivity(dealershipId: string, userRole: UserRole): Promise<{ consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[]> {
+    if (isOwnerTour()) {
+        const { users, lessonLogs } = getTourData();
+        const teamRoles = getTeamMemberRoles(userRole);
+        
+        let teamMembers: User[];
+        if (dealershipId === 'all') {
+            teamMembers = users.filter(u => teamRoles.includes(u.role));
+        } else {
+            teamMembers = users.filter(u => u.dealershipIds.includes(dealershipId) && teamRoles.includes(u.role));
+        }
+
+        const activity = teamMembers.map(member => {
+            const memberLogs = lessonLogs.filter(log => log.userId === member.userId);
+            if (memberLogs.length === 0) {
+                return { consultant: member, lessonsCompleted: 0, totalXp: member.xp, avgScore: 0 };
+            }
+            const lessonsCompleted = memberLogs.length;
+            const totalXp = member.xp;
+            const totalScore = memberLogs.reduce((sum, log) => {
+                 return sum + ((log.empathy || 0) + (log.listening || 0) + (log.trust || 0) + (log.followUp || 0) + (log.closing || 0) + (log.relationshipBuilding || 0));
+            }, 0);
+            const avgScore = Math.round(totalScore / (memberLogs.length * 6));
+            return { consultant: member, lessonsCompleted, totalXp, avgScore };
+        });
+        return activity.sort((a, b) => b.totalXp - a.totalXp);
+    }
+
     const selectedDealership = await getDealershipById(dealershipId);
     if (selectedDealership?.status === 'paused') {
         return [];
@@ -637,6 +737,10 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
     const manager = await getUserById(managerId);
     if (!manager) return [];
 
+    if (manager.email === 'owner.demo@autodrive.com') {
+        return getTourData().users.filter(u => u.email !== 'owner.demo@autodrive.com');
+    }
+
     const manageableRoles = getTeamMemberRoles(manager.role);
     
     let allUsers: User[];
@@ -663,6 +767,13 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
 
 // BADGES
 export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> {
+    if (isOwnerTour()) {
+        const { earnedBadges } = getTourData();
+        const userEarnedBadges = earnedBadges[userId] || [];
+        const badgeIds = userEarnedBadges.map(b => b.badgeId);
+        return allBadges.filter(b => badgeIds.includes(b.id));
+    }
+    
     const badgesCollection = collection(db, `users/${userId}/earnedBadges`);
     
     let badgeDocs: EarnedBadge[];
