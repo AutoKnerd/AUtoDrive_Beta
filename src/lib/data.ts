@@ -19,7 +19,10 @@ const getTourData = () => {
     }
     return tourData;
 }
-const isOwnerTour = () => getAuth().currentUser?.email === 'owner.demo@autodrive.com';
+const isTouringUser = () => {
+    const email = getAuth().currentUser?.email;
+    return !!email && email.endsWith('@autodrive-demo.com');
+};
 
 
 // --- HELPER FUNCTIONS ---
@@ -48,27 +51,48 @@ const getDataById = async <T>(collectionRef: any, id: string): Promise<T | null>
 
 // AUTH
 export async function getUserById(userId: string): Promise<User | null> {
-    if (isOwnerTour()) {
+    if (isTouringUser()) {
         const currentUser = getAuth().currentUser;
-        if (currentUser?.uid === userId) {
-            const { users } = getTourData();
-            // Find the owner in the generated users or create a representation
-            let owner = users.find(u => u.role === 'Owner');
-            if (!owner) {
-                 return {
-                    userId: currentUser.uid,
-                    name: 'Demo Owner',
-                    email: 'owner.demo@autodrive.com',
-                    role: 'Owner',
-                    dealershipIds: getTourData().dealerships.map(d => d.id),
-                    avatarUrl: 'https://i.pravatar.cc/150?u=tour-owner-user',
-                    xp: 12500,
-                    isPrivate: false,
-                    memberSince: new Date(new Date().getTime() - 365 * 2 * 24 * 60 * 60 * 1000).toISOString(),
-                    subscriptionStatus: 'active'
+        if (currentUser?.uid === userId && currentUser.email) {
+            const { users, dealerships } = getTourData();
+            const tourUserRoles: Record<string, UserRole> = {
+                'consultant.demo@autodrive.com': 'Sales Consultant',
+                'service.writer.demo@autodrive.com': 'Service Writer',
+                'manager.demo@autodrive.com': 'manager',
+                'owner.demo@autodrive.com': 'Owner',
+            };
+            const role = tourUserRoles[currentUser.email];
+            if (!role) return getDataById<User>(usersCollection, userId); // Fallback for safety
+
+            if (role === 'Owner') {
+                let owner = users.find(u => u.role === 'Owner');
+                if (!owner) {
+                     return {
+                        userId: currentUser.uid,
+                        name: 'Demo Owner',
+                        email: 'owner.demo@autodrive.com',
+                        role: 'Owner',
+                        dealershipIds: getTourData().dealerships.map(d => d.id),
+                        avatarUrl: 'https://i.pravatar.cc/150?u=tour-owner-user',
+                        xp: 12500,
+                        isPrivate: false,
+                        memberSince: new Date(new Date().getTime() - 365 * 2 * 24 * 60 * 60 * 1000).toISOString(),
+                        subscriptionStatus: 'active'
+                    };
+                }
+                return {...owner, userId: currentUser.uid, email: currentUser.email};
+            }
+
+            // For other roles, find a representative user from generated data
+            const representativeUser = users.find(u => u.role === role);
+            if (representativeUser) {
+                return {
+                    ...representativeUser,
+                    userId: currentUser.uid, // Use real auth UID
+                    email: currentUser.email!,
+                    name: `Demo ${role === 'manager' ? 'Sales Manager' : role}`,
                 };
             }
-            return owner;
         }
     }
     return getDataById<User>(usersCollection, userId);
@@ -296,7 +320,7 @@ export async function updateUserSubscriptionStatus(stripeCustomerId: string, new
 
 // LESSONS
 export async function getLessons(role: LessonRole): Promise<Lesson[]> {
-    if (isOwnerTour()) {
+    if (isTouringUser()) {
         const { lessons } = getTourData();
         return lessons.filter(lesson => lesson.role === role || lesson.role === 'global');
     }
@@ -313,6 +337,10 @@ export async function getLessons(role: LessonRole): Promise<Lesson[]> {
 }
 
 export async function getLessonById(lessonId: string): Promise<Lesson | null> {
+    if (isTouringUser()) {
+        const { lessons } = getTourData();
+        return lessons.find(l => l.lessonId === lessonId) || null;
+    }
     return getDataById<Lesson>(lessonsCollection, lessonId);
 }
 
@@ -404,10 +432,18 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
 
 
 export async function getConsultantActivity(userId: string): Promise<LessonLog[]> {
-    if (isOwnerTour()) {
-        const { lessonLogs } = getTourData();
-        const userLogs = lessonLogs.filter(log => log.userId === userId);
-        return userLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    if (isTouringUser()) {
+        const { users, lessonLogs } = getTourData();
+        const currentUser = await getUserById(userId);
+        if (!currentUser) return [];
+
+        // Find a sample user with the same role from the generated data
+        const sampleUser = users.find(u => u.role === currentUser.role);
+        if (sampleUser) {
+            const userLogs = lessonLogs.filter(log => log.userId === sampleUser.userId);
+            return userLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+        }
+        return [];
     }
 
     const logsCollection = collection(db, `users/${userId}/lessonLogs`);
@@ -451,6 +487,18 @@ export async function logLessonCompletion(data: {
     isRecommended: boolean;
     scores: Omit<LessonLog, 'logId' | 'timestamp' | 'userId' | 'lessonId' | 'stepResults' | 'xpGained' | 'isRecommended'>;
 }): Promise<{ updatedUser: User, newBadges: Badge[] }> {
+    if (isTouringUser()) {
+        const user = await getUserById(data.userId);
+        if (!user) throw new Error('Tour user not found');
+        const updatedUser = { ...user, xp: user.xp + data.xpGained };
+        const newBadges: Badge[] = [];
+        if (data.xpGained > 80) {
+            const badge = allBadges.find(b => b.id === 'top-performer');
+            if(badge) newBadges.push(badge);
+        }
+        return { updatedUser, newBadges };
+    }
+
     const user = await getUserById(data.userId);
     if (!user) throw new Error('User not found');
 
@@ -557,7 +605,7 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
 };
 
 export async function getDealerships(user?: User): Promise<Dealership[]> {
-    if (user?.email === 'owner.demo@autodrive.com') {
+    if (isTouringUser()) {
         return getTourData().dealerships;
     }
 
@@ -586,7 +634,7 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
 }
 
 export async function getManagerStats(dealershipId: string, userRole: UserRole): Promise<{ totalLessons: number; avgScores: Record<CxTrait, number> | null }> {
-    if (isOwnerTour()) {
+    if (isTouringUser()) {
         const { users, lessonLogs } = getTourData();
         const teamRoles = getTeamMemberRoles(userRole);
         
@@ -665,7 +713,7 @@ export async function getManagerStats(dealershipId: string, userRole: UserRole):
 }
 
 export async function getTeamActivity(dealershipId: string, userRole: UserRole): Promise<{ consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[]> {
-    if (isOwnerTour()) {
+    if (isTouringUser()) {
         const { users, lessonLogs } = getTourData();
         const teamRoles = getTeamMemberRoles(userRole);
         
@@ -742,7 +790,7 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
     const manager = await getUserById(managerId);
     if (!manager) return [];
 
-    if (manager.email === 'owner.demo@autodrive.com') {
+    if (isTouringUser()) {
         return getTourData().users.filter(u => u.email !== 'owner.demo@autodrive.com');
     }
 
@@ -772,7 +820,7 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
 
 // BADGES
 export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> {
-    if (isOwnerTour()) {
+    if (isTouringUser()) {
         const { earnedBadges } = getTourData();
         const userEarnedBadges = earnedBadges[userId] || [];
         const badgeIds = userEarnedBadges.map(b => b.badgeId);
