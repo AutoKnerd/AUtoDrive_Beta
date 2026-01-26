@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -24,20 +25,10 @@ export default function LessonPage() {
     const [lesson, setLesson] = useState<Lesson | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Effect for fetching the lesson data, depends only on lessonId
     useEffect(() => {
         async function fetchLesson() {
             setLoading(true);
-
-            if (user && user.dealershipIds.length > 0 && !isTouring) {
-                const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id)));
-                const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
-                if (activeDealerships.length === 0) {
-                    setIsPaused(true);
-                    setLoading(false);
-                    return;
-                }
-            }
-
             const currentLesson = await getLessonById(params.lessonId);
             if (currentLesson) {
                 setLesson(currentLesson);
@@ -46,10 +37,29 @@ export default function LessonPage() {
             }
             setLoading(false);
         }
-        if (user) {
-            fetchLesson();
+        fetchLesson();
+    }, [params.lessonId]);
+
+    // Effect for checking user's paused status, depends on user
+    useEffect(() => {
+        async function checkStatus() {
+            if (user && user.dealershipIds.length > 0 && !isTouring) {
+                const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id)));
+                const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
+                if (activeDealerships.length === 0) {
+                    setIsPaused(true);
+                } else {
+                    setIsPaused(false);
+                }
+            } else {
+                 setIsPaused(false);
+            }
         }
-    }, [params.lessonId, user, isTouring]);
+        if (user) {
+            checkStatus();
+        }
+    }, [user, isTouring]);
+
 
     if (loading || !user) {
         return (
