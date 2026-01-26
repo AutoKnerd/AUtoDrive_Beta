@@ -32,6 +32,7 @@ import { SendMessageForm } from '../messenger/send-message-form';
 import { UserNav } from '../layout/user-nav';
 import { useAuth } from '@/hooks/use-auth';
 import { allRoles } from '@/lib/definitions';
+import { RegisterDealershipForm } from '../admin/register-dealership-form';
 
 
 interface ManagerDashboardProps {
@@ -496,16 +497,21 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 <DialogHeader>
                                     <DialogTitle>Manage Team</DialogTitle>
                                     <DialogDescription>
-                                        Assign existing users or remove users from the system.
+                                        Invite new team members and manage their dealership assignments.
                                     </DialogDescription>
                                 </DialogHeader>
                                 <ScrollArea className="max-h-[70vh] p-1">
-                                    <Tabs defaultValue="assign" className="pt-4">
-                                        <TabsList className={`grid w-full ${showAdminTabs ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                                    <Tabs defaultValue="invite" className="pt-4">
+                                        <TabsList className="grid w-full grid-cols-2">
+                                            <TabsTrigger value="invite">Invite New</TabsTrigger>
                                             <TabsTrigger value="assign">Assign Existing</TabsTrigger>
-                                            {showAdminTabs && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
-                                            {showAdminTabs && <TabsTrigger value="dealerships">Dealerships</TabsTrigger>}
                                         </TabsList>
+                                        <TabsContent value="invite" className="pt-2">
+                                             <RegisterDealershipForm
+                                                user={user}
+                                                onDealershipRegistered={handleUserManaged}
+                                            />
+                                        </TabsContent>
                                         <TabsContent value="assign" className="pt-2">
                                             <AssignUserForm 
                                                 manageableUsers={manageableUsers}
@@ -513,22 +519,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                 onUserAssigned={handleUserManaged} 
                                             />
                                         </TabsContent>
-                                        {showAdminTabs && (
-                                            <TabsContent value="remove" className="pt-2">
-                                                <RemoveUserForm 
-                                                    manageableUsers={manageableUsers}
-                                                    onUserRemoved={handleUserManaged} 
-                                                />
-                                            </TabsContent>
-                                        )}
-                                        {showAdminTabs && (
-                                            <TabsContent value="dealerships" className="pt-2">
-                                                <ManageDealershipForm 
-                                                    dealerships={allDealershipsForAdmin}
-                                                    onDealershipManaged={handleUserManaged} 
-                                                />
-                                            </TabsContent>
-                                        )}
                                     </Tabs>
                                 </ScrollArea>
                             </DialogContent>
@@ -621,16 +611,23 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                       <DialogHeader>
                                           <DialogTitle>{isDeveloperViewing ? 'Admin Panel' : 'Manage Team'}</DialogTitle>
                                           <DialogDescription>
-                                            {isDeveloperViewing ? 'Manage users and dealerships across the entire platform.' : 'Assign existing users or remove users from the system.'}
+                                            {isDeveloperViewing ? 'Invite new users, manage assignments, dealerships, and remove users across the platform.' : 'Invite new team members and manage their dealership assignments.'}
                                           </DialogDescription>
                                       </DialogHeader>
                                       <ScrollArea className="max-h-[70vh] p-1">
-                                          <Tabs defaultValue="assign" className="pt-4">
-                                              <TabsList className={`grid w-full ${showAdminTabs ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                                          <Tabs defaultValue="invite" className="pt-4">
+                                              <TabsList className={`grid w-full ${showAdminTabs ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                                                  <TabsTrigger value="invite">Invite New</TabsTrigger>
                                                   <TabsTrigger value="assign">Assign Existing</TabsTrigger>
                                                   {showAdminTabs && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
                                                   {showAdminTabs && <TabsTrigger value="dealerships">Dealerships</TabsTrigger>}
                                               </TabsList>
+                                              <TabsContent value="invite" className="pt-2">
+                                                  <RegisterDealershipForm
+                                                      user={user}
+                                                      onDealershipRegistered={handleUserManaged}
+                                                  />
+                                              </TabsContent>
                                               <TabsContent value="assign" className="pt-2">
                                                   <AssignUserForm 
                                                       manageableUsers={manageableUsers}
@@ -823,3 +820,4 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     
 
     
+
