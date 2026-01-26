@@ -338,6 +338,8 @@ export async function sendInvitation(
     };
     if (['Trainer'].includes(inviter.role)) {
       newDealershipData.trainerId = inviter.userId;
+    } else {
+      newDealershipData.trainerId = 'AutoKnerdHQ';
     }
     
     await setDoc(newDealershipRef, newDealershipData);
@@ -1029,4 +1031,5 @@ export async function getMessagesForUser(user: User): Promise<Message[]> {
     
     return uniqueMessages.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
+
 
