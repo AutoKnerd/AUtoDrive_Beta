@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -6,7 +5,9 @@ import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { UserRole } from '@/lib/definitions';
 import { useRouter } from 'next/navigation';
-import { Info } from 'lucide-react';
+import { Info, Bot } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { TourGuideChat } from '@/components/tour/tour-guide-chat';
 
 const tourRoles: { label: string; value: UserRole }[] = [
   { label: 'Sales Consultant', value: 'Sales Consultant' },
@@ -38,6 +39,20 @@ export function TourFooter() {
         </div>
 
         <div className="flex items-center gap-4">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="bg-slate-800 border-slate-700 hover:bg-slate-700 hidden md:flex">
+                  <Bot className="mr-2 h-4 w-4" /> Ask AI Guide
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="p-0 gap-0 sm:max-w-lg">
+                <DialogHeader className="p-4 border-b">
+                  <DialogTitle>AI Tour Guide</DialogTitle>
+                </DialogHeader>
+                <TourGuideChat user={user} />
+              </DialogContent>
+            </Dialog>
+
             <div className="text-right">
                 <label className="text-sm font-medium text-muted-foreground">Viewing as:</label>
                 <Select onValueChange={(role) => switchTourRole(role as UserRole)} value={user.role}>
