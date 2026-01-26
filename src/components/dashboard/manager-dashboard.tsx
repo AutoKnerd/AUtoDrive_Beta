@@ -80,11 +80,9 @@ function LevelDisplay({ user }: { user: User }) {
             </div>
             <div className="flex justify-between text-xs font-semibold">
                 <span className="text-muted-foreground">{levelXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
-                <div className="text-right">
-                    <p className="text-cyan-400">Total: {user.xp.toLocaleString()} XP</p>
-                    <p className="text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
-                </div>
+                <p className="text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
             </div>
+             <p className="text-cyan-400 text-right font-semibold">Total: {user.xp.toLocaleString()} XP</p>
         </div>
     );
 }
@@ -616,7 +614,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                       </DialogHeader>
                                       <ScrollArea className="max-h-[70vh] p-1">
                                           <Tabs defaultValue="invite" className="pt-4">
-                                              <TabsList className={`grid w-full ${showAdminTabs ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                                              <TabsList className={`grid w-full ${showAdminTabs ? 'grid-cols-4' : 'grid-cols-2'}`}>
                                                   <TabsTrigger value="invite">Invite New</TabsTrigger>
                                                   <TabsTrigger value="assign">Assign Existing</TabsTrigger>
                                                   {showAdminTabs && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
@@ -816,8 +814,3 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     </div>
   );
 }
-
-    
-
-    
-
