@@ -89,7 +89,7 @@ function LevelDisplay({ user }: { user: User }) {
 }
 
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
-  const { originalUser } = useAuth();
+  const { originalUser, isTouring } = useAuth();
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -101,6 +101,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [isMessageDialogOpen, setMessageDialogOpen] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [lessonLimits, setLessonLimits] = useState({ recommendedTaken: false, otherTaken: false });
+  const [showTourWelcome, setShowTourWelcome] = useState(false);
 
 
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
@@ -227,6 +228,22 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     }
   }, [user.memberSince]);
 
+  useEffect(() => {
+    if (isTouring) {
+      const hasSeenWelcome = sessionStorage.getItem(`tourWelcomeSeen_${user.role}`);
+      if (!hasSeenWelcome) {
+        setShowTourWelcome(true);
+      }
+    }
+  }, [isTouring, user.role]);
+  
+  const handleWelcomeDialogChange = (open: boolean) => {
+    if (!open) {
+      sessionStorage.setItem(`tourWelcomeSeen_${user.role}`, 'true');
+    }
+    setShowTourWelcome(open);
+  }
+
   const handleDealershipChange = (dealershipId: string) => {
     setSelectedDealershipId(dealershipId);
   };
@@ -336,6 +353,18 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   return (
     <div className="space-y-8 pb-8">
+        <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="text-2xl">Welcome, {user.role === 'manager' ? 'Sales Manager' : user.role}!</DialogTitle>
+                    <DialogDescription className="pt-2">
+                    This is your command center. From here, you can monitor team-wide statistics, track individual member activity, and create custom training lessons.
+                    <br /><br />
+                    <strong>To begin, try creating a new lesson for your team or select a dealership to view detailed performance insights.</strong>
+                    </DialogDescription>
+                </DialogHeader>
+            </DialogContent>
+      </Dialog>
       <header className="flex items-center justify-between">
           <Logo variant="full" width={183} height={61} />
           <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-cyan-400/50" withBlur />
@@ -790,5 +819,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     </div>
   );
 }
+
+    
 
     

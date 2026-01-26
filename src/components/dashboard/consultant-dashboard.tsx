@@ -24,6 +24,8 @@ import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { cn } from '@/lib/utils';
 import { UserNav } from '../layout/user-nav';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -118,6 +120,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
+  const { isTouring } = useAuth();
+  const [showTourWelcome, setShowTourWelcome] = useState(false);
 
 
   useEffect(() => {
@@ -152,6 +156,22 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     }
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    if (isTouring) {
+      const hasSeenWelcome = sessionStorage.getItem(`tourWelcomeSeen_${user.role}`);
+      if (!hasSeenWelcome) {
+        setShowTourWelcome(true);
+      }
+    }
+  }, [isTouring, user.role]);
+  
+  const handleWelcomeDialogChange = (open: boolean) => {
+    if (!open) {
+      sessionStorage.setItem(`tourWelcomeSeen_${user.role}`, 'true');
+    }
+    setShowTourWelcome(open);
+  }
   
   const averageScores = useMemo(() => {
     if (!activity.length) return {
@@ -223,6 +243,19 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
   return (
     <div className="space-y-8 pb-24 text-gray-300">
+        <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
+            <DialogContent>
+            <DialogHeader>
+                <DialogTitle className="text-2xl">Welcome, {user.role === 'manager' ? 'Sales Manager' : user.role}!</DialogTitle>
+                <DialogDescription className="pt-2">
+                This is your personal dashboard, your launchpad for success. Here you can track your progress, see your average CX scores, and access daily training.
+                <br /><br />
+                <strong>Your first step is to take today's "Recommended" lesson.</strong> It's tailored to help you improve your weakest skill. Let's get started!
+                </DialogDescription>
+            </DialogHeader>
+            </DialogContent>
+        </Dialog>
+
         {/* Header */}
         <header className="flex items-center justify-between">
             <Logo variant="full" width={183} height={61} />
@@ -409,5 +442,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     </div>
   );
 }
+
+    
 
     
