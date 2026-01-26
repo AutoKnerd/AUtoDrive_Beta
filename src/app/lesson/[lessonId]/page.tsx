@@ -28,7 +28,7 @@ export default function LessonPage() {
         async function fetchLesson() {
             setLoading(true);
 
-            if (user && user.dealershipIds.length > 0) {
+            if (user && user.dealershipIds.length > 0 && !isTouring) {
                 const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id)));
                 const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
                 if (activeDealerships.length === 0) {
@@ -49,7 +49,7 @@ export default function LessonPage() {
         if (user) {
             fetchLesson();
         }
-    }, [params.lessonId, user]);
+    }, [params.lessonId, user, isTouring]);
 
     if (loading || !user) {
         return (
@@ -98,7 +98,7 @@ export default function LessonPage() {
     return (
         <div className="flex min-h-screen w-full flex-col">
             <Header />
-            <main className="flex flex-1 flex-col pb-20 md:pb-0">
+            <main className="flex flex-1 flex-col items-center p-4 md:p-8 pb-24">
                 <LessonView lesson={lesson} isRecommended={isRecommended} />
             </main>
             {!isManager && !isTouring && <BottomNav />}
