@@ -254,7 +254,7 @@ service cloud.firestore {
      * @deny (read, update, delete) Invitations are for system use and cannot be manipulated by clients after creation.
      */
     match /emailInvitations/{invitationId} {
-      allow create: if request.resource.data.inviterId == request.auth.uid && isManager();
+      allow create: if isManager() && request.resource.data.inviterId == request.auth.uid;
       allow read, update, delete: if false;
     }
 
@@ -267,7 +267,7 @@ service cloud.firestore {
      */
     match /dealerships/{dealershipId} {
       allow read: if true;
-      allow create: if dealershipId == 'autoknerd-hq' || canCreateDealership();
+      allow create: if canCreateDealership();
       allow update, delete: if isAdminOrDeveloper();
     }
   }
