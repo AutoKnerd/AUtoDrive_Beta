@@ -160,7 +160,7 @@ export function LoginForm() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                    <Button variant="outline" className="h-auto p-6 flex-col gap-2 items-start" onClick={() => handleStartTour('consultant')} disabled={isTouring}>
+                    <Button variant="outline" className="h-auto p-6 flex-col gap-2 items-start whitespace-normal" onClick={() => handleStartTour('consultant')} disabled={isTouring}>
                         <div className="flex items-center gap-2">
                            <User className="h-5 w-5 text-primary" />
                            <h3 className="font-semibold">Team Member</h3>
@@ -170,7 +170,7 @@ export function LoginForm() {
                             Start Tour <ArrowRight className="ml-2 h-4 w-4" />
                         </div>
                     </Button>
-                     <Button variant="outline" className="h-auto p-6 flex-col gap-2 items-start" onClick={() => handleStartTour('manager')} disabled={isTouring}>
+                     <Button variant="outline" className="h-auto p-6 flex-col gap-2 items-start whitespace-normal" onClick={() => handleStartTour('manager')} disabled={isTouring}>
                         <div className="flex items-center gap-2">
                             <Shield className="h-5 w-5 text-primary" />
                             <h3 className="font-semibold">Leader</h3>
