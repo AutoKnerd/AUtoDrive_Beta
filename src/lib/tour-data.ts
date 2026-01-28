@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { User, Dealership, LessonLog, UserRole, Badge, EarnedBadge, Lesson } from './definitions';
+import { User, Dealership, LessonLog, UserRole, Badge, EarnedBadge, Lesson, LessonAssignment } from './definitions';
 import { calculateLevel } from './xp';
 import { allBadges }from './badges';
 
@@ -26,6 +27,7 @@ export const generateTourData = () => {
     const users: User[] = [];
     const lessonLogs: LessonLog[] = [];
     const earnedBadges: Record<string, EarnedBadge[]> = {};
+    const lessonAssignments: LessonAssignment[] = [];
 
     // 1. Generate Dealerships
     for (let i = 0; i < 4; i++) {
@@ -182,5 +184,5 @@ export const generateTourData = () => {
         }
     }
     
-    return { dealerships, users, lessonLogs, earnedBadges, lessons };
+    return { dealerships, users, lessonLogs, earnedBadges, lessons, lessonAssignments };
 };

@@ -1,4 +1,5 @@
 
+
 import { isToday, subDays, isSameDay } from 'date-fns';
 import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope } from './definitions';
 import { allBadges } from './badges';
@@ -504,6 +505,20 @@ export async function createLesson(lessonData: {
     targetRole: UserRole | 'global';
     scenario: string;
 }): Promise<Lesson> {
+    if (isTouringUser()) {
+        const { lessons } = getTourData();
+        const newLesson: Lesson = {
+            lessonId: `tour-lesson-${Math.random().toString(36).substring(7)}`,
+            title: lessonData.title,
+            category: lessonData.category,
+            associatedTrait: lessonData.associatedTrait,
+            role: lessonData.targetRole as LessonRole,
+            customScenario: lessonData.scenario,
+        };
+        lessons.push(newLesson);
+        return newLesson;
+    }
+
     const { db } = getFirebase();
     const lessonsCollection = collection(db, 'lessons');
     const newLessonRef = doc(lessonsCollection);
@@ -530,6 +545,17 @@ export async function createLesson(lessonData: {
 }
 
 export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
+    if (isTouringUser()) {
+        const { lessonAssignments, lessons } = getTourData();
+        const userAssignments = lessonAssignments.filter(a => a.userId === userId && !a.completed);
+        if (userAssignments.length === 0) {
+            return [];
+        }
+        
+        const lessonIds = userAssignments.map(a => a.lessonId);
+        return lessons.filter(l => lessonIds.includes(l.lessonId));
+    }
+
     const { db } = getFirebase();
     const assignmentsCollection = collection(db, 'lessonAssignments');
     const q = query(assignmentsCollection, where("userId", "==", userId), where("completed", "==", false));
@@ -547,20 +573,65 @@ export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
     if (assignments.length === 0) return [];
     
     const lessonIds = assignments.map(a => a.lessonId);
+    if (lessonIds.length === 0) return [];
+
     const lessonsCollection = collection(db, 'lessons');
-    const lessonsQuery = query(lessonsCollection, where("lessonId", "in", lessonIds));
-    
-    try {
-        const snapshot = await getDocs(lessonsQuery);
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Lesson));
-    } catch(e: any) {
-        const contextualError = new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' });
-        errorEmitter.emit('permission-error', contextualError);
-        throw contextualError;
+
+    // Firestore 'in' queries are limited to 30 items. We need to chunk the requests.
+    if (lessonIds.length > 30) {
+        const chunks: string[][] = [];
+        for (let i = 0; i < lessonIds.length; i += 30) {
+            chunks.push(lessonIds.slice(i, i + 30));
+        }
+        
+        const lessonPromises = chunks.map(chunk => {
+            const lessonsQuery = query(lessonsCollection, where("lessonId", "in", chunk));
+            return getDocs(lessonsQuery);
+        });
+
+        try {
+            const snapshotResults = await Promise.all(lessonPromises);
+            const allLessons: Lesson[] = [];
+            snapshotResults.forEach(snapshot => {
+                snapshot.docs.forEach(doc => {
+                    allLessons.push({ ...doc.data(), id: doc.id } as Lesson);
+                });
+            });
+            return allLessons;
+        } catch(e: any) {
+            const contextualError = new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' });
+            errorEmitter.emit('permission-error', contextualError);
+            throw contextualError;
+        }
+
+    } else {
+        const lessonsQuery = query(lessonsCollection, where("lessonId", "in", lessonIds));
+        try {
+            const snapshot = await getDocs(lessonsQuery);
+            return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Lesson));
+        } catch(e: any) {
+            const contextualError = new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' });
+            errorEmitter.emit('permission-error', contextualError);
+            throw contextualError;
+        }
     }
 }
 
 export async function assignLesson(userId: string, lessonId: string, assignerId: string): Promise<LessonAssignment> {
+    if (isTouringUser()) {
+        const { lessonAssignments } = getTourData();
+        const newAssignment: LessonAssignment = {
+            assignmentId: `tour-assignment-${Math.random().toString(36).substring(7)}`,
+            userId,
+            lessonId,
+            assignerId,
+            timestamp: new Date(),
+            completed: false,
+        };
+        lessonAssignments.push(newAssignment);
+        return newAssignment;
+    }
+
     const { db } = getFirebase();
     const assignmentsCollection = collection(db, 'lessonAssignments');
     const assignmentRef = doc(assignmentsCollection);
