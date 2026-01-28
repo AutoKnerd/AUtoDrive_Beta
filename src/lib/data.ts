@@ -1,4 +1,5 @@
 
+
 import { isToday, subDays, isSameDay } from 'date-fns';
 import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope } from './definitions';
 import { allBadges } from './badges';
@@ -301,55 +302,45 @@ export async function deleteUser(userId: string): Promise<void> {
     }
 }
 
+export async function createDealership(dealershipData: {
+    name: string;
+    address: Partial<Address>;
+    trainerId?: string;
+}): Promise<Dealership> {
+    const dealershipRef = doc(collection(db, 'dealerships'));
+    const newDealership: Dealership = {
+        id: dealershipRef.id,
+        name: dealershipData.name,
+        status: 'active',
+        address: dealershipData.address as Address,
+        trainerId: dealershipData.trainerId,
+    };
+    try {
+        await setDoc(dealershipRef, newDealership);
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'create',
+            requestResourceData: newDealership,
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+    return newDealership;
+}
+
+
 export async function sendInvitation(
-  dealershipName: string,
+  dealershipId: string,
   email: string,
   role: UserRole,
   inviterId: string,
-  address: Partial<Address>
 ): Promise<void> {
   const inviter = await getUserById(inviterId);
   if (!inviter) throw new Error("Inviter not found.");
 
-  let dealership: Dealership | null = null;
-  const q = query(dealershipsCollection, where("name", "==", dealershipName));
-  
-  let dealershipSnapshot;
-  try {
-    dealershipSnapshot = await getDocs(q);
-  } catch (e: any) {
-    const contextualError = new FirestorePermissionError({
-        path: dealershipsCollection.path,
-        operation: 'list'
-    });
-    errorEmitter.emit('permission-error', contextualError);
-    throw contextualError;
-  }
-
-  if (dealershipSnapshot.empty) {
-    if (!['Admin', 'Trainer', 'Developer'].includes(inviter.role)) {
-      throw new Error("You do not have permission to create a new dealership.");
-    }
-    const newDealershipRef = doc(dealershipsCollection);
-    const newDealershipData: Dealership = {
-      id: newDealershipRef.id,
-      name: dealershipName,
-      status: 'active',
-      address: address as Address,
-    };
-     if (['Trainer'].includes(inviter.role)) {
-      newDealershipData.trainerId = inviter.userId;
-    } else {
-      newDealershipData.trainerId = 'AutoKnerdHQ';
-    }
-    
-    await setDoc(newDealershipRef, newDealershipData);
-    dealership = newDealershipData;
-  } else {
-    dealership = { ...dealershipSnapshot.docs[0].data(), id: dealershipSnapshot.docs[0].id } as Dealership;
-  }
-
-  if (!dealership) throw new Error('Could not find or create dealership.');
+  const dealership = await getDealershipById(dealershipId);
+  if (!dealership) throw new Error('Dealership not found.');
   
   const invitationRef = doc(invitationsCollection);
   const token = invitationRef.id;

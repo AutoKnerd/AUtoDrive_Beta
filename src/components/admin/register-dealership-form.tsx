@@ -6,100 +6,60 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { sendInvitation, getDealerships, getTeamMemberRoles, getDealershipById } from '@/lib/data';
-import { User, UserRole, Dealership, Address } from '@/lib/definitions';
+import { sendInvitation, getTeamMemberRoles } from '@/lib/data';
+import { User, UserRole, Dealership } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { MailCheck } from 'lucide-react';
-import { ScrollArea } from '../ui/scroll-area';
+import { Input } from '../ui/input';
 
-interface RegisterDealershipFormProps {
+interface InviteUserFormProps {
   user: User;
-  onDealershipRegistered?: () => void;
+  dealerships: Dealership[];
+  onUserInvited?: () => void;
 }
 
-const registerSchema = z.object({
-  dealershipName: z.string().min(1, 'Dealership name is required.'),
-  userEmail: z.string().email('Please enter a valid email address for the intended user.'),
+const inviteSchema = z.object({
+  dealershipId: z.string().min(1, 'A dealership must be selected.'),
+  userEmail: z.string().email('Please enter a valid email address.'),
   role: z.string().min(1, "A role must be selected."),
-  street: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zip: z.string().optional(),
 });
 
-type RegisterFormValues = z.infer<typeof registerSchema>;
+type InviteFormValues = z.infer<typeof inviteSchema>;
 
-export function RegisterDealershipForm({ user, onDealershipRegistered }: RegisterDealershipFormProps) {
+export function RegisterDealershipForm({ user, dealerships, onUserInvited }: InviteUserFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invitationSent, setInvitationSent] = useState(false);
   const { toast } = useToast();
 
-  const [dealerships, setDealerships] = useState<Dealership[]>([]);
-  const [isNewDealership, setIsNewDealership] = useState(false);
-
-  const canCreateDealership = ['Admin', 'Trainer', 'Developer'].includes(user.role);
   const registrationRoles = getTeamMemberRoles(user.role);
 
-  const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+  const form = useForm<InviteFormValues>({
+    resolver: zodResolver(inviteSchema),
     defaultValues: {
-      dealershipName: '',
+      dealershipId: '',
       userEmail: '',
       role: '',
-      street: '',
-      city: '',
-      state: '',
-      zip: '',
     },
   });
-
-  useEffect(() => {
-    async function fetchDealershipData() {
-        if (canCreateDealership || user.role === 'Owner' || user.role === 'General Manager') {
-            const d = await getDealerships(user);
-            setDealerships(d);
-            if (d.length === 0 && canCreateDealership) {
-                setIsNewDealership(true);
-            }
-        } else {
-            const managedDealerships = await Promise.all(user.dealershipIds.map(id => getDealershipById(id)));
-            const validDealerships = managedDealerships.filter((d): d is Dealership => d !== null);
-            setDealerships(validDealerships);
-        }
-    }
-    fetchDealershipData();
-  }, [canCreateDealership, user]);
   
   useEffect(() => {
-    if (dealerships.length === 1 && !canCreateDealership && user.role !== 'Owner') {
-        form.setValue('dealershipName', dealerships[0].name);
+    // Pre-select dealership if user only belongs to one
+    if (dealerships.length === 1 && !['Admin', 'Developer', 'Trainer'].includes(user.role)) {
+        form.setValue('dealershipId', dealerships[0].id);
     }
-  }, [dealerships, canCreateDealership, user.role, form]);
+  }, [dealerships, user.role, form]);
 
 
-  async function onSubmit(data: RegisterFormValues) {
+  async function onSubmit(data: InviteFormValues) {
     setIsSubmitting(true);
     setInvitationSent(false);
     try {
-      const dealershipToUse = data.dealershipName;
-      if (!dealershipToUse) {
-        throw new Error('Dealership name is missing.');
-      }
-      
-      const address: Partial<Address> = {
-        street: data.street,
-        city: data.city,
-        state: data.state,
-        zip: data.zip,
-      };
-
-      await sendInvitation(dealershipToUse, data.userEmail, data.role as UserRole, user.userId, address);
+      await sendInvitation(data.dealershipId, data.userEmail, data.role as UserRole, user.userId);
       
       setInvitationSent(true);
       toast({
@@ -107,23 +67,12 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
         description: `An invitation has been sent to ${data.userEmail}.`,
       });
       
-      onDealershipRegistered?.();
+      onUserInvited?.();
       form.reset({
-        dealershipName: (dealerships.length === 1 && !canCreateDealership && user.role !== 'Owner') ? dealerships[0].name : '',
+        ...form.getValues(),
         userEmail: '',
         role: '',
-        street: '',
-        city: '',
-        state: '',
-        zip: '',
       });
-
-      if (canCreateDealership) {
-        setIsNewDealership(false);
-        // Refresh dealership list
-        const d = await getDealerships(user);
-        setDealerships(d);
-      }
 
     } catch (error) {
       toast({
@@ -148,114 +97,38 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
             </p>
           </AlertDescription>
         </Alert>
-        <Button onClick={() => { setInvitationSent(false); if (canCreateDealership) setIsNewDealership(false); } } className="mt-4">
+        <Button onClick={() => setInvitationSent(false)} className="mt-4">
             Send Another Invitation
         </Button>
       </div>
     );
   }
-  
-  const showDealershipSelect = canCreateDealership || user.role === 'Owner' || (user.dealershipIds && user.dealershipIds.length > 1);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
         <FormField
           control={form.control}
-          name="dealershipName"
+          name="dealershipId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Dealership</FormLabel>
-                { !showDealershipSelect ? (
-                    <Input value={field.value || ''} disabled />
-                ) : (
-                    <>
-                        <Select 
-                            onValueChange={(value) => {
-                                if (value === '---new---') {
-                                    setIsNewDealership(true);
-                                    field.onChange('');
-                                } else {
-                                    setIsNewDealership(false);
-                                    field.onChange(value);
-                                }
-                            }} 
-                            value={isNewDealership ? '---new---' : (field.value || '')}
-                        >
-                        <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select an existing dealership..." />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {canCreateDealership && (
-                              <SelectItem value="---new---">
-                                  <span className="font-semibold">-- Add New Dealership --</span>
-                              </SelectItem>
-                            )}
-                            {dealerships.map(d => (
-                                <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                        </Select>
-                        
-                    </>
-                )}
-                {isNewDealership && canCreateDealership && (
-                    <div className="mt-4 space-y-4 rounded-md border p-4">
-                        <FormLabel>New Dealership Details</FormLabel>
-                         <FormControl>
-                            <Input 
-                                placeholder="Enter new dealership name"
-                                {...field} 
-                            />
-                        </FormControl>
-                        <FormMessage />
-
-                        <FormField
-                            control={form.control}
-                            name="street"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Street Address</FormLabel>
-                                    <FormControl><Input placeholder="123 Auto Lane" {...field} /></FormControl>
-                                </FormItem>
-                            )}
-                        />
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FormField
-                                control={form.control}
-                                name="city"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>City</FormLabel>
-                                        <FormControl><Input placeholder="Carville" {...field} /></FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="state"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>State</FormLabel>
-                                        <FormControl><Input placeholder="CA" {...field} /></FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="zip"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>ZIP Code</FormLabel>
-                                        <FormControl><Input placeholder="90210" {...field} /></FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                    </div>
-                  )}
+                <Select 
+                    onValueChange={field.onChange}
+                    value={field.value}
+                >
+                <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a dealership..." />
+                    </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                    {dealerships.map(d => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                    {dealerships.length === 0 && <SelectItem value="" disabled>No dealerships available to invite to.</SelectItem>}
+                </SelectContent>
+                </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -300,7 +173,7 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
             )}
             />
         </div>
-        <Button type="submit" disabled={isSubmitting || registrationRoles.length === 0}>
+        <Button type="submit" disabled={isSubmitting || registrationRoles.length === 0 || dealerships.length === 0}>
           {isSubmitting ? <Spinner size="sm" /> : 'Send Invitation'}
         </Button>
       </form>

@@ -33,6 +33,7 @@ import { UserNav } from '../layout/user-nav';
 import { useAuth } from '@/hooks/use-auth';
 import { allRoles } from '@/lib/definitions';
 import { RegisterDealershipForm } from '../admin/register-dealership-form';
+import { CreateDealershipForm } from '../admin/create-dealership-form';
 
 
 interface ManagerDashboardProps {
@@ -397,15 +398,25 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         <PlusCircle className="h-6 w-6" />
                         Onboard New Team Member
                     </CardTitle>
-                    <CardDescription>
-                        Invite a new user and assign them to a dealership. If their dealership doesn't exist yet, you can create it here.
-                    </CardDescription>
+                     <CardDescription>A two-step process to get a new dealership and its first user set up.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <RegisterDealershipForm
-                        user={user}
-                        onDealershipRegistered={handleUserManaged}
-                    />
+                    <Tabs defaultValue="create-dealership">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="create-dealership">Step 1: Create Dealership</TabsTrigger>
+                            <TabsTrigger value="invite-user">Step 2: Invite User</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="create-dealership" className="pt-4">
+                            <CreateDealershipForm user={user} onDealershipCreated={handleUserManaged} />
+                        </TabsContent>
+                        <TabsContent value="invite-user" className="pt-4">
+                             <RegisterDealershipForm
+                                user={user}
+                                dealerships={allDealershipsForAdmin}
+                                onUserInvited={handleUserManaged}
+                            />
+                        </TabsContent>
+                    </Tabs>
                 </CardContent>
             </Card>
         )}
@@ -527,7 +538,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                         <TabsContent value="invite" className="pt-2">
                                              <RegisterDealershipForm
                                                 user={user}
-                                                onDealershipRegistered={handleUserManaged}
+                                                dealerships={dealerships}
+                                                onUserInvited={handleUserManaged}
                                             />
                                         </TabsContent>
                                         <TabsContent value="assign" className="pt-2">
@@ -643,7 +655,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                               <TabsContent value="invite" className="pt-2">
                                                   <RegisterDealershipForm
                                                       user={user}
-                                                      onDealershipRegistered={handleUserManaged}
+                                                      dealerships={allDealershipsForAdmin}
+                                                      onUserInvited={handleUserManaged}
                                                   />
                                               </TabsContent>
                                               <TabsContent value="assign" className="pt-2">
