@@ -334,12 +334,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }
 
   const isDeveloperViewing = originalUser?.role === 'Developer';
-  const canCreateDealerships = ['Admin', 'Developer', 'Trainer'].includes(user.role);
-  const showAdminTabs = isDeveloperViewing || user.role === 'Admin';
   const showPersonalDevelopment = !noPersonalDevelopmentRoles.includes(user.role) && !isDeveloperViewing;
   const isSoloManager = teamActivity.length === 0 && selectedDealershipId !== 'all' && !loading;
   const canManage = ['Admin', 'Trainer', 'Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Developer'].includes(user.role);
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
+  const isSuperAdmin = ['Admin', 'Developer'].includes(user.role);
   const showInsufficientDataWarning = stats?.totalLessons === -1;
 
   return (
@@ -382,32 +381,31 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             )}
         </section>
 
-        {canCreateDealerships && (
-            <Card>
-                <CardHeader>
+        {isSuperAdmin && (
+            <>
+                <Card>
+                    <CardHeader>
                     <CardTitle>Create New Dealership</CardTitle>
                     <CardDescription>Add a new dealership to the system. This must be done before you can invite users to it.</CardDescription>
-                </CardHeader>
-                <CardContent>
+                    </CardHeader>
+                    <CardContent>
                     <CreateDealershipForm user={user} onDealershipCreated={handleUserManaged} />
-                </CardContent>
-            </Card>
-        )}
-
-        {canManage && (
-            <Card>
-                <CardHeader>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
                     <CardTitle>Invite New User</CardTitle>
                     <CardDescription>Send an email invitation for a new user to join a dealership.</CardDescription>
-                </CardHeader>
-                <CardContent>
+                    </CardHeader>
+                    <CardContent>
                     <RegisterDealershipForm
                         user={user}
-                        dealerships={['Admin', 'Developer'].includes(user.role) ? allDealershipsForAdmin : dealerships}
+                        dealerships={allDealershipsForAdmin}
                         onUserInvited={handleUserManaged}
                     />
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </>
         )}
 
         {showPersonalDevelopment && (
@@ -603,7 +601,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               </CardContent>
             </Card>
       
-            {user.role !== 'Finance Manager' && (
+            {user.role !== 'Finance Manager' && !isSuperAdmin && (
               <Card>
                   <CardHeader className="flex-col gap-4">
                       <div>
@@ -635,11 +633,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                       </DialogHeader>
                                       <ScrollArea className="max-h-[70vh] p-1">
                                           <Tabs defaultValue="invite" className="pt-4">
-                                              <TabsList className={`grid w-full ${showAdminTabs ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                                              <TabsList className={`grid w-full ${isDeveloperViewing || isSuperAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
                                                   <TabsTrigger value="invite">Invite New</TabsTrigger>
                                                   <TabsTrigger value="assign">Assign Existing</TabsTrigger>
-                                                  {showAdminTabs && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
-                                                  {showAdminTabs && <TabsTrigger value="dealerships">Dealerships</TabsTrigger>}
+                                                  {(isDeveloperViewing || isSuperAdmin) && <TabsTrigger value="remove" className="text-destructive">Remove User</TabsTrigger>}
+                                                  {(isDeveloperViewing || isSuperAdmin) && <TabsTrigger value="dealerships">Dealerships</TabsTrigger>}
                                               </TabsList>
                                               <TabsContent value="invite" className="pt-2">
                                                   <RegisterDealershipForm
@@ -655,7 +653,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                       onUserAssigned={handleUserManaged} 
                                                   />
                                               </TabsContent>
-                                              {showAdminTabs && (
+                                              {(isDeveloperViewing || isSuperAdmin) && (
                                                   <TabsContent value="remove" className="pt-2">
                                                       <RemoveUserForm 
                                                           manageableUsers={manageableUsers}
@@ -663,7 +661,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                       />
                                                   </TabsContent>
                                               )}
-                                              {showAdminTabs && (
+                                              {(isDeveloperViewing || isSuperAdmin) && (
                                                   <TabsContent value="dealerships" className="pt-2">
                                                       <ManageDealershipForm 
                                                           dealerships={allDealershipsForAdmin}
