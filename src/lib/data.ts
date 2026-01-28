@@ -76,8 +76,6 @@ export async function getUserById(userId: string): Promise<User | null> {
     if (isTouringUser()) {
         const { users } = getTourData();
         
-        // This is a special case to handle the currently logged in tour user, 
-        // as their UID from Firebase Auth won't match the one in our generated data.
         const currentUser = auth.currentUser;
         if (currentUser?.uid === userId && currentUser.email) {
             const tourUserRoles: Record<string, UserRole> = {
@@ -111,7 +109,7 @@ export async function getUserById(userId: string): Promise<User | null> {
                  if (representativeUser) {
                     return {
                         ...representativeUser,
-                        userId: currentUser.uid, // Use real auth UID
+                        userId: currentUser.uid, 
                         email: currentUser.email!,
                         name: `Demo ${role === 'manager' ? 'Sales Manager' : role}`,
                     };
@@ -119,22 +117,20 @@ export async function getUserById(userId: string): Promise<User | null> {
             }
         }
         
-        // If it's another tour user from the generated list, return them.
         const tourUser = users.find(u => u.userId === userId);
         if (tourUser) {
             return tourUser;
         }
     }
-    // If not in tour mode, or user not found in tour data, fetch from Firestore.
     return getDataById<User>(db, 'users', userId);
 }
 
 
-export async function createUserProfile(userId: string, name: string, email: string, role: UserRole, brand: string): Promise<User> {
+export async function createUserProfile(userId: string, name: string, email: string, role: UserRole, dealershipIds: string[]): Promise<User> {
     const { db } = getFirebase();
-    let dealershipId = '';
-    const isHqRole = ['Admin', 'Developer', 'Trainer'].includes(role);
-    if (isHqRole) {
+    
+    // If the role is Admin/Dev/Trainer and they are not being assigned to a dealership, create/assign them to HQ.
+    if (['Admin', 'Developer', 'Trainer'].includes(role) && dealershipIds.length === 0) {
         const hqDealershipId = 'autoknerd-hq';
         const dealershipRef = doc(db, 'dealerships', hqDealershipId);
         try {
@@ -148,14 +144,11 @@ export async function createUserProfile(userId: string, name: string, email: str
                 };
                 await setDoc(dealershipRef, newDealership);
             }
-            dealershipId = hqDealershipId;
+            dealershipIds.push(hqDealershipId);
         } catch(e: any) {
-             const contextualError = new FirestorePermissionError({
-                path: dealershipRef.path,
-                operation: 'write' // Generic write, covers get/set
-            });
-            errorEmitter.emit('permission-error', contextualError);
-            throw contextualError;
+             const contextualError = new FirestorePermissionError({ path: dealershipRef.path, operation: 'write' });
+             errorEmitter.emit('permission-error', contextualError);
+             throw contextualError;
         }
     }
 
@@ -164,10 +157,9 @@ export async function createUserProfile(userId: string, name: string, email: str
         name: name,
         email: email,
         role: role,
-        dealershipIds: dealershipId ? [dealershipId] : [],
+        dealershipIds: dealershipIds,
         avatarUrl: 'https://images.unsplash.com/photo-1515086828834-023d61380316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzdGVlcmluZyUyMHdoZWVsfGVufDB8fHx8MTc2ODkxMTAyM3ww&ixlib=rb-4.1.0&q=80&w=1080',
         xp: 0,
-        brand: brand,
         isPrivate: false,
         isPrivateFromOwner: false,
         memberSince: new Date().toISOString(),
@@ -347,6 +339,44 @@ export async function createDealership(dealershipData: {
     return newDealership;
 }
 
+export async function getInvitationByToken(token: string): Promise<EmailInvitation | null> {
+    const { db } = getFirebase();
+    return getDataById<EmailInvitation>(db, 'emailInvitations', token);
+}
+
+export async function getInvitationByEmail(email: string): Promise<EmailInvitation | null> {
+    const { db } = getFirebase();
+    const invitationsRef = collection(db, 'emailInvitations');
+    const q = query(invitationsRef, where("email", "==", email.toLowerCase()), where("claimed", "==", false));
+    try {
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            return null;
+        }
+        return querySnapshot.docs[0].data() as EmailInvitation;
+    } catch (e) {
+        // This might fail due to permissions, which is okay for this check.
+        console.warn("Could not query invitations by email:", e);
+        return null;
+    }
+}
+
+export async function claimInvitation(token: string): Promise<void> {
+    const { db } = getFirebase();
+    const invitationRef = doc(db, 'emailInvitations', token);
+    const updateData = { claimed: true };
+     try {
+        await updateDoc(invitationRef, updateData);
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: invitationRef.path,
+            operation: 'update',
+            requestResourceData: updateData
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+}
 
 export async function sendInvitation(
   dealershipId: string,
@@ -368,6 +398,7 @@ export async function sendInvitation(
   const newInvitation: EmailInvitation = {
     token: token,
     dealershipId: dealership.id,
+    dealershipName: dealership.name,
     role: role,
     email: email.toLowerCase(),
     claimed: false,
@@ -459,7 +490,6 @@ export async function getDealershipById(dealershipId: string): Promise<Dealershi
     if (isTouringUser()) {
         const { dealerships } = getTourData();
         const dealership = dealerships.find(d => d.id === dealershipId);
-        // Ensure tour dealerships are always active
         if (dealership) return { ...dealership, status: 'active' };
         return null;
     }
@@ -563,7 +593,6 @@ export async function getConsultantActivity(userId: string): Promise<LessonLog[]
         const currentUser = await getUserById(userId);
         if (!currentUser) return [];
 
-        // Find a sample user with the same role from the generated data
         const sampleUser = users.find(u => u.role === currentUser.role);
         if (sampleUser) {
             const userLogs = lessonLogs.filter(log => log.userId === sampleUser.userId);
@@ -861,7 +890,6 @@ export async function getCombinedTeamData(dealershipId: string, userRole: UserRo
     
     const allLogsFlat: LessonLog[] = allLogsPerUser.flat();
 
-    // Calculate per-member stats
     const teamActivity = teamMembers.map((member, index) => {
         const memberLogs = allLogsPerUser[index];
         if (memberLogs.length === 0) {
@@ -880,8 +908,6 @@ export async function getCombinedTeamData(dealershipId: string, userRole: UserRo
         return { consultant: member, lessonsCompleted, totalXp, avgScore };
     }).sort((a, b) => a.consultant.name.localeCompare(b.consultant.name));
 
-
-    // Calculate aggregate stats
     if (allLogsFlat.length === 0) {
         return { teamActivity, managerStats: { totalLessons: 0, avgScores: null }};
     }
@@ -1074,5 +1100,3 @@ export async function getMessagesForUser(user: User): Promise<Message[]> {
     
     return uniqueMessages.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
-
-    

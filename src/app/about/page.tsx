@@ -108,8 +108,8 @@ export default function AboutPage() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                <Button asChild size="lg" variant="outline">
-                    <Link href="/register">Sign Up Free</Link>
+                 <Button asChild size="lg" variant="outline">
+                    <Link href="/login">Sign In</Link>
                 </Button>
             </div>
           </div>
@@ -229,12 +229,9 @@ export default function AboutPage() {
                 <p className="max-w-2xl mx-auto text-lg text-muted-foreground mb-8">
                     See firsthand how AutoDrive can revolutionize your dealership's performance. Take a free, no-obligation tour today.
                 </p>
-                <div className="flex justify-center gap-4">
+                 <div className="flex justify-center gap-4">
                     <Button asChild size="lg">
-                        <Link href="/register">Sign Up Free</Link>
-                    </Button>
-                    <Button asChild size="lg" variant="outline">
-                        <Link href="/login">Sign In</Link>
+                        <Link href="/login">Get Started</Link>
                     </Button>
                 </div>
             </div>

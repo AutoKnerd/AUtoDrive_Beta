@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { useAuth as useFirebaseAuth } from '@/firebase'; // Using alias to avoid naming conflict
-import { getUserById, createUserProfile } from '@/lib/data';
-import type { User, UserRole } from '@/lib/definitions';
+import { getUserById, createUserProfile, getInvitationByEmail, claimInvitation } from '@/lib/data';
+import type { User, UserRole, EmailInvitation } from '@/lib/definitions';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
@@ -16,7 +15,7 @@ interface AuthContextType {
   isTouring: boolean;
   login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (name: string, email: string, password: string, brand: string, role: UserRole) => Promise<void>;
+  register: (name: string, password: string, invitation: EmailInvitation) => Promise<void>;
   setUser: (user: User | null) => void;
   switchTourRole: (role: UserRole) => Promise<void>;
 }
@@ -52,38 +51,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (firebaseUser) {
         let userProfile = await getUserById(firebaseUser.uid);
 
-        // If user exists in Auth but not in Firestore, create their profile.
-        // This handles cases where profile creation might have failed during registration
-        // or for pre-seeded admin accounts.
-        if (!userProfile) {
-          console.warn(`User document not found for UID ${firebaseUser.uid}. Creating a default profile.`);
+        if (!userProfile && firebaseUser.email) {
+          console.log(`User document not found for UID ${firebaseUser.uid}. Checking for invitation...`);
           
-          let role: UserRole = 'Sales Consultant'; // Safest default
-          let name = firebaseUser.displayName || 'New User';
-          
-          // Special handling for the primary admin user
-          if (firebaseUser.email === 'andrew@autoknerd.com') {
-            role = 'Admin';
-            name = 'Andrew (Admin)';
-          }
+          const invitation = await getInvitationByEmail(firebaseUser.email);
 
-          try {
-            userProfile = await createUserProfile(
-              firebaseUser.uid,
-              name,
-              firebaseUser.email || '',
-              role,
-              'Unknown'
-            );
-          } catch (creationError) {
-            console.error("Failed to create default user profile:", creationError);
-            // Sign out to prevent being in a broken state
-            await auth.signOut();
-            setUser(null);
-            setOriginalUser(null);
-            setIsTouring(false);
-            setLoading(false);
-            return;
+          if (invitation && !invitation.claimed) {
+            console.log(`Found unclaimed invitation for ${firebaseUser.email}. Creating profile.`);
+            try {
+               userProfile = await createUserProfile(
+                firebaseUser.uid,
+                firebaseUser.displayName || 'New User',
+                firebaseUser.email,
+                invitation.role,
+                [invitation.dealershipId],
+              );
+              await claimInvitation(invitation.token);
+            } catch (creationError) {
+              console.error("Failed to create user profile from invitation:", creationError);
+            }
+          } else if (firebaseUser.email === 'andrew@autoknerd.com') { // Hardcoded admin self-healing
+             console.log(`No invitation found, but user is admin. Creating admin profile.`);
+             try {
+                userProfile = await createUserProfile(
+                  firebaseUser.uid,
+                  'Andrew (Admin)',
+                  firebaseUser.email,
+                  'Admin',
+                  []
+                );
+             } catch (e) {
+                 console.error("Failed to create admin user profile:", e);
+             }
           }
         }
         
@@ -107,14 +106,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, [auth]);
   
-  const register = useCallback(async (name: string, email: string, password: string, brand: string, role: UserRole) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const register = useCallback(async (name: string, password: string, invitation: EmailInvitation) => {
     try {
-      const newUserProfile = await createUserProfile(userCredential.user.uid, name, email, role, brand);
+      const userCredential = await createUserWithEmailAndPassword(auth, invitation.email, password);
+      const newUserProfile = await createUserProfile(
+          userCredential.user.uid, 
+          name, 
+          invitation.email, 
+          invitation.role, 
+          [invitation.dealershipId]
+      );
+      await claimInvitation(invitation.token);
       // onAuthStateChanged will set the user state
     } catch(error) {
-        // If profile creation fails, sign out the newly created auth user to allow a retry.
-        await auth.signOut();
+        // If profile creation fails, the auth user still exists.
+        // The self-healing logic in onAuthStateChanged will attempt to fix this on next login.
+        console.error("Registration error:", error);
         throw error;
     }
   }, [auth]);
@@ -124,21 +131,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
         if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') && demoUserEmails.includes(email)) {
+             // This logic for demo users is a bit of a special case and doesn't use invitations
             try {
-                const role = tourUserRoles[email];
-                const name = `Demo ${role === 'manager' ? 'Sales Manager' : role}`;
-                await register(name, email, password, 'Toyota', role);
-                return; // User is created and signed in, onAuthStateChanged will handle the rest.
-            } catch (registrationError) {
-                console.error("Failed to auto-register demo user:", registrationError);
-                // If registration fails, throw the original login error to be displayed.
-                throw error;
+                 const role = tourUserRoles[email];
+                 const name = `Demo ${role === 'manager' ? 'Sales Manager' : role}`;
+                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                 await createUserProfile(userCredential.user.uid, name, email, role, ['tour-dealership-1']);
+            } catch (registrationError: any) {
+                if (registrationError.code === 'auth/email-already-in-use') {
+                    // This is expected if the demo user already exists, so just sign in
+                    await signInWithEmailAndPassword(auth, email, password);
+                } else {
+                    console.error("Failed to auto-register demo user:", registrationError);
+                    throw error;
+                }
             }
+        } else {
+            throw error;
         }
-        // For non-demo users or other types of errors, re-throw the original error.
-        throw error;
     }
-  }, [auth, register]);
+  }, [auth]);
 
   const logout = async () => {
     await auth.signOut();

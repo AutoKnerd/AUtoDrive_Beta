@@ -1,5 +1,4 @@
 
-
 export const carBrands = [
   'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'Cadillac', 'Chevrolet', 
   'Chrysler', 'Dodge', 'Fiat', 'Ford', 'Genesis', 'GMC', 'Honda', 'Hyundai', 
@@ -204,6 +203,7 @@ export type LessonLog = {
 export type EmailInvitation = {
   token: string;
   dealershipId: string;
+  dealershipName: string;
   role: UserRole;
   email: string;
   claimed: boolean;

@@ -40,6 +40,9 @@ export default function LoginPage() {
              <Button asChild variant="link">
                 <Link href="/about">Learn more about AutoDrive</Link>
             </Button>
+             <p className="mt-2 px-8 text-center text-sm text-muted-foreground">
+                Need an account? Please contact your administrator for an invitation.
+            </p>
         </div>
       </div>
     </main>
