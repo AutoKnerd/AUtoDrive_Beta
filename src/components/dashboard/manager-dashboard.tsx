@@ -341,12 +341,24 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const isSuperAdmin = ['Admin', 'Developer'].includes(user.role);
   const showInsufficientDataWarning = stats?.totalLessons === -1;
 
+  const managerialTitle = useMemo(() => {
+    switch (user.role) {
+      case 'Owner':
+      case 'General Manager':
+        return 'Dealership Leader';
+      case 'manager':
+        return 'Sales Manager';
+      default:
+        return user.role;
+    }
+  }, [user.role]);
+
   return (
     <div className="space-y-8 pb-8">
         <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle className="text-2xl">Welcome, {user.role === 'manager' ? 'Sales Manager' : user.role}!</DialogTitle>
+                    <DialogTitle className="text-2xl">Welcome, {managerialTitle}!</DialogTitle>
                     <DialogDescription className="pt-2">
                     This is your command center. From here, you can monitor team-wide statistics, track individual member activity, and create custom training lessons.
                     <br /><br />
@@ -382,30 +394,38 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </section>
 
         {isSuperAdmin && (
-            <>
-                <Card>
-                    <CardHeader>
-                    <CardTitle>Create New Dealership</CardTitle>
-                    <CardDescription>Add a new dealership to the system. This must be done before you can invite users to it.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                    <CreateDealershipForm user={user} onDealershipCreated={handleUserManaged} />
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                    <CardTitle>Invite New User</CardTitle>
-                    <CardDescription>Send an email invitation for a new user to join a dealership.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                    <RegisterDealershipForm
-                        user={user}
-                        dealerships={allDealershipsForAdmin}
-                        onUserInvited={handleUserManaged}
-                    />
-                    </CardContent>
-                </Card>
-            </>
+             <Tabs defaultValue="invite" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="invite">Invite User</TabsTrigger>
+                    <TabsTrigger value="dealership">Create Dealership</TabsTrigger>
+                </TabsList>
+                <TabsContent value="invite">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Invite New User</CardTitle>
+                            <CardDescription>Send an email invitation for a new user to join a dealership.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <RegisterDealershipForm
+                                user={user}
+                                dealerships={allDealershipsForAdmin}
+                                onUserInvited={handleUserManaged}
+                            />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="dealership">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Create New Dealership</CardTitle>
+                            <CardDescription>Add a new dealership to the system. This must be done before you can invite users to it.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <CreateDealershipForm user={user} onDealershipCreated={handleUserManaged} />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         )}
 
         {showPersonalDevelopment && (
@@ -705,7 +725,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                       </DialogDescription>
                                   </DialogHeader>
                                   <CreateLessonForm user={user} onLessonCreated={() => setCreateLessonOpen(false)} />
-                              </DialogContent>
+                                  </DialogContent>
                           </Dialog>
                       </div>
                   </CardHeader>
