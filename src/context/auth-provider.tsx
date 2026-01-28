@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -46,8 +47,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      setLoading(true);
       if (firebaseUser) {
-        const userProfile = await getUserById(firebaseUser.uid);
+        let userProfile = await getUserById(firebaseUser.uid);
+
+        // If user exists in Auth but not in Firestore, create their profile.
+        // This handles cases where profile creation might have failed during registration
+        // or for pre-seeded admin accounts.
+        if (!userProfile) {
+          console.warn(`User document not found for UID ${firebaseUser.uid}. Creating a default profile.`);
+          
+          let role: UserRole = 'Sales Consultant'; // Safest default
+          let name = firebaseUser.displayName || 'New User';
+          
+          // Special handling for the primary admin user
+          if (firebaseUser.email === 'andrew@autoknerd.com') {
+            role = 'Admin';
+            name = 'Andrew (Admin)';
+          }
+
+          try {
+            userProfile = await createUserProfile(
+              firebaseUser.uid,
+              name,
+              firebaseUser.email || '',
+              role,
+              'Unknown'
+            );
+          } catch (creationError) {
+            console.error("Failed to create default user profile:", creationError);
+            // Sign out to prevent being in a broken state
+            await auth.signOut();
+            setUser(null);
+            setOriginalUser(null);
+            setIsTouring(false);
+            setLoading(false);
+            return;
+          }
+        }
+        
         setUser(userProfile);
         if (userProfile?.role === 'Developer') {
           setOriginalUser(userProfile);
