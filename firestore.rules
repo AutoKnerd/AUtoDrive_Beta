@@ -24,6 +24,10 @@
  *   for foundational application data.
  * - Immutable Fields: Critical relational fields like a user's ID and role are made immutable after
  *   creation to maintain system integrity and prevent users from escalating their own privileges.
+ * - Admin Email Check: A special check for a hardcoded admin email ('andrew@autoknerd.com') is included for critical
+ *   'create' operations. This bypasses potential race conditions where a `get()` call within a rule might fail if an
+ *   admin's user document hasn't been created or replicated yet upon their first login. It's a pragmatic solution
+ *   for a foundational user.
  *
  * Denormalization for Authorization:
  * The security model relies on path-based authorization for user-owned data. For example, a rule for
@@ -59,6 +63,8 @@ service cloud.firestore {
     
     /**
      * Checks if the authenticated user has any of the roles in the provided list.
+     * IMPORTANT: This involves a `get` call and can be subject to race conditions
+     * if the user document doesn't exist yet. Use with caution for `create` rules.
      */
     function hasAnyRole(roles) {
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -162,7 +168,7 @@ service cloud.firestore {
      * @description Rules for a user's own profile document.
      * @path /users/{userId}
      * @allow (get) An authenticated user 'user_abc' can read their own profile at /users/user_abc.
-     * @allow (list) A user with a managerial role can list users to populate their dashboard.
+     * @allow (list) A user with a managerial role can list all users to populate their dashboard.
      * @deny (list) A non-managerial user cannot list all documents in the /users collection.
      * @deny (update) An authenticated user 'user_abc' cannot update the profile of 'user_xyz'.
      * @principle Restricts access to a user's own data tree and prevents user enumeration by non-managers.
@@ -238,11 +244,11 @@ service cloud.firestore {
     /**
      * @description Rules for email invitations.
      * @path /emailInvitations/{invitationId}
-     * @allow (create) A manager can create invitations for new users.
+     * @allow (create) A manager can create invitations for new users. Also allows the specific admin email to create invitations to bypass race conditions on initial setup.
      * @deny (read, update, delete) Invitations are for system use and cannot be manipulated by clients after creation.
      */
     match /emailInvitations/{invitationId} {
-      allow create: if isManager() && request.resource.data.inviterId == request.auth.uid;
+      allow create: if (isManager() && request.resource.data.inviterId == request.auth.uid) || request.auth.token.email == 'andrew@autoknerd.com';
       allow read, update, delete: if false;
     }
 
@@ -250,12 +256,13 @@ service cloud.firestore {
      * @description Rules for the global, read-only collection of dealerships.
      * @path /dealerships/{dealershipId}
      * @allow (read) Anyone can read dealership information. This is necessary for the initial user registration flow.
-     * @deny (write) No client is allowed to create, update, or delete dealership data, except for the HQ dealership.
+     * @allow (create) Allows specific roles to create dealerships. Also allows the specific admin email to bypass race conditions on initial setup.
+     * @deny (write) No client is allowed to create, update, or delete dealership data, except for authorized roles.
      * @principle Protects global application data from being modified by clients. Assumes writes are handled by a trusted admin environment.
      */
     match /dealerships/{dealershipId} {
       allow read: if true;
-      allow create: if hasAnyRole(['Admin', 'Developer', 'Trainer']);
+      allow create: if hasAnyRole(['Admin', 'Developer', 'Trainer']) || request.auth.token.email == 'andrew@autoknerd.com';
       allow update, delete: if isAdminOrDeveloper();
     }
   }
