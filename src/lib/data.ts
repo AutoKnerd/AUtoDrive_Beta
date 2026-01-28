@@ -106,6 +106,10 @@ export async function getUserById(userId: string): Promise<User | null> {
             return tourUser;
         }
         
+        // Fallback for owner, as their user ID might not be a tour ID initially
+        const ownerUser = users.find(u => u.role === 'Owner');
+        if(ownerUser) return ownerUser;
+        
         // If for some reason a user is not found, return null to avoid crashes.
         return null;
     }
@@ -646,9 +650,8 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
 
 
 export async function getConsultantActivity(userId: string): Promise<LessonLog[]> {
-    if (isTouringUser() || userId.startsWith('tour-')) {
+    if (userId.startsWith('tour-')) {
         const { lessonLogs } = getTourData();
-        // The user ID passed in tour mode is the fake one, so we can use it directly.
         const userLogs = lessonLogs.filter(log => log.userId === userId);
         return userLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }
@@ -1152,3 +1155,4 @@ export async function getMessagesForUser(user: User): Promise<Message[]> {
     
     return uniqueMessages.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
+
