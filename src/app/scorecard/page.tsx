@@ -11,9 +11,10 @@ import { UserRole, LessonLog, Badge as BadgeType, Dealership, managerialRoles } 
 import { getConsultantActivity, getEarnedBadgesByUserId, getDealerships } from '@/lib/data';
 import { ScoreCard } from '@/components/profile/score-card';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import QRCode from 'react-qr-code';
+import Link from 'next/link';
 
 export default function ScoreCardPage() {
   const { user, loading, isTouring } = useAuth();
@@ -135,10 +136,18 @@ END:VCARD`;
         <div className="flex flex-col lg:flex-row items-center justify-center gap-8">
             <div className="flex-shrink-0">
                 <ScoreCard ref={scoreCardRef} user={user} activity={activity} badges={badges} dealerships={dealerships} />
-                <Button onClick={handleDownload} className="mt-4 w-full">
-                    <Download className="mr-2 h-4 w-4" />
-                    Save as Image
-                </Button>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Button onClick={handleDownload}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Save as Image
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link href="/">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Back to Dashboard
+                        </Link>
+                    </Button>
+                </div>
             </div>
             {isClient && (
               <div className="flex flex-col items-center gap-4 text-center lg:w-48">
