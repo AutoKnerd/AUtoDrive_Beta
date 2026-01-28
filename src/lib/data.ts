@@ -646,17 +646,11 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
 
 
 export async function getConsultantActivity(userId: string): Promise<LessonLog[]> {
-    if (isTouringUser()) {
-        const { users, lessonLogs } = getTourData();
-        const currentUser = await getUserById(userId);
-        if (!currentUser) return [];
-
-        const sampleUser = users.find(u => u.role === currentUser.role);
-        if (sampleUser) {
-            const userLogs = lessonLogs.filter(log => log.userId === sampleUser.userId);
-            return userLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-        }
-        return [];
+    if (isTouringUser() || userId.startsWith('tour-')) {
+        const { lessonLogs } = getTourData();
+        // The user ID passed in tour mode is the fake one, so we can use it directly.
+        const userLogs = lessonLogs.filter(log => log.userId === userId);
+        return userLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }
 
     const { db } = getFirebase();
@@ -1018,7 +1012,7 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
 
 // BADGES
 export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> {
-    if (isTouringUser()) {
+    if (isTouringUser() || userId.startsWith('tour-')) {
         const { earnedBadges } = getTourData();
         const userEarnedBadges = earnedBadges[userId] || [];
         const badgeIds = userEarnedBadges.map(b => b.badgeId);

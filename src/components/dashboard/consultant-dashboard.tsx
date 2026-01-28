@@ -140,7 +140,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       setAssignedLessons(fetchedAssignedLessons);
       setBadges(fetchedBadges);
       
-      if (user.dealershipIds.length > 0) {
+      if (user.dealershipIds.length > 0 && !isTouring) {
           const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id)));
           const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
           if (activeDealerships.length === 0) {
@@ -155,7 +155,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       setLoading(false);
     }
     fetchData();
-  }, [user]);
+  }, [user, isTouring]);
 
   useEffect(() => {
     if (isTouring) {
