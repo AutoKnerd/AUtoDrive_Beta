@@ -43,7 +43,7 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
   const [isNewDealership, setIsNewDealership] = useState(false);
 
-  const canManageAllDealerships = ['Admin', 'Trainer', 'Developer'].includes(user.role);
+  const canCreateDealership = ['Admin', 'Trainer', 'Developer'].includes(user.role);
   const registrationRoles = getTeamMemberRoles(user.role);
 
   const form = useForm<RegisterFormValues>({
@@ -61,10 +61,10 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
 
   useEffect(() => {
     async function fetchDealershipData() {
-        if (canManageAllDealerships || user.role === 'Owner') {
+        if (canCreateDealership || user.role === 'Owner' || user.role === 'General Manager') {
             const d = await getDealerships(user);
             setDealerships(d);
-            if (d.length === 0 && canManageAllDealerships) {
+            if (d.length === 0 && canCreateDealership) {
                 setIsNewDealership(true);
             }
         } else {
@@ -74,13 +74,13 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
         }
     }
     fetchDealershipData();
-  }, [canManageAllDealerships, user]);
+  }, [canCreateDealership, user]);
   
   useEffect(() => {
-    if (dealerships.length === 1 && !canManageAllDealerships && user.role !== 'Owner') {
+    if (dealerships.length === 1 && !canCreateDealership && user.role !== 'Owner') {
         form.setValue('dealershipName', dealerships[0].name);
     }
-  }, [dealerships, canManageAllDealerships, user.role, form]);
+  }, [dealerships, canCreateDealership, user.role, form]);
 
 
   async function onSubmit(data: RegisterFormValues) {
@@ -109,7 +109,7 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
       
       onDealershipRegistered?.();
       form.reset({
-        dealershipName: (dealerships.length === 1 && !canManageAllDealerships && user.role !== 'Owner') ? dealerships[0].name : '',
+        dealershipName: (dealerships.length === 1 && !canCreateDealership && user.role !== 'Owner') ? dealerships[0].name : '',
         userEmail: '',
         role: '',
         street: '',
@@ -118,7 +118,7 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
         zip: '',
       });
 
-      if (canManageAllDealerships) {
+      if (canCreateDealership) {
         setIsNewDealership(false);
         // Refresh dealership list
         const d = await getDealerships(user);
@@ -148,14 +148,14 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
             </p>
           </AlertDescription>
         </Alert>
-        <Button onClick={() => { setInvitationSent(false); if (canManageAllDealerships) setIsNewDealership(false); } } className="mt-4">
+        <Button onClick={() => { setInvitationSent(false); if (canCreateDealership) setIsNewDealership(false); } } className="mt-4">
             Send Another Invitation
         </Button>
       </div>
     );
   }
   
-  const showDealershipSelect = canManageAllDealerships || user.role === 'Owner' || (user.dealershipIds && user.dealershipIds.length > 1);
+  const showDealershipSelect = canCreateDealership || user.role === 'Owner' || (user.dealershipIds && user.dealershipIds.length > 1);
 
   return (
     <Form {...form}>
@@ -188,7 +188,7 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {canManageAllDealerships && (
+                            {canCreateDealership && (
                               <SelectItem value="---new---">
                                   <span className="font-semibold">-- Add New Dealership --</span>
                               </SelectItem>
@@ -201,7 +201,7 @@ export function RegisterDealershipForm({ user, onDealershipRegistered }: Registe
                         
                     </>
                 )}
-                {isNewDealership && canManageAllDealerships && (
+                {isNewDealership && canCreateDealership && (
                     <div className="mt-4 space-y-4 rounded-md border p-4">
                         <FormLabel>New Dealership Details</FormLabel>
                          <FormControl>
