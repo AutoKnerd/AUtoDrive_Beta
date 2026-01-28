@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole } from '@/lib/definitions';
-import { managerialRoles, noPersonalDevelopmentRoles } from '@/lib/definitions';
+import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
 import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits } from '@/lib/data';
 import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +32,6 @@ import { ManageDealershipForm } from '../admin/ManageDealershipForm';
 import { SendMessageForm } from '../messenger/send-message-form';
 import { UserNav } from '../layout/user-nav';
 import { useAuth } from '@/hooks/use-auth';
-import { allRoles } from '@/lib/definitions';
 import { RegisterDealershipForm } from '../admin/register-dealership-form';
 import { CreateDealershipForm } from '../admin/create-dealership-form';
 
