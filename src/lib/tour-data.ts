@@ -198,6 +198,16 @@ export const generateTourData = () => {
             users.push(user);
         }
     }
+
+    // 5. Add specific badges for the Owner tour user
+    const ownerUserId = 'tour-owner-user';
+    earnedBadges[ownerUserId] = [
+        { badgeId: 'talent-scout', userId: ownerUserId, timestamp: new Date() },
+        { badgeId: 'curriculum-architect', userId: ownerUserId, timestamp: new Date() },
+        { badgeId: 'empire-builder', userId: ownerUserId, timestamp: new Date() },
+        { badgeId: 'xp-10000', userId: ownerUserId, timestamp: new Date() },
+        { badgeId: 'level-25', userId: ownerUserId, timestamp: new Date() },
+    ];
     
     return { dealerships, users, lessonLogs, earnedBadges, lessons, lessonAssignments };
 };
