@@ -127,7 +127,7 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
                     {dealerships.map(d => (
                         <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                     ))}
-                    {dealerships.length === 0 && <SelectItem value="" disabled>No dealerships available to invite to.</SelectItem>}
+                    {dealerships.length === 0 && <SelectItem value="none" disabled>No dealerships available to invite to.</SelectItem>}
                 </SelectContent>
                 </Select>
               <FormMessage />
@@ -161,7 +161,7 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
                         </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {registrationRoles.length === 0 && <SelectItem value="" disabled>No roles available to invite.</SelectItem>}
+                            {registrationRoles.length === 0 && <SelectItem value="none" disabled>No roles available to invite.</SelectItem>}
                             {registrationRoles.map(role => (
                                 <SelectItem key={role} value={role}>
                                     {role === 'manager' ? 'Sales Manager' : role}
