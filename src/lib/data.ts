@@ -670,6 +670,15 @@ export async function getConsultantActivity(userId: string): Promise<LessonLog[]
 }
 
 export async function getDailyLessonLimits(userId: string): Promise<{ recommendedTaken: boolean, otherTaken: boolean }> {
+    if (userId.startsWith('tour-')) {
+        const { lessonLogs } = getTourData();
+        const todayLogs = lessonLogs.filter(log => log.userId === userId && isToday(log.timestamp));
+
+        const recommendedTaken = todayLogs.some(log => log.isRecommended);
+        const otherTaken = todayLogs.some(log => !log.isRecommended);
+        return { recommendedTaken, otherTaken };
+    }
+
     const { db } = getFirebase();
     const logsCollection = collection(db, `users/${userId}/lessonLogs`);
     let logs: any[];
@@ -1155,4 +1164,3 @@ export async function getMessagesForUser(user: User): Promise<Message[]> {
     
     return uniqueMessages.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
-
