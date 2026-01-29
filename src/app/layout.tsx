@@ -10,6 +10,10 @@ import { FirebaseClientProvider } from '@/firebase';
 export const metadata: Metadata = {
   title: 'AutoDrive powered by AutoKnerd',
   description: 'AI-powered training and performance for automotive professionals.',
+  icons: {
+    icon: '/logo-icon1.png',
+    apple: '/logo-icon1.png',
+  },
 };
 
 export default function RootLayout({
