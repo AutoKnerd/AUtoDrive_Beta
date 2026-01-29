@@ -65,7 +65,7 @@ export default function PrivacyPolicyPage() {
             </section>
              <section id="contact">
                 <h2 className="text-2xl font-semibold mb-2 text-foreground">6. Contact Us</h2>
-                <p>If you have questions or comments about this Privacy Policy, please contact us at: [Your Contact Information]</p>
+                <p>If you have questions or comments about this Privacy Policy, please contact us at: <a href="mailto:andrew@autoknerd.com" className="text-primary hover:underline">andrew@autoknerd.com</a></p>
             </section>
           </div>
         </div>
