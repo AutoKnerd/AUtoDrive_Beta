@@ -166,7 +166,7 @@ export const generateTourData = () => {
     for (const dealership of dealerships) {
         const personality = dealershipPersonalities[dealership.id];
 
-        for (let i = 0; i < 15; i++) { // 15 users per dealership = 60 total
+        for (let i = 0; i < 5; i++) { // 5 users per dealership = 20 total
             const role = rolesToGenerate[i % rolesToGenerate.length];
             const name = generateRandomName();
             const user: User = {
@@ -184,7 +184,7 @@ export const generateTourData = () => {
             };
 
             // 3. Generate Lesson Logs for each user
-            const numLogs = Math.floor(Math.random() * 25) + 5;
+            const numLogs = Math.floor(Math.random() * 8) + 2;
             let totalXp = 0;
             for (let j = 0; j < numLogs; j++) {
                 const xpGained = Math.floor(Math.random() * 90) + 10;
