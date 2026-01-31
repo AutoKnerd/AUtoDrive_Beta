@@ -146,6 +146,10 @@ export function LoginForm() {
                 </div>
             </div>
 
+            <Button asChild variant="secondary" className="w-full">
+                <Link href="/signup">Sign Up for a Pro Account</Link>
+            </Button>
+
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full" disabled={isSubmitting || isTouring}>
@@ -157,7 +161,7 @@ export function LoginForm() {
                   <DialogTitle>Choose Your Tour Perspective</DialogTitle>
                   <DialogDescription>
                     Select a role to experience how AutoDrive empowers every member of your team.
-                  </DialogDescription>
+                  </Description>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                     <Button variant="outline" className="h-auto p-6 flex-col gap-2 items-start whitespace-normal" onClick={() => handleStartTour('consultant')} disabled={isTouring}>

@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { Logo } from '@/components/layout/logo';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { Spinner } from '@/components/ui/spinner';
 import Link from 'next/link';
@@ -37,16 +36,8 @@ export default function LoginPage() {
         </div>
         <LoginForm />
         <div className="text-center">
-             <Button asChild variant="link">
-                <Link href="/about">Learn more about AutoDrive</Link>
-            </Button>
-             <p className="mt-2 px-8 text-center text-sm text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/signup" className="underline underline-offset-4 hover:text-primary">
-                    Sign up
-                </Link>
-                <br/>
-                Or contact your administrator for an invitation.
+             <p className="mt-4 px-8 text-center text-sm text-muted-foreground">
+                Have an invitation? Use the unique link from your email to register your account.
             </p>
         </div>
       </div>
