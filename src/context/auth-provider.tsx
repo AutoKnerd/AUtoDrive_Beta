@@ -57,6 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (fbUser) {
         let userProfile = await getUserById(fbUser.uid);
 
+        // Self-healing logic: If a Firebase Auth user exists but their Firestore document does not, create it.
         if (!userProfile && fbUser.email) {
           console.log(`User document not found for UID ${fbUser.uid}. Checking for invitation or admin status...`);
           
@@ -119,18 +120,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, invitation.email, password);
       await sendEmailVerification(userCredential.user);
       
-      const newUserProfile = await createUserProfile(
-          userCredential.user.uid, 
-          name, 
-          invitation.email, 
-          invitation.role, 
-          [invitation.dealershipId]
-      );
-      await claimInvitation(invitation.token);
-      // onAuthStateChanged will set the user state
+      // The onAuthStateChanged listener will handle creating the user profile and claiming the invitation.
+      // This makes the registration flow consistent with the login flow.
+      
     } catch(error) {
-        // If profile creation fails, the auth user still exists.
-        // The self-healing logic in onAuthStateChanged will attempt to fix this on next login.
         console.error("Registration error:", error);
         throw error;
     }
@@ -140,47 +133,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
         await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
-        // Handle auto-registration for admins and demo users
+        // If sign-in fails, check if it's a special user (admin/demo) that should be auto-registered.
         const isNotFound = error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential';
-        
-        if (isNotFound) {
-             if (adminEmails.includes(email)) {
-                try {
-                    // Attempt to create the admin user if they don't exist
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    await sendEmailVerification(userCredential.user);
-                    // onAuthStateChanged will handle profile creation, so we just need to wait for it to complete.
-                    // A short delay might be needed if redirection happens too quickly, but usually onAuthStateChanged is fast.
-                    return; 
-                } catch (registrationError: any) {
-                    // This could happen if the user *does* exist but used the wrong password.
-                    // Or if creation fails for another reason (e.g., weak password).
-                    // In either case, we should fail the login attempt.
-                    console.error('Admin auto-registration failed:', registrationError);
+        const canAutoRegister = adminEmails.includes(email) || demoUserEmails.includes(email);
+
+        if (isNotFound && canAutoRegister) {
+            try {
+                // Attempt to create the user. If it succeeds, onAuthStateChanged will handle the rest.
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                if (adminEmails.includes(email)) {
+                  await sendEmailVerification(userCredential.user);
+                }
+                // The onAuthStateChanged listener will now fire and create the appropriate profile.
+                return;
+            } catch (registrationError: any) {
+                // If creating the user fails because they already exist, it means the password was wrong for the initial login attempt.
+                // We re-throw the original login error.
+                if (registrationError.code === 'auth/email-already-in-use') {
                     throw error;
                 }
-            } else if (demoUserEmails.includes(email)) {
-                 // Demo user auto-registration logic (existing)
-                try {
-                    const role = tourUserRoles[email];
-                    const name = `Demo ${role === 'manager' ? 'Sales Manager' : role}`;
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    await createUserProfile(userCredential.user.uid, name, email, role, ['tour-dealership-1']);
-                } catch (registrationError: any) {
-                    if (registrationError.code === 'auth/email-already-in-use') {
-                        // This is expected if the demo user already exists but login failed due to wrong password.
-                        // We re-throw the original error in this case.
-                         throw error;
-                    } else {
-                        console.error("Failed to auto-register demo user:", registrationError);
-                        throw error;
-                    }
-                }
-            } else {
-                 throw error; // Re-throw for normal users
+                // For other registration errors (like a weak password), throw the new error.
+                console.error("Auto-registration for special user failed:", registrationError);
+                throw registrationError;
             }
         } else {
-            throw error; // Re-throw for other errors like 'auth/wrong-password'
+             // For normal users or other types of login errors, re-throw the original error.
+             throw error;
         }
     }
   }, [auth]);
@@ -188,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     await auth.signOut();
     setUser(null);
+    setOriginalUser(null);
     setIsTouring(false);
     router.push('/login');
   };

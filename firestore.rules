@@ -44,6 +44,7 @@ service cloud.firestore {
     }
 
     function isUpdatingOwnUserDocument() {
+      // Prevent a user from changing their own role or userId.
       let isUserIdImmutable = request.resource.data.userId == resource.data.userId;
       let isRoleImmutable = request.resource.data.role == resource.data.role;
       return isUserIdImmutable && isRoleImmutable;
