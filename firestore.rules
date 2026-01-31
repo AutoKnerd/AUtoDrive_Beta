@@ -95,7 +95,7 @@ service cloud.firestore {
       allow read: if true;
       // Allow creation by any signed-in user. This avoids issues with unverified emails
       // or race conditions during initial setup. The UI restricts this action to admins/developers.
-      allow create: if isSignedIn();
+      allow create: if request.auth != null;
       // Only Admins or Developers can modify dealerships after creation.
       allow update, delete: if hasAnyRole(['Admin', 'Developer']);
     }
