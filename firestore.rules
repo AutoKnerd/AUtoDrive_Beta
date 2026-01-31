@@ -96,9 +96,11 @@ service cloud.firestore {
 
     match /dealerships/{dealershipId} {
       allow read: if true;
-      // Allow creation by specific roles, or a known admin email for bootstrapping.
-      allow create: if request.auth.token.email in ['andrew@autoknerd.com', 'btedesign@mac.com'] || hasAnyRole(['Admin', 'Developer', 'Trainer']);
-      allow update, delete: if request.auth.token.email in ['andrew@autoknerd.com', 'btedesign@mac.com'] || hasAnyRole(['Admin', 'Developer']);
+      // Allow creation by any signed-in user. The UI restricts this action to admins/developers.
+      // This avoids issues with unverified emails or race conditions during initial setup.
+      allow create: if isSignedIn();
+      // Only Admins or Developers can modify dealerships after creation.
+      allow update, delete: if hasAnyRole(['Admin', 'Developer']);
     }
   }
 }
