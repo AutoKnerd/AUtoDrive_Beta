@@ -73,23 +73,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.error("Failed to create user profile from invitation:", creationError);
             }
           } else if (adminEmails.includes(firebaseUser.email)) {
-             console.log(`No invitation found, but user is admin. Creating admin profile for ${firebaseUser.email}.`);
+             console.log(`No invitation found, but user is admin/dev. Creating profile for ${firebaseUser.email}.`);
+             const role = firebaseUser.email === 'btedesign@mac.com' ? 'Developer' : 'Admin';
+             const name = role === 'Developer' ? 'AutoKnerd Developer' : 'AutoKnerd Admin';
              try {
                 userProfile = await createUserProfile(
                   firebaseUser.uid,
-                  'AutoKnerd Admin',
+                  name,
                   firebaseUser.email,
-                  'Admin',
+                  role,
                   []
                 );
              } catch (e) {
-                 console.error("Failed to create admin user profile:", e);
+                 console.error("Failed to create admin/dev user profile:", e);
              }
           }
         }
         
         setUser(userProfile);
-        if (userProfile?.role === 'Developer') {
+        if (userProfile?.role === 'Developer' || userProfile?.role === 'Admin') {
           setOriginalUser(userProfile);
         } else {
           setOriginalUser(null);
