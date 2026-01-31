@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { onAuthStateChanged, User as FirebaseUser, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { useAuth as useFirebaseAuth } from '@/firebase'; // Using alias to avoid naming conflict
 import { getUserById, createUserProfile, getInvitationByEmail, claimInvitation } from '@/lib/data';
 import type { User, UserRole, EmailInvitation } from '@/lib/definitions';
@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
+  firebaseUser: FirebaseUser | null;
   originalUser: User | null;
   loading: boolean;
   isTouring: boolean;
@@ -18,6 +19,7 @@ interface AuthContextType {
   register: (name: string, password: string, invitation: EmailInvitation) => Promise<void>;
   setUser: (user: User | null) => void;
   switchTourRole: (role: UserRole) => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +43,7 @@ const adminEmails = ['andrew@autoknerd.com', 'btedesign@mac.com'];
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [originalUser, setOriginalUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTouring, setIsTouring] = useState(false);
@@ -48,23 +51,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const auth = useFirebaseAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       setLoading(true);
-      if (firebaseUser) {
-        let userProfile = await getUserById(firebaseUser.uid);
+      setFirebaseUser(fbUser);
+      if (fbUser) {
+        let userProfile = await getUserById(fbUser.uid);
 
-        if (!userProfile && firebaseUser.email) {
-          console.log(`User document not found for UID ${firebaseUser.uid}. Checking for invitation or admin status...`);
+        if (!userProfile && fbUser.email) {
+          console.log(`User document not found for UID ${fbUser.uid}. Checking for invitation or admin status...`);
           
-          const invitation = await getInvitationByEmail(firebaseUser.email);
+          const invitation = await getInvitationByEmail(fbUser.email);
 
           if (invitation && !invitation.claimed) {
-            console.log(`Found unclaimed invitation for ${firebaseUser.email}. Creating profile.`);
+            console.log(`Found unclaimed invitation for ${fbUser.email}. Creating profile.`);
             try {
                userProfile = await createUserProfile(
-                firebaseUser.uid,
-                firebaseUser.displayName || 'New User',
-                firebaseUser.email,
+                fbUser.uid,
+                fbUser.displayName || 'New User',
+                fbUser.email,
                 invitation.role,
                 [invitation.dealershipId],
               );
@@ -72,15 +76,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } catch (creationError) {
               console.error("Failed to create user profile from invitation:", creationError);
             }
-          } else if (adminEmails.includes(firebaseUser.email)) {
-             console.log(`No invitation found, but user is admin/dev. Creating profile for ${firebaseUser.email}.`);
-             const role = firebaseUser.email === 'btedesign@mac.com' ? 'Developer' : 'Admin';
+          } else if (adminEmails.includes(fbUser.email)) {
+             console.log(`No invitation found, but user is admin/dev. Creating profile for ${fbUser.email}.`);
+             const role = fbUser.email === 'btedesign@mac.com' ? 'Developer' : 'Admin';
              const name = role === 'Developer' ? 'AutoKnerd Developer' : 'AutoKnerd Admin';
              try {
                 userProfile = await createUserProfile(
-                  firebaseUser.uid,
+                  fbUser.uid,
                   name,
-                  firebaseUser.email,
+                  fbUser.email,
                   role,
                   []
                 );
@@ -113,6 +117,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = useCallback(async (name: string, password: string, invitation: EmailInvitation) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, invitation.email, password);
+      await sendEmailVerification(userCredential.user);
+      
       const newUserProfile = await createUserProfile(
           userCredential.user.uid, 
           name, 
@@ -141,7 +147,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
              if (adminEmails.includes(email)) {
                 try {
                     // Attempt to create the admin user if they don't exist
-                    await createUserWithEmailAndPassword(auth, email, password);
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    await sendEmailVerification(userCredential.user);
                     // onAuthStateChanged will handle profile creation, so we just need to wait for it to complete.
                     // A short delay might be needed if redirection happens too quickly, but usually onAuthStateChanged is fast.
                     return; 
@@ -206,7 +213,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await login(email, 'readyplayer1');
   }, [login]);
 
-  const value = { user, originalUser, loading, isTouring, login, logout, register, setUser, switchTourRole };
+  const resendVerificationEmail = useCallback(async () => {
+    if (firebaseUser) {
+        await sendEmailVerification(firebaseUser);
+    } else {
+        throw new Error("You must be logged in to send a verification email.");
+    }
+  }, [firebaseUser]);
+
+  const value = { user, firebaseUser, originalUser, loading, isTouring, login, logout, register, setUser, switchTourRole, resendVerificationEmail };
 
   return (
     <AuthContext.Provider value={value}>

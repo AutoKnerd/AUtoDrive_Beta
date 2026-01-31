@@ -18,7 +18,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge as UiBadge } from '@/components/ui/badge';
 import placeholderImagesData from '@/lib/placeholder-images.json';
-import { Camera, X, CheckCircle, ExternalLink } from 'lucide-react';
+import { Camera, X, CheckCircle, ExternalLink, MailWarning, Send } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { createCustomerPortalSession } from '@/app/actions/stripe';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 interface ProfileFormProps {
   user: User;
@@ -59,7 +60,7 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export function ProfileForm({ user }: ProfileFormProps) {
-  const { setUser } = useAuth();
+  const { setUser, firebaseUser, resendVerificationEmail } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
@@ -70,6 +71,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [confirmationInput, setConfirmationInput] = useState('');
   const [isRemoving, setIsRemoving] = useState(false);
   const [showOwnerPrivacyDialog, setShowOwnerPrivacyDialog] = useState(false);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -201,10 +203,41 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
   }, [isPrivateValue, form]);
 
+  const handleResendVerification = async () => {
+    setIsSendingVerification(true);
+    try {
+        await resendVerificationEmail();
+        toast({
+            title: 'Verification Email Sent',
+            description: 'Please check your inbox to verify your email address.',
+        });
+    } catch (e) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: (e as Error).message,
+        });
+    } finally {
+        setIsSendingVerification(false);
+    }
+  };
+
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {firebaseUser && !firebaseUser.emailVerified && (
+            <Alert variant="destructive" className="bg-amber-500/10 border-amber-500/50 text-amber-200 [&>svg]:text-amber-400">
+                <MailWarning className="h-4 w-4" />
+                <AlertTitle className="text-amber-300">Verify Your Email Address</AlertTitle>
+                <AlertDescription className="flex items-center justify-between">
+                    Your email address is not verified. Please check your inbox or resend the verification email.
+                    <Button type="button" size="sm" variant="outline" className="ml-4 text-amber-200 border-amber-500/50 bg-amber-900/50 hover:bg-amber-900/80 hover:text-amber-100" onClick={handleResendVerification} disabled={isSendingVerification}>
+                        {isSendingVerification ? <Spinner size="sm"/> : <><Send className="mr-2 h-4 w-4" /> Resend Email</>}
+                    </Button>
+                </AlertDescription>
+            </Alert>
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Profile Picture</CardTitle>
