@@ -1,4 +1,5 @@
 
+'use client';
 import { isToday, subDays } from 'date-fns';
 import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope } from './definitions';
 import { allBadges } from './badges';
@@ -44,33 +45,29 @@ const getDataById = async <T>(db: Firestore, collectionName: string, id: string)
 
 // AUTH
 export async function getUserById(userId: string): Promise<User | null> {
+    const tourUserEmails: Record<string, string> = {
+        'consultant.demo@autodrive.com': 'tour-consultant',
+        'service.writer.demo@autodrive.com': 'tour-service-writer',
+        'manager.demo@autodrive.com': 'tour-manager',
+        'owner.demo@autodrive.com': 'tour-owner',
+    };
+
+    // This is a special bridge for the demo user logins.
+    // It finds the real user doc to get their email, then maps it to the correct fake tour ID.
+    const userDoc = await getDoc(doc(db, 'users', userId)).catch(() => null);
+    if (userDoc && userDoc.exists()) {
+        const userEmail = userDoc.data()?.email;
+        const tourId = tourUserEmails[userEmail];
+        if (tourId) {
+             const tourUser = getTourData().users.find(u => u.userId === tourId);
+             // Return the specific tour user, but inject the REAL Firebase UID so auth state remains valid.
+             return tourUser ? { ...tourUser, userId: userId } : null;
+        }
+    }
+
     if (isTouringUser(userId)) {
         const { users } = getTourData();
-        const tourUser = users.find(u => u.userId === userId);
-        if (tourUser) {
-            return tourUser;
-        }
-        // Handle special demo users that might not be in the pre-generated list
-        const tourUserRoles: Record<string, UserRole> = {
-            'consultant.demo': 'Sales Consultant',
-            'service.writer.demo': 'Service Writer',
-            'manager.demo': 'manager',
-            'owner.demo': 'Owner',
-        };
-        const roleKey = Object.keys(tourUserRoles).find(key => userId.includes(key));
-        if (roleKey) {
-            const role = tourUserRoles[roleKey];
-            const representativeUser = users.find(u => u.role === role);
-             if (representativeUser) {
-                return {
-                    ...representativeUser,
-                    userId: userId,
-                    email: `${roleKey}@autodrive.com`,
-                    name: role === 'Owner' ? 'Demo Owner' : `Demo ${role === 'manager' ? 'Sales Manager' : role}`,
-                };
-            }
-        }
-        return null;
+        return users.find(u => u.userId === userId) || null;
     }
     
     return getDataById<User>(db, 'users', userId);
@@ -134,6 +131,9 @@ export async function createUserProfile(userId: string, name: string, email: str
 
 
 export async function findUserByEmail(email: string, requestingUserId:string): Promise<User | null> {
+     if (isTouringUser(requestingUserId)) {
+        return getTourData().users.find(u => u.email === email) || null;
+    }
     const usersCollection = collection(db, 'users');
     const q = query(usersCollection, where("email", "==", email.toLowerCase()));
     let querySnapshot;
@@ -176,6 +176,14 @@ export async function findUserByEmail(email: string, requestingUserId:string): P
 }
 
 export async function updateUser(userId: string, data: Partial<Omit<User, 'userId' | 'role' | 'xp' | 'dealershipIds'>>): Promise<User> {
+    if (isTouringUser(userId)) {
+        const user = getTourData().users.find(u => u.userId === userId);
+        if (!user) throw new Error("Tour user not found after update");
+        // In tour mode, we just return the user object as if it was updated.
+        const updatedUser = { ...user, ...data };
+        return updatedUser;
+    }
+
     const userRef = doc(db, 'users', userId);
     try {
         await updateDoc(userRef, data);
@@ -194,6 +202,12 @@ export async function updateUser(userId: string, data: Partial<Omit<User, 'userI
 }
 
 export async function updateUserDealerships(userId: string, newDealershipIds: string[]): Promise<User> {
+     if (isTouringUser(userId)) {
+        const user = getTourData().users.find(u => u.userId === userId);
+        if (!user) throw new Error("Tour user not found");
+        user.dealershipIds = newDealershipIds; // In-memory update
+        return user;
+    }
     const userRef = doc(db, 'users', userId);
     const updateData = { dealershipIds: newDealershipIds };
     try {
@@ -213,6 +227,11 @@ export async function updateUserDealerships(userId: string, newDealershipIds: st
 }
 
 export async function deleteUser(userId: string): Promise<void> {
+    if (isTouringUser(userId)) {
+        // No-op for tour mode
+        return;
+    }
+
     const batch = writeBatch(db);
     
     batch.delete(doc(db, 'users', userId));
@@ -262,6 +281,18 @@ export async function createDealership(dealershipData: {
     address: Partial<Address>;
     trainerId?: string;
 }): Promise<Dealership> {
+    // This is an admin function, less likely to be used in tour, but good to guard.
+    if (dealershipData.trainerId && isTouringUser(dealershipData.trainerId)) {
+        const newDealership: Dealership = {
+            id: `tour-dealership-${Math.random()}`,
+            name: dealershipData.name,
+            status: 'active',
+            address: dealershipData.address as Address,
+        };
+        getTourData().dealerships.push(newDealership);
+        return newDealership;
+    }
+
     const dealershipRef = doc(collection(db, 'dealerships'));
     const newDealership: Dealership = {
         id: dealershipRef.id,
@@ -285,10 +316,12 @@ export async function createDealership(dealershipData: {
 }
 
 export async function getInvitationByToken(token: string): Promise<EmailInvitation | null> {
+    // Invitations are not part of tour mode
     return getDataById<EmailInvitation>(db, 'emailInvitations', token);
 }
 
 export async function getInvitationByEmail(email: string): Promise<EmailInvitation | null> {
+    // Invitations are not part of tour mode
     const invitationsRef = collection(db, 'emailInvitations');
     const q = query(invitationsRef, where("email", "==", email.toLowerCase()), where("claimed", "==", false));
     try {
@@ -305,6 +338,7 @@ export async function getInvitationByEmail(email: string): Promise<EmailInvitati
 }
 
 export async function claimInvitation(token: string): Promise<void> {
+    // Invitations are not part of tour mode
     const invitationRef = doc(db, 'emailInvitations', token);
     const updateData = { claimed: true };
      try {
@@ -326,6 +360,10 @@ export async function sendInvitation(
   role: UserRole,
   inviterId: string,
 ): Promise<void> {
+    if (isTouringUser(inviterId)) {
+        return; // No-op
+    }
+
   const inviter = await getUserById(inviterId);
   if (!inviter) throw new Error("Inviter not found.");
 
@@ -368,6 +406,7 @@ export async function sendInvitation(
 
 
 export async function updateUserSubscriptionStatus(stripeCustomerId: string, newStatus: 'active' | 'inactive'): Promise<User | null> {
+    // This function is for real users, tour users don't have stripe IDs.
     const usersCollection = collection(db, 'users');
     const q = query(usersCollection, where("stripeCustomerId", "==", stripeCustomerId));
     let snapshot;
@@ -424,7 +463,7 @@ export async function getLessons(role: LessonRole, userId?: string): Promise<Les
 }
 
 export async function getLessonById(lessonId: string, userId?: string): Promise<Lesson | null> {
-    if (isTouringUser(userId)) {
+    if (isTouringUser(userId) || lessonId.startsWith('tour-')) {
         const { lessons } = getTourData();
         return lessons.find(l => l.lessonId === lessonId) || null;
     }
@@ -432,7 +471,7 @@ export async function getLessonById(lessonId: string, userId?: string): Promise<
 }
 
 export async function getDealershipById(dealershipId: string, userId?: string): Promise<Dealership | null> {
-    if (isTouringUser(userId)) {
+    if (isTouringUser(userId) || dealershipId.startsWith('tour-')) {
         const { dealerships } = getTourData();
         const dealership = dealerships.find(d => d.id === dealershipId);
         if (dealership) return { ...dealership, status: 'active' };
@@ -666,15 +705,20 @@ export async function logLessonCompletion(data: {
     scores: Omit<LessonLog, 'logId' | 'timestamp' | 'userId' | 'lessonId' | 'stepResults' | 'xpGained' | 'isRecommended'>;
 }): Promise<{ updatedUser: User, newBadges: Badge[] }> {
     if (isTouringUser(data.userId)) {
-        const user = await getUserById(data.userId);
+        const tour = getTourData();
+        const user = tour.users.find(u => u.userId === data.userId);
         if (!user) throw new Error('Tour user not found');
-        const updatedUser = { ...user, xp: user.xp + data.xpGained };
+        
+        user.xp += data.xpGained; // In-memory update
         const newBadges: Badge[] = [];
-        if (data.xpGained > 80) {
-            const badge = allBadges.find(b => b.id === 'top-performer');
-            if(badge) newBadges.push(badge);
+        
+        const badge = allBadges.find(b => b.id === 'first-drive');
+        if(badge && !tour.earnedBadges[user.userId]?.some(b => b.badgeId === 'first-drive')) {
+            newBadges.push(badge);
+            tour.earnedBadges[user.userId].push({badgeId: 'first-drive', userId: user.userId, timestamp: new Date()});
         }
-        return { updatedUser, newBadges };
+        
+        return { updatedUser: user, newBadges: newBadges };
     }
 
     const user = await getUserById(data.userId);
@@ -948,7 +992,18 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
 
 export async function getManageableUsers(managerId: string): Promise<User[]> {
     if (isTouringUser(managerId)) {
-        return getTourData().users.filter(u => u.email !== 'owner.demo@autodrive.com');
+        const tourData = getTourData();
+        const manager = tourData.users.find(u => u.userId === managerId);
+        if (!manager) return [];
+        const manageableRoles = getTeamMemberRoles(manager.role);
+
+        return tourData.users.filter(u => {
+            if (u.userId === managerId) return false;
+            if (!manageableRoles.includes(u.role)) return false;
+            if (manager.role === 'Owner' || manager.role === 'Admin' || manager.role === 'Developer') return true; // Can manage across all dealerships
+            const inManagedDealership = u.dealershipIds.some(id => manager.dealershipIds.includes(id));
+            return inManagedDealership;
+        }).sort((a, b) => a.name.localeCompare(b.name));
     }
     
     const manager = await getUserById(managerId);
@@ -1006,6 +1061,15 @@ export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> 
 
 // DEALERSHIPS
 export async function updateDealershipStatus(dealershipId: string, status: 'active' | 'paused' | 'deactivated'): Promise<Dealership> {
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = getTourData().dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.status = status;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
     const dealershipsCollection = collection(db, 'dealerships');
     const dealershipRef = doc(dealershipsCollection, dealershipId);
 
@@ -1054,6 +1118,17 @@ export async function sendMessage(
     content: string, 
     target: { scope: MessageTargetScope; targetId: string; targetRole?: UserRole }
 ): Promise<Message> {
+     if (isTouringUser(sender.userId)) {
+        // Mock message creation for tour mode
+        return {
+            id: `tour-msg-${Math.random()}`,
+            senderId: sender.userId,
+            senderName: sender.name,
+            timestamp: new Date(),
+            content,
+            ...target,
+        };
+    }
     const messagesCollection = collection(db, 'messages');
     const messageRef = doc(messagesCollection);
     const newMessage: Message = {
@@ -1081,6 +1156,20 @@ export async function sendMessage(
 }
 
 export async function getMessagesForUser(user: User): Promise<Message[]> {
+     if (isTouringUser(user.userId)) {
+        // In tour mode, return a default welcome message.
+        return [
+            {
+                id: 'tour-welcome-msg',
+                senderId: 'autodrive-ai',
+                senderName: 'AutoDrive System',
+                timestamp: new Date(),
+                content: `Welcome to your tour as a ${user.role}! Use the Tour Control Panel to explore different features.`,
+                scope: 'global',
+                targetId: 'all'
+            }
+        ]
+    }
     const messagesCollection = collection(db, 'messages');
     const fourteenDaysAgo = subDays(new Date(), 14);
     let relevantMessages: Message[] = [];

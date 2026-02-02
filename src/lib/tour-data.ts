@@ -140,34 +140,70 @@ export const generateTourData = () => {
         }
     ];
 
-    // 2. Generate Users
-    // Add a dedicated Owner user first
-    users.push({
-        userId: 'tour-owner-user',
-        name: 'Demo Owner',
-        email: 'owner.demo@autodrive.com',
-        role: 'Owner',
-        dealershipIds: dealerships.map(d => d.id), // Owner has access to all
-        avatarUrl: 'https://i.pravatar.cc/150?u=tour-owner-user',
-        xp: 25000,
-        isPrivate: false,
-        isPrivateFromOwner: false,
-        memberSince: new Date(new Date().getTime() - 365 * 2 * 24 * 60 * 60 * 1000).toISOString(),
-        subscriptionStatus: 'active'
-    });
-    
-    const rolesToGenerate: UserRole[] = [
-        'manager', 'Service Manager', 'Parts Manager', 'Finance Manager',
-        'Sales Consultant', 'Sales Consultant', 'Sales Consultant', 'Sales Consultant', 'Sales Consultant',
-        'Service Writer', 'Service Writer', 'Service Writer',
-        'Parts Consultant', 'Parts Consultant', 'Sales Consultant'
-    ]; 
+    // 2. Generate Users, including specific ones for the demo logins
+    const specificTourUsers: User[] = [
+        {
+            userId: 'tour-owner',
+            name: 'Demo Owner',
+            email: 'owner.demo@autodrive.com',
+            role: 'Owner',
+            dealershipIds: dealerships.map(d => d.id),
+            avatarUrl: 'https://i.pravatar.cc/150?u=tour-owner',
+            xp: 25000,
+            isPrivate: false,
+            isPrivateFromOwner: false,
+            memberSince: new Date(new Date().getTime() - 365 * 2 * 24 * 60 * 60 * 1000).toISOString(),
+            subscriptionStatus: 'active'
+        },
+        {
+            userId: 'tour-manager',
+            name: 'Demo Sales Manager',
+            email: 'manager.demo@autodrive.com',
+            role: 'manager',
+            dealershipIds: [dealerships[0].id],
+            avatarUrl: 'https://i.pravatar.cc/150?u=tour-manager',
+            xp: 12500,
+            isPrivate: false,
+            isPrivateFromOwner: false,
+            memberSince: new Date(new Date().getTime() - 200 * 24 * 60 * 60 * 1000).toISOString(),
+            subscriptionStatus: 'active'
+        },
+        {
+            userId: 'tour-consultant',
+            name: 'Demo Sales Consultant',
+            email: 'consultant.demo@autodrive.com',
+            role: 'Sales Consultant',
+            dealershipIds: [dealerships[0].id],
+            avatarUrl: 'https://i.pravatar.cc/150?u=tour-consultant',
+            xp: 4200,
+            isPrivate: false,
+            isPrivateFromOwner: false,
+            memberSince: new Date(new Date().getTime() - 100 * 24 * 60 * 60 * 1000).toISOString(),
+            subscriptionStatus: 'active'
+        },
+        {
+            userId: 'tour-service-writer',
+            name: 'Demo Service Writer',
+            email: 'service.writer.demo@autodrive.com',
+            role: 'Service Writer',
+            dealershipIds: [dealerships[1].id],
+            avatarUrl: 'https://i.pravatar.cc/150?u=tour-service-writer',
+            xp: 5800,
+            isPrivate: false,
+            isPrivateFromOwner: false,
+            memberSince: new Date(new Date().getTime() - 150 * 24 * 60 * 60 * 1000).toISOString(),
+            subscriptionStatus: 'active'
+        }
+    ];
 
+    users.push(...specificTourUsers);
+
+    // Generate random users for team views
     for (const dealership of dealerships) {
         const personality = dealershipPersonalities[dealership.id];
 
-        for (let i = 0; i < 5; i++) { // 5 users per dealership = 20 total
-            const role = rolesToGenerate[i % rolesToGenerate.length];
+        for (let i = 0; i < 5; i++) {
+            const role: UserRole = i < 3 ? 'Sales Consultant' : 'Service Writer';
             const name = generateRandomName();
             const user: User = {
                 userId: `tour-user-${dealership.id}-${i}`,
@@ -182,69 +218,55 @@ export const generateTourData = () => {
                 memberSince: new Date(new Date().getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
                 subscriptionStatus: 'active'
             };
-
-            // 3. Generate Lesson Logs for each user
-            const numLogs = Math.floor(Math.random() * 8) + 2;
-            let totalXp = 0;
-            for (let j = 0; j < numLogs; j++) {
-                const xpGained = Math.floor(Math.random() * 90) + 10;
-                totalXp += xpGained;
-
-                const scores: Partial<Record<CxTrait, number>> = {};
-                const traits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
-                const baseScores: Record<CxTrait, number> = {
-                    empathy: 75,
-                    listening: 70,
-                    trust: 80,
-                    followUp: 65,
-                    closing: 68,
-                    relationshipBuilding: 82,
-                };
-
-                traits.forEach(trait => {
-                    let bias: 'strong' | 'weak' | 'neutral' = 'neutral';
-                    if (personality && personality.strongSuit === trait) {
-                        bias = 'strong';
-                    } else if (personality && personality.weakSuit === trait) {
-                        bias = 'weak';
-                    }
-                    scores[trait] = generateRandomScore(baseScores[trait], bias);
-                });
-
-                const log: LessonLog = {
-                    logId: `tour-log-${user.userId}-${j}`,
-                    timestamp: new Date(new Date().getTime() - Math.random() * 90 * 24 * 60 * 60 * 1000),
-                    userId: user.userId,
-                    lessonId: `tour-lesson-${(j % 9) + 1}`,
-                    stepResults: { final: 'pass' },
-                    xpGained: xpGained,
-                    empathy: scores.empathy!,
-                    listening: scores.listening!,
-                    trust: scores.trust!,
-                    followUp: scores.followUp!,
-                    closing: scores.closing!,
-                    relationshipBuilding: scores.relationshipBuilding!,
-                    isRecommended: Math.random() > 0.7
-                };
-                lessonLogs.push(log);
-            }
-            user.xp = totalXp;
-            
-            // 4. Generate some badges for the user
-            earnedBadges[user.userId] = [];
-            if (user.xp > 1000) earnedBadges[user.userId].push({ badgeId: 'xp-1000', userId: user.userId, timestamp: new Date() });
-            if (user.xp > 5000) earnedBadges[user.userId].push({ badgeId: 'xp-5000', userId: user.userId, timestamp: new Date() });
-            if (calculateLevel(user.xp).level >= 10) earnedBadges[user.userId].push({ badgeId: 'level-10', userId: user.userId, timestamp: new Date() });
-            if (calculateLevel(user.xp).level >= 25) earnedBadges[user.userId].push({ badgeId: 'level-25', userId: user.userId, timestamp: new Date() });
-            if (Math.random() > 0.8) earnedBadges[user.userId].push({ badgeId: 'top-performer', userId: user.userId, timestamp: new Date() });
-
-
             users.push(user);
         }
     }
 
-    // 5. Add specific badges for the Owner tour user
-    const ownerUserId = 'tour-owner-user';
+
+    // Generate logs and badges for all created users
+    for (const user of users) {
+        earnedBadges[user.userId] = [];
+        const numLogs = user.xp > 0 ? Math.floor(user.xp / (Math.floor(Math.random() * 40) + 40)) : Math.floor(Math.random() * 8) + 2;
+        let totalXp = 0;
+
+        const personality = user.dealershipIds.length > 0 ? dealershipPersonalities[user.dealershipIds[0]] : null;
+
+        for (let j = 0; j < numLogs; j++) {
+            const xpGained = Math.floor(Math.random() * 90) + 10;
+            totalXp += xpGained;
+            const scores: Partial<Record<CxTrait, number>> = {};
+            const traits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+            const baseScores: Record<CxTrait, number> = { empathy: 75, listening: 70, trust: 80, followUp: 65, closing: 68, relationshipBuilding: 82 };
+
+            traits.forEach(trait => {
+                let bias: 'strong' | 'weak' | 'neutral' = 'neutral';
+                if (personality && personality.strongSuit === trait) bias = 'strong';
+                else if (personality && personality.weakSuit === trait) bias = 'weak';
+                scores[trait] = generateRandomScore(baseScores[trait], bias);
+            });
+
+            lessonLogs.push({
+                logId: `tour-log-${user.userId}-${j}`,
+                timestamp: new Date(new Date().getTime() - Math.random() * 90 * 24 * 60 * 60 * 1000),
+                userId: user.userId,
+                lessonId: `tour-lesson-${(j % 9) + 1}`,
+                stepResults: { final: 'pass' },
+                xpGained: xpGained,
+                empathy: scores.empathy!, listening: scores.listening!, trust: scores.trust!, followUp: scores.followUp!, closing: scores.closing!, relationshipBuilding: scores.relationshipBuilding!,
+                isRecommended: Math.random() > 0.7
+            });
+        }
+        if (user.xp === 0) user.xp = totalXp;
+
+        if (user.xp > 1000) earnedBadges[user.userId].push({ badgeId: 'xp-1000', userId: user.userId, timestamp: new Date() });
+        if (user.xp > 5000) earnedBadges[user.userId].push({ badgeId: 'xp-5000', userId: user.userId, timestamp: new Date() });
+        if (calculateLevel(user.xp).level >= 10) earnedBadges[user.userId].push({ badgeId: 'level-10', userId: user.userId, timestamp: new Date() });
+        if (calculateLevel(user.xp).level >= 25) earnedBadges[user.userId].push({ badgeId: 'level-25', userId: user.userId, timestamp: new Date() });
+        if (Math.random() > 0.8) earnedBadges[user.userId].push({ badgeId: 'top-performer', userId: user.userId, timestamp: new Date() });
+    }
+    
+    // Add specific badges for the Owner tour user
+    const ownerUserId = 'tour-owner';
     earnedBadges[ownerUserId] = [
         { badgeId: 'talent-scout', userId: ownerUserId, timestamp: new Date() },
         { badgeId: 'curriculum-architect', userId: ownerUserId, timestamp: new Date() },
