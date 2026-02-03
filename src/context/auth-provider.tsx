@@ -96,6 +96,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
         
+        // If a user is authenticated but no Firestore profile exists after the self-heal attempt,
+        // it indicates an inconsistent state. We sign them out to prevent permission errors
+        // that rely on data from the /users/{uid} document.
+        if (!userProfile) {
+          console.error(`Signing out user ${fbUser.uid} due to missing Firestore profile.`);
+          await auth.signOut();
+          // The onAuthStateChanged listener will re-run with a null user, which correctly clears all app state.
+          // We can stop processing here for this run.
+          setLoading(false);
+          return;
+        }
+        
         setUser(userProfile);
         if (userProfile?.role === 'Developer' || userProfile?.role === 'Admin') {
           setOriginalUser(userProfile);
