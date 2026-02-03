@@ -308,23 +308,6 @@ export async function getInvitationByToken(token: string): Promise<EmailInvitati
     return getDataById<EmailInvitation>(db, 'emailInvitations', token);
 }
 
-export async function getInvitationByEmail(email: string): Promise<EmailInvitation | null> {
-    // Invitations are not part of tour mode
-    const invitationsRef = collection(db, 'emailInvitations');
-    const q = query(invitationsRef, where("email", "==", email.toLowerCase()), where("claimed", "==", false));
-    try {
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) {
-            return null;
-        }
-        return querySnapshot.docs[0].data() as EmailInvitation;
-    } catch (e) {
-        // This might fail due to permissions, which is okay for this check.
-        console.warn("Could not query invitations by email:", e);
-        return null;
-    }
-}
-
 export async function claimInvitation(token: string): Promise<void> {
     // Invitations are not part of tour mode
     const invitationRef = doc(db, 'emailInvitations', token);

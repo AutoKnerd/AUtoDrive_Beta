@@ -4,7 +4,7 @@
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { useAuth as useFirebaseAuth } from '@/firebase'; // Using alias to avoid naming conflict
-import { getUserById, createUserProfile, getInvitationByEmail, claimInvitation } from '@/lib/data';
+import { getUserById, createUserProfile, claimInvitation } from '@/lib/data';
 import type { User, UserRole, EmailInvitation } from '@/lib/definitions';
 import { useRouter } from 'next/navigation';
 
@@ -58,29 +58,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (fbUser) {
         let userProfile = await getUserById(fbUser.uid);
 
-        // Self-healing logic: If a Firebase Auth user exists but their Firestore document does not, create it.
+        // Self-healing logic: If a Firebase Auth user exists but their Firestore document does not, create it for admin users.
+        // The primary registration flow is through a token-based invitation link.
         if (!userProfile && fbUser.email) {
-          console.log(`User document not found for UID ${fbUser.uid}. Attempting to create from invitation or admin list.`);
+          console.log(`User document not found for UID ${fbUser.uid}. Attempting to create for admin user.`);
           
-          // Attempt to create profile based on invitation or special status
-          const invitation = await getInvitationByEmail(fbUser.email);
-
-          if (invitation && !invitation.claimed) {
-            console.log(`Found unclaimed invitation for ${fbUser.email}. Creating profile.`);
-            try {
-               userProfile = await createUserProfile(
-                fbUser.uid,
-                fbUser.displayName || 'New User',
-                fbUser.email,
-                invitation.role,
-                [invitation.dealershipId],
-              );
-              await claimInvitation(invitation.token);
-            } catch (creationError) {
-              console.error("Failed to create user profile from invitation:", creationError);
-            }
-          } else if (adminEmails.includes(fbUser.email)) {
-             console.log(`No invitation found, but user is admin/dev. Creating profile for ${fbUser.email}.`);
+          if (adminEmails.includes(fbUser.email)) {
+             console.log(`User is admin/dev. Creating profile for ${fbUser.email}.`);
              const role = fbUser.email === 'btedesign@mac.com' ? 'Developer' : 'Admin';
              const name = role === 'Developer' ? 'AutoKnerd Developer' : 'AutoKnerd Admin';
              try {
