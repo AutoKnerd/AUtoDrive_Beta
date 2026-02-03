@@ -7,10 +7,6 @@ import { useAuth as useFirebaseAuth } from '@/firebase'; // Using alias to avoid
 import { getUserById, createUserProfile, getInvitationByEmail, claimInvitation } from '@/lib/data';
 import type { User, UserRole, EmailInvitation } from '@/lib/definitions';
 import { useRouter } from 'next/navigation';
-import { initializeFirebase } from '@/firebase/init';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-
-const { firestore: db } = initializeFirebase();
 
 interface AuthContextType {
   user: User | null;
@@ -64,26 +60,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Self-healing logic: If a Firebase Auth user exists but their Firestore document does not, create it.
         if (!userProfile && fbUser.email) {
-          console.log(`User document not found for UID ${fbUser.uid}. Checking for email collision and invitation...`);
+          console.log(`User document not found for UID ${fbUser.uid}. Attempting to create from invitation or admin list.`);
           
-          // 1. Collision Check before creating a new profile
-          const usersRef = collection(db, 'users');
-          const q = query(usersRef, where("email", "==", fbUser.email.toLowerCase()));
-          const querySnapshot = await getDocs(q);
-
-          if (!querySnapshot.empty) {
-            const existingUser = querySnapshot.docs[0].data() as User;
-            // A user document exists for this email, but with a DIFFERENT userId. This is a collision.
-            if (existingUser.userId !== fbUser.uid) {
-                console.error(`CRITICAL: Duplicate identity detected for email ${fbUser.email}. User with UID ${fbUser.uid} tried to log in, but an account already exists with UID ${existingUser.userId}. Signing out to prevent data corruption.`);
-                await auth.signOut();
-                setLoading(false);
-                return; // Stop execution
-            }
-            // If userIds match, it means the profile was created but getUserById failed, which is unlikely but we let it proceed.
-          }
-          
-          // 2. No collision found, proceed with creation logic
+          // Attempt to create profile based on invitation or special status
           const invitation = await getInvitationByEmail(fbUser.email);
 
           if (invitation && !invitation.claimed) {
