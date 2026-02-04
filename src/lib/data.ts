@@ -1,5 +1,4 @@
 
-
 'use client';
 import { isToday, subDays } from 'date-fns';
 import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope } from './definitions';
