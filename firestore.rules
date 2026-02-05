@@ -86,12 +86,10 @@ service cloud.firestore {
     }
     
     match /emailInvitations/{invitationId} {
-      // This rule relies on the server-side API endpoint to perform the role check.
-      // The client-side rule ensures data integrity.
+      // Create and read operations are now handled by secure server endpoints.
+      // This prevents unauthorized users from reading or manipulating invitations.
       allow create: if isSignedIn() && request.resource.data.inviterId == request.auth.uid && request.resource.data.token == invitationId;
-      allow get: if true;
-      allow update: if isSignedIn() && request.resource.data.claimed == true && resource.data.claimed == false;
-      allow delete: if false;
+      allow read, update, delete: if false;
     }
 
     match /dealerships/{dealershipId} {

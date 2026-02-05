@@ -1,4 +1,5 @@
 
+
 'use client';
 import { isToday, subDays } from 'date-fns';
 import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope } from './definitions';
@@ -263,19 +264,29 @@ export async function getInvitationByToken(token: string): Promise<EmailInvitati
 }
 
 export async function claimInvitation(token: string): Promise<void> {
-    // Invitations are not part of tour mode
-    const invitationRef = doc(db, 'emailInvitations', token);
-    const updateData = { claimed: true };
-     try {
-        await updateDoc(invitationRef, updateData);
-    } catch (e: any) {
-        const contextualError = new FirestorePermissionError({
-            path: invitationRef.path,
-            operation: 'update',
-            requestResourceData: updateData
-        });
-        errorEmitter.emit('permission-error', contextualError);
-        throw contextualError;
+    if (isTouringUser(auth.currentUser?.uid)) {
+        return; // No-op for tour mode
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error("Authentication is required to claim an invitation.");
+    }
+    
+    const idToken = await currentUser.getIdToken(true);
+
+    const response = await fetch(`/api/invitations/${token}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ token }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to claim invitation. Please try again.');
     }
 }
 
@@ -592,7 +603,7 @@ export async function getDailyLessonLimits(userId: string): Promise<{ recommende
     try {
         const snapshot = await getDocs(logsCollection);
         logs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    } catch(e) {
+    } catch(e: any) {
         const contextualError = new FirestorePermissionError({ path: logsCollection.path, operation: 'list' });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;
