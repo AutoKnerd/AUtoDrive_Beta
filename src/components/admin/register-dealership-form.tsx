@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { Copy, MailCheck } from 'lucide-react';
+import { Copy, MailCheck, MailWarning } from 'lucide-react';
 import { Input } from '../ui/input';
 
 interface InviteUserFormProps {
@@ -72,14 +72,24 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
     setInviteUrl('');
     setShowLink(false);
     try {
-      const url = await sendInvitation(data.dealershipId, data.userEmail, data.role as UserRole, user.userId);
+      const { url, emailSent } = await sendInvitation(data.dealershipId, data.userEmail, data.role as UserRole, user.userId);
       setSentToEmail(data.userEmail);
       setInviteUrl(url);
       setInvitationSent(true);
-      toast({
-        title: 'Invitation Sent!',
-        description: `An email has been sent to ${data.userEmail}.`,
-      });
+      
+      if (emailSent) {
+        toast({
+          title: 'Invitation Sent!',
+          description: `An email has been sent to ${data.userEmail}.`,
+        });
+      } else {
+        setShowLink(true); // Show the link immediately if email fails
+        toast({
+          variant: 'destructive',
+          title: 'Invitation Created (Email Failed)',
+          description: `The invitation was created, but we couldn't send the email. Please copy the link manually.`,
+        });
+      }
       
       onUserInvited?.();
       form.reset({
@@ -118,21 +128,24 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
   if (invitationSent) {
     return (
       <div className="text-center space-y-4">
-        <Alert>
-          <MailCheck className="h-4 w-4" />
-          <AlertTitle>Invitation Sent!</AlertTitle>
+        <Alert variant={showLink ? "destructive" : "default"}>
+          {showLink ? <MailWarning className="h-4 w-4" /> : <MailCheck className="h-4 w-4" />}
+          <AlertTitle>{showLink ? 'Invitation Created (Email Failed)' : 'Invitation Sent!'}</AlertTitle>
           <AlertDescription>
-            An email has been sent to <strong>{sentToEmail}</strong>. If they don&apos;t receive it, you can share the link below.
+            {showLink ? (
+              <>We couldn&apos;t send an email to <strong>{sentToEmail}</strong>. This usually means the email service API key is missing. Please copy the link below and send it to them manually.</>
+            ) : (
+              <>An email has been sent to <strong>{sentToEmail}</strong>. If they don&apos;t receive it, you can share the fallback link.</>
+            )}
           </AlertDescription>
         </Alert>
         {showLink ? (
           <Input ref={inputRef} value={inviteUrl} readOnly />
-        ) : (
-          <Button onClick={handleCopyLink} variant="outline" className="w-full">
-            <Copy className="mr-2 h-4 w-4" />
-            Copy Fallback Link
-          </Button>
-        )}
+        ) : null}
+        <Button onClick={handleCopyLink} variant="outline" className="w-full">
+          <Copy className="mr-2 h-4 w-4" />
+          {showLink ? 'Copy Link' : 'Copy Fallback Link'}
+        </Button>
         <Button onClick={() => setInvitationSent(false)} className="w-full">
             Send Another Invitation
         </Button>

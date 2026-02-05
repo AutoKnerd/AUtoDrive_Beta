@@ -284,9 +284,9 @@ export async function sendInvitation(
   email: string,
   role: UserRole,
   inviterId: string,
-): Promise<string> {
+): Promise<{ url: string, emailSent: boolean }> {
     if (isTouringUser(inviterId)) {
-        return `http://localhost:9002/register?token=tour-fake-token-${Math.random()}`;
+        return { url: `http://localhost:9002/register?token=tour-fake-token-${Math.random()}`, emailSent: true };
     }
 
     const inviter = await getUserById(inviterId);
@@ -340,9 +340,7 @@ export async function sendInvitation(
         throw new Error('API response successful but did not include an inviteUrl.');
     }
     
-    const { inviteUrl } = responseData;
-  
-     if (['Owner', 'General Manager', 'manager'].includes(inviter.role)) {
+    if (['Owner', 'General Manager', 'manager'].includes(inviter.role)) {
         const inviterBadges = await getEarnedBadgesByUserId(inviter.userId);
         if (!inviterBadges.some(b => b.id === 'talent-scout')) {
             const badgeRef = doc(db, `users/${inviter.userId}/earnedBadges`, 'talent-scout');
@@ -353,7 +351,7 @@ export async function sendInvitation(
             }
         }
     }
-    return inviteUrl;
+    return { url: responseData.inviteUrl, emailSent: responseData.emailSent };
 }
 
 // LESSONS

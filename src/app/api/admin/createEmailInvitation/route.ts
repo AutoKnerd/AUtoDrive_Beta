@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       console.error(`Failed to send invitation email to ${email}: ${emailResult.error}`);
     }
 
-    return NextResponse.json({ token: invitationToken, inviteUrl }, { status: 201 });
+    return NextResponse.json({ token: invitationToken, inviteUrl, emailSent: emailResult.success }, { status: 201 });
 
   } catch (error: any) {
     console.error('[API CreateEmailInvitation] Error:', error);
