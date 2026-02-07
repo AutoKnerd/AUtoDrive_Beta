@@ -1,8 +1,14 @@
-
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { onAuthStateChanged, User as FirebaseUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  User as FirebaseUser,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+} from 'firebase/auth';
+
 import { useAuth as useFirebaseAuth } from '@/firebase'; // Using alias to avoid naming conflict
 import { getUserById, createUserProfile, claimInvitation } from '@/lib/data.client';
 import type { User, UserRole, EmailInvitation } from '@/lib/definitions';
@@ -26,10 +32,10 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const demoUserEmails = [
-    'consultant.demo@autodrive.com',
-    'service.writer.demo@autodrive.com',
-    'manager.demo@autodrive.com',
-    'owner.demo@autodrive.com',
+  'consultant.demo@autodrive.com',
+  'service.writer.demo@autodrive.com',
+  'manager.demo@autodrive.com',
+  'owner.demo@autodrive.com',
 ];
 
 const tourUserRoles: Record<string, UserRole> = {
@@ -41,13 +47,13 @@ const tourUserRoles: Record<string, UserRole> = {
 
 const adminEmails = ['andrew@autoknerd.com', 'btedesign@mac.com'];
 
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [originalUser, setOriginalUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTouring, setIsTouring] = useState(false);
+
   const router = useRouter();
   const auth = useFirebaseAuth();
 
@@ -55,92 +61,138 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       setLoading(true);
       setFirebaseUser(fbUser);
+
       if (fbUser) {
         let userProfile = await getUserById(fbUser.uid);
 
+        // Self-heal if user doc missing
         if (!userProfile && fbUser.email) {
           console.log(`User document not found for UID ${fbUser.uid}. Attempting to self-heal.`);
-          
+
           try {
             const idToken = await fbUser.getIdToken();
+
             const response = await fetch('/api/auth/resolve-invitation', {
               method: 'POST',
-              headers: { 'Authorization': `Bearer ${idToken}` }
+              headers: { Authorization: `Bearer ${idToken}` },
             });
 
             if (response.ok) {
-                const invitation: EmailInvitation = await response.json();
-                console.log(`Found pending invitation for ${fbUser.email}. Creating profile.`);
-                userProfile = await createUserProfile(
-                  fbUser.uid,
-                  // Use a placeholder name that can be updated in their profile later
-                  invitation.role, 
-                  invitation.email,
-                  invitation.role,
-                  [invitation.dealershipId],
-                );
-                await claimInvitation(invitation.token);
-            } else if (adminEmails.includes(fbUser.email)) {
-                 console.log(`User is admin/dev. Creating profile for ${fbUser.email}.`);
-                 const role = fbUser.email === 'btedesign@mac.com' ? 'Developer' : 'Admin';
-                 const name = role === 'Developer' ? 'AutoKnerd Developer' : 'AutoKnerd Admin';
-                 userProfile = await createUserProfile(fbUser.uid, name, fbUser.email, role, []);
-            }
+              const invitation: EmailInvitation = await response.json();
+              console.log(`Found pending invitation for ${fbUser.email}. Creating profile.`);
 
-          } catch(e) {
-             console.error("Error during self-heal process:", e);
+              const fallbackName = fbUser.displayName || 'New User';
+
+              userProfile = await createUserProfile(
+                fbUser.uid,
+                fallbackName,
+                invitation.email,
+                invitation.role,
+                [invitation.dealershipId],
+              );
+
+              await claimInvitation(invitation.token);
+            } else if (adminEmails.includes(fbUser.email)) {
+              console.log(`User is admin/dev. Creating profile for ${fbUser.email}.`);
+
+              const role: UserRole = fbUser.email === 'btedesign@mac.com' ? 'Developer' : 'Admin';
+              const name = role === 'Developer' ? 'AutoKnerd Developer' : 'AutoKnerd Admin';
+
+              userProfile = await createUserProfile(fbUser.uid, name, fbUser.email, role, []);
+            }
+          } catch (e) {
+            console.error('Error during self-heal process:', e);
           }
         }
-        
+
+        // Critical validation
         if (!userProfile || userProfile.userId !== fbUser.uid || !userProfile.role) {
-            console.error(`CRITICAL: User profile validation failed for UID ${fbUser.uid}. Profile exists: ${!!userProfile}, UID Match: ${userProfile?.userId === fbUser.uid}, Role Exists: ${!!userProfile?.role}. Signing out.`);
-            await auth.signOut();
-            setLoading(false);
-            return;
+          console.error(
+            `CRITICAL: User profile validation failed for UID ${fbUser.uid}. ` +
+              `Profile exists: ${!!userProfile}, UID Match: ${userProfile?.userId === fbUser.uid}, Role Exists: ${!!userProfile?.role}. Signing out.`
+          );
+          await auth.signOut();
+          setLoading(false);
+          return;
         }
-        
+
         setUser(userProfile);
-        if (userProfile?.role === 'Developer' || userProfile?.role === 'Admin') {
+
+        if (userProfile.role === 'Developer' || userProfile.role === 'Admin') {
           setOriginalUser(userProfile);
         } else {
           setOriginalUser(null);
         }
-        if(userProfile?.email) {
-            setIsTouring(demoUserEmails.includes(userProfile.email));
+
+        if (userProfile.email) {
+          setIsTouring(demoUserEmails.includes(userProfile.email));
         }
       } else {
         setUser(null);
         setOriginalUser(null);
         setIsTouring(false);
       }
+
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [auth]);
-  
-  const register = useCallback(async (name: string, password: string, invitation: EmailInvitation) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, invitation.email, password);
-      await sendEmailVerification(userCredential.user);
 
-      await createUserProfile(
-        userCredential.user.uid,
-        name,
-        invitation.email,
-        invitation.role,
-        [invitation.dealershipId],
-      );
-      await claimInvitation(invitation.token);
-      
-    } catch(error: any) {
-        console.error("Registration error:", error);
-        if (error.code === 'auth/email-already-in-use') {
-            throw new Error('This email address is already associated with an account. Please sign in.');
+  const register = useCallback(
+    async (name: string, password: string, invitation: EmailInvitation) => {
+      try {
+        // Normal path: brand new user
+        const userCredential = await createUserWithEmailAndPassword(auth, invitation.email, password);
+        await sendEmailVerification(userCredential.user);
+
+        await createUserProfile(
+          userCredential.user.uid,
+          name,
+          invitation.email,
+          invitation.role,
+          [invitation.dealershipId],
+        );
+
+        await claimInvitation(invitation.token);
+        return;
+      } catch (error: any) {
+        console.error('Registration error:', error);
+
+        // Existing user claiming invite
+        if (error?.code === 'auth/email-already-in-use') {
+          try {
+            const existingCred = await signInWithEmailAndPassword(auth, invitation.email, password);
+
+            await claimInvitation(invitation.token);
+
+            // Optional: refresh profile so UI updates immediately
+            const refreshed = await getUserById(existingCred.user.uid);
+            if (refreshed) setUser(refreshed);
+
+            return;
+          } catch (loginErr: any) {
+            console.error('Existing account sign-in failed:', loginErr);
+
+            if (loginErr?.code === 'auth/wrong-password') {
+              throw new Error(
+                'This email already has an account, but that password is incorrect. Please sign in with your existing password, or reset your password.'
+              );
+            }
+
+            if (loginErr?.code === 'auth/too-many-requests') {
+              throw new Error('Too many attempts. Please wait a bit, then try again.');
+            }
+
+            throw new Error('This email already has an account. Please sign in to claim your invite.');
+          }
         }
+
         throw error;
-    }
-  }, [auth]);
+      }
+    },
+    [auth]
+  );
 
   const publicSignup = useCallback(async (name: string, email: string, password: string) => {
     try {

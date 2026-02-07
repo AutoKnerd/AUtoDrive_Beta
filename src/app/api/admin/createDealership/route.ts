@@ -58,9 +58,25 @@ export async function POST(req: Request) {
 
     return NextResponse.json(newDealershipData, { status: 201 });
   } catch (error: any) {
-    console.error('[API CreateDealership] Error:', error);
+    console.error('[API CreateDealership] Error:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+    });
+    
+    // Create a structured JSON error response
+    const errorResponse: { message: string, code?: string } = {
+        message: error.message || 'Internal Server Error',
+        code: error.code || 'INTERNAL_SERVER_ERROR',
+    };
+
+    if (error.code && error.code.startsWith('auth/')) {
+        errorResponse.message = `Unauthorized: ${error.message}`;
+        return NextResponse.json(errorResponse, { status: 401 });
+    }
+    
     return NextResponse.json(
-      { message: error?.message || 'Internal Server Error' },
+      errorResponse,
       { status: 500 }
     );
   }

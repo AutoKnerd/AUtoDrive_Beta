@@ -4,18 +4,14 @@ import { getAuth } from 'firebase-admin/auth';
 
 let app: App;
 
-const projectId =
-  process.env.FIREBASE_PROJECT_ID ||
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || // ok fallback if you already have it
-  'studio-8028797920-12261'; // last resort
-
 if (getApps().length === 0) {
+  // In a managed Google Cloud environment like App Hosting, applicationDefault() 
+  // automatically uses the runtime service account. The projectId is inferred 
+  // from the environment, so we don't need to specify it manually.
   app = initializeApp({
     credential: applicationDefault(),
-    projectId,
   });
-
-  console.log(`[Firebase Admin] projectId = ${app.options.projectId}`);
+  console.log(`[Firebase Admin] Initialized with project ID: ${app.options.projectId}`);
 } else {
   app = getApps()[0];
 }
