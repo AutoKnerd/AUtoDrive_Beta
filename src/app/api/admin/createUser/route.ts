@@ -80,7 +80,12 @@ export async function POST(req: Request) {
       }
     } else {
       // Bootstrap mode: System is empty, allow creation without auth
-      console.log('[API CreateUser] Bootstrap mode enabled - system has no users yet.');
+      // If a token was provided but can't be verified, that's ok - we skip validation
+      if (authorization) {
+        console.log('[API CreateUser] Bootstrap mode: Authorization header provided but not required.');
+      } else {
+        console.log('[API CreateUser] Bootstrap mode enabled - system has no users yet, no auth required.');
+      }
     }
 
     const { name, email, phone, role } = await req.json();

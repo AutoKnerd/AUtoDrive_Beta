@@ -48,25 +48,26 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
     setIsSubmitting(true);
     setUserCreated(false);
 
-    if (!firebaseUser) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Error',
-        description: 'You must be logged in to create a user.',
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      const token = await firebaseUser.getIdToken(true);
+      // Prepare headers - only include token if user exists
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      // Try to get auth token, but handle gracefully if user doesn't have Firestore record yet (bootstrap scenario)
+      try {
+        if (firebaseUser) {
+          const token = await firebaseUser.getIdToken(true);
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      } catch (tokenError) {
+        console.warn('[CreateUserForm] Could not obtain ID token:', tokenError);
+        // Continue without token - bootstrap mode will handle it
+      }
 
       const response = await fetch('/api/admin/createUser', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify({
           name: data.name,
           email: data.email,
