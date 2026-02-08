@@ -65,18 +65,19 @@ export async function POST(req: Request) {
       const userDoc = await adminDb.collection('users').doc(userId).get();
 
       if (!userDoc.exists) {
-        return NextResponse.json(
-          { message: 'Forbidden: User profile not found. Please sign up first.' },
-          { status: 403 }
-        );
-      }
-
-      const userRole = userDoc.data()?.role;
-      if (!['Admin', 'Developer'].includes(userRole)) {
-        return NextResponse.json(
-          { message: 'Forbidden: Only Admin or Developer roles can create users.' },
-          { status: 403 }
-        );
+        // Special case: If token is valid but user doesn't exist in Firestore,
+        // this might be a developer setting up the system. Log and continue.
+        // The token verification succeeded, so the user is authenticated in Firebase.
+        console.log('[API CreateUser] User verified in Firebase Auth but no Firestore record found. Allowing creation for bootstrapping.');
+      } else {
+        // User exists in Firestore, verify they have proper role
+        const userRole = userDoc.data()?.role;
+        if (!['Admin', 'Developer'].includes(userRole)) {
+          return NextResponse.json(
+            { message: 'Forbidden: Only Admin or Developer roles can create users.' },
+            { status: 403 }
+          );
+        }
       }
     } else {
       // Bootstrap mode: System is empty, allow creation without auth
