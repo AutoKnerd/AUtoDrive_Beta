@@ -1,55 +1,26 @@
-import {NextResponse} from 'next/server';
-import type {Stripe} from 'stripe';
+import { NextResponse } from 'next/server';
 
-import {getStripe} from '@/lib/stripe';
-import {updateUserSubscriptionStatus} from '@/lib/data.server';
+// TEMPORARY: Stripe is disabled for the beta.
+// We keep this route so builds and deployments succeed, but it does not process events.
 
-export async function POST(req: Request) {
-  const stripe = getStripe();
-  let event: Stripe.Event;
+export async function POST() {
+  return NextResponse.json(
+    {
+      ok: true,
+      stripeDisabled: true,
+      message: 'Stripe webhook is temporarily disabled for this beta build.',
+    },
+    { status: 200 }
+  );
+}
 
-  const signature = req.headers.get('stripe-signature');
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  if (!signature || !secret) {
-    return new NextResponse('Webhook Error: Missing Stripe signature or webhook secret.', {status: 400});
-  }
-
-  try {
-    const body = await req.text();
-    event = stripe.webhooks.constructEvent(body, signature, secret);
-  } catch (err: any) {
-    console.log(`❌ Error message: ${err.message}`);
-    return new NextResponse(`Webhook Error: ${err.message}`, {status: 400});
-  }
-
-  // Successfully constructed event.
-  console.log('✅ Success:', event.id);
-
-  // Cast event data to Stripe object.
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
-    console.log('Checkout session completed:', session);
-    
-    const customerId = session.customer as string;
-    await updateUserSubscriptionStatus(customerId, 'active');
-    
-  } else if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
-     const subscription = event.data.object as Stripe.Subscription;
-     const customerId = subscription.customer as string;
-     const newStatus = subscription.status === 'active' ? 'active' : 'inactive';
-     
-     if (subscription.cancel_at_period_end && newStatus === 'active') {
-        // The subscription is set to be cancelled at the end of the period, but is still active.
-        // We can choose to reflect this in the UI, but for now, we'll keep it simple.
-     } else {
-        await updateUserSubscriptionStatus(customerId, newStatus);
-     }
-  }
-   else {
-    console.warn(`🤷‍♀️ Unhandled event type: ${event.type}`);
-  }
-
-  // Return a 200 response to acknowledge receipt of the event.
-  return NextResponse.json({received: true});
+export async function GET() {
+  return NextResponse.json(
+    {
+      ok: true,
+      stripeDisabled: true,
+      message: 'Stripe webhook is temporarily disabled for this beta build.',
+    },
+    { status: 200 }
+  );
 }

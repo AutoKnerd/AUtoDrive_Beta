@@ -65,5 +65,13 @@ try {
   };
 }
 
+
+export function getAdminDb(): Firestore {
+  return _adminDb as Firestore;
+}
+
+export function getAdminAuth(): Auth {
+  return _adminAuth as Auth;
+}
 export const adminDb = _adminDb as Firestore;
 export const adminAuth = _adminAuth as Auth;
