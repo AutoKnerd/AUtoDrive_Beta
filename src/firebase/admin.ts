@@ -1,6 +1,7 @@
 import { getApps, initializeApp, App, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
+import { firebaseConfig } from '@/firebase/config';
 
 let app: App | undefined;
 let _adminDb: Firestore | any = null;
@@ -63,8 +64,10 @@ try {
       });
     } else {
       // In managed Google Cloud environments, ADC works with runtime service account.
+      // We explicitly set the project ID to match the client-side config.
       app = initializeApp({
         credential: applicationDefault(),
+        projectId: firebaseConfig.projectId,
       });
     }
     console.log(`[Firebase Admin] Initialized with project ID: ${app.options.projectId}`);
