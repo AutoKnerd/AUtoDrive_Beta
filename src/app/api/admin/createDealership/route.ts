@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ [key: string]: string }> }
 ) {
   const authorization =
     req.headers.get('authorization') ?? req.headers.get('Authorization');

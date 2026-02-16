@@ -1,14 +1,12 @@
-
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb, adminAuth } from '@/firebase/admin';
+import { getAdminDb, getAdminAuth } from '@/firebase/admin';
 import { EmailInvitation } from '@/lib/definitions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-
 async function resolveByEmail(userEmail: string) {
-  const invitationsRef = adminDb.collection('emailInvitations');
+  const invitationsRef = getAdminDb().collection('emailInvitations');
   const q = invitationsRef
     .where('email', '==', userEmail.toLowerCase())
     .where('claimed', '==', false)
@@ -31,7 +29,7 @@ async function resolveByToken(token: string) {
     return NextResponse.json({ message: 'Bad Request: Missing invitation token.' }, { status: 400 });
   }
 
-  const docRef = adminDb.collection('emailInvitations').doc(token);
+  const docRef = getAdminDb().collection('emailInvitations').doc(token);
   const snap = await docRef.get();
 
   if (!snap.exists) {
@@ -44,12 +42,10 @@ async function resolveByToken(token: string) {
     return NextResponse.json({ message: 'Invitation not found.' }, { status: 404 });
   }
 
-  // Basic safety checks
   if ((data as any).claimed === true) {
     return NextResponse.json({ message: 'Invitation has already been claimed.' }, { status: 409 });
   }
 
-  // Optional expiry support if your invitation docs include `expiresAt`
   const expiresAt: any = (data as any).expiresAt;
   if (expiresAt) {
     const expMs = typeof expiresAt?.toMillis === 'function' ? expiresAt.toMillis() : Date.parse(expiresAt);
@@ -84,10 +80,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: error.message }, { status: 503 });
     }
 
-    if (error?.message && error.message.includes('Firebase Admin not initialized')) {
-      return NextResponse.json({ message: error.message }, { status: 503 });
-    }
-
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -96,10 +88,9 @@ export async function POST(req: Request) {
   const authorization = req.headers.get('authorization');
 
   try {
-    // If the caller is already authenticated, keep the original behavior
     if (authorization) {
       const idToken = authorization.replace('Bearer ', '');
-      const decodedToken = await adminAuth.verifyIdToken(idToken);
+      const decodedToken = await getAdminAuth().verifyIdToken(idToken);
       const userEmail = decodedToken.email;
 
       if (!userEmail) {
@@ -109,7 +100,6 @@ export async function POST(req: Request) {
       return await resolveByEmail(userEmail);
     }
 
-    // Otherwise, allow resolving by invitation token (from body)
     const body = await req.json().catch(() => ({} as any));
     const token = body?.token as string | undefined;
 
@@ -129,10 +119,6 @@ export async function POST(req: Request) {
     });
 
     if (error && error.code === 'admin/not-initialized') {
-      return NextResponse.json({ message: error.message }, { status: 503 });
-    }
-
-    if (error?.message && error.message.includes('Firebase Admin not initialized')) {
       return NextResponse.json({ message: error.message }, { status: 503 });
     }
 

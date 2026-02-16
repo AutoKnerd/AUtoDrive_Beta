@@ -6,24 +6,18 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function getPublicOrigin(req: Request) {
-  // Prefer an explicit public URL in production.
   const explicit = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
   if (explicit) return explicit.replace(/\/$/, '');
 
-  // Otherwise, attempt to derive from forwarded headers (Firebase/App Hosting, proxies, etc.).
   const proto = req.headers.get('x-forwarded-proto') || 'http';
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
   if (host) return `${proto}://${host}`;
 
-  // Local dev fallback.
   return 'http://localhost:3000';
 }
 
 function isEmailSendingEnabled() {
-  // Hard off switch for beta / local development.
   if (process.env.DISABLE_INVITE_EMAILS === 'true') return false;
-
-  // If you re-enable later, you can swap this to check for whatever provider key you use.
   return !!process.env.RESEND_API_KEY;
 }
 
@@ -66,7 +60,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: 'Bad Request: Missing required invitation details.' }, { status: 400 });
     }
 
-    // Owners can only invite to their assigned dealerships
     if (userRole === 'Owner' && !user.dealershipIds?.includes(dealershipId)) {
         return NextResponse.json({ message: 'Forbidden: You can only manage invitations for your assigned dealerships.' }, { status: 403 });
     }
@@ -77,14 +70,12 @@ export async function POST(req: Request) {
     }
     const dealership = dealershipDoc.data() as Dealership;
 
-
     const invitationRef = adminDb.collection('emailInvitations').doc();
     const invitationToken = invitationRef.id;
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     
-    // Dynamically import Timestamp to avoid firebase-admin being loaded at build-time
     const { Timestamp } = await import('firebase-admin/firestore');
     
     const newInvitationData = {
@@ -104,15 +95,12 @@ export async function POST(req: Request) {
     const origin = getPublicOrigin(req);
     const inviteUrl = `${origin}/register?token=${invitationToken}`;
 
-    // Email is optional for beta. Always return the inviteUrl.
     let emailSent = false;
     let emailError: string | undefined;
 
     if (isEmailSendingEnabled()) {
       try {
-        // Dynamically import to avoid hard dependency during builds / when disabled.
         const { sendInvitationEmail } = await import('@/lib/email');
-
         const emailResult = await sendInvitationEmail({
           toEmail: email,
           inviteUrl,
@@ -123,16 +111,11 @@ export async function POST(req: Request) {
         emailSent = !!emailResult?.success;
         if (!emailSent) {
           emailError = emailResult?.error || 'Unknown email provider error';
-          console.error(`[API CreateEmailInvitation] Failed to send invitation email to ${email}: ${emailError}`);
         }
       } catch (e: any) {
         emailSent = false;
         emailError = e?.message || String(e);
-        console.error(`[API CreateEmailInvitation] Invitation email threw for ${email}:`, e);
       }
-    } else {
-      // Make it obvious in logs without breaking onboarding.
-      console.warn('[API CreateEmailInvitation] Email sending disabled. Returning inviteUrl only.');
     }
 
     return NextResponse.json(

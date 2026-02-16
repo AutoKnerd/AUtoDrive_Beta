@@ -107,12 +107,25 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    
+    // Check for admin init failure before processing event
+    try {
+      getAdminDb();
+    } catch (initError: any) {
+       console.error('[Stripe Webhook] Admin SDK not initialized:', initError.message);
+       return NextResponse.json({ ok: false, message: 'Internal service not available' }, { status: 503 });
+    }
 
     await handleEvent(event);
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err: any) {
     console.error('[Stripe Webhook] Error:', err);
+    
+    if (err && err.code === 'admin/not-initialized') {
+      return NextResponse.json({ ok: false, message: 'Internal service not available' }, { status: 503 });
+    }
+
     return NextResponse.json(
       { ok: false, message: err?.message || 'Webhook handler failed' },
       { status: 500 }

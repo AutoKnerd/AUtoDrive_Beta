@@ -4,7 +4,6 @@ import { getAdminAuth, getAdminDb } from "@/firebase/admin";
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Lazy-load Timestamp to avoid firebase-admin being imported at build-time
 const getTimestamp = async () => {
   const { Timestamp } = await import('firebase-admin/firestore');
   return Timestamp;
@@ -12,9 +11,9 @@ const getTimestamp = async () => {
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: { token: string } }
 ) {
-    const { token } = await params;
+    const { token } = params;
     if (!token) {
         return NextResponse.json({ message: 'Invitation token is missing.' }, { status: 400 });
     }
@@ -38,7 +37,6 @@ export async function GET(
             return NextResponse.json({ message: 'This invitation has expired.' }, { status: 410 });
         }
         
-        // Return the full invitation object if it's valid
         return NextResponse.json({ ...invitation, token: inviteSnap.id });
 
     } catch (e: any) {
@@ -54,9 +52,9 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: { token: string } }
 ) {
-  const { token } = await params;
+  const { token } = params;
   const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization");
   if (!authHeader) return NextResponse.json({ message: "Missing Authorization header" }, { status: 401 });
 
@@ -80,12 +78,10 @@ export async function POST(
     const inviteRef = adminDb.collection("emailInvitations").doc(bodyToken);
 
     await adminDb.runTransaction(async (tx: any) => {
-      // === PHASE 1: All reads must happen first ===
       const inviteSnap = await tx.get(inviteRef);
       const userRef = adminDb.collection("users").doc(uid);
       const userSnap = await tx.get(userRef);
 
-      // Validate invitation
       if (!inviteSnap.exists) throw new Error("Invitation not found");
 
       const invite = inviteSnap.data() as any;
@@ -97,17 +93,14 @@ export async function POST(
         throw new Error("Invitation expired");
       }
 
-      // === PHASE 2: All writes happen after reads ===
       const Timestamp = await getTimestamp();
       
-      // Mark invitation as claimed
       tx.update(inviteRef, {
         claimed: true,
         claimedAt: Timestamp.now(),
         claimedBy: uid,
       });
 
-      // Create or update user profile
       const dealershipId = invite.dealershipId;
       const role = invite.role;
 
@@ -128,7 +121,6 @@ export async function POST(
             : "inactive",
         });
       } else {
-        // Add dealership if missing
         const existing = userSnap.data() as any;
         const existingIds: string[] = existing.dealershipIds || [];
         const nextIds = dealershipId && !existingIds.includes(dealershipId)
