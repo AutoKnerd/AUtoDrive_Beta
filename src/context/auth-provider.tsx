@@ -66,6 +66,15 @@ function deriveNameFromEmail(email: string): string {
     .join(' ');
 }
 
+async function waitForUserProfile(uid: string, attempts = 8, delayMs = 500): Promise<User | null> {
+  for (let i = 0; i < attempts; i += 1) {
+    const profile = await getUserById(uid);
+    if (profile) return profile;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return null;
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -123,6 +132,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } catch (e) {
               console.error('Error during self-heal process:', e);
             }
+          }
+
+          // Registration flow can briefly authenticate before the profile doc is committed.
+          // Give Firestore a short window to catch up before treating this as a hard failure.
+          if (!userProfile) {
+            userProfile = await waitForUserProfile(fbUser.uid);
           }
 
           // Critical validation
