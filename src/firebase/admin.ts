@@ -1,92 +1,142 @@
 import type { App } from 'firebase-admin/app';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
-import { firebaseConfig } from '@/firebase/config';
 
 let app: App | undefined;
 let _adminDb: Firestore | null = null;
 let _adminAuth: Auth | null = null;
-let _Timestamp: any = null;
+let initializationAttempted = false;
+
 export let isAdminInitialized = false;
 export let adminInitErrorMessage: string | null = null;
 
-// A custom error to easily identify Admin SDK initialization failures.
-export class AdminNotInitializedError extends Error {
-  public readonly code = 'admin/not-initialized';
+class AdminNotInitializedError extends Error {
+  code = 'admin/not-initialized';
   constructor(message: string) {
     super(message);
     this.name = 'AdminNotInitializedError';
   }
 }
 
+function getEnvServiceAccount():
+  | { projectId: string; clientEmail: string; privateKey: string }
+  | null {
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (json) {
+    try {
+      const parsed = JSON.parse(json);
+      if (parsed?.project_id && parsed?.client_email && parsed?.private_key) {
+        return {
+          projectId: parsed.project_id,
+          clientEmail: parsed.client_email,
+          privateKey: String(parsed.private_key).replace(/\\n/g, '\n'),
+        };
+      }
+    } catch {
+      // Fall through to split env vars.
+    }
+  }
+
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+
+  if (projectId && clientEmail && privateKey) {
+    return {
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, '\n'),
+    };
+  }
+
+  return null;
+}
+
 function initializeAdmin() {
-  if (isAdminInitialized) {
+  if (initializationAttempted) {
     return;
   }
-  
-  // Use require() here to avoid Next.js trying to bundle firebase-admin on the client.
-  const { getApps, initializeApp, applicationDefault } = require('firebase-admin/app');
+
+  initializationAttempted = true;
 
   try {
-    const apps = getApps();
-    if (apps.length === 0) {
-      // In a managed environment (like App Hosting), ADC should be used.
-      // Locally, GOOGLE_APPLICATION_CREDENTIALS should be set.
-      app = initializeApp({
-        credential: applicationDefault(),
-        // Explicitly setting projectId prevents mismatches with client-side tokens.
-        projectId: firebaseConfig.projectId,
-      });
-      console.log(`[Firebase Admin] Initialized with project ID: ${app.options.projectId}`);
+    const appModule = require('firebase-admin/app') as typeof import('firebase-admin/app');
+    const firestoreModule = require('firebase-admin/firestore') as typeof import('firebase-admin/firestore');
+    const authModule = require('firebase-admin/auth') as typeof import('firebase-admin/auth');
+
+    if (appModule.getApps().length === 0) {
+      const envServiceAccount = getEnvServiceAccount();
+      if (envServiceAccount) {
+        app = appModule.initializeApp({
+          credential: appModule.cert({
+            projectId: envServiceAccount.projectId,
+            clientEmail: envServiceAccount.clientEmail,
+            privateKey: envServiceAccount.privateKey,
+          }),
+        });
+      } else {
+        // In managed Google Cloud environments, ADC works with runtime service account.
+        app = appModule.initializeApp({
+          credential: appModule.applicationDefault(),
+        });
+      }
     } else {
-      app = apps[0];
+      app = appModule.getApps()[0];
     }
-    
-    const { getFirestore, Timestamp } = require('firebase-admin/firestore');
-    const { getAuth } = require('firebase-admin/auth');
-    _adminDb = getFirestore(app);
-    _adminAuth = getAuth(app);
-    _Timestamp = Timestamp;
+
+    _adminDb = firestoreModule.getFirestore(app);
+    _adminAuth = authModule.getAuth(app);
     isAdminInitialized = true;
-    
-  } catch (error: any) {
-    console.error('[Firebase Admin] Initialization failed:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack,
-    });
-    adminInitErrorMessage = error.message || 'Unknown initialization error';
+    adminInitErrorMessage = null;
+
+    console.log(`[Firebase Admin] Initialized with project ID: ${app.options.projectId ?? 'unknown'}`);
+  } catch (err: any) {
+    // Initialization can fail if ADC is unavailable during local dev.
+    // Keep module import safe so routes can return controlled 503 errors.
+    const errMsg = err?.message ? String(err.message) : String(err);
+    adminInitErrorMessage = errMsg;
     isAdminInitialized = false;
-  }
-}
 
-function ensureInitialized() {
-  // This check prevents re-running initialization if it already failed.
-  if (!isAdminInitialized && !adminInitErrorMessage) {
-    initializeAdmin();
-  }
-}
+    console.error(
+      '[Firebase Admin] Initialization failed:',
+      errMsg,
+      err?.stack ? err.stack : undefined
+    );
 
-function getInitializedAdminSdk<T>(sdk: T | null, sdkName: string): T {
-    ensureInitialized();
-    if (!isAdminInitialized || !sdk) {
-        throw new AdminNotInitializedError(
-            `Firebase Admin SDK (${sdkName}) is not initialized. ` +
-            `Reason: ${adminInitErrorMessage || 'Unknown'}. ` +
-            'Ensure Application Default Credentials are available (e.g., GOOGLE_APPLICATION_CREDENTIALS) or run in a configured Google Cloud environment.'
+    const makeErr = (suffix: string) =>
+      new AdminNotInitializedError(
+        `Firebase Admin not initialized. ${errMsg}. ${suffix}`
+      );
+
+    _adminAuth = {
+      verifyIdToken: async () => {
+        throw makeErr(
+          'Ensure Application Default Credentials are available (GOOGLE_APPLICATION_CREDENTIALS) or run in App Hosting.'
         );
-    }
-    return sdk;
+      },
+    } as unknown as Auth;
+
+    _adminDb = {
+      collection: () => {
+        throw makeErr(
+          'Ensure Application Default Credentials are available (GOOGLE_APPLICATION_CREDENTIALS) or run in App Hosting.'
+        );
+      },
+      runTransaction: async () => {
+        throw makeErr(
+          'Ensure Application Default Credentials are available (GOOGLE_APPLICATION_CREDENTIALS) or run in App Hosting.'
+        );
+      },
+    } as unknown as Firestore;
+  }
 }
 
 export function getAdminDb(): Firestore {
-    return getInitializedAdminSdk<Firestore>(_adminDb, 'Firestore');
+  initializeAdmin();
+  return _adminDb as Firestore;
 }
 
 export function getAdminAuth(): Auth {
-    return getInitializedAdminSdk<Auth>(_adminAuth, 'Auth');
-}
-
-export function getAdminTimestamp(): any {
-    return getInitializedAdminSdk<any>(_Timestamp, 'Timestamp');
+  initializeAdmin();
+  return _adminAuth as Auth;
 }
