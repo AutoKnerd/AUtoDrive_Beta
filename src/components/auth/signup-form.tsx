@@ -70,6 +70,11 @@ export function SignupForm() {
       // Fallback (should rarely happen because the Server Action redirects)
       router.push('/subscribe');
     } catch (error: any) {
+      // Next.js redirect() in server actions throws a control-flow error.
+      // Do not treat it as a registration failure toast in the client.
+      if (error?.message === 'NEXT_REDIRECT' || String(error?.digest || '').includes('NEXT_REDIRECT')) {
+        return;
+      }
       toast({
         variant: 'destructive',
         title: 'Registration Failed',

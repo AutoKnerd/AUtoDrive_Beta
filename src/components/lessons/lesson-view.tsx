@@ -54,36 +54,45 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
 
   useEffect(() => {
     async function fetchScores() {
-      if (user) {
+      if (!user) return;
+      try {
         const activity = await getConsultantActivity(user.userId);
         if (!activity.length) {
-            // Provide some default scores if no history, ensuring one is lowest
-            setCxScores({ empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85 });
-            return;
+          // Provide some default scores if no history, ensuring one is lowest.
+          setCxScores({ empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85 });
+          return;
         }
         const total = activity.reduce((acc, log) => {
-            acc.empathy += log.empathy || 0;
-            acc.listening += log.listening || 0;
-            acc.trust += log.trust || 0;
-            acc.followUp += log.followUp || 0;
-            acc.closing += log.closing || 0;
-            acc.relationshipBuilding += log.relationshipBuilding || 0;
-            return acc;
+          acc.empathy += log.empathy || 0;
+          acc.listening += log.listening || 0;
+          acc.trust += log.trust || 0;
+          acc.followUp += log.followUp || 0;
+          acc.closing += log.closing || 0;
+          acc.relationshipBuilding += log.relationshipBuilding || 0;
+          return acc;
         }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
 
         const count = activity.length;
         setCxScores({
-            empathy: Math.round(total.empathy / count),
-            listening: Math.round(total.listening / count),
-            trust: Math.round(total.trust / count),
-            followUp: Math.round(total.followUp / count),
-            closing: Math.round(total.closing / count),
-            relationshipBuilding: Math.round(total.relationshipBuilding / count),
+          empathy: Math.round(total.empathy / count),
+          listening: Math.round(total.listening / count),
+          trust: Math.round(total.trust / count),
+          followUp: Math.round(total.followUp / count),
+          closing: Math.round(total.closing / count),
+          relationshipBuilding: Math.round(total.relationshipBuilding / count),
+        });
+      } catch (error: any) {
+        console.error('Failed to load CX scores, falling back to defaults.', error);
+        setCxScores({ empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85 });
+        toast({
+          variant: 'destructive',
+          title: 'Could not load score history',
+          description: 'Using baseline scores for this lesson.',
         });
       }
     }
     fetchScores();
-  }, [user]);
+  }, [user, toast]);
 
   const handleAiResponse = async (responseText: string) => {
     try {
@@ -135,21 +144,34 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
       if (lessonStarted.current || !cxScores) return;
       lessonStarted.current = true;
       setIsLoading(true);
-      
-      const initialResponse = await conductLesson({
-        lessonId: lesson.lessonId,
-        lessonTitle: lesson.title,
-        customScenario: lesson.customScenario,
-        history: [],
-        userMessage: 'Start the lesson.',
-        cxScores,
-      });
+      try {
+        const initialResponse = await conductLesson({
+          lessonId: lesson.lessonId,
+          lessonTitle: lesson.title,
+          lessonRole: lesson.role,
+          lessonCategory: lesson.category,
+          lessonAssociatedTrait: lesson.associatedTrait,
+          isRecommendedLesson: isRecommended,
+          customScenario: lesson.customScenario,
+          history: [],
+          userMessage: 'Start the lesson.',
+          cxScores,
+        });
 
-      await handleAiResponse(initialResponse);
-      setIsLoading(false);
+        await handleAiResponse(initialResponse);
+      } catch (error: any) {
+        console.error('Failed to start lesson:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Lesson failed to start',
+          description: error?.message || 'Please try again.',
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
     startLesson();
-  }, [cxScores, lesson.lessonId, lesson.title, lesson.customScenario]); 
+  }, [cxScores, lesson.lessonId, lesson.title, lesson.role, lesson.category, lesson.associatedTrait, lesson.customScenario, isRecommended, toast]); 
 
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -164,17 +186,31 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
     setInput('');
     setIsLoading(true);
 
-    const response = await conductLesson({
-        lessonId: lesson.lessonId,
-        lessonTitle: lesson.title,
-        customScenario: lesson.customScenario,
-        history: newMessages, // Send the most up-to-date history
-        userMessage: currentInput,
-        cxScores,
-    });
-    
-    await handleAiResponse(response);
-    setIsLoading(false);
+    try {
+      const response = await conductLesson({
+          lessonId: lesson.lessonId,
+          lessonTitle: lesson.title,
+          lessonRole: lesson.role,
+          lessonCategory: lesson.category,
+          lessonAssociatedTrait: lesson.associatedTrait,
+          isRecommendedLesson: isRecommended,
+          customScenario: lesson.customScenario,
+          history: newMessages, // Send the most up-to-date history
+          userMessage: currentInput,
+          cxScores,
+      });
+      
+      await handleAiResponse(response);
+    } catch (error: any) {
+      console.error('Failed to continue lesson:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Lesson response failed',
+        description: error?.message || 'Please try sending again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleSkipLesson = async () => {
@@ -183,17 +219,31 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
     setIsLoading(true);
     setInput(''); 
 
-    const response = await conductLesson({
-        lessonId: lesson.lessonId,
-        lessonTitle: lesson.title,
-        customScenario: lesson.customScenario,
-        history: messages,
-        userMessage: '@skip_lesson', // Special keyword for the AI
-        cxScores,
-    });
-    
-    await handleAiResponse(response);
-    setIsLoading(false);
+    try {
+      const response = await conductLesson({
+          lessonId: lesson.lessonId,
+          lessonTitle: lesson.title,
+          lessonRole: lesson.role,
+          lessonCategory: lesson.category,
+          lessonAssociatedTrait: lesson.associatedTrait,
+          isRecommendedLesson: isRecommended,
+          customScenario: lesson.customScenario,
+          history: messages,
+          userMessage: '@skip_lesson', // Special keyword for the AI
+          cxScores,
+      });
+      
+      await handleAiResponse(response);
+    } catch (error: any) {
+      console.error('Failed to skip lesson:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Skip failed',
+        description: error?.message || 'Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

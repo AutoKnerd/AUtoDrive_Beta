@@ -42,7 +42,6 @@ next-env.d.ts
 
 # firebase
 firebase-debug.log
-firestore-debug.logfirebase-key.json
-firebase-key.json
+firestore-debug.log
 firebase-key.json
 tsconfig.tsbuildinfo

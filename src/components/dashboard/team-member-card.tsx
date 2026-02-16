@@ -59,10 +59,12 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const viewerIsTrainer = currentUser.role === 'Trainer';
   const viewerIsOwner = currentUser.role === 'Owner';
   const viewerIsManager = managerialRoles.includes(currentUser.role) && !viewerIsAdmin && !viewerIsOwner && !viewerIsTrainer;
+  const viewerIsSuperior = managerialRoles.includes(currentUser.role) && currentUser.userId !== user.userId;
 
   const hideMetrics =
     (viewerIsManager && user.isPrivate) ||
     (viewerIsOwner && user.isPrivateFromOwner);
+  const showCriticalOnly = viewerIsSuperior && !hideMetrics && user.showDealerCriticalOnly === true;
 
 
   useEffect(() => {
@@ -206,6 +208,23 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
         relationshipBuilding: Math.round(total.relationshipBuilding / count),
     };
   }, [activity]);
+
+  const criticalTraits = useMemo(() => {
+    if (!activity.length) return { topStrength: null as CxTrait | null, weakestSkill: null as CxTrait | null };
+    const entries = Object.entries(averageScores) as [CxTrait, number][];
+    if (entries.length === 0) return { topStrength: null as CxTrait | null, weakestSkill: null as CxTrait | null };
+
+    const topStrength = entries.reduce((best, current) => (current[1] > best[1] ? current : best), entries[0])[0];
+    const weakestSkill = entries.reduce((worst, current) => (current[1] < worst[1] ? current : worst), entries[0])[0];
+    return { topStrength, weakestSkill };
+  }, [activity, averageScores]);
+
+  const formatTrait = (trait: CxTrait | null) => {
+    if (!trait) return 'Not enough data';
+    return trait
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase());
+  };
   
   const canManageAssignments = currentUser.userId !== user.userId && getTeamMemberRoles(currentUser.role).includes(user.role);
   const canAssignLessons = ['Owner', 'Admin', 'Trainer', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(currentUser.role);
@@ -244,6 +263,25 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                     <CardTitle>Metrics are Private</CardTitle>
                     <CardDescription>This user has chosen to hide their detailed performance metrics.</CardDescription>
                 </CardHeader>
+            </Card>
+        ) : showCriticalOnly ? (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Dealer Critical Summary</CardTitle>
+                    <CardDescription>
+                        This user shares only top strength and area for improvement with leadership.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                        <span className="text-sm text-muted-foreground">Top Strength</span>
+                        <span className="font-semibold">{formatTrait(criticalTraits.topStrength)}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                        <span className="text-sm text-muted-foreground">Area for Improvement</span>
+                        <span className="font-semibold">{formatTrait(criticalTraits.weakestSkill)}</span>
+                    </div>
+                </CardContent>
             </Card>
         ) : (
             <>

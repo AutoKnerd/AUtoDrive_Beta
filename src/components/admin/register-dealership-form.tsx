@@ -6,7 +6,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { sendInvitation, getTeamMemberRoles } from '@/lib/data.client';
+import QRCode from 'react-qr-code';
+import { createInvitationLink, getTeamMemberRoles } from '@/lib/data.client';
 import { User, UserRole, Dealership, allRoles } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { Copy, MailCheck, MailWarning } from 'lucide-react';
+import { Copy, Link as LinkIcon, Mail, MessageSquare, Share2 } from 'lucide-react';
 import { Input } from '../ui/input';
 
 interface InviteUserFormProps {
@@ -36,7 +37,7 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
   const [invitationSent, setInvitationSent] = useState(false);
   const [inviteUrl, setInviteUrl] = useState('');
   const [sentToEmail, setSentToEmail] = useState('');
-  const [showLink, setShowLink] = useState(false);
+  const [isNativeShareSupported, setIsNativeShareSupported] = useState(false);
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -67,38 +68,29 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
   }, [managedDealerships, isAdmin, form]);
 
   useEffect(() => {
-    if (showLink && inputRef.current) {
+    if (invitationSent && inputRef.current) {
       inputRef.current.select();
     }
-  }, [showLink]);
+  }, [invitationSent]);
+
+  useEffect(() => {
+    setIsNativeShareSupported(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  }, []);
 
 
   async function onSubmit(data: InviteFormValues) {
     setIsSubmitting(true);
     setInvitationSent(false);
     setInviteUrl('');
-    setShowLink(false);
     try {
-      const { url, emailSent } = await sendInvitation(data.dealershipId, data.userEmail, data.role as UserRole, user.userId);
+      const { url } = await createInvitationLink(data.dealershipId, data.userEmail, data.role as UserRole, user.userId);
       setSentToEmail(data.userEmail);
       setInviteUrl(url);
       setInvitationSent(true);
-      
-      if (emailSent) {
-        toast({
-          title: 'Invitation Sent!',
-          description: `An email has been sent to ${data.userEmail}.`,
-        });
-      } else {
-        setShowLink(true); // Show the link immediately if email fails
-        toast({
-          variant: 'destructive',
-          title: 'Invitation Created (Email Failed)',
-          description: `The invitation was created, but we couldn't send the email. Please copy the link manually.`,
-        });
-      }
-      
-      onUserInvited?.();
+      toast({
+        title: 'Invitation Link Created',
+        description: `Share this link directly with ${data.userEmail}.`,
+      });
       form.reset({
         ...form.getValues(),
         userEmail: '',
@@ -123,7 +115,6 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
       toast({ title: 'Link Copied!', description: 'The invitation link has been copied to your clipboard.' });
     } catch (err) {
       console.error('Failed to copy link: ', err);
-      setShowLink(true);
       toast({
         variant: 'destructive',
         title: 'Copy Failed',
@@ -131,29 +122,73 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
       });
     }
   };
+
+  const handleNativeShare = async () => {
+    if (!inviteUrl || !isNativeShareSupported) return;
+    const shareText = `You're invited to join AutoDrive. Register here: ${inviteUrl}`;
+    try {
+      await navigator.share({
+        title: 'AutoDrive Invitation',
+        text: shareText,
+        url: inviteUrl,
+      });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast({
+          variant: 'destructive',
+          title: 'Share Failed',
+          description: 'Could not open the share sheet on this device.',
+        });
+      }
+    }
+  };
   
   if (invitationSent) {
+    const emailSubject = "You're invited to AutoDrive";
+    const emailBody = `Hi,\n\nYou're invited to join AutoDrive. Use this link to register:\n${inviteUrl}\n\n`;
+    const smsBody = `You're invited to join AutoDrive. Register here: ${inviteUrl}`;
+    const emailHref = `mailto:${sentToEmail}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    const smsHref = `sms:?&body=${encodeURIComponent(smsBody)}`;
+
     return (
       <div className="text-center space-y-4">
-        <Alert variant={showLink ? "destructive" : "default"}>
-          {showLink ? <MailWarning className="h-4 w-4" /> : <MailCheck className="h-4 w-4" />}
-          <AlertTitle>{showLink ? 'Invitation Created (Email Failed)' : 'Invitation Sent!'}</AlertTitle>
+        <Alert>
+          <LinkIcon className="h-4 w-4" />
+          <AlertTitle>Invitation Link Created</AlertTitle>
           <AlertDescription>
-            {showLink ? (
-              <>We couldn&apos;t send an email to <strong>{sentToEmail}</strong>. This usually means the email service API key is missing. Please copy the link below and send it to them manually.</>
-            ) : (
-              <>An email has been sent to <strong>{sentToEmail}</strong>. If they don&apos;t receive it, you can share the fallback link.</>
-            )}
+            Share this registration link directly with <strong>{sentToEmail}</strong>.
           </AlertDescription>
         </Alert>
-        {showLink ? (
-          <Input ref={inputRef} value={inviteUrl} readOnly />
+        <div className="mx-auto w-fit rounded-lg bg-white p-3">
+          <QRCode value={inviteUrl} size={180} />
+        </div>
+        <p className="text-xs text-muted-foreground">Scan QR to open invitation</p>
+        <Input ref={inputRef} value={inviteUrl} readOnly />
+        {isNativeShareSupported ? (
+          <Button onClick={handleNativeShare} className="w-full">
+            <Share2 className="mr-2 h-4 w-4" />
+            Share From Device
+          </Button>
         ) : null}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button asChild variant="outline" className="w-full">
+            <a href={emailHref}>
+              <Mail className="mr-2 h-4 w-4" />
+              Email Link
+            </a>
+          </Button>
+          <Button asChild variant="outline" className="w-full">
+            <a href={smsHref}>
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Text Link
+            </a>
+          </Button>
+        </div>
         <Button onClick={handleCopyLink} variant="outline" className="w-full">
           <Copy className="mr-2 h-4 w-4" />
-          {showLink ? 'Copy Link' : 'Copy Fallback Link'}
+          Copy Link
         </Button>
-        <Button onClick={() => setInvitationSent(false)} className="w-full">
+        <Button onClick={() => { setInvitationSent(false); onUserInvited?.(); }} className="w-full">
             Send Another Invitation
         </Button>
       </div>
@@ -230,7 +265,7 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
             />
         </div>
         <Button type="submit" disabled={isSubmitting || registrationRoles.length === 0 || dealerships.length === 0}>
-          {isSubmitting ? <Spinner size="sm" /> : 'Send Invitation'}
+          {isSubmitting ? <Spinner size="sm" /> : 'Create Invitation Link'}
         </Button>
       </form>
     </Form>

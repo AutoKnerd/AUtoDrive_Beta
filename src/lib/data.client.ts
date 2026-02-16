@@ -2,7 +2,8 @@
 
 'use client';
 import { isToday, subDays } from 'date-fns';
-import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope } from './definitions';
+import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope, PendingInvitation } from './definitions';
+import { lessonCategoriesByRole, noPersonalDevelopmentRoles } from './definitions';
 import { allBadges } from './badges';
 import { calculateLevel } from './xp';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp, Firestore } from 'firebase/firestore';
@@ -57,7 +58,12 @@ export async function getUserById(userId: string): Promise<User | null> {
     const tourUserEmails: Record<string, string> = {
         'consultant.demo@autodrive.com': 'tour-consultant',
         'service.writer.demo@autodrive.com': 'tour-service-writer',
+        'parts.consultant.demo@autodrive.com': 'tour-parts-consultant',
+        'finance.manager.demo@autodrive.com': 'tour-finance-manager',
         'manager.demo@autodrive.com': 'tour-manager',
+        'service.manager.demo@autodrive.com': 'tour-service-manager',
+        'parts.manager.demo@autodrive.com': 'tour-parts-manager',
+        'general.manager.demo@autodrive.com': 'tour-general-manager',
         'owner.demo@autodrive.com': 'tour-owner',
     };
 
@@ -102,6 +108,7 @@ export async function createUserProfile(userId: string, name: string, email: str
         xp: 0,
         isPrivate: false,
         isPrivateFromOwner: false,
+        showDealerCriticalOnly: false,
         memberSince: new Date().toISOString(),
         subscriptionStatus: ['Admin', 'Developer', 'Owner', 'Trainer', 'General Manager'].includes(role) ? 'active' : 'inactive',
     };
@@ -306,14 +313,14 @@ export async function claimInvitation(token: string): Promise<void> {
     }
 }
 
-export async function sendInvitation(
+export async function createInvitationLink(
   dealershipId: string,
   email: string,
   role: UserRole,
   inviterId: string,
-): Promise<{ url: string, emailSent: boolean }> {
+): Promise<{ url: string }> {
     if (isTouringUser(inviterId)) {
-        return { url: `http://localhost:9002/register?token=tour-fake-token-${Math.random()}`, emailSent: true };
+        return { url: `http://localhost:9002/register?token=tour-fake-token-${Math.random()}` };
     }
 
     const inviter = await getUserById(inviterId);
@@ -378,21 +385,151 @@ export async function sendInvitation(
             }
         }
     }
-    return { url: responseData.inviteUrl, emailSent: responseData.emailSent };
+    return { url: responseData.inviteUrl };
+}
+
+export async function getPendingInvitations(dealershipId: string, user: User): Promise<PendingInvitation[]> {
+    if (isTouringUser(user.userId)) {
+        return [];
+    }
+
+    if (!auth.currentUser || auth.currentUser.uid !== user.userId) {
+        throw new Error('User not authenticated or mismatch.');
+    }
+
+    const idToken = await auth.currentUser.getIdToken(true);
+    const params = new URLSearchParams({ dealershipId });
+    const response = await fetch(`/api/admin/pendingInvitations?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${idToken}`,
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        // Do not block dashboard load if pending invitations are not accessible for this scope.
+        if (response.status === 403) {
+            return [];
+        }
+        throw new Error(errorData.message || 'Failed to fetch pending invitations.');
+    }
+
+    const data = await response.json();
+    const pendingInvitations = Array.isArray(data?.pendingInvitations) ? data.pendingInvitations : [];
+
+    return pendingInvitations.map((invite: any) => ({
+        token: invite.token,
+        dealershipId: invite.dealershipId,
+        dealershipName: invite.dealershipName,
+        role: invite.role as UserRole,
+        email: invite.email,
+        claimed: false,
+        inviterId: invite.inviterId,
+        createdAt: invite.createdAt ? new Date(invite.createdAt) : undefined,
+        expiresAt: invite.expiresAt ? new Date(invite.expiresAt) : undefined,
+    } as PendingInvitation));
 }
 
 // LESSONS
+const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+
+function formatTraitLabel(trait: CxTrait): string {
+    return trait
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (str) => str.toUpperCase());
+}
+
+function getRoleDisplayName(role: LessonRole): string {
+    if (role === 'manager') return 'Sales Manager';
+    return role;
+}
+
+function toRoleSlug(role: string): string {
+    return role.toLowerCase().replace(/\s+/g, '-');
+}
+
+function fromRoleToken(roleToken: string): LessonRole | null {
+    const decoded = decodeURIComponent(roleToken);
+    const roleKeys = Object.keys(lessonCategoriesByRole) as LessonRole[];
+    const byExact = roleKeys.find((role) => role === decoded);
+    if (byExact) return byExact;
+    const bySlug = roleKeys.find((role) => toRoleSlug(role) === decoded);
+    if (bySlug) return bySlug;
+    return null;
+}
+
+function buildRoleStarterLessons(role: LessonRole): Lesson[] {
+    if (role === 'global') return [];
+    const categories = lessonCategoriesByRole[role] || [];
+    if (categories.length === 0) return [];
+
+    return cxTraits.map((trait, index) => ({
+        lessonId: `starter-${toRoleSlug(role)}-${trait}`,
+        title: `${getRoleDisplayName(role)} ${formatTraitLabel(trait)} Foundations`,
+        role,
+        category: categories[index % categories.length],
+        associatedTrait: trait,
+        customScenario: `Role-specific ${formatTraitLabel(trait).toLowerCase()} coaching scenario for ${getRoleDisplayName(role)}.`,
+    }));
+}
+
+function isLessonCategoryRelevantToRole(lesson: Lesson, role: LessonRole): boolean {
+    if (role === 'global') return true;
+    const allowedCategories = lessonCategoriesByRole[role] || [];
+    if (allowedCategories.length === 0) return false;
+    return allowedCategories.includes(lesson.category);
+}
+
+function getStarterLessonById(lessonId: string): Lesson | null {
+    if (!lessonId.startsWith('starter-')) return null;
+    const raw = lessonId.slice('starter-'.length);
+    const lastDash = raw.lastIndexOf('-');
+    if (lastDash <= 0) return null;
+
+    const roleToken = raw.slice(0, lastDash);
+    const traitToken = raw.slice(lastDash + 1);
+    const parsedRole = fromRoleToken(roleToken);
+    const parsedTrait = traitToken as CxTrait;
+    if (!parsedRole) return null;
+    if (!cxTraits.includes(parsedTrait)) return null;
+
+    const roleLessons = buildRoleStarterLessons(parsedRole);
+    return roleLessons.find(l => l.lessonId === lessonId) || roleLessons.find(l => l.associatedTrait === parsedTrait) || null;
+}
+
 export async function getLessons(role: LessonRole, userId?: string): Promise<Lesson[]> {
     if (isTouringUser(userId)) {
         const { lessons } = await getTourData();
-        return lessons.filter(lesson => lesson.role === role || lesson.role === 'global');
+        const scopedLessons = lessons.filter(lesson => lesson.role === role || lesson.role === 'global');
+        const roleSpecificLessons = scopedLessons.filter(lesson => lesson.role === role);
+        const relevantGlobalLessons = scopedLessons.filter(lesson => lesson.role === 'global' && isLessonCategoryRelevantToRole(lesson, role));
+        const roleAlignedLessons = roleSpecificLessons.length > 0
+            ? [...roleSpecificLessons, ...relevantGlobalLessons]
+            : relevantGlobalLessons;
+        if (roleAlignedLessons.length > 0) return roleAlignedLessons;
+        return buildRoleStarterLessons(role);
     }
 
     const lessonsCollection = collection(db, 'lessons');
-    const q = query(lessonsCollection, where("role", "in", [role, 'global']));
     try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Lesson));
+        const scopedQuery = query(lessonsCollection, where("role", "in", [role, 'global']));
+        const scopedSnapshot = await getDocs(scopedQuery);
+        if (!scopedSnapshot.empty) {
+            const scopedLessons = scopedSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Lesson));
+            const roleSpecificLessons = scopedLessons.filter(lesson => lesson.role === role);
+            const relevantGlobalLessons = scopedLessons.filter(lesson => lesson.role === 'global' && isLessonCategoryRelevantToRole(lesson, role));
+            const roleAlignedLessons = roleSpecificLessons.length > 0
+                ? [...roleSpecificLessons, ...relevantGlobalLessons]
+                : relevantGlobalLessons;
+            if (roleAlignedLessons.length > 0) {
+                return roleAlignedLessons;
+            }
+        }
+
+        // No matching role/global lessons in Firestore: use role starter lessons so
+        // recommendations stay role-specific for Parts/Service/F&I and other non-sales roles.
+        return buildRoleStarterLessons(role);
     } catch(e: any) {
         const contextualError = new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' });
         errorEmitter.emit('permission-error', contextualError);
@@ -401,6 +538,9 @@ export async function getLessons(role: LessonRole, userId?: string): Promise<Les
 }
 
 export async function getLessonById(lessonId: string, userId?: string): Promise<Lesson | null> {
+    const starterLesson = getStarterLessonById(lessonId);
+    if (starterLesson) return starterLesson;
+
     if (isTouringUser(userId) || lessonId.startsWith('tour-')) {
         const { lessons } = await getTourData();
         return lessons.find(l => l.lessonId === lessonId) || null;
@@ -426,8 +566,11 @@ export async function createLesson(
         targetRole: UserRole | 'global';
         scenario: string;
     },
-    creator: User
-): Promise<Lesson> {
+    creator: User,
+    options?: {
+        autoAssignByRole?: boolean;
+    }
+): Promise<{ lesson: Lesson; autoAssignedCount: number; autoAssignFailed: boolean }> {
     if (isTouringUser(creator.userId)) {
         const { lessons } = await getTourData();
         const newLesson: Lesson = {
@@ -439,7 +582,7 @@ export async function createLesson(
             customScenario: lessonData.scenario,
         };
         lessons.push(newLesson);
-        return newLesson;
+        return { lesson: newLesson, autoAssignedCount: 0, autoAssignFailed: false };
     }
 
     const lessonsCollection = collection(db, 'lessons');
@@ -470,7 +613,30 @@ export async function createLesson(
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;
     }
-    return newLesson;
+
+    let autoAssignedCount = 0;
+    let autoAssignFailed = false;
+    if (options?.autoAssignByRole) {
+        try {
+            const excludedRoles = new Set<UserRole>(noPersonalDevelopmentRoles);
+            const manageableUsers = await getManageableUsers(creator.userId);
+            const recipients = manageableUsers.filter((manageableUser) => {
+                if (excludedRoles.has(manageableUser.role)) return false;
+                if (lessonData.targetRole === 'global') return true;
+                return manageableUser.role === lessonData.targetRole;
+            });
+
+            for (const recipient of recipients) {
+                await assignLesson(recipient.userId, newLesson.lessonId, creator.userId);
+                autoAssignedCount += 1;
+            }
+        } catch (error) {
+            console.warn('Lesson was created but auto-assignment failed.', error);
+            autoAssignFailed = true;
+        }
+    }
+
+    return { lesson: newLesson, autoAssignedCount, autoAssignFailed };
 }
 
 export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
@@ -542,6 +708,32 @@ export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
             errorEmitter.emit('permission-error', contextualError);
             throw contextualError;
         }
+    }
+}
+
+export async function getAllAssignedLessonIds(userId: string): Promise<string[]> {
+    if (isTouringUser(userId)) {
+        const { lessonAssignments } = await getTourData();
+        return Array.from(new Set(
+            lessonAssignments
+                .filter(a => a.userId === userId)
+                .map(a => a.lessonId)
+        ));
+    }
+
+    const assignmentsCollection = collection(db, 'lessonAssignments');
+    const q = query(assignmentsCollection, where("userId", "==", userId));
+
+    try {
+        const snapshot = await getDocs(q);
+        const lessonIds = snapshot.docs
+            .map(doc => (doc.data() as LessonAssignment).lessonId)
+            .filter(Boolean);
+        return Array.from(new Set(lessonIds));
+    } catch (e) {
+        const contextualError = new FirestorePermissionError({ path: assignmentsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
     }
 }
 
@@ -796,17 +988,61 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
         relevantDealerships = relevantDealerships.filter(d => d.status !== 'deactivated');
     }
 
+    // Tighten dealership visibility for non-org-wide roles to only assigned dealerships.
+    if (user && !['Admin', 'Developer', 'Trainer'].includes(user.role)) {
+        const allowedIds = user.dealershipIds || [];
+        relevantDealerships = relevantDealerships.filter(d => allowedIds.includes(d.id));
+    }
+
     return relevantDealerships.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 
 export async function getCombinedTeamData(dealershipId: string, user: User): Promise<{
-    teamActivity: { consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; }[],
+    teamActivity: { consultant: User; lessonsCompleted: number; totalXp: number; avgScore: number; topStrength: CxTrait | null; weakestSkill: CxTrait | null; lastInteraction: Date | null; }[],
     managerStats: { totalLessons: number; avgScores: Record<CxTrait, number> | null }
 }> {
+    const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+    const buildTeamRow = (member: User, memberLogs: LessonLog[]) => {
+        if (memberLogs.length === 0) {
+            return { consultant: member, lessonsCompleted: 0, totalXp: member.xp, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null };
+        }
+
+        const totalScore = memberLogs.reduce((sum, log) => {
+            return sum + ((log.empathy || 0) + (log.listening || 0) + (log.trust || 0) + (log.followUp || 0) + (log.closing || 0) + (log.relationshipBuilding || 0));
+        }, 0);
+        const avgScore = Math.round(totalScore / (memberLogs.length * 6));
+        const traitAverages = cxTraits.reduce((acc, trait) => {
+            const scoreTotal = memberLogs.reduce((sum, log) => sum + (log[trait] || 0), 0);
+            acc[trait] = Math.round(scoreTotal / memberLogs.length);
+            return acc;
+        }, {} as Record<CxTrait, number>);
+        const topStrength = cxTraits.reduce((best, trait) =>
+            traitAverages[trait] > traitAverages[best] ? trait : best,
+            cxTraits[0]
+        );
+        const weakestSkill = cxTraits.reduce((worst, trait) =>
+            traitAverages[trait] < traitAverages[worst] ? trait : worst,
+            cxTraits[0]
+        );
+
+        return {
+            consultant: member,
+            lessonsCompleted: memberLogs.length,
+            totalXp: member.xp,
+            avgScore,
+            topStrength,
+            weakestSkill,
+            lastInteraction: memberLogs[0].timestamp,
+        };
+    };
+
     if (isTouringUser(user.userId)) {
         const { users, lessonLogs } = await getTourData();
         const teamRoles = getTeamMemberRoles(user.role);
+        if (teamRoles.length === 0) {
+            return { teamActivity: [], managerStats: { totalLessons: 0, avgScores: null } };
+        }
         
         let teamMembers: User[];
         if (dealershipId === 'all') {
@@ -815,26 +1051,15 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
             teamMembers = users.filter(u => u.dealershipIds.includes(dealershipId) && teamRoles.includes(u.role));
         }
 
-        const teamActivity = teamMembers.map(member => {
-            const memberLogs = lessonLogs.filter(log => log.userId === member.userId);
-            if (memberLogs.length === 0) {
-                return { consultant: member, lessonsCompleted: 0, totalXp: member.xp, avgScore: 0 };
-            }
-            const lessonsCompleted = memberLogs.length;
-            const totalXp = member.xp;
-            const totalScore = memberLogs.reduce((sum, log) => {
-                 return sum + ((log.empathy || 0) + (log.listening || 0) + (log.trust || 0) + (log.followUp || 0) + (log.closing || 0) + (log.relationshipBuilding || 0));
-            }, 0);
-            const avgScore = Math.round(totalScore / (memberLogs.length * 6));
-            return { consultant: member, lessonsCompleted, totalXp, avgScore };
-        }).sort((a, b) => a.consultant.name.localeCompare(b.consultant.name));
+        const teamActivity = teamMembers
+            .map(member => buildTeamRow(member, lessonLogs.filter(log => log.userId === member.userId)))
+            .sort((a, b) => a.consultant.name.localeCompare(b.consultant.name));
         
         const allLogs = lessonLogs.filter(log => teamMembers.some(member => member.userId === log.userId));
         if (allLogs.length === 0) {
             return { teamActivity, managerStats: { totalLessons: 0, avgScores: null } };
         }
         const totalLessons = allLogs.length;
-        const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
         const avgScores = cxTraits.reduce((acc, trait) => {
             const totalScore = allLogs.reduce((sum, log) => sum + (log[trait] || 0), 0);
             acc[trait] = Math.round(totalScore / totalLessons);
@@ -846,10 +1071,60 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
 
     const usersCollection = collection(db, 'users');
     const teamRoles = getTeamMemberRoles(user.role);
+    if (teamRoles.length === 0) {
+        return { teamActivity: [], managerStats: { totalLessons: 0, avgScores: null } };
+    }
     let userQuery;
 
-    if ((['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role)) && dealershipId === 'all') {
+    if ((['Admin', 'Trainer', 'Developer'].includes(user.role)) && dealershipId === 'all') {
         userQuery = query(usersCollection, where("role", "in", teamRoles));
+    } else if ((['Owner', 'General Manager'].includes(user.role)) && dealershipId === 'all') {
+        const allowedDealershipIds = user.dealershipIds || [];
+        if (allowedDealershipIds.length === 0) {
+            return { teamActivity: [], managerStats: { totalLessons: 0, avgScores: null } };
+        }
+
+        // Query each managed dealership separately to keep behavior aligned with the single-dealership query path.
+        const snapshots = await Promise.all(
+            allowedDealershipIds.map(id =>
+                getDocs(query(usersCollection, where("dealershipIds", "array-contains", id), where("role", "in", teamRoles)))
+            )
+        );
+
+        const dedupedMembers = new Map<string, User>();
+        snapshots.forEach(snapshot => {
+            snapshot.docs.forEach(d => {
+                dedupedMembers.set(d.id, { ...(d.data() as any), userId: d.id } as User);
+            });
+        });
+
+        const teamMembers = Array.from(dedupedMembers.values());
+
+        if (teamMembers.length === 0) {
+            return { teamActivity: [], managerStats: { totalLessons: 0, avgScores: null } };
+        }
+
+        const allLogsPerUserPromises = teamMembers.map(member => getConsultantActivity(member.userId));
+        const allLogsPerUser = await Promise.all(allLogsPerUserPromises);
+
+        const allLogsFlat: LessonLog[] = allLogsPerUser.flat();
+
+        const teamActivity = teamMembers
+            .map((member, index) => buildTeamRow(member, allLogsPerUser[index]))
+            .sort((a, b) => a.consultant.name.localeCompare(b.consultant.name));
+
+        if (allLogsFlat.length === 0) {
+            return { teamActivity, managerStats: { totalLessons: 0, avgScores: null } };
+        }
+
+        const totalLessons = allLogsFlat.length;
+        const avgScores = cxTraits.reduce((acc, trait) => {
+            const totalScore = allLogsFlat.reduce((sum, log) => sum + (log[trait] || 0), 0);
+            acc[trait] = Math.round(totalScore / totalLessons);
+            return acc;
+        }, {} as Record<CxTrait, number>);
+
+        return { teamActivity, managerStats: { totalLessons, avgScores } };
     } else {
         const selectedDealership = await getDealershipById(dealershipId, user.userId);
         if (selectedDealership?.status === 'paused') {
@@ -888,35 +1163,23 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
             lessonsCompleted: 0,
             totalXp: member.xp,
             avgScore: 0,
+            topStrength: null,
+            weakestSkill: null,
+            lastInteraction: null,
         })).sort((a,b) => a.consultant.name.localeCompare(b.consultant.name));
         return { teamActivity, managerStats: { totalLessons: -1, avgScores: null }}; // Use -1 as insufficient data flag
     }
     
     const allLogsFlat: LessonLog[] = allLogsPerUser.flat();
 
-    const teamActivity = teamMembers.map((member, index) => {
-        const memberLogs = allLogsPerUser[index];
-        if (memberLogs.length === 0) {
-            return { consultant: member, lessonsCompleted: 0, totalXp: member.xp, avgScore: 0 };
-        }
-
-        const lessonsCompleted = memberLogs.length;
-        const totalXp = member.xp;
-        
-        const totalScore = memberLogs.reduce((sum, log) => {
-            return sum + ((log.empathy || 0) + (log.listening || 0) + (log.trust || 0) + (log.followUp || 0) + (log.closing || 0) + (log.relationshipBuilding || 0));
-        }, 0);
-        
-        const avgScore = Math.round(totalScore / (memberLogs.length * 6));
-
-        return { consultant: member, lessonsCompleted, totalXp, avgScore };
-    }).sort((a, b) => a.consultant.name.localeCompare(b.consultant.name));
+    const teamActivity = teamMembers
+        .map((member, index) => buildTeamRow(member, allLogsPerUser[index]))
+        .sort((a, b) => a.consultant.name.localeCompare(b.consultant.name));
 
     if (allLogsFlat.length === 0) {
         return { teamActivity, managerStats: { totalLessons: 0, avgScores: null }};
     }
     const totalLessons = allLogsFlat.length;
-    const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
     const avgScores = cxTraits.reduce((acc, trait) => {
         const totalScore = allLogsFlat.reduce((sum, log) => sum + (log[trait] || 0), 0);
         acc[trait] = Math.round(totalScore / totalLessons);
@@ -925,6 +1188,218 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
     const managerStats = { totalLessons, avgScores };
     
     return { teamActivity, managerStats };
+}
+
+export type SystemReportUserRow = {
+    userId: string;
+    name: string;
+    email: string;
+    role: UserRole;
+    dealershipIds: string[];
+    dealershipNames: string[];
+    subscriptionStatus?: 'active' | 'inactive';
+    lessonsCompleted: number;
+    totalXp: number;
+    avgScore: number | null;
+    lastInteraction: Date | null;
+    isActive30d: boolean;
+};
+
+export type SystemReport = {
+    generatedAt: Date;
+    users: {
+        total: number;
+        active30d: number;
+        ownersTotal: number;
+        ownersActive30d: number;
+    };
+    dealerships: {
+        total: number;
+        active: number;
+        paused: number;
+        deactivated: number;
+    };
+    performance: {
+        totalLessonsCompleted: number;
+        averageScore: number | null;
+        totalXp: number;
+    };
+    roleCounts: Record<string, number>;
+    rows: SystemReportUserRow[];
+};
+
+export async function getSystemReport(requester: User): Promise<SystemReport> {
+    if (!['Admin', 'Developer'].includes(requester.role)) {
+        throw new Error('Forbidden: only Admin/Developer can run system reports.');
+    }
+
+    const now = new Date();
+    const activeSince = subDays(now, 30);
+    const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+
+    if (isTouringUser(requester.userId)) {
+        const tour = await getTourData();
+        const roleCounts: Record<string, number> = {};
+        const dealershipNameById = new Map<string, string>();
+        tour.dealerships.forEach((d) => dealershipNameById.set(d.id, d.name));
+        tour.users.forEach((u) => {
+            roleCounts[u.role] = (roleCounts[u.role] || 0) + 1;
+        });
+
+        const rows: SystemReportUserRow[] = tour.users.map((u) => {
+            const logs = tour.lessonLogs
+                .filter((l) => l.userId === u.userId)
+                .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+            const lastInteraction = logs[0]?.timestamp || null;
+            const isActive30d = !!lastInteraction && lastInteraction > activeSince;
+            const avgScore = logs.length
+                ? Math.round(
+                    logs.reduce((sum, log) => {
+                        const total = cxTraits.reduce((acc, trait) => acc + (log[trait] || 0), 0);
+                        return sum + total / cxTraits.length;
+                    }, 0) / logs.length
+                )
+                : null;
+            return {
+                userId: u.userId,
+                name: u.name,
+                email: u.email,
+                role: u.role,
+                dealershipIds: u.dealershipIds || [],
+                dealershipNames: (u.dealershipIds || []).map((id) => dealershipNameById.get(id) || id),
+                subscriptionStatus: u.subscriptionStatus,
+                lessonsCompleted: logs.length,
+                totalXp: u.xp || 0,
+                avgScore,
+                lastInteraction,
+                isActive30d,
+            };
+        });
+
+        const owners = rows.filter((r) => r.role === 'Owner');
+        const allLogs = tour.lessonLogs;
+        const overallAvg = allLogs.length
+            ? Math.round(
+                allLogs.reduce((sum, log) => {
+                    const total = cxTraits.reduce((acc, trait) => acc + (log[trait] || 0), 0);
+                    return sum + total / cxTraits.length;
+                }, 0) / allLogs.length
+            )
+            : null;
+
+        return {
+            generatedAt: now,
+            users: {
+                total: rows.length,
+                active30d: rows.filter((r) => r.isActive30d).length,
+                ownersTotal: owners.length,
+                ownersActive30d: owners.filter((r) => r.isActive30d).length,
+            },
+            dealerships: {
+                total: tour.dealerships.length,
+                active: tour.dealerships.filter((d) => d.status === 'active').length,
+                paused: tour.dealerships.filter((d) => d.status === 'paused').length,
+                deactivated: tour.dealerships.filter((d) => d.status === 'deactivated').length,
+            },
+            performance: {
+                totalLessonsCompleted: allLogs.length,
+                averageScore: overallAvg,
+                totalXp: rows.reduce((sum, r) => sum + r.totalXp, 0),
+            },
+            roleCounts,
+            rows: rows.sort((a, b) => a.name.localeCompare(b.name)),
+        };
+    }
+
+    const usersCollection = collection(db, 'users');
+    const dealershipsCollection = collection(db, 'dealerships');
+
+    let users: User[];
+    let dealerships: Dealership[];
+    try {
+        const [usersSnapshot, dealershipsSnapshot] = await Promise.all([
+            getDocs(usersCollection),
+            getDocs(dealershipsCollection),
+        ]);
+        users = usersSnapshot.docs.map((d) => ({ ...(d.data() as any), userId: d.id } as User));
+        dealerships = dealershipsSnapshot.docs.map((d) => ({ ...(d.data() as any), id: d.id } as Dealership));
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({ path: 'users/dealerships', operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const logsPerUser = await Promise.all(users.map((u) => getConsultantActivity(u.userId).catch(() => [] as LessonLog[])));
+
+    const roleCounts: Record<string, number> = {};
+    users.forEach((u) => {
+        roleCounts[u.role] = (roleCounts[u.role] || 0) + 1;
+    });
+    const dealershipNameById = new Map<string, string>();
+    dealerships.forEach((d) => dealershipNameById.set(d.id, d.name));
+
+    const rows: SystemReportUserRow[] = users.map((u, index) => {
+        const logs = logsPerUser[index];
+        const lastInteraction = logs[0]?.timestamp || null;
+        const isActive30d = !!lastInteraction && lastInteraction > activeSince;
+        const avgScore = logs.length
+            ? Math.round(
+                logs.reduce((sum, log) => {
+                    const total = cxTraits.reduce((acc, trait) => acc + (log[trait] || 0), 0);
+                    return sum + total / cxTraits.length;
+                }, 0) / logs.length
+            )
+            : null;
+
+        return {
+            userId: u.userId,
+            name: u.name || '',
+            email: u.email || '',
+            role: u.role,
+            dealershipIds: u.dealershipIds || [],
+            dealershipNames: (u.dealershipIds || []).map((id) => dealershipNameById.get(id) || id),
+            subscriptionStatus: u.subscriptionStatus,
+            lessonsCompleted: logs.length,
+            totalXp: u.xp || 0,
+            avgScore,
+            lastInteraction,
+            isActive30d,
+        };
+    });
+
+    const allLogs = logsPerUser.flat();
+    const overallAvg = allLogs.length
+        ? Math.round(
+            allLogs.reduce((sum, log) => {
+                const total = cxTraits.reduce((acc, trait) => acc + (log[trait] || 0), 0);
+                return sum + total / cxTraits.length;
+            }, 0) / allLogs.length
+        )
+        : null;
+    const owners = rows.filter((r) => r.role === 'Owner');
+
+    return {
+        generatedAt: now,
+        users: {
+            total: rows.length,
+            active30d: rows.filter((r) => r.isActive30d).length,
+            ownersTotal: owners.length,
+            ownersActive30d: owners.filter((r) => r.isActive30d).length,
+        },
+        dealerships: {
+            total: dealerships.length,
+            active: dealerships.filter((d) => d.status === 'active').length,
+            paused: dealerships.filter((d) => d.status === 'paused').length,
+            deactivated: dealerships.filter((d) => d.status === 'deactivated').length,
+        },
+        performance: {
+            totalLessonsCompleted: allLogs.length,
+            averageScore: overallAvg,
+            totalXp: rows.reduce((sum, r) => sum + r.totalXp, 0),
+        },
+        roleCounts,
+        rows: rows.sort((a, b) => a.name.localeCompare(b.name)),
+    };
 }
 
 

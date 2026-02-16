@@ -13,7 +13,12 @@ import { cn } from '@/lib/utils';
 const tourRoles: { label: string; value: UserRole }[] = [
   { label: 'Sales Consultant', value: 'Sales Consultant' },
   { label: 'Service Writer', value: 'Service Writer' },
+  { label: 'Parts Consultant', value: 'Parts Consultant' },
+  { label: 'Finance Manager', value: 'Finance Manager' },
   { label: 'Sales Manager', value: 'manager' },
+  { label: 'Service Manager', value: 'Service Manager' },
+  { label: 'Parts Manager', value: 'Parts Manager' },
+  { label: 'General Manager', value: 'General Manager' },
   { label: 'Owner', value: 'Owner' },
 ];
 

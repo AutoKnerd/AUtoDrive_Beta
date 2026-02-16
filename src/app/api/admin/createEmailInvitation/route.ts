@@ -1,10 +1,31 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb, getAdminAuth } from '@/firebase/admin';
 import { UserRole, Dealership, User } from '@/lib/definitions';
-import { sendInvitationEmail } from '@/lib/email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+function getPublicOrigin(req: Request) {
+  // Prefer an explicit public URL in production.
+  const explicit = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (explicit) return explicit.replace(/\/$/, '');
+
+  // Otherwise, attempt to derive from forwarded headers (Firebase/App Hosting, proxies, etc.).
+  const proto = req.headers.get('x-forwarded-proto') || 'http';
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  if (host) return `${proto}://${host}`;
+
+  // Local dev fallback.
+  return 'http://localhost:3000';
+}
+
+function isEmailSendingEnabled() {
+  // Hard off switch for beta / local development.
+  if (process.env.DISABLE_INVITE_EMAILS === 'true') return false;
+
+  // If you re-enable later, you can swap this to check for whatever provider key you use.
+  return !!process.env.RESEND_API_KEY;
+}
 
 export async function POST(req: Request) {
   const authorization = req.headers.get('authorization') ?? req.headers.get('Authorization');
@@ -80,36 +101,45 @@ export async function POST(req: Request) {
 
     await invitationRef.set(newInvitationData);
     
-    const origin = req.headers.get('origin') || 'http://localhost:9002';
+    const origin = getPublicOrigin(req);
     const inviteUrl = `${origin}/register?token=${invitationToken}`;
 
-    // Send the invitation email (best-effort). Even if email fails, the invite link must be returned.
+    // Email is optional for beta. Always return the inviteUrl.
     let emailSent = false;
     let emailError: string | undefined;
 
-    try {
-      const emailResult = await sendInvitationEmail({
-        toEmail: email,
-        inviteUrl,
-        inviter: user,
-        dealership: dealership,
-      });
+    if (isEmailSendingEnabled()) {
+      try {
+        // Dynamically import to avoid hard dependency during builds / when disabled.
+        const { sendInvitationEmail } = await import('@/lib/email');
 
-      emailSent = !!emailResult?.success;
-      if (!emailSent) {
-        emailError = emailResult?.error || 'Unknown email provider error';
-        console.error(`[API CreateEmailInvitation] Failed to send invitation email to ${email}: ${emailError}`);
+        const emailResult = await sendInvitationEmail({
+          toEmail: email,
+          inviteUrl,
+          inviter: user,
+          dealership: dealership,
+        });
+
+        emailSent = !!emailResult?.success;
+        if (!emailSent) {
+          emailError = emailResult?.error || 'Unknown email provider error';
+          console.error(`[API CreateEmailInvitation] Failed to send invitation email to ${email}: ${emailError}`);
+        }
+      } catch (e: any) {
+        emailSent = false;
+        emailError = e?.message || String(e);
+        console.error(`[API CreateEmailInvitation] Invitation email threw for ${email}:`, e);
       }
-    } catch (e: any) {
-      emailSent = false;
-      emailError = e?.message || String(e);
-      console.error(`[API CreateEmailInvitation] Invitation email threw for ${email}:`, e);
+    } else {
+      // Make it obvious in logs without breaking onboarding.
+      console.warn('[API CreateEmailInvitation] Email sending disabled. Returning inviteUrl only.');
     }
 
     return NextResponse.json(
       {
         token: invitationToken,
         inviteUrl,
+        inviteText: `Join ${dealership.name} on AutoDrive: ${inviteUrl}`,
         emailSent,
         ...(emailError ? { emailError } : {}),
       },

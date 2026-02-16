@@ -18,7 +18,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge as UiBadge } from '@/components/ui/badge';
 import placeholderImagesData from '@/lib/placeholder-images.json';
-import { Camera, X, CheckCircle, ExternalLink, MailWarning, Send } from 'lucide-react';
+import { Camera, X, CheckCircle, ExternalLink } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,9 +32,7 @@ import {
 import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
 import { createCustomerPortalSession } from '@/app/actions/stripe';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 interface ProfileFormProps {
   user: User;
@@ -54,13 +52,14 @@ const profileSchema = z.object({
   }).optional(),
   isPrivate: z.boolean().optional(),
   isPrivateFromOwner: z.boolean().optional(),
+  showDealerCriticalOnly: z.boolean().optional(),
   selfDeclaredDealershipId: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export function ProfileForm({ user }: ProfileFormProps) {
-  const { setUser, firebaseUser, resendVerificationEmail } = useAuth();
+  const { setUser } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
@@ -71,7 +70,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [confirmationInput, setConfirmationInput] = useState('');
   const [isRemoving, setIsRemoving] = useState(false);
   const [showOwnerPrivacyDialog, setShowOwnerPrivacyDialog] = useState(false);
-  const [isSendingVerification, setIsSendingVerification] = useState(false);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -89,11 +87,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
       },
       isPrivate: user.isPrivate || false,
       isPrivateFromOwner: user.isPrivateFromOwner || false,
+      showDealerCriticalOnly: user.showDealerCriticalOnly || false,
       selfDeclaredDealershipId: user.selfDeclaredDealershipId || '',
     },
   });
   
   const isPrivateValue = form.watch('isPrivate');
+  const criticalOnlyValue = form.watch('showDealerCriticalOnly');
 
   useEffect(() => {
     async function fetchDealerships() {
@@ -108,6 +108,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       .map(id => allDealerships.find(d => d.id === id))
       .filter((d): d is Dealership => d !== undefined);
   }, [user.dealershipIds, allDealerships]);
+  const isDealerEnrolled = (user.dealershipIds?.length || 0) > 0;
 
   const { placeholderImages } = placeholderImagesData;
   
@@ -203,41 +204,15 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
   }, [isPrivateValue, form]);
 
-  const handleResendVerification = async () => {
-    setIsSendingVerification(true);
-    try {
-        await resendVerificationEmail();
-        toast({
-            title: 'Verification Email Sent',
-            description: 'Please check your inbox to verify your email address.',
-        });
-    } catch (e) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: (e as Error).message,
-        });
-    } finally {
-        setIsSendingVerification(false);
+  useEffect(() => {
+    if (isPrivateValue && criticalOnlyValue) {
+      form.setValue('showDealerCriticalOnly', false);
     }
-  };
-
+  }, [isPrivateValue, criticalOnlyValue, form]);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {firebaseUser && !firebaseUser.emailVerified && (
-            <Alert variant="destructive" className="bg-amber-500/10 border-amber-500/50 text-amber-200 [&>svg]:text-amber-400">
-                <MailWarning className="h-4 w-4" />
-                <AlertTitle className="text-amber-300">Verify Your Email Address</AlertTitle>
-                <AlertDescription className="flex items-center justify-between">
-                    Your email address is not verified. Please check your inbox or resend the verification email.
-                    <Button type="button" size="sm" variant="outline" className="ml-4 text-amber-200 border-amber-500/50 bg-amber-900/50 hover:bg-amber-900/80 hover:text-amber-100" onClick={handleResendVerification} disabled={isSendingVerification}>
-                        {isSendingVerification ? <Spinner size="sm"/> : <><Send className="mr-2 h-4 w-4" /> Resend Email</>}
-                    </Button>
-                </AlertDescription>
-            </Alert>
-        )}
         <Card>
           <CardHeader>
             <CardTitle>Profile Picture</CardTitle>
@@ -403,10 +378,20 @@ export function ProfileForm({ user }: ProfileFormProps) {
          <Card>
           <CardHeader>
             <CardTitle>Subscription</CardTitle>
-            <CardDescription>Manage your AutoDrive Pro subscription.</CardDescription>
+            <CardDescription>Current account enrollment status.</CardDescription>
           </CardHeader>
           <CardContent>
-            {user.subscriptionStatus === 'active' ? (
+            {isDealerEnrolled ? (
+              <div className="space-y-4 rounded-lg border border-green-500/50 bg-green-500/10 p-4">
+                <div className='flex items-center gap-2'>
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                    <h4 className="font-semibold text-green-300">Dealer Enrolled</h4>
+                </div>
+                <p className="text-sm text-green-200/80">
+                  Your account is enrolled through your dealership. Subscription access is managed at the dealership level.
+                </p>
+              </div>
+            ) : user.subscriptionStatus === 'active' ? (
               <div className="space-y-4 rounded-lg border border-green-500/50 bg-green-500/10 p-4">
                 <div className="flex items-center justify-between">
                     <div className='flex items-center gap-2'>
@@ -423,13 +408,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
               </div>
             ) : (
               <div className="space-y-3 rounded-lg border p-4">
-                 <h4 className="font-semibold">Upgrade to AutoDrive Pro</h4>
+                 <h4 className="font-semibold">Subscription</h4>
                 <p className="text-sm text-muted-foreground">
-                  You are currently on the free plan. Upgrade now to unlock unlimited lessons, advanced analytics, and powerful management tools.
+                  Subscription self-service is temporarily unavailable in the app.
                 </p>
-                 <Button type="button" asChild>
-                    <Link href="/subscribe">Upgrade to Pro</Link>
-                </Button>
               </div>
             )}
           </CardContent>
@@ -534,6 +516,34 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <CardContent className="space-y-4">
                 <FormField
                 control={form.control}
+                name="showDealerCriticalOnly"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                        Show Dealer Critical Only
+                        </FormLabel>
+                        <FormDescription>
+                        Superiors will only see your top strength and area for improvement, without percentage scores.
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          if (checked) {
+                            form.setValue('isPrivate', false);
+                            form.setValue('isPrivateFromOwner', false);
+                          }
+                        }}
+                        />
+                    </FormControl>
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
                 name="isPrivate"
                 render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -548,7 +558,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     <FormControl>
                         <Switch
                         checked={field.value}
-                        onCheckedChange={field.onChange}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          if (checked) {
+                            form.setValue('showDealerCriticalOnly', false);
+                          }
+                        }}
                         />
                     </FormControl>
                     </FormItem>

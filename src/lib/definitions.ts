@@ -72,6 +72,7 @@ export type User = {
   address?: Address;
   isPrivate?: boolean;
   isPrivateFromOwner?: boolean;
+  showDealerCriticalOnly?: boolean;
   memberSince?: string;
   selfDeclaredDealershipId?: string;
   stripeCustomerId?: string;
@@ -209,6 +210,11 @@ export type EmailInvitation = {
   email: string;
   claimed: boolean;
   inviterId: string;
+};
+
+export type PendingInvitation = EmailInvitation & {
+  createdAt?: Date;
+  expiresAt?: Date;
 };
 
 export type Dealership = {

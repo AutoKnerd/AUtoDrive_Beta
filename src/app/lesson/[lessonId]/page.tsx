@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft, X } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { BottomNav } from '@/components/layout/bottom-nav';
@@ -111,6 +111,16 @@ export default function LessonPage() {
         <div className="flex min-h-screen w-full flex-col">
             <Header />
             <main className="flex flex-1 flex-col items-center p-4 md:p-8 pb-24">
+                <Button
+                  asChild
+                  variant="outline"
+                  size="icon"
+                  className="fixed right-4 top-20 z-40 h-10 w-10 rounded-full border-cyan-400/40 bg-slate-900/90 backdrop-blur hover:bg-slate-800"
+                >
+                    <Link href="/" aria-label="Exit lesson">
+                        <X className="h-5 w-5" />
+                    </Link>
+                </Button>
                 <LessonView lesson={lesson} isRecommended={isRecommended} />
             </main>
             {!isManager && !isTouring && <BottomNav />}

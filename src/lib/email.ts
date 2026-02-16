@@ -3,9 +3,7 @@
 import { Resend } from 'resend';
 import { User, Dealership } from './definitions';
 
-// Proper environment variable usage
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-console.log('RESEND_API_KEY present?', !!process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@autodrive.app';
 
 if (!RESEND_API_KEY) {
@@ -26,7 +24,6 @@ export async function sendInvitationEmail({
   dealership: Dealership;
 }) {
   if (!resend) {
-    console.log(`Email service disabled. Invite URL for ${toEmail}: ${inviteUrl}`);
     return {
       success: false,
       error: 'Email service is not configured. Set RESEND_API_KEY to enable.',
@@ -64,7 +61,6 @@ export async function sendInvitationEmail({
     });
 
     if (error) {
-      console.error('Resend API Error:', error);
       return {
         success: false,
         error: error.message,
@@ -77,7 +73,6 @@ export async function sendInvitationEmail({
       data,
     };
   } catch (error) {
-    console.error('Failed to send email:', error);
     return {
       success: false,
       error: (error as Error).message,

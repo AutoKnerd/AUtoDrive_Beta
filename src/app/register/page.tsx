@@ -27,20 +27,30 @@ function RegisterPageContent() {
     }
 
     async function validateToken() {
-      try {
-        const response = await fetch(`/api/invitations/${token}`, { cache: 'no-store' });
-        
-        if (response.status === 200) {
-            const inv = await response.json();
-            setInvitation(inv);
-        } else {
-            const errorData = await response.json();
-            setError(errorData.message || 'This invitation is invalid or has expired.');
-        }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      } catch (e) {
-        setError('Could not validate your invitation. Please try again later.');
+      try {
+        const response = await fetch(`/api/invitations/${encodeURIComponent(token)}`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        const raw = await response.text();
+        const payload = raw ? JSON.parse(raw) : {};
+
+        if (response.ok) {
+          setInvitation(payload as EmailInvitation);
+        } else {
+          setError(payload?.message || 'This invitation is invalid or has expired.');
+        }
+      } catch (e: any) {
+        if (e?.name === 'AbortError') {
+          setError('Invitation validation timed out. Please refresh and try again.');
+        } else {
+          setError('Could not validate your invitation. Please try again later.');
+        }
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     }

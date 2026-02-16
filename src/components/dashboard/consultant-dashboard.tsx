@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership } from '@/lib/definitions';
-import { getLessons, getConsultantActivity, getDailyLessonLimits, getAssignedLessons, getEarnedBadgesByUserId, getDealershipById } from '@/lib/data.client';
+import { getLessons, getConsultantActivity, getDailyLessonLimits, getAssignedLessons, getAllAssignedLessonIds, getEarnedBadgesByUserId, getDealershipById } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -26,6 +26,7 @@ import { UserNav } from '../layout/user-nav';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -115,6 +116,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [activity, setActivity] = useState<LessonLog[]>([]);
   const [assignedLessons, setAssignedLessons] = useState<Lesson[]>([]);
+  const [assignedLessonHistoryIds, setAssignedLessonHistoryIds] = useState<string[]>([]);
   const [lessonLimits, setLessonLimits] = useState({ recommendedTaken: false, otherTaken: false });
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,23 +124,33 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const { isTouring } = useAuth();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
+  const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
+  const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedBadges] = await Promise.all([
+      const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges] = await Promise.all([
         getLessons(user.role, user.userId),
         getConsultantActivity(user.userId),
         getDailyLessonLimits(user.userId),
         getAssignedLessons(user.userId),
+        getAllAssignedLessonIds(user.userId),
         getEarnedBadgesByUserId(user.userId),
       ]);
       setLessons(fetchedLessons);
       setActivity(fetchedActivity);
       setLessonLimits(limits);
       setAssignedLessons(fetchedAssignedLessons);
+      setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
       setBadges(fetchedBadges);
+      const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
+      const hasBaselineLog = fetchedActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
+      const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
+      setNeedsBaselineAssessment(baselineRequired);
+      setShowBaselineAssessment(baselineRequired);
       
       if (user.dealershipIds.length > 0 && !isTouring) {
           const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id, user.userId)));
@@ -155,7 +167,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       setLoading(false);
     }
     fetchData();
-  }, [user, isTouring]);
+  }, [user, isTouring, refreshKey]);
 
   useEffect(() => {
     if (isTouring) {
@@ -192,8 +204,22 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     const lowestScoringTrait = Object.entries(averageScores).reduce((lowest, [trait, score]) => 
         score < lowest.score ? { trait: trait as CxTrait, score } : lowest, { trait: 'empathy' as CxTrait, score: 101 }
     );
-    return lessons.find(l => l.associatedTrait === lowestScoringTrait.trait) || lessons[0];
-  }, [lessons, averageScores]);
+
+    const assignedLessonIds = new Set(assignedLessonHistoryIds);
+    const candidateLessons = lessons.filter(l => !assignedLessonIds.has(l.lessonId));
+    const roleSpecificLessons = candidateLessons.filter(l => l.role === user.role);
+    const globalLessons = candidateLessons.filter(l => l.role === 'global');
+
+    // Always prioritize lessons targeted to the signed-in role.
+    return (
+      roleSpecificLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) ||
+      roleSpecificLessons[0] ||
+      globalLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) ||
+      globalLessons[0] ||
+      candidateLessons[0] ||
+      null
+    );
+  }, [lessons, assignedLessonHistoryIds, averageScores, user.role]);
 
   const recentActivities = useMemo(() => {
     if (!activity || !user) return [];
@@ -243,6 +269,16 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
   return (
     <div className="space-y-8 pb-24 text-gray-300">
+        <BaselineAssessmentDialog
+          user={user}
+          open={showBaselineAssessment}
+          onOpenChange={setShowBaselineAssessment}
+          onCompleted={async () => {
+            setShowBaselineAssessment(false);
+            setNeedsBaselineAssessment(false);
+            setRefreshKey(prev => prev + 1);
+          }}
+        />
         <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
             <DialogContent>
             <DialogHeader>
@@ -305,7 +341,25 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                             </div>
                             <p className="text-sm text-muted-foreground mb-4">A daily lesson focused on your area for greatest improvement.</p>
                         </div>
-                        {recommendedLesson && !lessonLimits.recommendedTaken ? (
+                        {needsBaselineAssessment ? (
+                            <div className="grid grid-cols-2 gap-2">
+                                {recommendedLesson && !lessonLimits.recommendedTaken ? (
+                                    <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
+                                        Recommended Lesson
+                                    </Link>
+                                ) : (
+                                    <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                                        {recommendedLesson ? 'Completed for today' : 'No lesson available'}
+                                    </Button>
+                                )}
+                                <Button
+                                  className="w-full font-bold bg-[#8DC63F] text-black hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]"
+                                  onClick={() => setShowBaselineAssessment(true)}
+                                >
+                                    Take Baseline Assessment
+                                </Button>
+                            </div>
+                        ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
                             <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
                                 Start: {recommendedLesson.title}
                             </Link>
@@ -338,7 +392,16 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                         <div className="space-y-2">
                             {assignedLessons.length > 0 ? (
                                 assignedLessons.map(lesson => (
-                                    <Link key={lesson.lessonId} href={`/lesson/${lesson.lessonId}`} className={cn("w-full justify-between", buttonVariants({ variant: "outline", className: "w-full font-normal" }))}>
+                                    <Link
+                                      key={lesson.lessonId}
+                                      href={`/lesson/${lesson.lessonId}`}
+                                      className={cn(
+                                        "w-full justify-between text-black hover:text-black",
+                                        buttonVariants({
+                                          className: "w-full font-normal bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]",
+                                        })
+                                      )}
+                                    >
                                         <span className="truncate">{lesson.title}</span>
                                         <ChevronRight className="h-4 w-4" />
                                     </Link>

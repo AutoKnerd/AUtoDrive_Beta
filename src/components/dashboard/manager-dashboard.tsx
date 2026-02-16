@@ -4,10 +4,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole } from '@/lib/definitions';
+import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
-import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits } from '@/lib/data.client';
-import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings } from 'lucide-react';
+import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport } from '@/lib/data.client';
+import type { SystemReport } from '@/lib/data.client';
+import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -34,6 +35,9 @@ import { UserNav } from '../layout/user-nav';
 import { useAuth } from '@/hooks/use-auth';
 import { RegisterDealershipForm } from '../admin/register-dealership-form';
 import { CreateDealershipForm } from '../admin/create-dealership-form';
+import { Input } from '../ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 
 
 interface ManagerDashboardProps {
@@ -45,7 +49,12 @@ type TeamMemberStats = {
   lessonsCompleted: number;
   totalXp: number;
   avgScore: number;
+  topStrength: CxTrait | null;
+  weakestSkill: CxTrait | null;
+  lastInteraction: Date | null;
+  pendingInvite?: PendingInvitation;
 };
+type TeamSortField = 'name' | 'role' | 'lastInteraction' | 'topStrength' | 'weakestSkill';
 
 type DealershipInsight = {
     trait: string;
@@ -89,12 +98,15 @@ function LevelDisplay({ user }: { user: User }) {
 }
 
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
+  const { toast } = useToast();
   const { originalUser, isTouring } = useAuth();
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [managerActivity, setManagerActivity] = useState<LessonLog[]>([]);
   const [managerBadges, setManagerBadges] = useState<Badge[]>([]);
+  const [assignedLessons, setAssignedLessons] = useState<Lesson[]>([]);
+  const [assignedLessonHistoryIds, setAssignedLessonHistoryIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
   const [isManageUsersOpen, setManageUsersOpen] = useState(false);
@@ -109,6 +121,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [allDealershipsForAdmin, setAllDealershipsForAdmin] = useState<Dealership[]>([]);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
   const [allDealershipStats, setAllDealershipStats] = useState<Record<string, { bestStat: DealershipInsight | null, watchStat: DealershipInsight | null }>>({});
+  const [pendingInviteLinksByKey, setPendingInviteLinksByKey] = useState<Record<string, string>>({});
+  const [isResendingInvite, setIsResendingInvite] = useState<string | null>(null);
+  const [teamSortField, setTeamSortField] = useState<TeamSortField>('name');
+  const [teamSortDirection, setTeamSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
+  const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
+  const [systemReport, setSystemReport] = useState<SystemReport | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const router = useRouter();
 
 
@@ -132,24 +152,82 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       
       const combinedDataPromise = getCombinedTeamData(dealershipId, user);
 
-      const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, limits] = await Promise.all([
+      const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations] = await Promise.all([
         combinedDataPromise,
         getManageableUsers(user.userId),
         getLessons(user.role as LessonRole, user.userId),
         getConsultantActivity(user.userId),
         getEarnedBadgesByUserId(user.userId),
+        getAssignedLessons(user.userId),
+        getAllAssignedLessonIds(user.userId),
         getDailyLessonLimits(user.userId),
+        getPendingInvitations(dealershipId, user),
       ]);
       
       setStats(combinedData.managerStats);
-      setTeamActivity(combinedData.teamActivity);
+      const teamActivityByUserId = new Map<string, TeamMemberStats>(
+        combinedData.teamActivity.map((row) => [row.consultant.userId, row])
+      );
+
+      const visibleActiveUsers = usersToManage.filter((u) => {
+        if (dealershipId === 'all') {
+          return ['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role);
+        }
+        return u.dealershipIds?.includes(dealershipId);
+      });
+
+      visibleActiveUsers.forEach((u) => {
+        if (!teamActivityByUserId.has(u.userId)) {
+          teamActivityByUserId.set(u.userId, {
+            consultant: u,
+            lessonsCompleted: 0,
+            totalXp: u.xp,
+            avgScore: 0,
+            topStrength: null,
+            weakestSkill: null,
+            lastInteraction: null,
+          });
+        }
+      });
+
+      const pendingRows: TeamMemberStats[] = pendingInvitations.map((invite) => ({
+        consultant: {
+          userId: `invite-${invite.token}`,
+          name: invite.email.split('@')[0] || invite.email,
+          email: invite.email,
+          role: invite.role,
+          dealershipIds: [invite.dealershipId],
+          avatarUrl: '',
+          xp: 0,
+        },
+        lessonsCompleted: 0,
+        totalXp: 0,
+        avgScore: 0,
+        topStrength: null,
+        weakestSkill: null,
+        lastInteraction: null,
+        pendingInvite: invite,
+      }));
+
+      const mergedRoster = [...Array.from(teamActivityByUserId.values()), ...pendingRows].sort((a, b) =>
+        a.consultant.name.localeCompare(b.consultant.name)
+      );
+
+      setTeamActivity(mergedRoster);
       setManageableUsers(usersToManage);
       setLessons(fetchedLessons);
       setManagerActivity(fetchedManagerActivity);
       setManagerBadges(fetchedBadges);
+      setAssignedLessons(fetchedAssignedLessons);
+      setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
       setLessonLimits(limits);
+      const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
+      const hasBaselineLog = fetchedManagerActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
+      const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
+      setNeedsBaselineAssessment(baselineRequired);
+      setShowBaselineAssessment(baselineRequired);
       setLoading(false);
-  }, [user]);
+  }, [user, isTouring]);
 
   const fetchAdminData = useCallback(async () => {
     const fetchedDealerships = await getDealerships(user);
@@ -245,6 +323,77 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     setSelectedDealershipId(dealershipId);
   };
 
+  const formatUserDisplayName = useCallback((name?: string, email?: string) => {
+    const normalizedName = (name || '').trim();
+    if (normalizedName && normalizedName.toLowerCase() !== 'new user') {
+      return normalizedName;
+    }
+    const localPart = (email || '').split('@')[0] || '';
+    const cleaned = localPart.replace(/[._-]+/g, ' ').trim();
+    if (!cleaned) return 'Member';
+    return cleaned
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }, []);
+
+  const formatTrait = useCallback((trait: CxTrait) => {
+    return trait.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  }, []);
+
+  const isMetricsHiddenForViewer = useCallback((member: User) => {
+    if (['Admin', 'Developer', 'Trainer'].includes(user.role)) return false;
+    if (user.role === 'Owner') return member.isPrivateFromOwner === true;
+    return member.isPrivate === true;
+  }, [user.role]);
+
+  const isCriticalOnlyForViewer = useCallback((member: User) => {
+    if (!managerialRoles.includes(user.role)) return false;
+    if (member.userId === user.userId) return false;
+    if (isMetricsHiddenForViewer(member)) return false;
+    return member.showDealerCriticalOnly === true;
+  }, [user.role, user.userId, isMetricsHiddenForViewer]);
+
+  const handleTeamSort = useCallback((field: TeamSortField) => {
+    if (teamSortField === field) {
+      setTeamSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setTeamSortField(field);
+    setTeamSortDirection('asc');
+  }, [teamSortField]);
+
+  const sortedTeamActivity = useMemo(() => {
+    const list = [...teamActivity];
+    list.sort((a, b) => {
+      const dir = teamSortDirection === 'asc' ? 1 : -1;
+      const aPending = !!a.pendingInvite;
+      const bPending = !!b.pendingInvite;
+      if (aPending !== bPending) return aPending ? 1 : -1;
+
+      switch (teamSortField) {
+        case 'role':
+          return a.consultant.role.localeCompare(b.consultant.role) * dir;
+        case 'lastInteraction': {
+          const aTime = a.lastInteraction ? new Date(a.lastInteraction).getTime() : 0;
+          const bTime = b.lastInteraction ? new Date(b.lastInteraction).getTime() : 0;
+          return (aTime - bTime) * dir;
+        }
+        case 'topStrength':
+          return (a.topStrength || '').localeCompare(b.topStrength || '') * dir;
+        case 'weakestSkill':
+          return (a.weakestSkill || '').localeCompare(b.weakestSkill || '') * dir;
+        case 'name':
+        default:
+          return formatUserDisplayName(a.consultant.name, a.consultant.email).localeCompare(
+            formatUserDisplayName(b.consultant.name, b.consultant.email)
+          ) * dir;
+      }
+    });
+    return list;
+  }, [teamActivity, teamSortDirection, teamSortField, formatUserDisplayName]);
+
   const managerAverageScores = useMemo(() => {
       if (!managerActivity.length) {
         return {
@@ -269,6 +418,62 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       ) as typeof total;
   }, [managerActivity]);
 
+  const getPendingInviteKey = useCallback((invite: PendingInvitation) => {
+    return `${invite.email.toLowerCase()}::${invite.dealershipId}::${invite.role}`;
+  }, []);
+
+  const getPendingInviteUrl = useCallback(
+    (invite: PendingInvitation) => {
+      const key = getPendingInviteKey(invite);
+      const linkFromState = pendingInviteLinksByKey[key];
+      if (linkFromState) return linkFromState;
+      if (typeof window !== 'undefined') return `${window.location.origin}/register?token=${invite.token}`;
+      return `/register?token=${invite.token}`;
+    },
+    [getPendingInviteKey, pendingInviteLinksByKey]
+  );
+
+  const copyPendingInviteLink = useCallback(
+    async (invite: PendingInvitation) => {
+      try {
+        await navigator.clipboard.writeText(getPendingInviteUrl(invite));
+        toast({ title: 'Link Copied', description: `Copied invite link for ${invite.email}.` });
+      } catch {
+        toast({
+          variant: 'destructive',
+          title: 'Copy Failed',
+          description: 'Could not copy invite link on this device.',
+        });
+      }
+    },
+    [getPendingInviteUrl, toast]
+  );
+
+  const regeneratePendingInviteLink = useCallback(
+    async (invite: PendingInvitation) => {
+      const key = getPendingInviteKey(invite);
+      setIsResendingInvite(key);
+      try {
+        const { url } = await createInvitationLink(invite.dealershipId, invite.email, invite.role, user.userId);
+        setPendingInviteLinksByKey((prev) => ({ ...prev, [key]: url }));
+        await navigator.clipboard.writeText(url).catch(() => {});
+        toast({
+          title: 'New Invite Link Generated',
+          description: `A fresh link for ${invite.email} is ready${typeof navigator !== 'undefined' ? ' and copied.' : '.'}`,
+        });
+      } catch (e: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Resend Failed',
+          description: e?.message || 'Could not generate a new invite link.',
+        });
+      } finally {
+        setIsResendingInvite(null);
+      }
+    },
+    [getPendingInviteKey, toast, user.userId]
+  );
+
   const recommendedLesson = useMemo(() => {
     if (loading || lessons.length === 0 || !managerAverageScores) return null;
 
@@ -279,10 +484,20 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         return lowest;
     }, { trait: 'empathy' as CxTrait, score: 101 });
 
-    const lesson = lessons.find(l => l.associatedTrait === lowestScoringTrait.trait);
+    const assignedLessonIds = new Set(assignedLessonHistoryIds);
+    const candidateLessons = lessons.filter(l => !assignedLessonIds.has(l.lessonId));
+    const roleSpecificLessons = candidateLessons.filter(l => l.role === user.role);
+    const globalLessons = candidateLessons.filter(l => l.role === 'global');
 
-    return lesson || lessons[0];
-  }, [loading, lessons, managerAverageScores]);
+    return (
+      roleSpecificLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) ||
+      roleSpecificLessons[0] ||
+      globalLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) ||
+      globalLessons[0] ||
+      candidateLessons[0] ||
+      null
+    );
+  }, [loading, lessons, assignedLessonHistoryIds, managerAverageScores, user.role]);
 
   const statDescription = useMemo(() => {
     if (['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role)) {
@@ -322,6 +537,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     fetchData(selectedDealershipId);
   }
 
+  async function handleInviteCreated() {
+    await fetchAdminData();
+    fetchData(selectedDealershipId);
+  }
+
   const getStatusBadge = (status: Dealership['status']) => {
       switch(status) {
           case 'active':
@@ -340,6 +560,94 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
   const isSuperAdmin = ['Admin', 'Developer'].includes(user.role);
   const showInsufficientDataWarning = stats?.totalLessons === -1;
+  
+  const handleGenerateSystemReport = useCallback(async () => {
+    setIsGeneratingReport(true);
+    try {
+      const report = await getSystemReport(user);
+      setSystemReport(report);
+      toast({
+        title: 'System Report Ready',
+        description: `Loaded ${report.users.total} users across ${report.dealerships.total} dealerships.`,
+      });
+    } catch (e: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Report Failed',
+        description: e?.message || 'Could not generate system report.',
+      });
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }, [user, toast]);
+
+  const downloadSystemReportCsv = useCallback(() => {
+    if (!systemReport) return;
+    const headers = [
+      'userId',
+      'name',
+      'email',
+      'role',
+      'dealerships',
+      'subscriptionStatus',
+      'lessonsCompleted',
+      'totalXp',
+      'avgScore',
+      'lastInteraction',
+      'isActive30d',
+    ];
+
+    const escapeCsv = (value: unknown) => {
+      const str = String(value ?? '');
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = systemReport.rows.map((row) => [
+      row.userId,
+      row.name,
+      row.email,
+      row.role,
+      row.dealershipNames.join('|'),
+      row.subscriptionStatus || '',
+      row.lessonsCompleted,
+      row.totalXp,
+      row.avgScore ?? '',
+      row.lastInteraction ? new Date(row.lastInteraction).toISOString() : '',
+      row.isActive30d ? 'yes' : 'no',
+    ]);
+
+    const lines = [
+      `Generated At,${new Date(systemReport.generatedAt).toISOString()}`,
+      `Total Users,${systemReport.users.total}`,
+      `Active Users (30d),${systemReport.users.active30d}`,
+      `Owners Total,${systemReport.users.ownersTotal}`,
+      `Owners Active (30d),${systemReport.users.ownersActive30d}`,
+      `Dealerships Total,${systemReport.dealerships.total}`,
+      `Dealerships Active,${systemReport.dealerships.active}`,
+      `Dealerships Paused,${systemReport.dealerships.paused}`,
+      `Dealerships Deactivated,${systemReport.dealerships.deactivated}`,
+      `Total Lessons Completed,${systemReport.performance.totalLessonsCompleted}`,
+      `Average Score,${systemReport.performance.averageScore ?? ''}`,
+      `Total XP,${systemReport.performance.totalXp}`,
+      '',
+      headers.join(','),
+      ...rows.map((r) => r.map(escapeCsv).join(',')),
+    ];
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `autodrive-system-report-${dateStamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [systemReport]);
 
   const managerialTitle =
     user.role === 'Owner' || user.role === 'General Manager'
@@ -350,6 +658,16 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   return (
     <div className="space-y-8 pb-8">
+      <BaselineAssessmentDialog
+        user={user}
+        open={showBaselineAssessment}
+        onOpenChange={setShowBaselineAssessment}
+        onCompleted={async () => {
+          setShowBaselineAssessment(false);
+          setNeedsBaselineAssessment(false);
+          await fetchData(selectedDealershipId);
+        }}
+      />
         <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
             <DialogContent>
                 <DialogHeader>
@@ -415,7 +733,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             <RegisterDealershipForm
                                 user={user}
                                 dealerships={allDealershipsForAdmin}
-                                onUserInvited={handleUserManaged}
+                                onUserInvited={handleInviteCreated}
                             />
                         </CardContent>
                     </Card>
@@ -423,10 +741,51 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             </Tabs>
         )}
 
+        {isSuperAdmin && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>System Report</CardTitle>
+                    <CardDescription>Run a complete report for active owners, dealerships, users, and performance stats.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                        <Button onClick={handleGenerateSystemReport} disabled={isGeneratingReport}>
+                            {isGeneratingReport ? 'Generating...' : 'Generate Report'}
+                        </Button>
+                        <Button variant="outline" onClick={downloadSystemReportCsv} disabled={!systemReport}>
+                            Download CSV
+                        </Button>
+                    </div>
+                    {systemReport && (
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            <div className="rounded-md border p-3">
+                                <p className="text-sm text-muted-foreground">Users</p>
+                                <p className="font-semibold">Total: {systemReport.users.total}</p>
+                                <p className="font-semibold">Active (30d): {systemReport.users.active30d}</p>
+                                <p className="font-semibold">Owners Active: {systemReport.users.ownersActive30d}/{systemReport.users.ownersTotal}</p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-sm text-muted-foreground">Dealerships</p>
+                                <p className="font-semibold">Total: {systemReport.dealerships.total}</p>
+                                <p className="font-semibold">Active: {systemReport.dealerships.active}</p>
+                                <p className="font-semibold">Paused/Deactivated: {systemReport.dealerships.paused}/{systemReport.dealerships.deactivated}</p>
+                            </div>
+                            <div className="rounded-md border p-3">
+                                <p className="text-sm text-muted-foreground">Performance</p>
+                                <p className="font-semibold">Lessons: {systemReport.performance.totalLessonsCompleted}</p>
+                                <p className="font-semibold">Avg Score: {systemReport.performance.averageScore ?? 'N/A'}%</p>
+                                <p className="font-semibold">Total XP: {systemReport.performance.totalXp.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        )}
+
         {showPersonalDevelopment && (
             <section className="space-y-4">
                 <h2 className="text-xl font-bold text-white">My Development</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="flex flex-col justify-between p-6 bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 shadow-lg shadow-cyan-500/10">
                         <div>
                             <div className="flex items-center gap-3 mb-2">
@@ -437,6 +796,24 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         </div>
                         {loading ? (
                             <Skeleton className="h-10 w-full" />
+                        ) : needsBaselineAssessment ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              {recommendedLesson && !lessonLimits.recommendedTaken ? (
+                                  <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
+                                      Recommended Lesson
+                                  </Link>
+                              ) : (
+                                  <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                                      {recommendedLesson ? 'Completed for today' : 'No lesson available'}
+                                  </Button>
+                              )}
+                              <Button
+                                className="w-full font-bold bg-[#8DC63F] text-black hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]"
+                                onClick={() => setShowBaselineAssessment(true)}
+                              >
+                                  Take Baseline Assessment
+                              </Button>
+                            </div>
                         ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
                             <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
                                 Start: {recommendedLesson.title}
@@ -447,6 +824,34 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                     <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</> :
                                     "No lesson available"
                                 }
+                            </Button>
+                        )}
+                    </Card>
+                    <Card className="flex flex-col justify-between p-6 bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 shadow-lg shadow-cyan-500/10">
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <BookOpen className="h-8 w-8 text-cyan-400" />
+                                <h3 className="text-2xl font-bold text-white">Assigned Lesson</h3>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-4">Manager-assigned training you can complete in addition to your recommended lesson.</p>
+                        </div>
+                        {loading ? (
+                            <Skeleton className="h-10 w-full" />
+                        ) : assignedLessons.length > 0 ? (
+                            <Link
+                              href={`/lesson/${assignedLessons[0].lessonId}`}
+                              className={cn(
+                                "w-full text-black hover:text-black",
+                                buttonVariants({
+                                  className: "w-full font-bold bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]",
+                                })
+                              )}
+                            >
+                                Start: {assignedLessons[0].title}
+                            </Link>
+                        ) : (
+                            <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                                No assigned lessons
                             </Button>
                         )}
                     </Card>
@@ -541,7 +946,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                              <RegisterDealershipForm
                                                 user={user}
                                                 dealerships={dealerships}
-                                                onUserInvited={handleUserManaged}
+                                                onUserInvited={handleInviteCreated}
                                             />
                                         </TabsContent>
                                         <TabsContent value="assign" className="pt-2">
@@ -659,7 +1064,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                   <RegisterDealershipForm
                                                       user={user}
                                                       dealerships={dealerships}
-                                                      onUserInvited={handleUserManaged}
+                                                      onUserInvited={handleInviteCreated}
                                                   />
                                               </TabsContent>
                                               <TabsContent value="assign" className="pt-2">
@@ -737,14 +1142,36 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Team Member</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead className="text-center">Lessons Completed</TableHead>
-                            <TableHead className="text-center">Total XP</TableHead>
+                            <TableHead>
+                              <Button variant="ghost" size="sm" className="h-auto p-0 font-medium" onClick={() => handleTeamSort('name')}>
+                                Team Member <ArrowUpDown className="ml-1 h-3 w-3" />
+                              </Button>
+                            </TableHead>
+                            <TableHead>
+                              <Button variant="ghost" size="sm" className="h-auto p-0 font-medium" onClick={() => handleTeamSort('role')}>
+                                Role <ArrowUpDown className="ml-1 h-3 w-3" />
+                              </Button>
+                            </TableHead>
+                            <TableHead className="text-center">
+                              <Button variant="ghost" size="sm" className="h-auto p-0 font-medium" onClick={() => handleTeamSort('lastInteraction')}>
+                                Last Interaction <ArrowUpDown className="ml-1 h-3 w-3" />
+                              </Button>
+                            </TableHead>
+                            <TableHead className="text-center">
+                              <Button variant="ghost" size="sm" className="h-auto p-0 font-medium" onClick={() => handleTeamSort('topStrength')}>
+                                Top Strength <ArrowUpDown className="ml-1 h-3 w-3" />
+                              </Button>
+                            </TableHead>
+                            <TableHead className="text-center">
+                              <Button variant="ghost" size="sm" className="h-auto p-0 font-medium" onClick={() => handleTeamSort('weakestSkill')}>
+                                Area for Improvement <ArrowUpDown className="ml-1 h-3 w-3" />
+                              </Button>
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {teamActivity.length > 0 ? teamActivity.map(member => {
+                          {sortedTeamActivity.length > 0 ? sortedTeamActivity.map(member => {
+                            const isPendingInvite = !!member.pendingInvite;
                             return (
                               <Dialog key={member.consultant.userId}>
                                 <DialogTrigger asChild>
@@ -753,36 +1180,97 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                         <div className="flex items-center gap-3">
                                             <Avatar>
                                             <AvatarImage src={member.consultant.avatarUrl} data-ai-hint="person portrait" />
-                                            <AvatarFallback>{member.consultant.name.charAt(0)}</AvatarFallback>
+                                            <AvatarFallback>{formatUserDisplayName(member.consultant.name, member.consultant.email).charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div>
-                                            <p className="font-medium">{member.consultant.name}</p>
-                                            <p className="text-sm text-muted-foreground">{member.consultant.email}</p>
+                                            <p className="font-medium">{formatUserDisplayName(member.consultant.name, member.consultant.email)}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                              {isPendingInvite
+                                                ? 'Pending invitation'
+                                                : `Level ${calculateLevel(member.consultant.xp).level} • ${member.consultant.xp.toLocaleString()} XP`}
+                                            </p>
                                             </div>
                                         </div>
                                         </TableCell>
                                         <TableCell>
-                                            <UiBadge variant="outline">{member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}</UiBadge>
+                                            <div className="flex items-center gap-2">
+                                              <UiBadge variant="outline">{member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}</UiBadge>
+                                              {isPendingInvite && <UiBadge variant="secondary">Pending Invite</UiBadge>}
+                                            </div>
                                         </TableCell>
-                                        <TableCell className="text-center font-medium">{member.lessonsCompleted}</TableCell>
-                                        <TableCell className="text-center font-medium">{member.totalXp.toLocaleString()}</TableCell>
+                                        <TableCell className="text-center font-medium">
+                                          {isPendingInvite
+                                            ? '-'
+                                            : isMetricsHiddenForViewer(member.consultant)
+                                              ? 'Private'
+                                              : isCriticalOnlyForViewer(member.consultant)
+                                                ? 'Critical only'
+                                                : member.lastInteraction
+                                                  ? new Date(member.lastInteraction).toLocaleDateString()
+                                                  : 'No interactions yet'}
+                                        </TableCell>
+                                        <TableCell className="text-center font-medium">
+                                          {isPendingInvite
+                                            ? '-'
+                                            : isMetricsHiddenForViewer(member.consultant)
+                                              ? 'Private'
+                                            : member.topStrength
+                                              ? formatTrait(member.topStrength)
+                                              : 'Not enough data'}
+                                        </TableCell>
+                                        <TableCell className="text-center font-medium">
+                                          {isPendingInvite
+                                            ? '-'
+                                            : isMetricsHiddenForViewer(member.consultant)
+                                              ? 'Private'
+                                            : member.weakestSkill
+                                              ? formatTrait(member.weakestSkill)
+                                              : 'Not enough data'}
+                                        </TableCell>
                                     </TableRow>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-2xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Performance Snapshot</DialogTitle>
-                                    </DialogHeader>
-                                    <ScrollArea className="max-h-[70vh]">
-                                        <div className="pr-6">
-                                            <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={() => fetchData(selectedDealershipId)} />
+                                    {member.pendingInvite ? (
+                                      <>
+                                        <DialogHeader>
+                                          <DialogTitle>Pending Invitation</DialogTitle>
+                                          <DialogDescription>
+                                            {member.pendingInvite.email} has not completed account setup yet. You can share or regenerate their link.
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-3">
+                                          <Input readOnly value={getPendingInviteUrl(member.pendingInvite)} />
+                                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                            <Button variant="outline" onClick={() => copyPendingInviteLink(member.pendingInvite!)}>
+                                              Copy Invite Link
+                                            </Button>
+                                            <Button
+                                              onClick={() => regeneratePendingInviteLink(member.pendingInvite!)}
+                                              disabled={isResendingInvite === getPendingInviteKey(member.pendingInvite)}
+                                            >
+                                              {isResendingInvite === getPendingInviteKey(member.pendingInvite) ? 'Generating...' : 'Generate New Link'}
+                                            </Button>
+                                          </div>
                                         </div>
-                                    </ScrollArea>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <DialogHeader>
+                                            <DialogTitle>Performance Snapshot</DialogTitle>
+                                        </DialogHeader>
+                                        <ScrollArea className="max-h-[70vh]">
+                                            <div className="pr-6">
+                                                <TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={() => fetchData(selectedDealershipId)} />
+                                            </div>
+                                        </ScrollArea>
+                                      </>
+                                    )}
                                 </DialogContent>
                               </Dialog>
                             );
                           }) : (
                             <TableRow>
-                              <TableCell colSpan={4} className="text-center text-muted-foreground">
+                              <TableCell colSpan={5} className="text-center text-muted-foreground">
                                 No team activity found for this dealership.
                               </TableCell>
                             </TableRow>

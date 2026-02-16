@@ -26,6 +26,10 @@ import { Spinner } from '../ui/spinner';
 const registerSchema = z.object({
   name: z.string().min(2, { message: 'Please enter your full name.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+  confirmPassword: z.string().min(8, { message: 'Please confirm your password.' }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match.',
+  path: ['confirmPassword'],
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -45,6 +49,7 @@ export function RegisterForm({ invitation }: RegisterFormProps) {
     defaultValues: {
       name: '',
       password: '',
+      confirmPassword: '',
     },
   });
 
@@ -81,7 +86,7 @@ export function RegisterForm({ invitation }: RegisterFormProps) {
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input placeholder="John Doe" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -90,7 +95,7 @@ export function RegisterForm({ invitation }: RegisterFormProps) {
             <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                    <Input value={invitation.email} readOnly disabled />
+                    <Input value={invitation.email || ''} readOnly disabled />
                 </FormControl>
             </FormItem>
             <FormField
@@ -100,7 +105,20 @@ export function RegisterForm({ invitation }: RegisterFormProps) {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input type="password" placeholder="••••••••" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

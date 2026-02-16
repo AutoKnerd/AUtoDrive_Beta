@@ -162,6 +162,7 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 xp: 25000,
                 isPrivate: false,
                 isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
                 memberSince: new Date(new Date().getTime() - 365 * 2 * 24 * 60 * 60 * 1000).toISOString(),
                 subscriptionStatus: 'active'
             },
@@ -175,6 +176,7 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 xp: 12500,
                 isPrivate: false,
                 isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
                 memberSince: new Date(new Date().getTime() - 200 * 24 * 60 * 60 * 1000).toISOString(),
                 subscriptionStatus: 'active'
             },
@@ -188,6 +190,7 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 xp: 4200,
                 isPrivate: false,
                 isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
                 memberSince: new Date(new Date().getTime() - 100 * 24 * 60 * 60 * 1000).toISOString(),
                 subscriptionStatus: 'active'
             },
@@ -201,7 +204,78 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 xp: 5800,
                 isPrivate: false,
                 isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
                 memberSince: new Date(new Date().getTime() - 150 * 24 * 60 * 60 * 1000).toISOString(),
+                subscriptionStatus: 'active'
+            },
+            {
+                userId: 'tour-parts-consultant',
+                name: 'Demo Parts Consultant',
+                email: 'parts.consultant.demo@autodrive.com',
+                role: 'Parts Consultant',
+                dealershipIds: [dealerships[2].id],
+                avatarUrl: 'https://i.pravatar.cc/150?u=tour-parts-consultant',
+                xp: 3900,
+                isPrivate: false,
+                isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
+                memberSince: new Date(new Date().getTime() - 120 * 24 * 60 * 60 * 1000).toISOString(),
+                subscriptionStatus: 'active'
+            },
+            {
+                userId: 'tour-finance-manager',
+                name: 'Demo Finance Manager',
+                email: 'finance.manager.demo@autodrive.com',
+                role: 'Finance Manager',
+                dealershipIds: [dealerships[0].id],
+                avatarUrl: 'https://i.pravatar.cc/150?u=tour-finance-manager',
+                xp: 7600,
+                isPrivate: false,
+                isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
+                memberSince: new Date(new Date().getTime() - 175 * 24 * 60 * 60 * 1000).toISOString(),
+                subscriptionStatus: 'active'
+            },
+            {
+                userId: 'tour-service-manager',
+                name: 'Demo Service Manager',
+                email: 'service.manager.demo@autodrive.com',
+                role: 'Service Manager',
+                dealershipIds: [dealerships[1].id],
+                avatarUrl: 'https://i.pravatar.cc/150?u=tour-service-manager',
+                xp: 9800,
+                isPrivate: false,
+                isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
+                memberSince: new Date(new Date().getTime() - 220 * 24 * 60 * 60 * 1000).toISOString(),
+                subscriptionStatus: 'active'
+            },
+            {
+                userId: 'tour-parts-manager',
+                name: 'Demo Parts Manager',
+                email: 'parts.manager.demo@autodrive.com',
+                role: 'Parts Manager',
+                dealershipIds: [dealerships[2].id],
+                avatarUrl: 'https://i.pravatar.cc/150?u=tour-parts-manager',
+                xp: 9100,
+                isPrivate: false,
+                isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
+                memberSince: new Date(new Date().getTime() - 260 * 24 * 60 * 60 * 1000).toISOString(),
+                subscriptionStatus: 'active'
+            },
+            {
+                userId: 'tour-general-manager',
+                name: 'Demo General Manager',
+                email: 'general.manager.demo@autodrive.com',
+                role: 'General Manager',
+                dealershipIds: [dealerships[0].id, dealerships[1].id],
+                avatarUrl: 'https://i.pravatar.cc/150?u=tour-general-manager',
+                xp: 14300,
+                isPrivate: false,
+                isPrivateFromOwner: false,
+                showDealerCriticalOnly: false,
+                memberSince: new Date(new Date().getTime() - 300 * 24 * 60 * 60 * 1000).toISOString(),
                 subscriptionStatus: 'active'
             }
         ];
@@ -225,6 +299,7 @@ const generateTourDataInternal = (): Promise<TourData> => {
                     xp: 0,
                     isPrivate: Math.random() > 0.8,
                     isPrivateFromOwner: Math.random() > 0.9,
+                    showDealerCriticalOnly: Math.random() > 0.75,
                     memberSince: new Date(new Date().getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
                     subscriptionStatus: 'active'
                 };

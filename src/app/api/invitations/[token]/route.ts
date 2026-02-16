@@ -118,6 +118,9 @@ export async function POST(
           name: decoded.name ?? "",
           role,
           dealershipIds: dealershipId ? [dealershipId] : [],
+          isPrivate: false,
+          isPrivateFromOwner: false,
+          showDealerCriticalOnly: false,
           memberSince: new Date().toISOString(),
           xp: 0,
           subscriptionStatus: ["Owner", "General Manager", "Trainer", "Admin", "Developer"].includes(role)

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -63,6 +62,7 @@ export function CreateDealershipForm({ user, onDealershipCreated }: CreateDealer
 
     try {
       const token = await firebaseUser.getIdToken(true);
+      const isTrainer = String(user.role).toLowerCase() === 'trainer';
       const address: Partial<Address> = {
         street: data.street,
         city: data.city,
@@ -79,7 +79,7 @@ export function CreateDealershipForm({ user, onDealershipCreated }: CreateDealer
           body: JSON.stringify({
               dealershipName: data.dealershipName,
               address,
-              trainerId: user.role === 'Trainer' ? user.userId : undefined,
+              trainerId: isTrainer ? user.userId : undefined,
           }),
       });
 

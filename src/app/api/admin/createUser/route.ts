@@ -180,6 +180,7 @@ export async function POST(req: Request) {
       xp: 0,
       isPrivate: false,
       isPrivateFromOwner: false,
+      showDealerCriticalOnly: false,
       memberSince: new Date().toISOString(),
       phone: phone || undefined,
     };

@@ -23,21 +23,57 @@ service cloud.firestore {
       ]);
     }
 
-    function canViewPerformance(targetUserId) {
-      // Firestore rules functions must return a single expression (no statement-style if blocks).
-      let requesterPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      let targetPath = /databases/$(database)/documents/users/$(targetUserId);
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
 
+    function userExists(uid) {
+      return exists(userPath(uid));
+    }
+
+    function userDoc(uid) {
+      return get(userPath(uid)).data;
+    }
+
+    function sharesDealership(aUid, bUid) {
+      return userExists(aUid)
+        && userExists(bUid)
+        && userDoc(aUid).dealershipIds != null
+        && userDoc(bUid).dealershipIds != null
+        && userDoc(aUid).dealershipIds.hasAny(userDoc(bUid).dealershipIds);
+    }
+
+    function isPrivatelyHiddenFrom(uid, viewerRole) {
+      // Default: visible unless explicitly private.
+      // - `isPrivateFromOwner`: hide from Owner only
+      // - `isPrivate`: hide from all manager roles
+      return (
+        (viewerRole == 'Owner' && userDoc(uid).isPrivateFromOwner == true)
+        || (viewerRole != 'Owner' && userDoc(uid).isPrivate == true)
+      );
+    }
+
+    function canViewPerformance(targetUserId) {
       return isSignedIn()
-        && exists(requesterPath)
-        && exists(targetPath)
+        && userExists(request.auth.uid)
+        && userExists(targetUserId)
         && (
-          // Admin / Developer / Trainer can view everyone
-          (get(requesterPath).data.role in ['Admin', 'Developer', 'Trainer'])
-          // Owner can view unless the user has opted out from owner visibility
-          || (get(requesterPath).data.role == 'Owner' && get(targetPath).data.isPrivateFromOwner != true)
-          // Other manager roles can view unless the user is private
-          || (isManager() && get(targetPath).data.isPrivate != true)
+          // Admin / Developer / Trainer can view everyone (no dealership constraint)
+          (userDoc(request.auth.uid).role in ['Admin', 'Developer', 'Trainer'])
+
+          // Owner can view users in the same dealership unless hidden from owner
+          || (
+            userDoc(request.auth.uid).role == 'Owner'
+            && !isPrivatelyHiddenFrom(targetUserId, 'Owner')
+            && sharesDealership(request.auth.uid, targetUserId)
+          )
+
+          // Other manager roles can view users in the same dealership unless the user is private
+          || (
+            userDoc(request.auth.uid).role in ['General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Finance Manager']
+            && !isPrivatelyHiddenFrom(targetUserId, userDoc(request.auth.uid).role)
+            && sharesDealership(request.auth.uid, targetUserId)
+          )
         );
     }
 
@@ -49,12 +85,22 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || hasAnyRole(['Owner', 'Admin', 'Developer', 'Trainer', 'General Manager', 'manager', 'Service Manager', 'Parts Manager']);
-      allow list: if isManager();
+      allow get: if isOwner(userId) || canViewPerformance(userId);
+      allow list: if hasAnyRole(['Admin', 'Developer', 'Trainer', 'Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Finance Manager']);
       allow create: if request.auth.uid == userId
         && request.resource.data.userId == userId
-        && request.resource.data.role == 'Sales Consultant'
-        && request.resource.data.subscriptionStatus in ['inactive', 'active'];
+        && request.resource.data.subscriptionStatus in ['inactive', 'active']
+        && request.resource.data.role in [
+          'Sales Consultant',
+          'Owner',
+          'Developer',
+          'Trainer',
+          'General Manager',
+          'manager',
+          'Service Manager',
+          'Parts Manager',
+          'Finance Manager'
+        ];
       allow update: if isOwner(userId) && isUpdatingOwnUserDocument();
       allow delete: if isOwner(userId) || hasAnyRole(['Admin', 'Developer']);
     }

@@ -6,11 +6,10 @@ import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendEmailVerification,
 } from 'firebase/auth';
 
 import { useAuth as useFirebaseAuth } from '@/firebase'; // Using alias to avoid naming conflict
-import { getUserById, createUserProfile, claimInvitation } from '@/lib/data.client';
+import { getUserById, createUserProfile, claimInvitation, updateUser } from '@/lib/data.client';
 import type { User, UserRole, EmailInvitation } from '@/lib/definitions';
 import { useRouter } from 'next/navigation';
 
@@ -26,7 +25,6 @@ interface AuthContextType {
   publicSignup: (name: string, email: string, password: string) => Promise<void>;
   setUser: (user: User | null) => void;
   switchTourRole: (role: UserRole) => Promise<void>;
-  resendVerificationEmail: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,18 +32,39 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 const demoUserEmails = [
   'consultant.demo@autodrive.com',
   'service.writer.demo@autodrive.com',
+  'parts.consultant.demo@autodrive.com',
+  'finance.manager.demo@autodrive.com',
   'manager.demo@autodrive.com',
+  'service.manager.demo@autodrive.com',
+  'parts.manager.demo@autodrive.com',
+  'general.manager.demo@autodrive.com',
   'owner.demo@autodrive.com',
 ];
 
 const tourUserRoles: Record<string, UserRole> = {
   'consultant.demo@autodrive.com': 'Sales Consultant',
   'service.writer.demo@autodrive.com': 'Service Writer',
+  'parts.consultant.demo@autodrive.com': 'Parts Consultant',
+  'finance.manager.demo@autodrive.com': 'Finance Manager',
   'manager.demo@autodrive.com': 'manager',
+  'service.manager.demo@autodrive.com': 'Service Manager',
+  'parts.manager.demo@autodrive.com': 'Parts Manager',
+  'general.manager.demo@autodrive.com': 'General Manager',
   'owner.demo@autodrive.com': 'Owner',
 };
 
 const adminEmails = ['andrew@autoknerd.com', 'btedesign@mac.com'];
+
+function deriveNameFromEmail(email: string): string {
+  const localPart = (email || '').split('@')[0] || '';
+  const cleaned = localPart.replace(/[._-]+/g, ' ').trim();
+  if (!cleaned) return 'Member';
+  return cleaned
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -62,78 +81,90 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setFirebaseUser(fbUser);
 
-      if (fbUser) {
-        let userProfile = await getUserById(fbUser.uid);
+      try {
+        if (fbUser) {
+          let userProfile = await getUserById(fbUser.uid);
 
-        // Self-heal if user doc missing
-        if (!userProfile && fbUser.email) {
-          console.log(`User document not found for UID ${fbUser.uid}. Attempting to self-heal.`);
+          // Self-heal if user doc missing
+          if (!userProfile && fbUser.email) {
+            console.log(`User document not found for UID ${fbUser.uid}. Attempting to self-heal.`);
 
-          try {
-            const idToken = await fbUser.getIdToken();
+            try {
+              const idToken = await fbUser.getIdToken();
 
-            const response = await fetch('/api/auth/resolve-invitation', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${idToken}` },
-            });
+              const response = await fetch('/api/auth/resolve-invitation', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${idToken}` },
+              });
 
-            if (response.ok) {
-              const invitation: EmailInvitation = await response.json();
-              console.log(`Found pending invitation for ${fbUser.email}. Creating profile.`);
+              if (response.ok) {
+                const invitation: EmailInvitation = await response.json();
+                console.log(`Found pending invitation for ${fbUser.email}. Creating profile.`);
 
-              const fallbackName = fbUser.displayName || 'New User';
+                const fallbackName = fbUser.displayName || deriveNameFromEmail(invitation.email || fbUser.email || '');
 
-              userProfile = await createUserProfile(
-                fbUser.uid,
-                fallbackName,
-                invitation.email,
-                invitation.role,
-                [invitation.dealershipId],
-              );
+                userProfile = await createUserProfile(
+                  fbUser.uid,
+                  fallbackName,
+                  invitation.email,
+                  invitation.role,
+                  [invitation.dealershipId],
+                );
 
-              await claimInvitation(invitation.token);
-            } else if (adminEmails.includes(fbUser.email)) {
-              console.log(`User is admin/dev. Creating profile for ${fbUser.email}.`);
+                await claimInvitation(invitation.token);
+              } else if (adminEmails.includes(fbUser.email)) {
+                console.log(`User is admin/dev. Creating profile for ${fbUser.email}.`);
 
-              const role: UserRole = fbUser.email === 'btedesign@mac.com' ? 'Developer' : 'Admin';
-              const name = role === 'Developer' ? 'AutoKnerd Developer' : 'AutoKnerd Admin';
+                const role: UserRole = fbUser.email === 'btedesign@mac.com' ? 'Developer' : 'Admin';
+                const name = role === 'Developer' ? 'AutoKnerd Developer' : 'AutoKnerd Admin';
 
-              userProfile = await createUserProfile(fbUser.uid, name, fbUser.email, role, []);
+                userProfile = await createUserProfile(fbUser.uid, name, fbUser.email, role, []);
+              }
+            } catch (e) {
+              console.error('Error during self-heal process:', e);
             }
-          } catch (e) {
-            console.error('Error during self-heal process:', e);
           }
-        }
 
-        // Critical validation
-        if (!userProfile || userProfile.userId !== fbUser.uid || !userProfile.role) {
-          console.error(
-            `CRITICAL: User profile validation failed for UID ${fbUser.uid}. ` +
-              `Profile exists: ${!!userProfile}, UID Match: ${userProfile?.userId === fbUser.uid}, Role Exists: ${!!userProfile?.role}. Signing out.`
-          );
-          await auth.signOut();
-          setLoading(false);
-          return;
-        }
+          // Critical validation
+          if (!userProfile || userProfile.userId !== fbUser.uid || !userProfile.role) {
+            console.error(
+              `CRITICAL: User profile validation failed for UID ${fbUser.uid}. ` +
+                `Profile exists: ${!!userProfile}, UID Match: ${userProfile?.userId === fbUser.uid}, Role Exists: ${!!userProfile?.role}. Signing out.`
+            );
+            await auth.signOut();
+            return;
+          }
 
-        setUser(userProfile);
+          setUser(userProfile);
 
-        if (userProfile.role === 'Developer' || userProfile.role === 'Admin') {
-          setOriginalUser(userProfile);
+          if (userProfile.role === 'Developer' || userProfile.role === 'Admin') {
+            setOriginalUser(userProfile);
+          } else {
+            setOriginalUser(null);
+          }
+
+          if (userProfile.email) {
+            setIsTouring(demoUserEmails.includes(userProfile.email));
+          }
         } else {
+          setUser(null);
           setOriginalUser(null);
+          setIsTouring(false);
         }
-
-        if (userProfile.email) {
-          setIsTouring(demoUserEmails.includes(userProfile.email));
-        }
-      } else {
+      } catch (error) {
+        console.error('[AuthProvider] Failed to resolve auth state:', error);
         setUser(null);
         setOriginalUser(null);
         setIsTouring(false);
+        try {
+          await auth.signOut();
+        } catch {
+          // no-op: best effort cleanup
+        }
+      } finally {
+        setLoading(false);
       }
 
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -141,20 +172,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = useCallback(
     async (name: string, password: string, invitation: EmailInvitation) => {
+      const submittedName = name.trim();
       try {
         // Normal path: brand new user
         const userCredential = await createUserWithEmailAndPassword(auth, invitation.email, password);
-        await sendEmailVerification(userCredential.user);
-
-        await createUserProfile(
-          userCredential.user.uid,
-          name,
-          invitation.email,
-          invitation.role,
-          [invitation.dealershipId],
-        );
-
+        // Invitation claim runs via server/admin and creates the Firestore profile with role/dealership.
         await claimInvitation(invitation.token);
+        // Ensure profile reflects the account-creation form name.
+        if (submittedName.length > 0) {
+          await updateUser(userCredential.user.uid, { name: submittedName });
+        }
         return;
       } catch (error: any) {
         console.error('Registration error:', error);
@@ -165,6 +192,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const existingCred = await signInWithEmailAndPassword(auth, invitation.email, password);
 
             await claimInvitation(invitation.token);
+            // Existing auth accounts may have a placeholder profile name. Overwrite with submitted name.
+            if (submittedName.length > 0) {
+              await updateUser(existingCred.user.uid, { name: submittedName });
+            }
 
             // Optional: refresh profile so UI updates immediately
             const refreshed = await getUserById(existingCred.user.uid);
@@ -197,7 +228,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const publicSignup = useCallback(async (name: string, email: string, password: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(userCredential.user);
       
       await createUserProfile(
         userCredential.user.uid,
@@ -225,10 +255,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (isNotFound && canAutoRegister) {
             try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                if (adminEmails.includes(email)) {
-                  await sendEmailVerification(userCredential.user);
-                }
+                await createUserWithEmailAndPassword(auth, email, password);
                 return;
             } catch (registrationError: any) {
                 if (registrationError.code === 'auth/email-already-in-use') {
@@ -260,8 +287,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           case 'Service Writer':
               email = 'service.writer.demo@autodrive.com';
               break;
+          case 'Parts Consultant':
+              email = 'parts.consultant.demo@autodrive.com';
+              break;
+          case 'Finance Manager':
+              email = 'finance.manager.demo@autodrive.com';
+              break;
           case 'manager':
               email = 'manager.demo@autodrive.com';
+              break;
+          case 'Service Manager':
+              email = 'service.manager.demo@autodrive.com';
+              break;
+          case 'Parts Manager':
+              email = 'parts.manager.demo@autodrive.com';
+              break;
+          case 'General Manager':
+              email = 'general.manager.demo@autodrive.com';
               break;
           case 'Owner':
               email = 'owner.demo@autodrive.com';
@@ -272,15 +314,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await login(email, 'readyplayer1');
   }, [login]);
 
-  const resendVerificationEmail = useCallback(async () => {
-    if (firebaseUser) {
-        await sendEmailVerification(firebaseUser);
-    } else {
-        throw new Error("You must be logged in to send a verification email.");
-    }
-  }, [firebaseUser]);
-
-  const value = { user, firebaseUser, originalUser, loading, isTouring, login, logout, register, publicSignup, setUser, switchTourRole, resendVerificationEmail };
+  const value = { user, firebaseUser, originalUser, loading, isTouring, login, logout, register, publicSignup, setUser, switchTourRole };
 
   return (
     <AuthContext.Provider value={value}>

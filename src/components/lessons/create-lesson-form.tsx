@@ -139,13 +139,14 @@ export function CreateLessonForm({ user, onLessonCreated, assignOnCreateToUserId
   async function onSubmit(data: CreateLessonFormValues) {
     setIsSubmitting(true);
     try {
-      const newLesson = await createLesson({
+      const createLessonResult = await createLesson({
         title: data.title,
         category: data.category as LessonCategory,
         associatedTrait: data.associatedTrait,
         targetRole: data.targetRole as UserRole | 'global',
         scenario: data.scenario,
-      }, user);
+      }, user, { autoAssignByRole: !assignOnCreateToUserId });
+      const newLesson = createLessonResult.lesson;
 
       if (assignOnCreateToUserId && assignerId) {
         await assignLesson(assignOnCreateToUserId, newLesson.lessonId, assignerId);
@@ -154,10 +155,20 @@ export function CreateLessonForm({ user, onLessonCreated, assignOnCreateToUserId
           description: `'${data.title}' has been created and assigned.`,
         });
       } else {
-        toast({
-          title: 'Lesson Created!',
-          description: `'${data.title}' has been added to the training curriculum.`,
-        });
+        if (createLessonResult.autoAssignFailed) {
+          toast({
+            variant: 'destructive',
+            title: 'Lesson Created, Send Failed',
+            description: `'${data.title}' was created, but auto-assignment could not be completed.`,
+          });
+        } else {
+          toast({
+            title: 'Lesson Sent!',
+            description: createLessonResult.autoAssignedCount > 0
+              ? `'${data.title}' was sent to ${createLessonResult.autoAssignedCount} team member${createLessonResult.autoAssignedCount === 1 ? '' : 's'}.`
+              : `'${data.title}' was created. No matching team members were found to assign.`,
+          });
+        }
       }
 
       form.reset();
@@ -273,7 +284,7 @@ export function CreateLessonForm({ user, onLessonCreated, assignOnCreateToUserId
                   <FormLabel>Training Scenario</FormLabel>
                   <Button type="button" variant="ghost" size="sm" onClick={handleSuggestScenario} disabled={isSuggesting}>
                     {isSuggesting ? <Spinner size="sm" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Suggest with AI
+                    Create lesson
                   </Button>
                 </div>
                 <FormControl>
@@ -288,7 +299,7 @@ export function CreateLessonForm({ user, onLessonCreated, assignOnCreateToUserId
             )}
           />
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Spinner size="sm" /> : 'Create Lesson'}
+            {isSubmitting ? <Spinner size="sm" /> : 'Send lesson'}
           </Button>
         </form>
       </ScrollArea>
