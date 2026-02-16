@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 export function Footer() {
     const [currentYear, setCurrentYear] = useState<string>('');
     const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0';
+    const gitSha = process.env.NEXT_PUBLIC_GIT_SHA ?? 'local';
 
     useEffect(() => {
         // This effect runs only on the client, after hydration
@@ -21,7 +22,7 @@ export function Footer() {
                 © {currentYear} AutoKnerd, Inc. All rights reserved.
             </span>
             <span className="mx-2">|</span>
-            <span className="inline-block h-4">v{appVersion}</span>
+            <span className="inline-block h-4">v{appVersion}-{gitSha}</span>
         </footer>
     );
 }
