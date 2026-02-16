@@ -11,9 +11,9 @@ const getTimestamp = async () => {
 
 export async function GET(
   req: Request,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
-    const { token } = params;
+    const { token } = await params;
     if (!token) {
         return NextResponse.json({ message: 'Invitation token is missing.' }, { status: 400 });
     }
@@ -52,9 +52,9 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
-  const { token } = params;
+  const { token: paramToken } = await params;
   const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization");
   if (!authHeader) return NextResponse.json({ message: "Missing Authorization header" }, { status: 401 });
 
@@ -62,7 +62,9 @@ export async function POST(
   if (!match?.[1]) return NextResponse.json({ message: "Invalid Authorization header" }, { status: 401 });
 
   const { token: bodyToken } = await req.json().catch(() => ({}));
-  if (!bodyToken) return NextResponse.json({ message: "Missing invitation token" }, { status: 400 });
+  const token = bodyToken || paramToken;
+  
+  if (!token) return NextResponse.json({ message: "Missing invitation token" }, { status: 400 });
 
   try {
     const adminAuth = getAdminAuth();
@@ -75,7 +77,7 @@ export async function POST(
       return NextResponse.json({ message: "Authenticated user has no email" }, { status: 400 });
     }
 
-    const inviteRef = adminDb.collection("emailInvitations").doc(bodyToken);
+    const inviteRef = adminDb.collection("emailInvitations").doc(token);
 
     await adminDb.runTransaction(async (tx: any) => {
       const inviteSnap = await tx.get(inviteRef);

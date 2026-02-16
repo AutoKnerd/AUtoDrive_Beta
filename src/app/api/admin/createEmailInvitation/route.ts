@@ -21,7 +21,8 @@ function isEmailSendingEnabled() {
   return !!process.env.RESEND_API_KEY;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: Request, { params }: { params: Promise<{}> }) {
+  await params; // Per Next.js 15
   const authorization = req.headers.get('authorization') ?? req.headers.get('Authorization');
   
   if (!authorization) {

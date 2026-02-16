@@ -84,12 +84,3 @@ export function getAdminDb(): Firestore {
 export function getAdminAuth(): Auth {
     return getInitializedAdminSdk<Auth>(_adminAuth, 'Auth');
 }
-
-// For backward compatibility for any code that might still use direct exports.
-// Note: Direct import of these proxies into client components is still unsafe.
-export const adminDb: Firestore = new Proxy({} as Firestore, {
-  get: (target, prop) => Reflect.get(getAdminDb(), prop, getAdminDb()),
-});
-export const adminAuth: Auth = new Proxy({} as Auth, {
-  get: (target, prop) => Reflect.get(getAdminAuth(), prop, getAdminAuth()),
-});

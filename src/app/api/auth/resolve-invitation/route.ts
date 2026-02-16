@@ -84,7 +84,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: Request, { params }: { params: Promise<{}> }) {
+  await params; // Per Next.js 15
   const authorization = req.headers.get('authorization');
 
   try {
