@@ -420,11 +420,20 @@ export async function getPendingInvitations(dealershipId: string, user: User): P
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || 'Failed to fetch pending invitations.';
+
+        // If the error is the audience claim mismatch, just return an empty array and log a warning.
+        // This prevents the dashboard from crashing due to a misconfiguration.
+        if (errorMessage.includes('"aud" (audience) claim')) {
+            console.warn(`[data.client] Suppressing audience claim error and returning empty invitations. Please check your backend Firebase project configuration. Error: ${errorMessage}`);
+            return [];
+        }
+
         // Do not block dashboard load if pending invitations are not accessible for this scope.
         if (response.status === 403) {
             return [];
         }
-        throw new Error(errorData.message || 'Failed to fetch pending invitations.');
+        throw new Error(errorMessage);
     }
 
     const data = await response.json();
