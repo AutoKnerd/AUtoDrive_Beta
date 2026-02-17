@@ -25,7 +25,29 @@ const getTourData = async () => {
     return tourData;
 }
 
-const isTouringUser = (userId?: string): boolean => !!userId && userId.startsWith('tour-');
+const demoUserEmails = [
+  'consultant.demo@autodrive.com',
+  'service.writer.demo@autodrive.com',
+  'parts.consultant.demo@autodrive.com',
+  'finance.manager.demo@autodrive.com',
+  'manager.demo@autodrive.com',
+  'service.manager.demo@autodrive.com',
+  'parts.manager.demo@autodrive.com',
+  'general.manager.demo@autodrive.com',
+  'owner.demo@autodrive.com',
+];
+
+const isCurrentUserTouring = (): boolean => {
+    const currentUserEmail = auth.currentUser?.email;
+    return !!currentUserEmail && demoUserEmails.includes(currentUserEmail);
+};
+
+const getTourUserId = async (): Promise<string | null> => {
+    if (!isCurrentUserTouring()) return null;
+    const tour = await getTourData();
+    const tourUser = tour.users.find(u => u.email === auth.currentUser?.email);
+    return tourUser?.userId || null;
+}
 
 
 // --- HELPER FUNCTIONS ---
@@ -79,8 +101,9 @@ export async function getUserById(userId: string): Promise<User | null> {
              return tourUser ? { ...tourUser, userId: userId } : null;
         }
     }
-
-    if (isTouringUser(userId)) {
+    
+    // Fallback for direct lookups of tour user IDs
+    if (userId.startsWith('tour-')) {
         const { users } = await getTourData();
         return users.find(u => u.userId === userId) || null;
     }
@@ -131,12 +154,12 @@ export async function createUserProfile(userId: string, name: string, email: str
 
 
 export async function updateUser(userId: string, data: Partial<Omit<User, 'userId' | 'role' | 'xp' | 'dealershipIds'>>): Promise<User> {
-    if (isTouringUser(userId)) {
-        const user = (await getTourData()).users.find(u => u.userId === userId);
+    if (isCurrentUserTouring()) {
+        const tourUserId = await getTourUserId();
+        const user = (await getTourData()).users.find(u => u.userId === tourUserId);
         if (!user) throw new Error("Tour user not found after update");
-        // In tour mode, we just return the user object as if it was updated.
         const updatedUser = { ...user, ...data };
-        return updatedUser;
+        return { ...updatedUser, userId }; // Return with the real UID
     }
 
     const userRef = doc(db, 'users', userId);
@@ -157,11 +180,12 @@ export async function updateUser(userId: string, data: Partial<Omit<User, 'userI
 }
 
 export async function updateUserDealerships(userId: string, newDealershipIds: string[]): Promise<User> {
-     if (isTouringUser(userId)) {
-        const user = (await getTourData()).users.find(u => u.userId === userId);
+    if (isCurrentUserTouring()) {
+        const tourUserId = await getTourUserId();
+        const user = (await getTourData()).users.find(u => u.userId === tourUserId);
         if (!user) throw new Error("Tour user not found");
         user.dealershipIds = newDealershipIds; // In-memory update
-        return user;
+        return { ...user, userId }; // Return with the real UID
     }
     
     // Call the API endpoint with permission checks
@@ -190,7 +214,7 @@ export async function updateUserDealerships(userId: string, newDealershipIds: st
 }
 
 export async function deleteUser(userId: string): Promise<void> {
-    if (isTouringUser(userId)) {
+    if (isCurrentUserTouring()) {
         // No-op for tour mode
         return;
     }
@@ -246,7 +270,7 @@ export async function createDealership(dealershipData: {
 }): Promise<Dealership> {
     // This function is now only used for tour mode.
     // Real dealership creation must go through the /api/admin/createDealership endpoint.
-    if (isTouringUser(dealershipData.trainerId)) {
+    if (isCurrentUserTouring()) {
         const newDealership: Dealership = {
             id: `tour-dealership-${Math.random()}`,
             name: dealershipData.name,
@@ -287,7 +311,7 @@ export async function getInvitationByToken(token: string): Promise<EmailInvitati
 }
 
 export async function claimInvitation(token: string): Promise<void> {
-    if (isTouringUser(auth.currentUser?.uid)) {
+    if (isCurrentUserTouring()) {
         return; // No-op for tour mode
     }
 
@@ -319,7 +343,7 @@ export async function createInvitationLink(
   role: UserRole,
   inviterId: string,
 ): Promise<{ url: string }> {
-    if (isTouringUser(inviterId)) {
+    if (isCurrentUserTouring()) {
         return { url: `http://localhost:9002/register?token=tour-fake-token-${Math.random()}` };
     }
 
@@ -389,7 +413,7 @@ export async function createInvitationLink(
 }
 
 export async function getPendingInvitations(dealershipId: string, user: User): Promise<PendingInvitation[]> {
-    if (isTouringUser(user.userId)) {
+    if (isCurrentUserTouring()) {
         return [];
     }
 
@@ -498,8 +522,8 @@ function getStarterLessonById(lessonId: string): Lesson | null {
     return roleLessons.find(l => l.lessonId === lessonId) || roleLessons.find(l => l.associatedTrait === parsedTrait) || null;
 }
 
-export async function getLessons(role: LessonRole, userId?: string): Promise<Lesson[]> {
-    if (isTouringUser(userId)) {
+export async function getLessons(role: LessonRole): Promise<Lesson[]> {
+    if (isCurrentUserTouring()) {
         const { lessons } = await getTourData();
         const scopedLessons = lessons.filter(lesson => lesson.role === role || lesson.role === 'global');
         const roleSpecificLessons = scopedLessons.filter(lesson => lesson.role === role);
@@ -537,19 +561,19 @@ export async function getLessons(role: LessonRole, userId?: string): Promise<Les
     }
 }
 
-export async function getLessonById(lessonId: string, userId?: string): Promise<Lesson | null> {
+export async function getLessonById(lessonId: string): Promise<Lesson | null> {
     const starterLesson = getStarterLessonById(lessonId);
     if (starterLesson) return starterLesson;
 
-    if (isTouringUser(userId) || lessonId.startsWith('tour-')) {
+    if (isCurrentUserTouring() || lessonId.startsWith('tour-')) {
         const { lessons } = await getTourData();
         return lessons.find(l => l.lessonId === lessonId) || null;
     }
     return getDataById<Lesson>(db, 'lessons', lessonId);
 }
 
-export async function getDealershipById(dealershipId: string, userId?: string): Promise<Dealership | null> {
-    if (isTouringUser(userId) || dealershipId.startsWith('tour-')) {
+export async function getDealershipById(dealershipId: string): Promise<Dealership | null> {
+    if (isCurrentUserTouring() || dealershipId.startsWith('tour-')) {
         const { dealerships } = await getTourData();
         const dealership = dealerships.find(d => d.id === dealershipId);
         if (dealership) return { ...dealership, status: 'active' };
@@ -571,7 +595,7 @@ export async function createLesson(
         autoAssignByRole?: boolean;
     }
 ): Promise<{ lesson: Lesson; autoAssignedCount: number; autoAssignFailed: boolean }> {
-    if (isTouringUser(creator.userId)) {
+    if (isCurrentUserTouring()) {
         const { lessons } = await getTourData();
         const newLesson: Lesson = {
             lessonId: `tour-lesson-${Math.random().toString(36).substring(7)}`,
@@ -640,9 +664,10 @@ export async function createLesson(
 }
 
 export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
-    if (isTouringUser(userId)) {
+    if (isCurrentUserTouring()) {
         const { lessonAssignments, lessons } = await getTourData();
-        const userAssignments = lessonAssignments.filter(a => a.userId === userId && !a.completed);
+        const tourUserId = await getTourUserId();
+        const userAssignments = lessonAssignments.filter(a => a.userId === tourUserId && !a.completed);
         if (userAssignments.length === 0) {
             return [];
         }
@@ -712,11 +737,12 @@ export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
 }
 
 export async function getAllAssignedLessonIds(userId: string): Promise<string[]> {
-    if (isTouringUser(userId)) {
+    if (isCurrentUserTouring()) {
         const { lessonAssignments } = await getTourData();
+        const tourUserId = await getTourUserId();
         return Array.from(new Set(
             lessonAssignments
-                .filter(a => a.userId === userId)
+                .filter(a => a.userId === tourUserId)
                 .map(a => a.lessonId)
         ));
     }
@@ -738,11 +764,12 @@ export async function getAllAssignedLessonIds(userId: string): Promise<string[]>
 }
 
 export async function assignLesson(userId: string, lessonId: string, assignerId: string): Promise<LessonAssignment> {
-    if (isTouringUser(userId) || isTouringUser(assignerId)) {
+    if (isCurrentUserTouring()) {
         const { lessonAssignments } = await getTourData();
+        const tourUserId = await getTourUserId(); // Could be assigning to self or another tour user
         const newAssignment: LessonAssignment = {
             assignmentId: `tour-assignment-${Math.random().toString(36).substring(7)}`,
-            userId,
+            userId: tourUserId || userId, // Fallback to passed userId
             lessonId,
             assignerId,
             timestamp: new Date(),
@@ -778,9 +805,10 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
 
 
 export async function getConsultantActivity(userId: string): Promise<LessonLog[]> {
-    if (isTouringUser(userId)) {
+    if (isCurrentUserTouring()) {
         const { lessonLogs } = await getTourData();
-        const userLogs = lessonLogs.filter(log => log.userId === userId);
+        const tourUserId = await getTourUserId();
+        const userLogs = lessonLogs.filter(log => log.userId === tourUserId);
         return userLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }
 
@@ -797,9 +825,10 @@ export async function getConsultantActivity(userId: string): Promise<LessonLog[]
 }
 
 export async function getDailyLessonLimits(userId: string): Promise<{ recommendedTaken: boolean, otherTaken: boolean }> {
-    if (isTouringUser(userId)) {
+    if (isCurrentUserTouring()) {
         const { lessonLogs } = await getTourData();
-        const todayLogs = lessonLogs.filter(log => log.userId === userId && isToday(log.timestamp));
+        const tourUserId = await getTourUserId();
+        const todayLogs = lessonLogs.filter(log => log.userId === tourUserId && isToday(log.timestamp));
 
         const recommendedTaken = todayLogs.some(log => log.isRecommended);
         const otherTaken = todayLogs.some(log => !log.isRecommended);
@@ -834,9 +863,10 @@ export async function logLessonCompletion(data: {
     isRecommended: boolean;
     scores: Omit<LessonLog, 'logId' | 'timestamp' | 'userId' | 'lessonId' | 'stepResults' | 'xpGained' | 'isRecommended'>;
 }): Promise<{ updatedUser: User, newBadges: Badge[] }> {
-    if (isTouringUser(data.userId)) {
+    if (isCurrentUserTouring()) {
         const tour = await getTourData();
-        const user = tour.users.find(u => u.userId === data.userId);
+        const tourUserId = await getTourUserId();
+        const user = tour.users.find(u => u.userId === tourUserId);
         if (!user) throw new Error('Tour user not found');
         
         user.xp += data.xpGained; // In-memory update
@@ -848,7 +878,7 @@ export async function logLessonCompletion(data: {
             tour.earnedBadges[user.userId].push({badgeId: 'first-drive', userId: user.userId, timestamp: new Date()});
         }
         
-        return { updatedUser: user, newBadges: newBadges };
+        return { updatedUser: {...user, userId: data.userId}, newBadges: newBadges };
     }
 
     const user = await getUserById(data.userId);
@@ -962,7 +992,7 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
 };
 
 export async function getDealerships(user?: User): Promise<Dealership[]> {
-    if (isTouringUser(user?.userId)) {
+    if (isCurrentUserTouring()) {
         return (await getTourData()).dealerships;
     }
     
@@ -1037,7 +1067,7 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
         };
     };
 
-    if (isTouringUser(user.userId)) {
+    if (isCurrentUserTouring()) {
         const { users, lessonLogs } = await getTourData();
         const teamRoles = getTeamMemberRoles(user.role);
         if (teamRoles.length === 0) {
@@ -1237,7 +1267,7 @@ export async function getSystemReport(requester: User): Promise<SystemReport> {
     const activeSince = subDays(now, 30);
     const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
 
-    if (isTouringUser(requester.userId)) {
+    if (isCurrentUserTouring()) {
         const tour = await getTourData();
         const roleCounts: Record<string, number> = {};
         const dealershipNameById = new Map<string, string>();
@@ -1404,14 +1434,15 @@ export async function getSystemReport(requester: User): Promise<SystemReport> {
 
 
 export async function getManageableUsers(managerId: string): Promise<User[]> {
-    if (isTouringUser(managerId)) {
+    if (isCurrentUserTouring()) {
         const tourData = await getTourData();
-        const manager = tourData.users.find(u => u.userId === managerId);
+        const managerTourId = await getTourUserId();
+        const manager = tourData.users.find(u => u.userId === managerTourId);
         if (!manager) return [];
         const manageableRoles = getTeamMemberRoles(manager.role);
 
         return tourData.users.filter(u => {
-            if (u.userId === managerId) return false;
+            if (u.userId === manager.userId) return false;
             if (!manageableRoles.includes(u.role)) return false;
             if (manager.role === 'Owner' || manager.role === 'Admin' || manager.role === 'Developer') return true; // Can manage across all dealerships
             const inManagedDealership = u.dealershipIds.some(id => manager.dealershipIds.includes(id));
@@ -1449,9 +1480,10 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
 
 // BADGES
 export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> {
-    if (isTouringUser(userId)) {
+    if (isCurrentUserTouring()) {
         const { earnedBadges } = await getTourData();
-        const userEarnedBadges = earnedBadges[userId] || [];
+        const tourUserId = await getTourUserId();
+        const userEarnedBadges = earnedBadges[tourUserId || ''] || [];
         const badgeIds = userEarnedBadges.map(b => b.badgeId);
         return allBadges.filter(b => badgeIds.includes(b.id));
     }
@@ -1531,7 +1563,7 @@ export async function sendMessage(
     content: string, 
     target: { scope: MessageTargetScope; targetId: string; targetRole?: UserRole }
 ): Promise<Message> {
-     if (isTouringUser(sender.userId)) {
+     if (isCurrentUserTouring()) {
         // Mock message creation for tour mode
         return {
             id: `tour-msg-${Math.random()}`,
@@ -1569,7 +1601,7 @@ export async function sendMessage(
 }
 
 export async function getMessagesForUser(user: User): Promise<Message[]> {
-     if (isTouringUser(user.userId)) {
+     if (isCurrentUserTouring()) {
         // In tour mode, return a default welcome message.
         return [
             {
