@@ -184,6 +184,7 @@ export type Lesson = {
   category: LessonCategory;
   associatedTrait: CxTrait;
   customScenario?: string;
+  createdByUserId?: string;
 };
 
 export type LessonLog = {

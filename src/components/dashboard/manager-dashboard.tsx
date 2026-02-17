@@ -8,7 +8,7 @@ import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, U
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
 import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
-import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown } from 'lucide-react';
+import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ListChecks } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,6 +38,7 @@ import { CreateDealershipForm } from '../admin/create-dealership-form';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
+import { CreatedLessonsView } from '../lessons/created-lessons-view';
 
 
 interface ManagerDashboardProps {
@@ -109,6 +110,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [assignedLessonHistoryIds, setAssignedLessonHistoryIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
+  const [isCreatedLessonsOpen, setCreatedLessonsOpen] = useState(false);
+  const [createdLessonsRefreshKey, setCreatedLessonsRefreshKey] = useState(0);
   const [isManageUsersOpen, setManageUsersOpen] = useState(false);
   const [isMessageDialogOpen, setMessageDialogOpen] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
@@ -318,6 +321,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     }
     setShowTourWelcome(open);
   }
+
+  const handleLessonCreated = () => {
+    setCreateLessonOpen(false);
+    setCreatedLessonsRefreshKey((current) => current + 1);
+  };
 
   const handleDealershipChange = (dealershipId: string) => {
     setSelectedDealershipId(dealershipId);
@@ -1112,6 +1120,23 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                   </DialogContent>
                               </Dialog>
                           )}
+                          <Dialog open={isCreatedLessonsOpen} onOpenChange={setCreatedLessonsOpen}>
+                              <DialogTrigger asChild>
+                                  <Button variant="outline">
+                                      <ListChecks className="mr-2 h-4 w-4" />
+                                      View Created Lessons
+                                  </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-[820px]">
+                                  <DialogHeader>
+                                      <DialogTitle>Created Lessons</DialogTitle>
+                                      <DialogDescription>
+                                          Track which custom lessons have been assigned and taken by your team.
+                                      </DialogDescription>
+                                  </DialogHeader>
+                                  <CreatedLessonsView user={user} refreshKey={createdLessonsRefreshKey} />
+                              </DialogContent>
+                          </Dialog>
                           <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
                               <DialogTrigger asChild>
                                   <Button>
@@ -1126,7 +1151,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                           Design a new lesson for your team. Use AI to suggest a scenario based on your team's performance.
                                       </DialogDescription>
                                   </DialogHeader>
-                                  <CreateLessonForm user={user} onLessonCreated={() => setCreateLessonOpen(false)} />
+                                  <CreateLessonForm user={user} onLessonCreated={handleLessonCreated} />
                                   </DialogContent>
                           </Dialog>
                       </div>

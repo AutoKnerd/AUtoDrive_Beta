@@ -140,11 +140,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             userProfile = await waitForUserProfile(fbUser.uid);
           }
 
+          const isDemoAuthUser = !!fbUser.email && demoUserEmails.includes(fbUser.email);
+          const hasUidMismatch = !!userProfile && userProfile.userId !== fbUser.uid;
+
           // Critical validation
-          if (!userProfile || userProfile.userId !== fbUser.uid || !userProfile.role) {
+          // Demo accounts intentionally resolve to canonical `tour-*` IDs.
+          if (!userProfile || (!isDemoAuthUser && hasUidMismatch) || !userProfile.role) {
             console.error(
               `CRITICAL: User profile validation failed for UID ${fbUser.uid}. ` +
-                `Profile exists: ${!!userProfile}, UID Match: ${userProfile?.userId === fbUser.uid}, Role Exists: ${!!userProfile?.role}. Signing out.`
+                `Profile exists: ${!!userProfile}, UID Match: ${userProfile?.userId === fbUser.uid}, Demo Auth User: ${isDemoAuthUser}, Role Exists: ${!!userProfile?.role}. Signing out.`
             );
             await auth.signOut();
             return;

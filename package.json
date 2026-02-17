@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "NODE_ENV=production next build",
+    "build": "NODE_ENV=production next build && node scripts/firebase-apphosting-postbuild.cjs",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

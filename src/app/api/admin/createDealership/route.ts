@@ -7,9 +7,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{}> }
+  { params }: { params: Promise<{ [key: string]: string }> }
 ) {
-  await params; // Wait for promise to resolve, per Next.js 15
   const authorization =
     req.headers.get('authorization') ?? req.headers.get('Authorization');
 

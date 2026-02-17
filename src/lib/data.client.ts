@@ -25,29 +25,23 @@ const getTourData = async () => {
     return tourData;
 }
 
-const demoUserEmails = [
-  'consultant.demo@autodrive.com',
-  'service.writer.demo@autodrive.com',
-  'parts.consultant.demo@autodrive.com',
-  'finance.manager.demo@autodrive.com',
-  'manager.demo@autodrive.com',
-  'service.manager.demo@autodrive.com',
-  'parts.manager.demo@autodrive.com',
-  'general.manager.demo@autodrive.com',
-  'owner.demo@autodrive.com',
-];
-
-const isCurrentUserTouring = (): boolean => {
-    const currentUserEmail = auth.currentUser?.email;
-    return !!currentUserEmail && demoUserEmails.includes(currentUserEmail);
+const isTouringUser = (userId?: string): boolean => !!userId && userId.startsWith('tour-');
+const tourUserEmails: Record<string, string> = {
+    'consultant.demo@autodrive.com': 'tour-consultant',
+    'service.writer.demo@autodrive.com': 'tour-service-writer',
+    'parts.consultant.demo@autodrive.com': 'tour-parts-consultant',
+    'finance.manager.demo@autodrive.com': 'tour-finance-manager',
+    'manager.demo@autodrive.com': 'tour-manager',
+    'service.manager.demo@autodrive.com': 'tour-service-manager',
+    'parts.manager.demo@autodrive.com': 'tour-parts-manager',
+    'general.manager.demo@autodrive.com': 'tour-general-manager',
+    'owner.demo@autodrive.com': 'tour-owner',
 };
 
-const getTourUserId = async (): Promise<string | null> => {
-    if (!isCurrentUserTouring()) return null;
-    const tour = await getTourData();
-    const tourUser = tour.users.find(u => u.email === auth.currentUser?.email);
-    return tourUser?.userId || null;
-}
+const getTourIdFromEmail = (email?: string | null): string | null => {
+    if (!email) return null;
+    return tourUserEmails[email.toLowerCase()] || null;
+};
 
 
 // --- HELPER FUNCTIONS ---
@@ -77,35 +71,30 @@ const getDataById = async <T>(db: Firestore, collectionName: string, id: string)
 
 // AUTH
 export async function getUserById(userId: string): Promise<User | null> {
-    const tourUserEmails: Record<string, string> = {
-        'consultant.demo@autodrive.com': 'tour-consultant',
-        'service.writer.demo@autodrive.com': 'tour-service-writer',
-        'parts.consultant.demo@autodrive.com': 'tour-parts-consultant',
-        'finance.manager.demo@autodrive.com': 'tour-finance-manager',
-        'manager.demo@autodrive.com': 'tour-manager',
-        'service.manager.demo@autodrive.com': 'tour-service-manager',
-        'parts.manager.demo@autodrive.com': 'tour-parts-manager',
-        'general.manager.demo@autodrive.com': 'tour-general-manager',
-        'owner.demo@autodrive.com': 'tour-owner',
-    };
+    if (isTouringUser(userId)) {
+        const { users } = await getTourData();
+        return users.find(u => u.userId === userId) || null;
+    }
+
+    // For demo users, map the Firebase auth account to the canonical tour user.
+    // This keeps all downstream data lookups keyed by `tour-*` IDs.
+    const authTourId = auth.currentUser?.uid === userId
+        ? getTourIdFromEmail(auth.currentUser.email)
+        : null;
+    if (authTourId) {
+        const tourUser = (await getTourData()).users.find(u => u.userId === authTourId);
+        if (tourUser) return tourUser;
+    }
 
     // This is a special bridge for the demo user logins.
     // It finds the real user doc to get their email, then maps it to the correct fake tour ID.
     const userDoc = await getDoc(doc(db, 'users', userId)).catch(() => null);
     if (userDoc && userDoc.exists()) {
-        const userEmail = userDoc.data()?.email;
-        const tourId = tourUserEmails[userEmail];
+        const tourId = getTourIdFromEmail(userDoc.data()?.email);
         if (tourId) {
              const tourUser = (await getTourData()).users.find(u => u.userId === tourId);
-             // Return the specific tour user, but inject the REAL Firebase UID so auth state remains valid.
-             return tourUser ? { ...tourUser, userId: userId } : null;
+             return tourUser || null;
         }
-    }
-    
-    // Fallback for direct lookups of tour user IDs
-    if (userId.startsWith('tour-')) {
-        const { users } = await getTourData();
-        return users.find(u => u.userId === userId) || null;
     }
     
     return getDataById<User>(db, 'users', userId);
@@ -154,12 +143,12 @@ export async function createUserProfile(userId: string, name: string, email: str
 
 
 export async function updateUser(userId: string, data: Partial<Omit<User, 'userId' | 'role' | 'xp' | 'dealershipIds'>>): Promise<User> {
-    if (isCurrentUserTouring()) {
-        const tourUserId = await getTourUserId();
-        const user = (await getTourData()).users.find(u => u.userId === tourUserId);
+    if (isTouringUser(userId)) {
+        const user = (await getTourData()).users.find(u => u.userId === userId);
         if (!user) throw new Error("Tour user not found after update");
+        // In tour mode, we just return the user object as if it was updated.
         const updatedUser = { ...user, ...data };
-        return { ...updatedUser, userId }; // Return with the real UID
+        return updatedUser;
     }
 
     const userRef = doc(db, 'users', userId);
@@ -180,12 +169,11 @@ export async function updateUser(userId: string, data: Partial<Omit<User, 'userI
 }
 
 export async function updateUserDealerships(userId: string, newDealershipIds: string[]): Promise<User> {
-    if (isCurrentUserTouring()) {
-        const tourUserId = await getTourUserId();
-        const user = (await getTourData()).users.find(u => u.userId === tourUserId);
+     if (isTouringUser(userId)) {
+        const user = (await getTourData()).users.find(u => u.userId === userId);
         if (!user) throw new Error("Tour user not found");
         user.dealershipIds = newDealershipIds; // In-memory update
-        return { ...user, userId }; // Return with the real UID
+        return user;
     }
     
     // Call the API endpoint with permission checks
@@ -214,7 +202,7 @@ export async function updateUserDealerships(userId: string, newDealershipIds: st
 }
 
 export async function deleteUser(userId: string): Promise<void> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(userId)) {
         // No-op for tour mode
         return;
     }
@@ -270,7 +258,7 @@ export async function createDealership(dealershipData: {
 }): Promise<Dealership> {
     // This function is now only used for tour mode.
     // Real dealership creation must go through the /api/admin/createDealership endpoint.
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(dealershipData.trainerId)) {
         const newDealership: Dealership = {
             id: `tour-dealership-${Math.random()}`,
             name: dealershipData.name,
@@ -311,7 +299,7 @@ export async function getInvitationByToken(token: string): Promise<EmailInvitati
 }
 
 export async function claimInvitation(token: string): Promise<void> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(auth.currentUser?.uid)) {
         return; // No-op for tour mode
     }
 
@@ -343,7 +331,7 @@ export async function createInvitationLink(
   role: UserRole,
   inviterId: string,
 ): Promise<{ url: string }> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(inviterId)) {
         return { url: `http://localhost:9002/register?token=tour-fake-token-${Math.random()}` };
     }
 
@@ -413,7 +401,7 @@ export async function createInvitationLink(
 }
 
 export async function getPendingInvitations(dealershipId: string, user: User): Promise<PendingInvitation[]> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(user.userId)) {
         return [];
     }
 
@@ -522,8 +510,8 @@ function getStarterLessonById(lessonId: string): Lesson | null {
     return roleLessons.find(l => l.lessonId === lessonId) || roleLessons.find(l => l.associatedTrait === parsedTrait) || null;
 }
 
-export async function getLessons(role: LessonRole): Promise<Lesson[]> {
-    if (isCurrentUserTouring()) {
+export async function getLessons(role: LessonRole, userId?: string): Promise<Lesson[]> {
+    if (isTouringUser(userId)) {
         const { lessons } = await getTourData();
         const scopedLessons = lessons.filter(lesson => lesson.role === role || lesson.role === 'global');
         const roleSpecificLessons = scopedLessons.filter(lesson => lesson.role === role);
@@ -561,19 +549,19 @@ export async function getLessons(role: LessonRole): Promise<Lesson[]> {
     }
 }
 
-export async function getLessonById(lessonId: string): Promise<Lesson | null> {
+export async function getLessonById(lessonId: string, userId?: string): Promise<Lesson | null> {
     const starterLesson = getStarterLessonById(lessonId);
     if (starterLesson) return starterLesson;
 
-    if (isCurrentUserTouring() || lessonId.startsWith('tour-')) {
+    if (isTouringUser(userId) || lessonId.startsWith('tour-')) {
         const { lessons } = await getTourData();
         return lessons.find(l => l.lessonId === lessonId) || null;
     }
     return getDataById<Lesson>(db, 'lessons', lessonId);
 }
 
-export async function getDealershipById(dealershipId: string): Promise<Dealership | null> {
-    if (isCurrentUserTouring() || dealershipId.startsWith('tour-')) {
+export async function getDealershipById(dealershipId: string, userId?: string): Promise<Dealership | null> {
+    if (isTouringUser(userId) || dealershipId.startsWith('tour-')) {
         const { dealerships } = await getTourData();
         const dealership = dealerships.find(d => d.id === dealershipId);
         if (dealership) return { ...dealership, status: 'active' };
@@ -595,7 +583,7 @@ export async function createLesson(
         autoAssignByRole?: boolean;
     }
 ): Promise<{ lesson: Lesson; autoAssignedCount: number; autoAssignFailed: boolean }> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(creator.userId)) {
         const { lessons } = await getTourData();
         const newLesson: Lesson = {
             lessonId: `tour-lesson-${Math.random().toString(36).substring(7)}`,
@@ -604,6 +592,7 @@ export async function createLesson(
             associatedTrait: lessonData.associatedTrait,
             role: lessonData.targetRole as LessonRole,
             customScenario: lessonData.scenario,
+            createdByUserId: creator.userId,
         };
         lessons.push(newLesson);
         return { lesson: newLesson, autoAssignedCount: 0, autoAssignFailed: false };
@@ -618,6 +607,7 @@ export async function createLesson(
         associatedTrait: lessonData.associatedTrait,
         role: lessonData.targetRole as LessonRole,
         customScenario: lessonData.scenario,
+        createdByUserId: creator.userId,
     };
     try {
         await setDoc(newLessonRef, newLesson);
@@ -664,10 +654,9 @@ export async function createLesson(
 }
 
 export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(userId)) {
         const { lessonAssignments, lessons } = await getTourData();
-        const tourUserId = await getTourUserId();
-        const userAssignments = lessonAssignments.filter(a => a.userId === tourUserId && !a.completed);
+        const userAssignments = lessonAssignments.filter(a => a.userId === userId && !a.completed);
         if (userAssignments.length === 0) {
             return [];
         }
@@ -737,12 +726,11 @@ export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
 }
 
 export async function getAllAssignedLessonIds(userId: string): Promise<string[]> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(userId)) {
         const { lessonAssignments } = await getTourData();
-        const tourUserId = await getTourUserId();
         return Array.from(new Set(
             lessonAssignments
-                .filter(a => a.userId === tourUserId)
+                .filter(a => a.userId === userId)
                 .map(a => a.lessonId)
         ));
     }
@@ -763,13 +751,247 @@ export async function getAllAssignedLessonIds(userId: string): Promise<string[]>
     }
 }
 
+export type CreatedLessonStatus = {
+    lesson: Lesson;
+    assignedCount: number;
+    completedCount: number;
+    pendingCount: number;
+    assignedUserCount: number;
+    takenUserCount: number;
+    taken: boolean;
+    assignees: Array<{
+        userId: string;
+        name: string;
+        role?: UserRole;
+        taken: boolean;
+    }>;
+    lastAssignedAt: Date | null;
+};
+
+export async function getCreatedLessonStatuses(assignerId: string): Promise<CreatedLessonStatus[]> {
+    if (isTouringUser(assignerId)) {
+        const { lessons, lessonAssignments, users } = await getTourData();
+        const assignmentsByCreator = lessonAssignments.filter((assignment) => assignment.assignerId === assignerId);
+        const lessonIds = new Set([
+            ...lessons.filter((lesson) => lesson.createdByUserId === assignerId).map((lesson) => lesson.lessonId),
+            ...assignmentsByCreator.map((assignment) => assignment.lessonId),
+        ]);
+
+        const userMetaById = new Map(
+            users.map((tourUser) => [
+                tourUser.userId,
+                {
+                    name: tourUser.name || tourUser.email || tourUser.userId,
+                    role: tourUser.role,
+                },
+            ])
+        );
+
+        const lessonById = new Map(lessons.map((lesson) => [lesson.lessonId, lesson]));
+        const rows: CreatedLessonStatus[] = Array.from(lessonIds)
+            .map((lessonId) => {
+                const lesson = lessonById.get(lessonId);
+                if (!lesson) return null;
+                const scopedAssignments = assignmentsByCreator.filter((assignment) => assignment.lessonId === lessonId);
+                const assignedCount = scopedAssignments.length;
+                const completedCount = scopedAssignments.filter((assignment) => assignment.completed).length;
+                const pendingCount = Math.max(assignedCount - completedCount, 0);
+                const assigneeById = new Map<string, { userId: string; name: string; role?: UserRole; taken: boolean }>();
+                scopedAssignments.forEach((assignment) => {
+                    const existing = assigneeById.get(assignment.userId);
+                    if (existing) {
+                        existing.taken = existing.taken || assignment.completed;
+                        return;
+                    }
+                    const userMeta = userMetaById.get(assignment.userId);
+                    assigneeById.set(assignment.userId, {
+                        userId: assignment.userId,
+                        name: userMeta?.name || assignment.userId,
+                        role: userMeta?.role,
+                        taken: !!assignment.completed,
+                    });
+                });
+                const assignees = Array.from(assigneeById.values()).sort((a, b) => a.name.localeCompare(b.name));
+                const assignedUserCount = assignees.length;
+                const takenUserCount = assignees.filter((assignee) => assignee.taken).length;
+                const lastAssignedAt = scopedAssignments.length > 0
+                    ? new Date(Math.max(...scopedAssignments.map((assignment) => assignment.timestamp.getTime())))
+                    : null;
+                return {
+                    lesson,
+                    assignedCount,
+                    completedCount,
+                    pendingCount,
+                    assignedUserCount,
+                    takenUserCount,
+                    taken: completedCount > 0,
+                    assignees,
+                    lastAssignedAt,
+                };
+            })
+            .filter((row): row is CreatedLessonStatus => !!row);
+
+        return rows.sort((a, b) => {
+            const timeA = a.lastAssignedAt?.getTime() ?? 0;
+            const timeB = b.lastAssignedAt?.getTime() ?? 0;
+            if (timeA !== timeB) return timeB - timeA;
+            return a.lesson.title.localeCompare(b.lesson.title);
+        });
+    }
+
+    const assignmentsCollection = collection(db, 'lessonAssignments');
+    const lessonsCollection = collection(db, 'lessons');
+    const usersCollection = collection(db, 'users');
+
+    let assignmentsByCreator: LessonAssignment[] = [];
+    try {
+        const assignmentSnapshot = await getDocs(query(assignmentsCollection, where('assignerId', '==', assignerId)));
+        assignmentsByCreator = assignmentSnapshot.docs.map((assignmentDoc) => {
+            const raw = assignmentDoc.data() as any;
+            const rawTimestamp = raw.timestamp;
+            const timestamp = rawTimestamp?.toDate
+                ? rawTimestamp.toDate()
+                : (rawTimestamp instanceof Date ? rawTimestamp : new Date(0));
+            return {
+                assignmentId: raw.assignmentId || assignmentDoc.id,
+                userId: raw.userId,
+                lessonId: raw.lessonId,
+                assignerId: raw.assignerId,
+                timestamp,
+                completed: !!raw.completed,
+            } as LessonAssignment;
+        });
+    } catch (e) {
+        const contextualError = new FirestorePermissionError({ path: assignmentsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const userMetaById = new Map<string, { name: string; role?: UserRole }>();
+    const assignedUserIds = Array.from(new Set(assignmentsByCreator.map((assignment) => assignment.userId).filter(Boolean)));
+    if (assignedUserIds.length > 0) {
+        const userSnapshots = await Promise.all(
+            assignedUserIds.map(async (userId) => {
+                try {
+                    const userSnapshot = await getDoc(doc(usersCollection, userId));
+                    if (!userSnapshot.exists()) return null;
+                    return { userId, user: userSnapshot.data() as User };
+                } catch {
+                    return null;
+                }
+            })
+        );
+        userSnapshots.forEach((entry) => {
+            if (!entry) return;
+            userMetaById.set(entry.userId, {
+                name: entry.user.name || entry.user.email || entry.userId,
+                role: entry.user.role,
+            });
+        });
+    }
+
+    const lessonById = new Map<string, Lesson>();
+
+    try {
+        const createdLessonSnapshot = await getDocs(query(lessonsCollection, where('createdByUserId', '==', assignerId)));
+        createdLessonSnapshot.docs.forEach((lessonDoc) => {
+            const lesson = { ...(lessonDoc.data() as any), lessonId: (lessonDoc.data() as any).lessonId || lessonDoc.id } as Lesson;
+            lessonById.set(lesson.lessonId, lesson);
+        });
+    } catch (e) {
+        const contextualError = new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const lessonIdsFromAssignments = Array.from(new Set(assignmentsByCreator.map((assignment) => assignment.lessonId).filter(Boolean)));
+    const missingLessonIds = lessonIdsFromAssignments.filter((lessonId) => !lessonById.has(lessonId));
+    if (missingLessonIds.length > 0) {
+        const chunks: string[][] = [];
+        for (let i = 0; i < missingLessonIds.length; i += 30) {
+            chunks.push(missingLessonIds.slice(i, i + 30));
+        }
+
+        try {
+            const snapshots = await Promise.all(
+                chunks.map((chunk) => getDocs(query(lessonsCollection, where('lessonId', 'in', chunk))))
+            );
+            snapshots.forEach((snapshot) => {
+                snapshot.docs.forEach((lessonDoc) => {
+                    const lesson = { ...(lessonDoc.data() as any), lessonId: (lessonDoc.data() as any).lessonId || lessonDoc.id } as Lesson;
+                    lessonById.set(lesson.lessonId, lesson);
+                });
+            });
+        } catch (e) {
+            const contextualError = new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' });
+            errorEmitter.emit('permission-error', contextualError);
+            throw contextualError;
+        }
+    }
+
+    const lessonIds = Array.from(new Set([
+        ...Array.from(lessonById.keys()),
+        ...lessonIdsFromAssignments,
+    ]));
+
+    const rows: CreatedLessonStatus[] = lessonIds
+        .map((lessonId) => {
+            const lesson = lessonById.get(lessonId);
+            if (!lesson) return null;
+            const scopedAssignments = assignmentsByCreator.filter((assignment) => assignment.lessonId === lessonId);
+            const assignedCount = scopedAssignments.length;
+            const completedCount = scopedAssignments.filter((assignment) => assignment.completed).length;
+            const pendingCount = Math.max(assignedCount - completedCount, 0);
+            const assigneeById = new Map<string, { userId: string; name: string; role?: UserRole; taken: boolean }>();
+            scopedAssignments.forEach((assignment) => {
+                const existing = assigneeById.get(assignment.userId);
+                if (existing) {
+                    existing.taken = existing.taken || assignment.completed;
+                    return;
+                }
+                const userMeta = userMetaById.get(assignment.userId);
+                assigneeById.set(assignment.userId, {
+                    userId: assignment.userId,
+                    name: userMeta?.name || assignment.userId,
+                    role: userMeta?.role,
+                    taken: !!assignment.completed,
+                });
+            });
+            const assignees = Array.from(assigneeById.values()).sort((a, b) => a.name.localeCompare(b.name));
+            const assignedUserCount = assignees.length;
+            const takenUserCount = assignees.filter((assignee) => assignee.taken).length;
+            const lastAssignedAt = scopedAssignments.length > 0
+                ? new Date(Math.max(...scopedAssignments.map((assignment) => assignment.timestamp.getTime())))
+                : null;
+
+            return {
+                lesson,
+                assignedCount,
+                completedCount,
+                pendingCount,
+                assignedUserCount,
+                takenUserCount,
+                taken: completedCount > 0,
+                assignees,
+                lastAssignedAt,
+            };
+        })
+        .filter((row): row is CreatedLessonStatus => !!row);
+
+    return rows.sort((a, b) => {
+        const timeA = a.lastAssignedAt?.getTime() ?? 0;
+        const timeB = b.lastAssignedAt?.getTime() ?? 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return a.lesson.title.localeCompare(b.lesson.title);
+    });
+}
+
 export async function assignLesson(userId: string, lessonId: string, assignerId: string): Promise<LessonAssignment> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(userId) || isTouringUser(assignerId)) {
         const { lessonAssignments } = await getTourData();
-        const tourUserId = await getTourUserId(); // Could be assigning to self or another tour user
         const newAssignment: LessonAssignment = {
             assignmentId: `tour-assignment-${Math.random().toString(36).substring(7)}`,
-            userId: tourUserId || userId, // Fallback to passed userId
+            userId,
             lessonId,
             assignerId,
             timestamp: new Date(),
@@ -805,10 +1027,9 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
 
 
 export async function getConsultantActivity(userId: string): Promise<LessonLog[]> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(userId)) {
         const { lessonLogs } = await getTourData();
-        const tourUserId = await getTourUserId();
-        const userLogs = lessonLogs.filter(log => log.userId === tourUserId);
+        const userLogs = lessonLogs.filter(log => log.userId === userId);
         return userLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }
 
@@ -825,10 +1046,9 @@ export async function getConsultantActivity(userId: string): Promise<LessonLog[]
 }
 
 export async function getDailyLessonLimits(userId: string): Promise<{ recommendedTaken: boolean, otherTaken: boolean }> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(userId)) {
         const { lessonLogs } = await getTourData();
-        const tourUserId = await getTourUserId();
-        const todayLogs = lessonLogs.filter(log => log.userId === tourUserId && isToday(log.timestamp));
+        const todayLogs = lessonLogs.filter(log => log.userId === userId && isToday(log.timestamp));
 
         const recommendedTaken = todayLogs.some(log => log.isRecommended);
         const otherTaken = todayLogs.some(log => !log.isRecommended);
@@ -863,10 +1083,9 @@ export async function logLessonCompletion(data: {
     isRecommended: boolean;
     scores: Omit<LessonLog, 'logId' | 'timestamp' | 'userId' | 'lessonId' | 'stepResults' | 'xpGained' | 'isRecommended'>;
 }): Promise<{ updatedUser: User, newBadges: Badge[] }> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(data.userId)) {
         const tour = await getTourData();
-        const tourUserId = await getTourUserId();
-        const user = tour.users.find(u => u.userId === tourUserId);
+        const user = tour.users.find(u => u.userId === data.userId);
         if (!user) throw new Error('Tour user not found');
         
         user.xp += data.xpGained; // In-memory update
@@ -878,7 +1097,7 @@ export async function logLessonCompletion(data: {
             tour.earnedBadges[user.userId].push({badgeId: 'first-drive', userId: user.userId, timestamp: new Date()});
         }
         
-        return { updatedUser: {...user, userId: data.userId}, newBadges: newBadges };
+        return { updatedUser: user, newBadges: newBadges };
     }
 
     const user = await getUserById(data.userId);
@@ -992,7 +1211,7 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
 };
 
 export async function getDealerships(user?: User): Promise<Dealership[]> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(user?.userId)) {
         return (await getTourData()).dealerships;
     }
     
@@ -1067,7 +1286,7 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
         };
     };
 
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(user.userId)) {
         const { users, lessonLogs } = await getTourData();
         const teamRoles = getTeamMemberRoles(user.role);
         if (teamRoles.length === 0) {
@@ -1267,7 +1486,7 @@ export async function getSystemReport(requester: User): Promise<SystemReport> {
     const activeSince = subDays(now, 30);
     const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
 
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(requester.userId)) {
         const tour = await getTourData();
         const roleCounts: Record<string, number> = {};
         const dealershipNameById = new Map<string, string>();
@@ -1434,15 +1653,14 @@ export async function getSystemReport(requester: User): Promise<SystemReport> {
 
 
 export async function getManageableUsers(managerId: string): Promise<User[]> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(managerId)) {
         const tourData = await getTourData();
-        const managerTourId = await getTourUserId();
-        const manager = tourData.users.find(u => u.userId === managerTourId);
+        const manager = tourData.users.find(u => u.userId === managerId);
         if (!manager) return [];
         const manageableRoles = getTeamMemberRoles(manager.role);
 
         return tourData.users.filter(u => {
-            if (u.userId === manager.userId) return false;
+            if (u.userId === managerId) return false;
             if (!manageableRoles.includes(u.role)) return false;
             if (manager.role === 'Owner' || manager.role === 'Admin' || manager.role === 'Developer') return true; // Can manage across all dealerships
             const inManagedDealership = u.dealershipIds.some(id => manager.dealershipIds.includes(id));
@@ -1480,10 +1698,9 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
 
 // BADGES
 export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> {
-    if (isCurrentUserTouring()) {
+    if (isTouringUser(userId)) {
         const { earnedBadges } = await getTourData();
-        const tourUserId = await getTourUserId();
-        const userEarnedBadges = earnedBadges[tourUserId || ''] || [];
+        const userEarnedBadges = earnedBadges[userId] || [];
         const badgeIds = userEarnedBadges.map(b => b.badgeId);
         return allBadges.filter(b => badgeIds.includes(b.id));
     }
@@ -1563,7 +1780,7 @@ export async function sendMessage(
     content: string, 
     target: { scope: MessageTargetScope; targetId: string; targetRole?: UserRole }
 ): Promise<Message> {
-     if (isCurrentUserTouring()) {
+     if (isTouringUser(sender.userId)) {
         // Mock message creation for tour mode
         return {
             id: `tour-msg-${Math.random()}`,
@@ -1601,7 +1818,7 @@ export async function sendMessage(
 }
 
 export async function getMessagesForUser(user: User): Promise<Message[]> {
-     if (isCurrentUserTouring()) {
+     if (isTouringUser(user.userId)) {
         // In tour mode, return a default welcome message.
         return [
             {

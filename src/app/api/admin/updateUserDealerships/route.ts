@@ -26,6 +26,7 @@ export async function POST(req: Request) {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const currentUserId = decodedToken.uid;
 
+    // Get current user to check permissions
     const currentUserDoc = await adminDb.collection('users').doc(currentUserId).get();
     if (!currentUserDoc.exists) {
       return NextResponse.json({ message: 'Forbidden: User profile not found.' }, { status: 403 });
@@ -39,6 +40,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Bad Request: Missing or invalid parameters.' }, { status: 400 });
     }
 
+    // Only Admin/Developer can assign to all dealerships
+    // Owners can only assign to their own dealerships
     if (currentUser.role === 'Owner') {
       const ownerDealershipIds = currentUser.dealershipIds || [];
       const isValidAssignment = dealershipIds.every(id => ownerDealershipIds.includes(id));
@@ -53,6 +56,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Forbidden: Insufficient permissions.' }, { status: 403 });
     }
 
+    // Update the target user's dealership assignments
     const targetUserRef = adminDb.collection('users').doc(targetUserId);
     await targetUserRef.update({ dealershipIds });
 
