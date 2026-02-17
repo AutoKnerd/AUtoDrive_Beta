@@ -1,15 +1,19 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { User, Dealership } from '@/lib/definitions';
 import { updateUserDealerships } from '@/lib/data.client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import isEqual from 'lodash.isequal';
+import { Input } from '../ui/input';
+import { ScrollArea } from '../ui/scroll-area';
+import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
+import { X } from 'lucide-react';
 
 interface AssignDealershipsFormProps {
   manageableUsers: User[];
@@ -27,30 +31,39 @@ export function AssignDealershipsForm({
   const [isAssigning, setIsAssigning] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedDealerships, setSelectedDealerships] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
-  // For Owners: only show their assigned dealerships
-  // For others: show all managed dealerships
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm) {
+      return [];
+    }
+    return manageableUsers.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, manageableUsers]);
+
   const isOwner = currentUser?.role === 'Owner';
   const managedDealerships = isOwner
     ? dealerships.filter((d) => currentUser?.dealershipIds?.includes(d.id))
     : dealerships;
 
-  const handleUserSelect = (userId: string) => {
-    const user = manageableUsers.find((u) => u.userId === userId);
-    if (user) {
-      setSelectedUser(user);
-      setSelectedDealerships(user.dealershipIds);
-    } else {
-      setSelectedUser(null);
-      setSelectedDealerships([]);
-    }
+  const handleSelectUser = (user: User) => {
+    setSelectedUser(user);
+    setSelectedDealerships(user.dealershipIds || []);
+    setSearchTerm('');
+  };
+  
+  const handleClearSelection = () => {
+    setSelectedUser(null);
+    setSelectedDealerships([]);
   };
 
   async function handleAssignDealerships() {
     if (!selectedUser) return;
 
-    const hasChanges = !isEqual(selectedDealerships, selectedUser.dealershipIds);
+    const hasChanges = !isEqual(selectedDealerships.sort(), (selectedUser.dealershipIds || []).sort());
     if (!hasChanges) {
       toast({
         title: 'No Changes',
@@ -67,8 +80,7 @@ export function AssignDealershipsForm({
         description: `${selectedUser.name}'s dealership assignments have been updated.`,
       });
       onDealershipsAssigned?.();
-      setSelectedUser(null);
-      setSelectedDealerships([]);
+      handleClearSelection();
     } catch (e) {
       toast({
         variant: 'destructive',
@@ -82,39 +94,76 @@ export function AssignDealershipsForm({
 
   const handleCheckedChange = (dealershipId: string, checked: boolean) => {
     setSelectedDealerships((prev) => {
+      const newSelection = new Set(prev);
       if (checked) {
-        return [...prev, dealershipId];
+        newSelection.add(dealershipId);
       } else {
-        return prev.filter((id) => id !== dealershipId);
+        newSelection.delete(dealershipId);
       }
+      return Array.from(newSelection);
     });
   };
 
   return (
     <div className="grid gap-6">
-      <div className="space-y-2">
-        <Label htmlFor="user-select">Select User</Label>
-        <Select value={selectedUser?.userId || ''} onValueChange={handleUserSelect}>
-          <SelectTrigger id="user-select">
-            <SelectValue placeholder="Select a user to assign dealerships..." />
-          </SelectTrigger>
-          <SelectContent>
-            {manageableUsers.map((user) => (
-              <SelectItem key={user.userId} value={user.userId}>
-                {user.name} ({user.role})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {selectedUser && (
-        <div className="space-y-4">
+      {!selectedUser ? (
+        <div className="space-y-2">
+            <Input 
+                placeholder="Search for a user by name or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+                <ScrollArea className="h-64 rounded-md border">
+                    <div className="p-2">
+                    {filteredUsers.length > 0 ? filteredUsers.map(user => (
+                        <div 
+                            key={user.userId} 
+                            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                            onClick={() => handleSelectUser(user)}
+                        >
+                            <Avatar className="h-8 w-8">
+                                <AvatarImage src={user.avatarUrl} />
+                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-medium text-sm">{user.name}</p>
+                                <p className="text-xs text-muted-foreground">{user.email}</p>
+                            </div>
+                        </div>
+                    )) : (
+                        <p className="p-4 text-center text-sm text-muted-foreground">No users found.</p>
+                    )}
+                    </div>
+                </ScrollArea>
+            )}
+            {manageableUsers.length === 0 && (
+                <p className="p-4 text-center text-sm text-muted-foreground">No users available.</p>
+            )}
+        </div>
+      ) : (
+        <div className="space-y-4 rounded-lg border border-primary/20 bg-muted/20 p-4">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                        <AvatarImage src={selectedUser.avatarUrl} />
+                        <AvatarFallback>{selectedUser.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <p className="font-semibold">{selectedUser.name}</p>
+                        <p className="text-sm text-muted-foreground">{selectedUser.role}</p>
+                    </div>
+                </div>
+                 <Button variant="ghost" size="icon" onClick={handleClearSelection} className="h-8 w-8">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Clear selection</span>
+                </Button>
+            </div>
           <div>
             <Label className="text-base font-semibold mb-4 block">Assign Dealerships</Label>
             <div className="space-y-3">
               {managedDealerships.length === 0 ? (
-                <p className="text-sm text-gray-500">No dealerships available to assign.</p>
+                <p className="text-sm text-muted-foreground">No dealerships available to assign.</p>
               ) : (
                 managedDealerships.map((dealership) => (
                   <div key={dealership.id} className="flex items-center space-x-2">
@@ -141,7 +190,7 @@ export function AssignDealershipsForm({
           <Button
             onClick={handleAssignDealerships}
             disabled={isAssigning || !selectedUser}
-            className="w-full bg-cyan-500 hover:bg-cyan-600"
+            className="w-full"
           >
             {isAssigning ? (
               <>
@@ -149,7 +198,7 @@ export function AssignDealershipsForm({
                 Assigning...
               </>
             ) : (
-              'Assign Dealerships'
+              'Update Assignments'
             )}
           </Button>
         </div>

@@ -29,6 +29,7 @@ export default function DeveloperPage() {
   const [manageableUsers, setManageableUsers] = useState<User[]>([]);
   const [allDealerships, setAllDealerships] = useState<Dealership[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [activeTool, setActiveTool] = useState('create_user');
 
   const refreshData = useCallback(async () => {
     if (originalUser) {
@@ -71,6 +72,15 @@ export default function DeveloperPage() {
   };
 
   const isViewingAsManager = managerialRoles.includes(user.role);
+  
+  const managementTools = [
+    { value: 'create_user', label: 'Create User' },
+    { value: 'assign_dealerships', label: 'Assign Dealerships' },
+    { value: 'invite', label: 'Invite to Store' },
+    { value: 'remove', label: 'Remove User' },
+    { value: 'create_dealership', label: 'Create Dealership' },
+    { value: 'manage_dealerships', label: 'Manage Dealerships' },
+  ];
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -137,14 +147,23 @@ export default function DeveloperPage() {
                         {dataLoading ? (
                             <Spinner />
                         ) : (
-                            <Tabs defaultValue="create_user" className="w-full">
-                                <TabsList className="grid w-full grid-cols-6">
-                                    <TabsTrigger value="create_user">Create User</TabsTrigger>
-                                    <TabsTrigger value="assign_dealerships">Assign Dealerships</TabsTrigger>
-                                    <TabsTrigger value="invite">Invite to Store</TabsTrigger>
-                                    <TabsTrigger value="remove">Remove User</TabsTrigger>
-                                    <TabsTrigger value="create_dealership">Create Dealership</TabsTrigger>
-                                    <TabsTrigger value="manage_dealerships">Manage Dealerships</TabsTrigger>
+                            <Tabs value={activeTool} onValueChange={setActiveTool} className="w-full">
+                                <div className="md:hidden mb-4">
+                                    <Select value={activeTool} onValueChange={setActiveTool}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a management tool..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {managementTools.map(tool => (
+                                                <SelectItem key={tool.value} value={tool.value}>{tool.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <TabsList className="hidden md:grid w-full grid-cols-6">
+                                    {managementTools.map(tool => (
+                                        <TabsTrigger key={tool.value} value={tool.value}>{tool.label}</TabsTrigger>
+                                    ))}
                                 </TabsList>
                                 <TabsContent value="create_user" className="pt-4">
                                     <CreateUserForm onUserCreated={refreshData} />
