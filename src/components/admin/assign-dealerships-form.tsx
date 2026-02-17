@@ -113,10 +113,11 @@ export function AssignDealershipsForm({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
-            {searchTerm && (
-                <ScrollArea className="h-64 rounded-md border">
-                    <div className="p-2">
-                    {filteredUsers.length > 0 ? filteredUsers.map(user => (
+            <ScrollArea className="h-64 rounded-md border">
+                <div className="p-2">
+                {searchTerm ? (
+                    filteredUsers.length > 0 ? (
+                    filteredUsers.map(user => (
                         <div 
                             key={user.userId} 
                             className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
@@ -131,15 +132,15 @@ export function AssignDealershipsForm({
                                 <p className="text-xs text-muted-foreground">{user.email}</p>
                             </div>
                         </div>
-                    )) : (
-                        <p className="p-4 text-center text-sm text-muted-foreground">No users found.</p>
-                    )}
-                    </div>
-                </ScrollArea>
-            )}
-            {manageableUsers.length === 0 && (
-                <p className="p-4 text-center text-sm text-muted-foreground">No users available.</p>
-            )}
+                    ))
+                    ) : (
+                    <p className="p-4 text-center text-sm text-muted-foreground">No users found.</p>
+                    )
+                ) : (
+                    <p className="p-4 text-center text-sm text-muted-foreground">Start typing to find a user.</p>
+                )}
+                </div>
+            </ScrollArea>
         </div>
       ) : (
         <div className="space-y-4 rounded-lg border border-primary/20 bg-muted/20 p-4">

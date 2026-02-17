@@ -120,30 +120,34 @@ export function EditUserForm({ manageableUsers, onUserUpdated }: EditUserFormPro
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {searchTerm && (
-            <ScrollArea className="h-64 rounded-md border">
-              <div className="p-2">
-                {filteredUsers.length > 0 ? filteredUsers.map(user => (
-                  <div
-                    key={user.userId}
-                    className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
-                    onClick={() => handleSelectUser(user)}
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatarUrl} />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
+          <ScrollArea className="h-64 rounded-md border">
+            <div className="p-2">
+              {searchTerm ? (
+                filteredUsers.length > 0 ? (
+                  filteredUsers.map(user => (
+                    <div
+                      key={user.userId}
+                      className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                      onClick={() => handleSelectUser(user)}
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.avatarUrl} />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
                     </div>
-                  </div>
-                )) : (
+                  ))
+                ) : (
                   <p className="p-4 text-center text-sm text-muted-foreground">No users found.</p>
-                )}
-              </div>
-            </ScrollArea>
-          )}
+                )
+              ) : (
+                <p className="p-4 text-center text-sm text-muted-foreground">Start typing to find a user.</p>
+              )}
+            </div>
+          </ScrollArea>
         </div>
       ) : (
         <Form {...form}>

@@ -1693,9 +1693,17 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
         throw contextualError;
     }
 
+    const isGlobalAdmin = ['Admin', 'Developer'].includes(manager.role);
+
     const manageableUsers = allUsers.filter(u => {
-        if (u.userId === managerId) return false;
+        if (u.userId === managerId) return false; // Cannot manage self
+        
+        // If the manager is a global admin, they can manage everyone.
+        if (isGlobalAdmin) return true;
+
+        // Otherwise, apply standard role and dealership hierarchy
         if (!manageableRoles.includes(u.role)) return false;
+        
         if (u.dealershipIds.length === 0) return true;
         const inManagedDealership = u.dealershipIds.some(id => manager.dealershipIds.includes(id));
         return inManagedDealership;
