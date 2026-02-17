@@ -20,6 +20,7 @@ import { CreateDealershipForm } from '@/components/admin/create-dealership-form'
 import { CreateUserForm } from '@/components/admin/create-user-form';
 import { AssignDealershipsForm } from '@/components/admin/assign-dealerships-form';
 import { ManageDealershipForm } from '@/components/admin/ManageDealershipForm';
+import { EditUserForm } from '@/components/admin/edit-user-form';
 
 
 export default function DeveloperPage() {
@@ -75,6 +76,7 @@ export default function DeveloperPage() {
   
   const managementTools = [
     { value: 'create_user', label: 'Create User' },
+    { value: 'edit_user', label: 'Edit User' },
     { value: 'assign_dealerships', label: 'Assign Dealerships' },
     { value: 'invite', label: 'Invite to Store' },
     { value: 'remove', label: 'Remove User' },
@@ -162,6 +164,9 @@ export default function DeveloperPage() {
                                 </div>
                                 <TabsContent value="create_user" className="pt-4">
                                     <CreateUserForm onUserCreated={refreshData} />
+                                </TabsContent>
+                                <TabsContent value="edit_user" className="pt-4">
+                                    <EditUserForm manageableUsers={manageableUsers} onUserUpdated={refreshData} />
                                 </TabsContent>
                                 <TabsContent value="assign_dealerships" className="pt-4">
                                     <AssignDealershipsForm manageableUsers={manageableUsers} dealerships={allDealerships} currentUser={originalUser} onDealershipsAssigned={refreshData} />

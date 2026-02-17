@@ -142,7 +142,7 @@ export async function createUserProfile(userId: string, name: string, email: str
 }
 
 
-export async function updateUser(userId: string, data: Partial<Omit<User, 'userId' | 'role' | 'xp' | 'dealershipIds'>>): Promise<User> {
+export async function updateUser(userId: string, data: Partial<Omit<User, 'userId' | 'xp' | 'dealershipIds'>>): Promise<User> {
     if (isTouringUser(userId)) {
         const user = (await getTourData()).users.find(u => u.userId === userId);
         if (!user) throw new Error("Tour user not found after update");
