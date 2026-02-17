@@ -102,7 +102,9 @@ service cloud.firestore {
           'Parts Manager',
           'Finance Manager'
         ];
-      allow update: if (isOwner(userId) && isUpdatingOwnUserDocument()) || hasAnyRole(['Admin', 'Developer']);
+      allow update: if 
+        (isOwner(userId) && isUpdatingOwnUserDocument()) || 
+        (hasAnyRole(['Admin', 'Developer']) && request.resource.data.userId == resource.data.userId);
       allow delete: if isOwner(userId) || hasAnyRole(['Admin', 'Developer']);
     }
 
