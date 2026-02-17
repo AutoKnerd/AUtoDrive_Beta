@@ -5,8 +5,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { User, UserRole, allRoles } from '@/lib/definitions';
-import { updateUser } from '@/lib/data.client';
+import { User, UserRole, allRoles, Dealership } from '@/lib/definitions';
+import { updateUser, updateUserDealerships } from '@/lib/data.client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -17,6 +17,8 @@ import { ScrollArea } from '../ui/scroll-area';
 import { X, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import isEqual from 'lodash.isequal';
 
 // Define the schema for the edit form
 const editUserSchema = z.object({
@@ -24,6 +26,7 @@ const editUserSchema = z.object({
   email: z.string().email(), // Will be read-only
   role: z.enum(allRoles),
   phone: z.string().optional(),
+  dealershipIds: z.array(z.string()).optional(),
   isPrivate: z.boolean().optional(),
   isPrivateFromOwner: z.boolean().optional(),
   showDealerCriticalOnly: z.boolean().optional(),
@@ -33,10 +36,11 @@ type EditUserFormValues = z.infer<typeof editUserSchema>;
 
 interface EditUserFormProps {
   manageableUsers: User[];
+  dealerships: Dealership[];
   onUserUpdated?: () => void;
 }
 
-export function EditUserForm({ manageableUsers, onUserUpdated }: EditUserFormProps) {
+export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: EditUserFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,6 +57,7 @@ export function EditUserForm({ manageableUsers, onUserUpdated }: EditUserFormPro
         email: selectedUser.email,
         role: selectedUser.role,
         phone: selectedUser.phone || '',
+        dealershipIds: selectedUser.dealershipIds || [],
         isPrivate: selectedUser.isPrivate || false,
         isPrivateFromOwner: selectedUser.isPrivateFromOwner || false,
         showDealerCriticalOnly: selectedUser.showDealerCriticalOnly || false,
@@ -86,14 +91,27 @@ export function EditUserForm({ manageableUsers, onUserUpdated }: EditUserFormPro
 
     setIsSubmitting(true);
     try {
-      await updateUser(selectedUser.userId, {
+      const updatePromises: Promise<any>[] = [];
+      
+      // Update profile data
+      updatePromises.push(updateUser(selectedUser.userId, {
         name: data.name,
         role: data.role,
         phone: data.phone,
         isPrivate: data.isPrivate,
         isPrivateFromOwner: data.isPrivateFromOwner,
         showDealerCriticalOnly: data.showDealerCriticalOnly,
-      });
+      }));
+
+      // Update dealership assignments if they changed
+      const originalIds = selectedUser.dealershipIds || [];
+      const newIds = data.dealershipIds || [];
+      if (!isEqual(originalIds.sort(), newIds.sort())) {
+        updatePromises.push(updateUserDealerships(selectedUser.userId, newIds));
+      }
+
+      await Promise.all(updatePromises);
+      
       toast({
         title: 'User Updated',
         description: `${data.name}'s profile has been saved.`,
@@ -212,6 +230,49 @@ export function EditUserForm({ manageableUsers, onUserUpdated }: EditUserFormPro
                     <FormMessage />
                     </FormItem>
                 )}
+            />
+            <FormField
+              control={form.control}
+              name="dealershipIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dealership Assignments</FormLabel>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <span className="truncate">
+                          {field.value && field.value.length > 0
+                            ? dealerships.filter(d => field.value?.includes(d.id)).map(d => d.name).join(', ')
+                            : "Independent User"}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-64" align="start">
+                      <DropdownMenuLabel>Managed Dealerships</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {dealerships.map(dealership => (
+                        <DropdownMenuCheckboxItem
+                          key={dealership.id}
+                          checked={field.value?.includes(dealership.id)}
+                          onCheckedChange={(checked) => {
+                            const currentIds = field.value || [];
+                            const newIds = checked
+                              ? [...currentIds, dealership.id]
+                              : currentIds.filter(id => id !== dealership.id);
+                            field.onChange(newIds);
+                          }}
+                        >
+                          {dealership.name}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <FormDescription>
+                    Assigning one or more dealerships makes a user "Dealer Managed". No assignments makes them "Independent".
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
             
             <div className="space-y-2 rounded-lg border p-4">

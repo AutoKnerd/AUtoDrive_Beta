@@ -35,15 +35,17 @@ export default function DeveloperPage() {
   const refreshData = useCallback(async () => {
     if (originalUser) {
       setDataLoading(true);
+      // For admins/devs, get all users, not just "manageable" ones in the hierarchy sense.
       const [users, dealerships] = await Promise.all([
         getManageableUsers(originalUser.userId),
-        getDealerships(originalUser)
+        getDealerships()
       ]);
       setManageableUsers(users);
       setAllDealerships(dealerships);
       setDataLoading(false);
     }
   }, [originalUser]);
+
 
   useEffect(() => {
     if (!loading && originalUser) {
@@ -166,7 +168,7 @@ export default function DeveloperPage() {
                                     <CreateUserForm onUserCreated={refreshData} />
                                 </TabsContent>
                                 <TabsContent value="edit_user" className="pt-4">
-                                    <EditUserForm manageableUsers={manageableUsers} onUserUpdated={refreshData} />
+                                    <EditUserForm manageableUsers={manageableUsers} dealerships={allDealerships} onUserUpdated={refreshData} />
                                 </TabsContent>
                                 <TabsContent value="assign_dealerships" className="pt-4">
                                     <AssignDealershipsForm manageableUsers={manageableUsers} dealerships={allDealerships} currentUser={originalUser} onDealershipsAssigned={refreshData} />
