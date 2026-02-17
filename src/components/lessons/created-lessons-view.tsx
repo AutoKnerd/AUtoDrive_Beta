@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import type { User } from '@/lib/definitions';
 import { getCreatedLessonStatuses, assignLesson } from '@/lib/data.client';
 import type { CreatedLessonStatus } from '@/lib/data.client';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -134,11 +133,11 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
           <TableHeader>
             <TableRow>
               <TableHead>Lesson</TableHead>
-              <TableHead>Target</TableHead>
+              <TableHead className="hidden md:table-cell">Target</TableHead>
               <TableHead className="text-center">Assigned</TableHead>
               <TableHead className="text-center">Taken</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Last Sent</TableHead>
+              <TableHead className="hidden md:table-cell">Last Sent</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -151,7 +150,7 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
                   onClick={() => setSelectedLessonId(row.lesson.lessonId)}
                 >
                   <TableCell className="font-medium">{row.lesson.title}</TableCell>
-                  <TableCell>{formatRoleLabel(row.lesson.role)}</TableCell>
+                  <TableCell className="hidden md:table-cell">{formatRoleLabel(row.lesson.role)}</TableCell>
                   <TableCell className="text-center">{row.assignedUserCount}</TableCell>
                   <TableCell className="text-center">
                     {row.assignedUserCount === 0 ? '0' : `${row.takenUserCount}/${row.assignedUserCount}`}
@@ -159,10 +158,10 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
                   <TableCell>
                     <Badge variant="outline" className="inline-flex items-center gap-1.5">
                       {getStatusIcon(row)}
-                      {getStatusLabel(row)}
+                      <span className="hidden sm:inline">{getStatusLabel(row)}</span>
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     {row.lastAssignedAt ? row.lastAssignedAt.toLocaleDateString() : 'Not sent yet'}
                   </TableCell>
                 </TableRow>
