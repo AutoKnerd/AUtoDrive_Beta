@@ -1,14 +1,18 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import type { User } from '@/lib/definitions';
-import { getCreatedLessonStatuses } from '@/lib/data.client';
+import { getCreatedLessonStatuses, assignLesson } from '@/lib/data.client';
 import type { CreatedLessonStatus } from '@/lib/data.client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle2, Clock3, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Spinner } from '@/components/ui/spinner';
+import { CheckCircle2, Clock3, FileText, RefreshCw } from 'lucide-react';
 
 interface CreatedLessonsViewProps {
   user: User;
@@ -38,6 +42,10 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [isReassigning, setIsReassigning] = useState<string | null>(null);
+  const [internalRefreshKey, setInternalRefreshKey] = useState(0);
+  const { toast } = useToast();
+  
   const selectedRow = rows.find((row) => row.lesson.lessonId === selectedLessonId) || rows[0];
 
   useEffect(() => {
@@ -70,7 +78,28 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
     return () => {
       active = false;
     };
-  }, [user.userId, refreshKey]);
+  }, [user.userId, refreshKey, internalRefreshKey]);
+  
+  const handleReassign = async (assigneeId: string, lessonId: string) => {
+      setIsReassigning(assigneeId);
+      try {
+          await assignLesson(assigneeId, lessonId, user.userId);
+          toast({
+              title: "Lesson Re-assigned",
+              description: "A new assignment has been sent to the user.",
+          });
+          setInternalRefreshKey(prev => prev + 1);
+      } catch (e: any) {
+          toast({
+              variant: 'destructive',
+              title: 'Re-assignment Failed',
+              description: e.message || 'Could not re-assign the lesson.',
+          });
+      } finally {
+          setIsReassigning(null);
+      }
+  };
+
 
   if (loading) {
     return (
@@ -179,9 +208,20 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
                     <p className="text-sm font-medium">{assignee.name}</p>
                     {assignee.role && <p className="text-xs text-muted-foreground">{formatRoleLabel(assignee.role)}</p>}
                   </div>
-                  <Badge variant={assignee.taken ? 'default' : 'outline'}>
-                    {assignee.taken ? 'Taken' : 'Pending'}
-                  </Badge>
+                  {assignee.taken ? (
+                      <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleReassign(assignee.userId, selectedRow.lesson.lessonId)}
+                          disabled={isReassigning === assignee.userId}
+                          className="text-xs h-7"
+                      >
+                          {isReassigning === assignee.userId ? <Spinner size="sm" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
+                          Re-assign
+                      </Button>
+                  ) : (
+                      <Badge variant="outline">Pending</Badge>
+                  )}
                 </div>
               ))}
             </div>
