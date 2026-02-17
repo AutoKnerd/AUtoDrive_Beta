@@ -129,7 +129,7 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
 
   return (
     <div className="space-y-4">
-      <ScrollArea className="max-h-[45vh]">
+      <div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -170,7 +170,7 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
             })}
           </TableBody>
         </Table>
-      </ScrollArea>
+      </div>
 
       <div className="space-y-3 rounded-lg border p-4">
         <div className="flex items-start justify-between gap-3">

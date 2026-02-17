@@ -1134,7 +1134,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                           Track which custom lessons have been assigned and taken by your team.
                                       </DialogDescription>
                                   </DialogHeader>
-                                  <CreatedLessonsView user={user} refreshKey={createdLessonsRefreshKey} />
+                                  <ScrollArea className="max-h-[70vh] pr-6">
+                                      <CreatedLessonsView user={user} refreshKey={createdLessonsRefreshKey} />
+                                  </ScrollArea>
                               </DialogContent>
                           </Dialog>
                           <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
