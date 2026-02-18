@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { Dealership } from '@/lib/definitions';
-import { updateDealershipStatus } from '@/lib/data.client';
+import { updateDealershipStatus, updateDealershipRetakeTestingAccess } from '@/lib/data.client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { Ban, Play, Trash2 } from 'lucide-react';
+import { Switch } from '../ui/switch';
 
 interface ManageDealershipFormProps {
   dealerships: Dealership[];
@@ -33,6 +34,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [selectedDealership, setSelectedDealership] = useState<Dealership | null>(null);
   const [isConfirming, setIsConfirming] = useState< 'pause' | 'deactivate' | null>(null);
   const [confirmationInput, setConfirmationInput] = useState('');
+  const [retakeTestingEnabled, setRetakeTestingEnabled] = useState(false);
   const { toast } = useToast();
   
   const activeDealerships = useMemo(() => {
@@ -42,6 +44,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const handleSelectDealership = (dealershipId: string) => {
     const dealership = dealerships.find(d => d.id === dealershipId);
     setSelectedDealership(dealership || null);
+    setRetakeTestingEnabled(dealership?.enableRetakeRecommendedTesting === true);
   }
 
   async function handleUpdateStatus(newStatus: 'active' | 'paused' | 'deactivated') {
@@ -65,6 +68,30 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
         setIsLoading(false);
         setIsConfirming(null);
         setConfirmationInput('');
+    }
+  }
+
+  async function handleUpdateRetakeTestingAccess() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      await updateDealershipRetakeTestingAccess(selectedDealership.id, retakeTestingEnabled);
+      setSelectedDealership((prev) => (
+        prev ? { ...prev, enableRetakeRecommendedTesting: retakeTestingEnabled } : prev
+      ));
+      toast({
+        title: 'Testing Access Updated',
+        description: `${selectedDealership.name} ${retakeTestingEnabled ? 'can now' : 'can no longer'} use the Retake Recommended (Testing) button.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   }
   
@@ -113,6 +140,31 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                 Use the actions below to manage the dealership's status within AutoDrive. These actions are immediate and may affect user access.
             </p>
 
+            <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-medium">Retake Recommended (Testing)</p>
+                        <p className="text-xs text-muted-foreground">
+                            Allow users in this dealership to see and use the temporary retake testing button.
+                        </p>
+                    </div>
+                    <Switch
+                      checked={retakeTestingEnabled}
+                      onCheckedChange={setRetakeTestingEnabled}
+                      disabled={isLoading}
+                      aria-label="Enable retake recommended testing"
+                    />
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={isLoading || retakeTestingEnabled === (selectedDealership.enableRetakeRecommendedTesting === true)}
+                  onClick={handleUpdateRetakeTestingAccess}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save Testing Access'}
+                </Button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {selectedDealership.status === 'active' && (
                     <Button onClick={() => setIsConfirming('pause')} disabled={isLoading} variant="outline" className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400">
@@ -157,7 +209,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => { setIsConfirming(null); setConfirmationInput(''); }}>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
-                    onClick={() => handleUpdateStatus(isConfirming!)} 
+                    onClick={() => handleUpdateStatus(isConfirming === 'pause' ? 'paused' : 'deactivated')} 
                     disabled={confirmationInput.toUpperCase() !== confirmationText || isLoading}
                     className={buttonVariants({ variant: "destructive" })}
                 >

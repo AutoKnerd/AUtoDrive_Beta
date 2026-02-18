@@ -4,6 +4,19 @@ import { getAdminAuth, getAdminDb } from "@/firebase/admin";
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const BASELINE = 60;
+
+function buildDefaultStats(now: Date) {
+  return {
+    empathy: { score: BASELINE, lastUpdated: now },
+    listening: { score: BASELINE, lastUpdated: now },
+    trust: { score: BASELINE, lastUpdated: now },
+    followUp: { score: BASELINE, lastUpdated: now },
+    closing: { score: BASELINE, lastUpdated: now },
+    relationship: { score: BASELINE, lastUpdated: now },
+  };
+}
+
 // Lazy-load Timestamp to avoid firebase-admin being imported at build-time
 const getTimestamp = async () => {
   const { Timestamp } = await import('firebase-admin/firestore');
@@ -112,6 +125,7 @@ export async function POST(
       const role = invite.role;
 
       if (!userSnap.exists) {
+        const now = new Date();
         tx.set(userRef, {
           userId: uid,
           email: authedEmail,
@@ -121,8 +135,9 @@ export async function POST(
           isPrivate: false,
           isPrivateFromOwner: false,
           showDealerCriticalOnly: false,
-          memberSince: new Date().toISOString(),
+          memberSince: now.toISOString(),
           xp: 0,
+          stats: buildDefaultStats(now),
           subscriptionStatus: ["Owner", "General Manager", "Trainer", "Admin", "Developer"].includes(role)
             ? "active"
             : "inactive",

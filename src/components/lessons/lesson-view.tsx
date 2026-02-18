@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Lesson, Badge } from '@/lib/definitions';
+import type { Lesson, InteractionSeverity, Ratings } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,8 +14,9 @@ import { Send, ArrowLeft, ArrowRightToLine } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { conductLesson } from '@/ai/flows/lesson-flow';
 import { Spinner } from '../ui/spinner';
-import { getConsultantActivity, logLessonCompletion } from '@/lib/data.client';
+import { getConsultantActivity, logLessonCompletion, type LessonCompletionDetails } from '@/lib/data.client';
 import { useToast } from '@/hooks/use-toast';
+import { assessBehaviorViolation } from '@/lib/moderation/behavior-violation';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -34,6 +35,121 @@ interface CxScores {
     followUp: number;
     closing: number;
     relationshipBuilding: number;
+}
+
+type LessonCompletionResponse = {
+  trainedTrait?: string;
+  xpAwarded?: number;
+  coachSummary?: string;
+  recommendedNextFocus?: string;
+  ratings?: Partial<Ratings>;
+  severity?: InteractionSeverity;
+  flags?: string[];
+};
+
+function parseLessonCompletionResponse(responseText: string): LessonCompletionResponse | null {
+  const candidates: string[] = [];
+  const trimmed = responseText.trim();
+
+  if (trimmed.length > 0) {
+    candidates.push(trimmed);
+  }
+
+  const fencedBlocks = responseText.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi);
+  for (const match of fencedBlocks) {
+    const block = match[1]?.trim();
+    if (block) {
+      candidates.push(block);
+    }
+  }
+
+  const firstBrace = responseText.indexOf('{');
+  const lastBrace = responseText.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.push(responseText.slice(firstBrace, lastBrace + 1).trim());
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as LessonCompletionResponse;
+      }
+    } catch {
+      // Ignore and continue trying the next candidate.
+    }
+  }
+
+  return null;
+}
+
+function toFallbackRatings(cxScores: CxScores | null | undefined): Partial<Ratings> | undefined {
+  if (!cxScores) return undefined;
+  return {
+    empathy: cxScores.empathy,
+    listening: cxScores.listening,
+    trust: cxScores.trust,
+    followUp: cxScores.followUp,
+    closing: cxScores.closing,
+    relationship: cxScores.relationshipBuilding,
+  };
+}
+
+const STAT_ORDER = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'] as const;
+type StatOrderKey = (typeof STAT_ORDER)[number];
+
+const STAT_LABELS: Record<StatOrderKey, string> = {
+  empathy: 'Empathy',
+  listening: 'Listening',
+  trust: 'Trust',
+  followUp: 'Follow Up',
+  closing: 'Closing',
+  relationshipBuilding: 'Relationship Building',
+};
+
+function formatSigned(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  const sign = rounded >= 0 ? '+' : '';
+  return `${sign}${rounded.toFixed(1)}`;
+}
+
+function buildCompletionSummary(
+  result: LessonCompletionResponse,
+  details?: Pick<LessonCompletionDetails, 'severity' | 'ratingsUsed' | 'statChanges'>,
+  displayedXp?: number
+): string {
+  const lines = [
+    'Lesson Complete!',
+    '',
+    `Focus Area: ${result.trainedTrait}`,
+    `XP Awarded: ${displayedXp ?? result.xpAwarded}`,
+    `Summary: ${result.coachSummary}`,
+    `Next Steps: Focus on ${result.recommendedNextFocus}.`,
+  ];
+
+  if (details?.statChanges) {
+    lines.push('', 'Score Changes:');
+    for (const key of STAT_ORDER) {
+      const stat = details.statChanges[key];
+      lines.push(
+        `${STAT_LABELS[key]}: ${stat.before.toFixed(1)}% -> ${stat.after.toFixed(1)}% (${formatSigned(stat.delta)}) | AI Rating: ${stat.rating.toFixed(0)}`
+      );
+    }
+  }
+
+  if (details) {
+    lines.push(
+      '',
+      `AI Ratings Used: Empathy ${details.ratingsUsed.empathy}, Listening ${details.ratingsUsed.listening}, Trust ${details.ratingsUsed.trust}, Follow Up ${details.ratingsUsed.followUp}, Closing ${details.ratingsUsed.closing}, Relationship ${details.ratingsUsed.relationship}`
+    );
+    lines.push('', `Severity: ${details.severity}`);
+    if (details.severity === 'behavior_violation') {
+      lines.push('Behavior note: this interaction was flagged as a behavior violation, so XP penalties are allowed.');
+    }
+    lines.push('Why this changed: each skill updates independently toward its own AI rating after each lesson.');
+  }
+
+  return lines.join('\n');
 }
 
 export function LessonView({ lesson, isRecommended }: LessonViewProps) {
@@ -95,46 +211,73 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
   }, [user, toast]);
 
   const handleAiResponse = async (responseText: string) => {
-    try {
-      let textToParse = responseText;
-      // Strip markdown code block if the AI sends it
-      if (textToParse.trim().startsWith('```json')) {
-        textToParse = textToParse.substring(textToParse.indexOf('{'), textToParse.lastIndexOf('}') + 1);
-      }
+    const result = parseLessonCompletionResponse(responseText);
 
-      const result = JSON.parse(textToParse);
+    if (result && typeof result.xpAwarded === 'number' && Number.isFinite(result.xpAwarded)) {
+      let completionDetails: Pick<LessonCompletionDetails, 'severity' | 'ratingsUsed' | 'statChanges'> | undefined;
+      let displayedXp = result.xpAwarded;
 
-      if (result && result.xpAwarded) {
-        const summaryText = `Lesson Complete!\n\nFocus Area: ${result.trainedTrait}\nXP Awarded: ${result.xpAwarded}\nSummary: ${result.coachSummary}\nNext Steps: Focus on ${result.recommendedNextFocus}.`;
-        const finalMessage: Message = { sender: 'ai', text: summaryText };
-        setMessages(prev => [...prev, finalMessage]);
-        setInputDisabled(true);
-        setIsCompleted(true);
+      if (user) {
+        const fallbackRatings = toFallbackRatings(cxScores);
+        const moderation = assessBehaviorViolation({
+          userMessages: messages.filter(message => message.sender === 'user').map(message => message.text),
+          ratings: result.ratings ?? fallbackRatings,
+          xpAwarded: result.xpAwarded,
+        });
+        const mergedFlags = Array.from(new Set([...(result.flags ?? []), ...moderation.flags]));
+        const effectiveSeverity: InteractionSeverity =
+          moderation.violated ? 'behavior_violation' : (result.severity ?? 'normal');
+        const effectiveRatings = moderation.adjustedRatings ?? result.ratings ?? fallbackRatings;
+        const effectiveXpAwarded = moderation.adjustedXpAwarded ?? result.xpAwarded;
+        displayedXp = effectiveXpAwarded;
 
-        if (user && cxScores) {
-            const { updatedUser, newBadges } = await logLessonCompletion({
-                userId: user.userId,
-                lessonId: lesson.lessonId,
-                xpGained: result.xpAwarded,
-                isRecommended,
-                scores: cxScores,
-            });
-            setUser(updatedUser);
+        try {
+          const completion = await logLessonCompletion({
+            userId: user.userId,
+            lessonId: lesson.lessonId,
+            xpGained: effectiveXpAwarded,
+            isRecommended,
+            ratings: effectiveRatings,
+            severity: effectiveSeverity,
+            flags: mergedFlags,
+            scores: cxScores ?? undefined,
+            trainedTrait: result.trainedTrait,
+            coachSummary: result.coachSummary,
+            recommendedNextFocus: result.recommendedNextFocus,
+          });
+          setUser(completion.updatedUser);
+          completionDetails = {
+            severity: completion.severity,
+            ratingsUsed: completion.ratingsUsed,
+            statChanges: completion.statChanges,
+          };
 
-            newBadges.forEach((badge, index) => {
-                setTimeout(() => {
-                    toast({
-                        title: `Badge Unlocked: ${badge.name}!`,
-                        description: badge.description,
-                    });
-                }, index * 1200);
-            });
+          completion.newBadges.forEach((badge, index) => {
+            setTimeout(() => {
+              toast({
+                title: `Badge Unlocked: ${badge.name}!`,
+                description: badge.description,
+              });
+            }, index * 1200);
+          });
+        } catch (error: any) {
+          console.error('Failed to save lesson completion details:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Saved with limited details',
+            description: error?.message || 'We could not calculate score deltas for this lesson.',
+          });
         }
-        return;
       }
-    } catch (e) {
-      // Not JSON, so it's a regular message
+
+      const summaryText = buildCompletionSummary(result, completionDetails, displayedXp);
+      const finalMessage: Message = { sender: 'ai', text: summaryText };
+      setMessages(prev => [...prev, finalMessage]);
+      setInputDisabled(true);
+      setIsCompleted(true);
+      return;
     }
+
     const aiMessage: Message = { sender: 'ai', text: responseText };
     setMessages(prev => [...prev, aiMessage]);
   };

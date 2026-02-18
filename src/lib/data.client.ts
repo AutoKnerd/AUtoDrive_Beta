@@ -1,15 +1,15 @@
 'use client';
 import { isToday, subDays } from 'date-fns';
-import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope, PendingInvitation } from './definitions';
-import { lessonCategoriesByRole, noPersonalDevelopmentRoles } from './definitions';
+import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope, PendingInvitation, Ratings, InteractionSeverity } from './definitions';
+import { lessonCategoriesByRole, noPersonalDevelopmentRoles, allRoles } from './definitions';
 import { allBadges } from './badges';
 import { calculateLevel } from './xp';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp, Firestore, orderBy, limit } from 'firebase/firestore';
-import { Auth } from 'firebase/auth';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { generateTourData } from './tour-data';
 import { initializeFirebase } from '@/firebase/init';
+import { BASELINE, clampRatings, updateRollingStats } from '@/lib/stats/updateRollingStats';
 
 const { firestore: db, auth } = initializeFirebase();
 
@@ -37,6 +37,143 @@ const tourUserEmails: Record<string, string> = {
 const getTourIdFromEmail = (email?: string | null): string | null => {
     if (!email) return null;
     return tourUserEmails[email.toLowerCase()] || null;
+};
+
+type LegacyLessonScores = {
+    empathy: number;
+    listening: number;
+    trust: number;
+    followUp: number;
+    closing: number;
+    relationshipBuilding: number;
+};
+
+function buildDefaultUserStats(now: Date = new Date()): User['stats'] {
+    return {
+        empathy: { score: BASELINE, lastUpdated: now },
+        listening: { score: BASELINE, lastUpdated: now },
+        trust: { score: BASELINE, lastUpdated: now },
+        followUp: { score: BASELINE, lastUpdated: now },
+        closing: { score: BASELINE, lastUpdated: now },
+        relationship: { score: BASELINE, lastUpdated: now },
+    };
+}
+
+function normalizeSeverity(severity?: InteractionSeverity): InteractionSeverity {
+    return severity === 'behavior_violation' ? 'behavior_violation' : 'normal';
+}
+
+function normalizeRatings(
+    ratings?: Partial<Ratings>,
+    legacyScores?: LegacyLessonScores
+): Ratings {
+    if (ratings) {
+        return clampRatings(ratings);
+    }
+
+    if (legacyScores) {
+        return clampRatings({
+            empathy: legacyScores.empathy,
+            listening: legacyScores.listening,
+            trust: legacyScores.trust,
+            followUp: legacyScores.followUp,
+            closing: legacyScores.closing,
+            relationship: legacyScores.relationshipBuilding,
+        });
+    }
+
+    return clampRatings(undefined);
+}
+
+function toLegacyScores(ratings: Ratings): LegacyLessonScores {
+    return {
+        empathy: ratings.empathy,
+        listening: ratings.listening,
+        trust: ratings.trust,
+        followUp: ratings.followUp,
+        closing: ratings.closing,
+        relationshipBuilding: ratings.relationship,
+    };
+}
+
+function buildStatsSeedFromLegacyScores(scores: LegacyLessonScores, timestamp: Timestamp) {
+    return {
+        empathy: { score: clampRatings({ empathy: scores.empathy }).empathy, lastUpdated: timestamp },
+        listening: { score: clampRatings({ listening: scores.listening }).listening, lastUpdated: timestamp },
+        trust: { score: clampRatings({ trust: scores.trust }).trust, lastUpdated: timestamp },
+        followUp: { score: clampRatings({ followUp: scores.followUp }).followUp, lastUpdated: timestamp },
+        closing: { score: clampRatings({ closing: scores.closing }).closing, lastUpdated: timestamp },
+        relationship: {
+            score: clampRatings({ relationship: scores.relationshipBuilding }).relationship,
+            lastUpdated: timestamp,
+        },
+    };
+}
+
+function getExistingRollingStatScores(user: User): number[] | null {
+    const stats = user.stats;
+    if (!stats) return null;
+
+    const scores = [
+        stats.empathy?.score,
+        stats.listening?.score,
+        stats.trust?.score,
+        stats.followUp?.score,
+        stats.closing?.score,
+        stats.relationship?.score,
+    ];
+
+    if (scores.some(score => typeof score !== 'number' || !Number.isFinite(score))) {
+        return null;
+    }
+
+    return scores as number[];
+}
+
+function looksLikeLegacyBootstrapStats(statScores: number[]): boolean {
+    const min = Math.min(...statScores);
+    const max = Math.max(...statScores);
+    const allNearSame = max - min <= 0.25;
+    const allNearBaseline = statScores.every(score => Math.abs(score - BASELINE) <= 3);
+    return allNearSame && allNearBaseline;
+}
+
+function normalizeFlags(flags?: string[]): string[] {
+    if (!Array.isArray(flags)) return [];
+    return flags.filter(flag => typeof flag === 'string');
+}
+
+function sanitizeXpDelta(xpGained: number, severity: InteractionSeverity): number {
+    const numericXp = Number.isFinite(xpGained) ? Math.round(xpGained) : 0;
+    return severity === 'behavior_violation' ? numericXp : Math.max(0, numericXp);
+}
+
+function computeNextXp(currentXp: number, xpDelta: number, severity: InteractionSeverity): number {
+    if (severity === 'behavior_violation') {
+        return currentXp + xpDelta;
+    }
+
+    return Math.max(0, currentXp + xpDelta);
+}
+
+type LessonStatChange = {
+    before: number;
+    after: number;
+    delta: number;
+    rating: number;
+};
+
+export type LessonCompletionDetails = {
+    severity: InteractionSeverity;
+    ratingsUsed: Ratings;
+    statChanges?: {
+        empathy: LessonStatChange;
+        listening: LessonStatChange;
+        trust: LessonStatChange;
+        followUp: LessonStatChange;
+        closing: LessonStatChange;
+        relationshipBuilding: LessonStatChange;
+    };
 };
 
 const getDataById = async <T>(db: Firestore, collectionName: string, id: string): Promise<T | null> => {
@@ -86,6 +223,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 }
 
 export async function createUserProfile(userId: string, name: string, email: string, role: UserRole, dealershipIds: string[]): Promise<User> {
+    const now = new Date();
     if (['Admin', 'Developer', 'Trainer'].includes(role) && dealershipIds.length === 0) {
         const hqDealershipId = 'autoknerd-hq';
         dealershipIds.push(hqDealershipId);
@@ -102,8 +240,9 @@ export async function createUserProfile(userId: string, name: string, email: str
         isPrivate: false,
         isPrivateFromOwner: false,
         showDealerCriticalOnly: false,
-        memberSince: new Date().toISOString(),
+        memberSince: now.toISOString(),
         subscriptionStatus: ['Admin', 'Developer', 'Owner', 'Trainer', 'General Manager'].includes(role) ? 'active' : 'inactive',
+        stats: buildDefaultUserStats(now),
     };
 
     const userDocRef = doc(db, 'users', userId);
@@ -236,6 +375,7 @@ export async function createDealership(dealershipData: {
             name: dealershipData.name,
             status: 'active',
             address: dealershipData.address as Address,
+            enableRetakeRecommendedTesting: false,
         };
         (await getTourData()).dealerships.push(newDealership);
         return newDealership;
@@ -462,13 +602,45 @@ export async function getDailyLessonLimits(userId: string): Promise<{ recommende
     return { recommendedTaken: todayLogs.some(l => l.isRecommended), otherTaken: todayLogs.some(l => !l.isRecommended) };
 }
 
-export async function logLessonCompletion(data: { userId: string; lessonId: string; xpGained: number; isRecommended: boolean; scores: any; }): Promise<{ updatedUser: User, newBadges: Badge[] }> {
+export async function logLessonCompletion(data: {
+    userId: string;
+    lessonId: string;
+    xpGained: number;
+    isRecommended: boolean;
+    ratings?: Partial<Ratings>;
+    severity?: InteractionSeverity;
+    flags?: string[];
+    scores?: LegacyLessonScores;
+    trainedTrait?: string;
+    coachSummary?: string;
+    recommendedNextFocus?: string;
+}): Promise<{ updatedUser: User, newBadges: Badge[] } & LessonCompletionDetails> {
+    const severity = normalizeSeverity(data.severity);
+    const normalizedRatings = normalizeRatings(data.ratings, data.scores);
+    const normalizedScores = toLegacyScores(normalizedRatings);
+    const xpDelta = sanitizeXpDelta(data.xpGained, severity);
+    const flags = normalizeFlags(data.flags);
+
     if (isTouringUser(data.userId)) {
         const tour = await getTourData();
         const user = tour.users.find(u => u.userId === data.userId);
         if (!user) throw new Error('Tour user not found');
-        user.xp += data.xpGained;
-        return { updatedUser: user, newBadges: [] };
+        
+        user.xp = computeNextXp(user.xp, xpDelta, severity);
+        const newBadges: Badge[] = [];
+        
+        const badge = allBadges.find(b => b.id === 'first-drive');
+        if(badge && !tour.earnedBadges[user.userId]?.some(b => b.badgeId === 'first-drive')) {
+            newBadges.push(badge);
+            tour.earnedBadges[user.userId].push({badgeId: 'first-drive', userId: user.userId, timestamp: new Date()});
+        }
+        
+        return {
+            updatedUser: user,
+            newBadges: newBadges,
+            severity,
+            ratingsUsed: normalizedRatings,
+        };
     }
 
     const user = await getUserById(data.userId);
@@ -476,14 +648,170 @@ export async function logLessonCompletion(data: { userId: string; lessonId: stri
 
     const batch = writeBatch(db);
     const logRef = doc(collection(db, `users/${data.userId}/lessonLogs`));
-    batch.set(logRef, { ...data.scores, logId: logRef.id, timestamp: Timestamp.fromDate(new Date()), ...data });
     
-    const newXp = user.xp + data.xpGained;
-    batch.update(doc(db, 'users', data.userId), { xp: newXp });
-    await batch.commit();
+    const newLogData = {
+        logId: logRef.id,
+        timestamp: Timestamp.fromDate(new Date()),
+        userId: data.userId,
+        lessonId: data.lessonId,
+        xpGained: xpDelta,
+        isRecommended: data.isRecommended,
+        stepResults: { final: 'pass' },
+        ...normalizedScores,
+        ratings: normalizedRatings,
+        severity,
+        flags,
+        trainedTrait: data.trainedTrait,
+        coachSummary: data.coachSummary,
+        recommendedNextFocus: data.recommendedNextFocus,
+    };
 
-    const updated = await getUserById(data.userId);
-    return { updatedUser: updated!, newBadges: [] };
+    const userLogs = await getConsultantActivity(data.userId);
+    const userBadgeDocs = await getDocs(collection(db, `users/${data.userId}/earnedBadges`));
+    const userBadgeIds = userBadgeDocs.docs.map(d => d.id as BadgeId);
+    
+    const newlyAwardedBadges: Badge[] = [];
+    
+    const awardBadge = (badgeId: BadgeId) => {
+        if (!userBadgeIds.includes(badgeId)) {
+            const badgeRef = doc(db, `users/${data.userId}/earnedBadges`, badgeId);
+            batch.set(badgeRef, { badgeId, timestamp: Timestamp.fromDate(new Date()) });
+            const badge = allBadges.find(b => b.id === badgeId);
+            if (badge) newlyAwardedBadges.push(badge);
+        }
+    };
+    
+    if (userLogs.length === 0) awardBadge('first-drive');
+    const newXp = computeNextXp(user.xp, xpDelta, severity);
+    if (user.xp < 1000 && newXp >= 1000) awardBadge('xp-1000');
+    if (user.xp < 5000 && newXp >= 5000) awardBadge('xp-5000');
+    if (user.xp < 10000 && newXp >= 10000) awardBadge('xp-10000');
+
+    const levelBefore = calculateLevel(user.xp).level;
+    const levelAfter = calculateLevel(newXp).level;
+    if (levelBefore < 10 && levelAfter >= 10) awardBadge('level-10');
+    if (levelBefore < 25 && levelAfter >= 25) awardBadge('level-25');
+
+    const lessonScore = Object.values(normalizedScores).reduce((sum, score) => sum + score, 0) / 6;
+    if (lessonScore >= 95) awardBadge('top-performer');
+    if (lessonScore === 100) awardBadge('perfectionist');
+    
+    const hour = new Date().getHours();
+    if (hour >= 0 && hour < 4) awardBadge('night-owl');
+    if (hour >= 4 && hour < 7) awardBadge('early-bird');
+    
+    const assignmentsCollection = collection(db, 'lessonAssignments');
+    const assignmentQuery = query(assignmentsCollection, where("userId", "==", data.userId), where("lessonId", "==", data.lessonId), where("completed", "==", false));
+    const assignmentSnapshot = await getDocs(assignmentQuery);
+    if (!assignmentSnapshot.empty) {
+        const assignmentDoc = assignmentSnapshot.docs[0];
+        batch.update(assignmentDoc.ref, { completed: true });
+        awardBadge('managers-pick');
+    }
+
+    if (user.role === 'Owner' && user.dealershipIds.length > 1) {
+        awardBadge('empire-builder');
+    }
+
+    const existingStatScores = getExistingRollingStatScores(user);
+    const shouldSeedStatsFromLegacyScores = !!data.scores && (
+        !existingStatScores || looksLikeLegacyBootstrapStats(existingStatScores)
+    );
+    const seedTimestamp = Timestamp.fromDate(new Date());
+
+    if (shouldSeedStatsFromLegacyScores && data.scores) {
+        batch.set(
+            doc(db, 'users', data.userId),
+            { stats: buildStatsSeedFromLegacyScores(data.scores, seedTimestamp) },
+            { merge: true }
+        );
+    }
+
+    batch.set(logRef, newLogData);
+    batch.set(doc(db, 'users', data.userId), { xp: newXp }, { merge: true });
+
+    try {
+        await batch.commit();
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: `users/${data.userId}`,
+            operation: 'write',
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    let statChanges: LessonCompletionDetails['statChanges'];
+
+    try {
+        const rollingResult = await updateRollingStats(data.userId, normalizedRatings);
+        statChanges = {
+            empathy: {
+                before: rollingResult.before.empathy,
+                after: rollingResult.after.empathy,
+                delta: rollingResult.after.empathy - rollingResult.before.empathy,
+                rating: normalizedRatings.empathy,
+            },
+            listening: {
+                before: rollingResult.before.listening,
+                after: rollingResult.after.listening,
+                delta: rollingResult.after.listening - rollingResult.before.listening,
+                rating: normalizedRatings.listening,
+            },
+            trust: {
+                before: rollingResult.before.trust,
+                after: rollingResult.after.trust,
+                delta: rollingResult.after.trust - rollingResult.before.trust,
+                rating: normalizedRatings.trust,
+            },
+            followUp: {
+                before: rollingResult.before.followUp,
+                after: rollingResult.after.followUp,
+                delta: rollingResult.after.followUp - rollingResult.before.followUp,
+                rating: normalizedRatings.followUp,
+            },
+            closing: {
+                before: rollingResult.before.closing,
+                after: rollingResult.after.closing,
+                delta: rollingResult.after.closing - rollingResult.before.closing,
+                rating: normalizedRatings.closing,
+            },
+            relationshipBuilding: {
+                before: rollingResult.before.relationship,
+                after: rollingResult.after.relationship,
+                delta: rollingResult.after.relationship - rollingResult.before.relationship,
+                rating: normalizedRatings.relationship,
+            },
+        };
+
+        await updateDoc(logRef, {
+            scoreDelta: {
+                empathy: statChanges.empathy.delta,
+                listening: statChanges.listening.delta,
+                trust: statChanges.trust.delta,
+                followUp: statChanges.followUp.delta,
+                closing: statChanges.closing.delta,
+                relationshipBuilding: statChanges.relationshipBuilding.delta,
+            },
+        });
+    } catch (error) {
+        console.error('[logLessonCompletion] Failed to update rolling stats', {
+            userId: data.userId,
+            lessonId: data.lessonId,
+            error,
+        });
+    }
+    
+    const updatedUserDoc = await getDoc(doc(db, 'users', data.userId));
+    const updatedUser = { ...(updatedUserDoc.data() as any), userId: updatedUserDoc.id } as User;
+    
+    return {
+        updatedUser,
+        newBadges: newlyAwardedBadges,
+        severity,
+        ratingsUsed: normalizedRatings,
+        statChanges,
+    };
 }
 
 export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
@@ -527,12 +855,20 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
     const manager = await getUserById(managerId);
     if (!manager) return [];
     const isAdmin = ['Admin', 'Developer'].includes(manager.role);
+    
     const snap = await getDocs(collection(db, 'users'));
     const all = snap.docs.map(d => ({ ...d.data(), userId: d.id } as User));
-    if (isAdmin) return all.filter(u => u.userId !== managerId).sort((a, b) => a.name.localeCompare(b.name));
+    
+    if (isAdmin) {
+        return all.filter(u => u.userId !== managerId).sort((a, b) => a.name.localeCompare(b.name));
+    }
     
     const roles = getTeamMemberRoles(manager.role);
-    return all.filter(u => u.userId !== managerId && roles.includes(u.role) && u.dealershipIds.some(id => manager.dealershipIds.includes(id))).sort((a, b) => a.name.localeCompare(b.name));
+    return all.filter(u => 
+        u.userId !== managerId && 
+        roles.includes(u.role) && 
+        u.dealershipIds.some(id => manager.dealershipIds.includes(id))
+    ).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getEarnedBadgesByUserId(userId: string): Promise<Badge[]> {
@@ -552,11 +888,77 @@ export async function updateDealershipStatus(dealershipId: string, status: 'acti
     return (await getDoc(ref)).data() as Dealership;
 }
 
-export async function sendMessage(sender: User, content: string, target: any): Promise<Message> {
-    const ref = doc(collection(db, 'messages'));
-    const msg: Message = { id: ref.id, senderId: sender.userId, senderName: sender.name, timestamp: new Date(), content, ...target };
-    await setDoc(ref, { ...msg, timestamp: Timestamp.fromDate(msg.timestamp) });
-    return msg;
+export async function updateDealershipRetakeTestingAccess(
+    dealershipId: string,
+    enabled: boolean
+): Promise<Dealership> {
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.enableRetakeRecommendedTesting = enabled;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    const dealershipsCollection = collection(db, 'dealerships');
+    const dealershipRef = doc(dealershipsCollection, dealershipId);
+
+    try {
+        await updateDoc(dealershipRef, { enableRetakeRecommendedTesting: enabled });
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: { enableRetakeRecommendedTesting: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+export async function sendMessage(
+    sender: User, 
+    content: string, 
+    target: { scope: MessageTargetScope; targetId: string; targetRole?: UserRole }
+): Promise<Message> {
+     if (isTouringUser(sender.userId)) {
+        return {
+            id: `tour-msg-${Math.random()}`,
+            senderId: sender.userId,
+            senderName: sender.name,
+            timestamp: new Date(),
+            content,
+            ...target,
+        };
+    }
+    const messagesCollection = collection(db, 'messages');
+    const messageRef = doc(messagesCollection);
+    const newMessage: Message = {
+        id: messageRef.id,
+        senderId: sender.userId,
+        senderName: sender.name,
+        timestamp: new Date(),
+        content: content,
+        scope: target.scope,
+        targetId: target.targetId,
+        targetRole: target.targetRole,
+    };
+    try {
+        await setDoc(messageRef, { ...newMessage, timestamp: Timestamp.fromDate(newMessage.timestamp) });
+    } catch(e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: messageRef.path,
+            operation: 'create',
+            requestResourceData: newMessage
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+    return newMessage;
 }
 
 export async function getMessagesForUser(user: User): Promise<Message[]> {
@@ -580,12 +982,10 @@ export async function getCreatedLessonStatuses(creatorId: string): Promise<Creat
   
   const results: CreatedLessonStatus[] = [];
   const assignmentsRef = collection(db, 'lessonAssignments');
-  const logsRef = collection(db, 'lessonLogs'); // Note: Global collection check might fail, using subcollections instead
 
   for (const docSnap of (snap.docs as any[])) {
     const lesson = isTour ? docSnap : { ...docSnap.data(), lessonId: docSnap.id } as Lesson;
     
-    // Fetch all assignments for this lesson
     const aSnap = await getDocs(query(assignmentsRef, where('lessonId', '==', lesson.lessonId)));
     const assignments = aSnap.docs.map(d => d.data() as LessonAssignment);
     
@@ -599,7 +999,6 @@ export async function getCreatedLessonStatuses(creatorId: string): Promise<Creat
       const user = await getUserById(a.userId);
       if (!user) continue;
 
-      // Check if user has a log for this lesson
       const logSnap = await getDocs(query(collection(db, `users/${user.userId}/lessonLogs`), where('lessonId', '==', lesson.lessonId), limit(1)));
       const isTaken = !logSnap.empty;
       if (isTaken) takenCount++;
