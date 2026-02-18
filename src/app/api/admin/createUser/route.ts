@@ -6,6 +6,19 @@ type Decoded = { uid: string; email?: string | null };
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const BASELINE = 60;
+
+function buildDefaultStats(now: Date) {
+  return {
+    empathy: { score: BASELINE, lastUpdated: now },
+    listening: { score: BASELINE, lastUpdated: now },
+    trust: { score: BASELINE, lastUpdated: now },
+    followUp: { score: BASELINE, lastUpdated: now },
+    closing: { score: BASELINE, lastUpdated: now },
+    relationship: { score: BASELINE, lastUpdated: now },
+  };
+}
+
 /**
  * Check if any users exist in the system.
  * Used to determine if bootstrap mode is enabled.
@@ -170,6 +183,7 @@ export async function POST(req: Request) {
     const newUserId = decoded?.uid ?? adminDb.collection('users').doc().id;
     const newUserRef = adminDb.collection('users').doc(newUserId);
 
+    const now = new Date();
     const newUserData = {
       userId: newUserId,
       name,
@@ -181,8 +195,9 @@ export async function POST(req: Request) {
       isPrivate: false,
       isPrivateFromOwner: false,
       showDealerCriticalOnly: false,
-      memberSince: new Date().toISOString(),
+      memberSince: now.toISOString(),
       phone: phone || undefined,
+      stats: buildDefaultStats(now),
     };
 
     // Save the user document to Firestore

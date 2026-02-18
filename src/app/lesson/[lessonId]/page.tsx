@@ -19,8 +19,10 @@ export default function LessonPage() {
     const params = useParams<{ lessonId: string }>();
     const searchParams = useSearchParams();
     const isRecommended = searchParams.get('recommended') === 'true';
+    const isTestingRetake = searchParams.get('retake') === 'testing';
     const { user, isTouring } = useAuth();
     const [isPaused, setIsPaused] = useState(false);
+    const [canUseTestingRetake, setCanUseTestingRetake] = useState(false);
 
     const [lesson, setLesson] = useState<Lesson | null>(null);
     const [loading, setLoading] = useState(true);
@@ -48,6 +50,8 @@ export default function LessonPage() {
             if (user && user.dealershipIds.length > 0 && !isTouring) {
                 const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id, user.userId)));
                 const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
+                const testingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
+                setCanUseTestingRetake(testingAccess);
                 if (activeDealerships.length === 0) {
                     setIsPaused(true);
                 } else {
@@ -55,6 +59,7 @@ export default function LessonPage() {
                 }
             } else {
                  setIsPaused(false);
+                 setCanUseTestingRetake(false);
             }
         }
         if (user) {
@@ -103,6 +108,32 @@ export default function LessonPage() {
          return (
             <div className="flex h-screen w-full items-center justify-center bg-background">
                 <Spinner size="lg" />
+            </div>
+        );
+    }
+
+    if (isTestingRetake && !canUseTestingRetake) {
+        return (
+            <div className="flex flex-col min-h-screen w-full">
+                <Header />
+                <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 pb-20 md:pb-8">
+                    <div className="w-full max-w-2xl">
+                        <Alert>
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Testing Access Restricted</AlertTitle>
+                            <AlertDescription>
+                                Your dealership does not currently have access to the Retake Recommended (Testing) feature.
+                            </AlertDescription>
+                        </Alert>
+                        <Button asChild className="mt-4">
+                            <Link href="/">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Back to Dashboard
+                            </Link>
+                        </Button>
+                    </div>
+                </main>
+                {!isManager && !isTouring && <BottomNav />}
             </div>
         );
     }

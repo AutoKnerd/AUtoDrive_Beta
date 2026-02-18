@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership } from '@/lib/definitions';
+import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership, LessonRole } from '@/lib/definitions';
 import { getLessons, getConsultantActivity, getDailyLessonLimits, getAssignedLessons, getAllAssignedLessonIds, getEarnedBadgesByUserId, getDealershipById } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
@@ -64,6 +64,91 @@ const metricIcons: Record<CxTrait, LucideIcon> = {
   relationshipBuilding: Users,
 };
 
+function normalizeScore(value: unknown): number | null {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+type LessonRatingKey = 'empathy' | 'listening' | 'trust' | 'followUp' | 'closing' | 'relationship';
+
+const lessonRatingLabels: Record<LessonRatingKey, string> = {
+  empathy: 'Empathy',
+  listening: 'Listening',
+  trust: 'Trust',
+  followUp: 'Follow Up',
+  closing: 'Closing',
+  relationship: 'Relationship',
+};
+
+function extractLessonRatings(log: LessonLog): Record<LessonRatingKey, number> {
+  const fallback = {
+    empathy: log.empathy,
+    listening: log.listening,
+    trust: log.trust,
+    followUp: log.followUp,
+    closing: log.closing,
+    relationship: log.relationshipBuilding,
+  };
+
+  const source = log.ratings
+    ? {
+        empathy: log.ratings.empathy,
+        listening: log.ratings.listening,
+        trust: log.ratings.trust,
+        followUp: log.ratings.followUp,
+        closing: log.ratings.closing,
+        relationship: log.ratings.relationship,
+      }
+    : fallback;
+
+  return {
+    empathy: Math.max(0, Math.min(100, Math.round(source.empathy))),
+    listening: Math.max(0, Math.min(100, Math.round(source.listening))),
+    trust: Math.max(0, Math.min(100, Math.round(source.trust))),
+    followUp: Math.max(0, Math.min(100, Math.round(source.followUp))),
+    closing: Math.max(0, Math.min(100, Math.round(source.closing))),
+    relationship: Math.max(0, Math.min(100, Math.round(source.relationship))),
+  };
+}
+
+function buildLessonActivityNote(log: LessonLog): string {
+  const ratings = extractLessonRatings(log);
+  const entries = Object.entries(ratings) as [LessonRatingKey, number][];
+
+  const highestScore = Math.max(...entries.map(([, value]) => value));
+  const lowestScore = Math.min(...entries.map(([, value]) => value));
+
+  const strengths = entries
+    .filter(([, value]) => value === highestScore)
+    .map(([key]) => lessonRatingLabels[key])
+    .join(', ');
+  const improvements = entries
+    .filter(([, value]) => value === lowestScore)
+    .map(([key]) => lessonRatingLabels[key])
+    .join(', ');
+
+  const formatDelta = (value: number): string => {
+    const rounded = Math.round(value);
+    const sign = rounded >= 0 ? '+' : '';
+    return `${sign}${rounded}`;
+  };
+
+  const deltaLine = log.scoreDelta
+    ? `CX Delta: E${formatDelta(log.scoreDelta.empathy)}, L${formatDelta(log.scoreDelta.listening)}, T${formatDelta(log.scoreDelta.trust)}, F${formatDelta(log.scoreDelta.followUp)}, C${formatDelta(log.scoreDelta.closing)}, R${formatDelta(log.scoreDelta.relationshipBuilding)}`
+    : `CX Delta: unavailable (run another lesson to populate deltas).`;
+  const focusLine = `Went well: ${strengths} (${highestScore}). Improve: ${improvements} (${lowestScore}).`;
+  const summary = log.coachSummary
+    ? (log.coachSummary.length > 160 ? `${log.coachSummary.slice(0, 157)}...` : log.coachSummary)
+    : '';
+  const summaryLine = summary ? `Coach: ${summary}` : '';
+  const violationLine = log.severity === 'behavior_violation'
+    ? 'Behavior violation was flagged; penalty rules were applied.'
+    : '';
+
+  return [deltaLine, focusLine, summaryLine, violationLine].filter(Boolean).join(' ');
+}
+
 function LevelDisplay({ user }: { user: User }) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
 
@@ -99,13 +184,14 @@ const activityIcons: Record<string, LucideIcon> = {
     'levelup': ArrowUp,
 }
 
-const RecentActivityItem = ({ icon, text }: { icon: LucideIcon, text: string }) => {
+const RecentActivityItem = ({ icon, text, note }: { icon: LucideIcon, text: string, note?: string }) => {
     const Icon = icon;
     return (
         <div className="flex items-center gap-4 py-3">
             <Icon className="h-5 w-5 text-cyan-400" />
             <div className="flex-1">
                 <p className="text-sm text-foreground">{text}</p>
+                {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
             </div>
         </div>
     );
@@ -121,6 +207,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [canRetakeRecommendedTesting, setCanRetakeRecommendedTesting] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const { isTouring } = useAuth();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
@@ -132,8 +219,9 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
+      const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
       const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges] = await Promise.all([
-        getLessons(user.role, user.userId),
+        getLessons(lessonRole, user.userId),
         getConsultantActivity(user.userId),
         getDailyLessonLimits(user.userId),
         getAssignedLessons(user.userId),
@@ -155,9 +243,16 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       if (user.dealershipIds.length > 0 && !isTouring) {
           const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id, user.userId)));
           const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
+          const hasTestingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
+          setCanRetakeRecommendedTesting(hasTestingAccess);
           if (activeDealerships.length === 0) {
               setIsPaused(true);
+          } else {
+              setIsPaused(false);
           }
+      } else {
+          setCanRetakeRecommendedTesting(false);
+          setIsPaused(false);
       }
 
       if (user.memberSince) {
@@ -184,8 +279,44 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     }
     setShowTourWelcome(open);
   }
+
+  const rollingScores = useMemo(() => {
+    const stats = user.stats;
+    if (!stats) return null;
+
+    const empathy = normalizeScore(stats.empathy?.score);
+    const listening = normalizeScore(stats.listening?.score);
+    const trust = normalizeScore(stats.trust?.score);
+    const followUp = normalizeScore(stats.followUp?.score);
+    const closing = normalizeScore(stats.closing?.score);
+    const relationshipBuilding = normalizeScore(stats.relationship?.score);
+
+    if (
+      empathy === null ||
+      listening === null ||
+      trust === null ||
+      followUp === null ||
+      closing === null ||
+      relationshipBuilding === null
+    ) {
+      return null;
+    }
+
+    return {
+      empathy,
+      listening,
+      trust,
+      followUp,
+      closing,
+      relationshipBuilding,
+    };
+  }, [user.stats]);
   
   const averageScores = useMemo(() => {
+    if (rollingScores) {
+      return rollingScores;
+    }
+
     if (!activity.length) return {
       empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85
     };
@@ -197,7 +328,14 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
     const count = activity.length;
     return Object.fromEntries(Object.entries(total).map(([key, value]) => [key, Math.round(value / count)])) as typeof total;
-  }, [activity]);
+  }, [activity, rollingScores]);
+
+  const formatDisplayedScore = (value: number) => {
+    if (rollingScores) {
+      return `${value.toFixed(1)}%`;
+    }
+    return `${Math.round(value)}%`;
+  };
 
   const recommendedLesson = useMemo(() => {
     if (lessons.length === 0) return null;
@@ -225,7 +363,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     if (!activity || !user) return [];
 
     const allLessons = [...lessons, ...assignedLessons];
-    const combinedActivities: { type: string; timestamp: Date; text: string }[] = [];
+    const combinedActivities: { type: string; timestamp: Date; text: string; note?: string }[] = [];
     let currentXp = user.xp;
 
     // The activity is sorted from newest to oldest. We'll iterate backwards.
@@ -241,7 +379,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         combinedActivities.push({
             type: 'completed',
             timestamp: new Date(log.timestamp),
-            text: `Completed "${lessonTitle}" and earned ${log.xpGained} XP.`
+            text: `Completed "${lessonTitle}" and earned ${log.xpGained} XP.`,
+            note: buildLessonActivityNote(log),
         });
 
         // Check if a level up occurred after this lesson
@@ -263,7 +402,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         .slice(0, 4)
         .map(act => ({
             icon: activityIcons[act.type],
-            text: act.text
+            text: act.text,
+            note: act.note,
         }));
   }, [activity, lessons, assignedLessons, user]);
 
@@ -363,12 +503,29 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                             <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
                                 Start: {recommendedLesson.title}
                             </Link>
+                        ) : recommendedLesson && lessonLimits.recommendedTaken ? (
+                            <div className="space-y-2">
+                                <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                                    <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</>
+                                </Button>
+                                {canRetakeRecommendedTesting && (
+                                    <Link
+                                      href={`/lesson/${recommendedLesson.lessonId}?recommended=true&retake=testing`}
+                                      className={cn(
+                                        "w-full",
+                                        buttonVariants({
+                                          variant: "outline",
+                                          className: "w-full font-semibold border-cyan-400/60 text-cyan-200 hover:bg-cyan-500/10 hover:text-cyan-100",
+                                        })
+                                      )}
+                                    >
+                                      Retake Recommended (Testing)
+                                    </Link>
+                                )}
+                            </div>
                         ) : (
                             <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
-                                {recommendedLesson ? 
-                                    <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</> :
-                                    "No lesson available"
-                                }
+                                No lesson available
                             </Button>
                         )}
                     </Card>
@@ -422,7 +579,11 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             <Card className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30">
                 <CardHeader>
                 <CardTitle>My Average CX Scores</CardTitle>
-                <CardDescription>Your average performance across all completed lessons.</CardDescription>
+                <CardDescription>
+                  {rollingScores
+                    ? 'Your rolling CX performance from recent lesson outcomes.'
+                    : 'Your average performance across all completed lessons.'}
+                </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                 {loading ? (
@@ -437,7 +598,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                             <Icon className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium text-foreground">{title}</span>
                         </div>
-                        <span className="font-bold text-cyan-400">{value}%</span>
+                        <span className="font-bold text-cyan-400">{formatDisplayedScore(value)}</span>
                         </div>
                     );
                     })
@@ -468,7 +629,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             ) : recentActivities.length > 0 ? (
                 <div className="px-2 divide-y divide-slate-700/80">
                    {recentActivities.map((item, index) => (
-                       <RecentActivityItem key={index} icon={item.icon} text={item.text} />
+                       <RecentActivityItem key={index} icon={item.icon} text={item.text} note={item.note} />
                    ))}
                 </div>
             ) : (

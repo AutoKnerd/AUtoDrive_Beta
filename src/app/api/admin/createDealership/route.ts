@@ -51,6 +51,7 @@ export async function POST(
       id: dealershipRef.id,
       name: dealershipName,
       status: 'active',
+      enableRetakeRecommendedTesting: false,
     };
 
     if (trainerId) newDealershipData.trainerId = trainerId;
