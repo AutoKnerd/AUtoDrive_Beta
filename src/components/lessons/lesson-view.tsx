@@ -116,13 +116,15 @@ function formatSigned(value: number): string {
 function buildCompletionSummary(
   result: LessonCompletionResponse,
   details?: Pick<LessonCompletionDetails, 'severity' | 'ratingsUsed' | 'statChanges'>,
-  displayedXp?: number
+  displayedXp?: number,
+  flags: string[] = []
 ): string {
+  const finalXp = displayedXp ?? result.xpAwarded;
   const lines = [
     'Lesson Complete!',
     '',
     `Focus Area: ${result.trainedTrait}`,
-    `XP Awarded: ${displayedXp ?? result.xpAwarded}`,
+    `XP Awarded: ${finalXp}`,
     `Summary: ${result.coachSummary}`,
     `Next Steps: Focus on ${result.recommendedNextFocus}.`,
   ];
@@ -145,6 +147,12 @@ function buildCompletionSummary(
     lines.push('', `Severity: ${details.severity}`);
     if (details.severity === 'behavior_violation') {
       lines.push('Behavior note: this interaction was flagged as a behavior violation, so XP penalties are allowed.');
+      if (typeof finalXp === 'number' && finalXp < 0) {
+        lines.push(`XP Penalty Applied: ${finalXp} (penalties are capped at -100 XP).`);
+      }
+      if (flags.length > 0) {
+        lines.push(`Flags: ${flags.join(', ')}`);
+      }
     }
     lines.push('Why this changed: each skill updates independently toward its own AI rating after each lesson.');
   }
@@ -210,21 +218,25 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
     fetchScores();
   }, [user, toast]);
 
-  const handleAiResponse = async (responseText: string) => {
+  const handleAiResponse = async (responseText: string, conversationHistory?: Message[]) => {
     const result = parseLessonCompletionResponse(responseText);
 
     if (result && typeof result.xpAwarded === 'number' && Number.isFinite(result.xpAwarded)) {
       let completionDetails: Pick<LessonCompletionDetails, 'severity' | 'ratingsUsed' | 'statChanges'> | undefined;
       let displayedXp = result.xpAwarded;
+      let mergedFlags = result.flags ?? [];
 
       if (user) {
         const fallbackRatings = toFallbackRatings(cxScores);
+        const userMessages = (conversationHistory ?? messages)
+          .filter(message => message.sender === 'user')
+          .map(message => message.text);
         const moderation = assessBehaviorViolation({
-          userMessages: messages.filter(message => message.sender === 'user').map(message => message.text),
+          userMessages,
           ratings: result.ratings ?? fallbackRatings,
           xpAwarded: result.xpAwarded,
         });
-        const mergedFlags = Array.from(new Set([...(result.flags ?? []), ...moderation.flags]));
+        mergedFlags = Array.from(new Set([...(result.flags ?? []), ...moderation.flags]));
         const effectiveSeverity: InteractionSeverity =
           moderation.violated ? 'behavior_violation' : (result.severity ?? 'normal');
         const effectiveRatings = moderation.adjustedRatings ?? result.ratings ?? fallbackRatings;
@@ -270,7 +282,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
         }
       }
 
-      const summaryText = buildCompletionSummary(result, completionDetails, displayedXp);
+      const summaryText = buildCompletionSummary(result, completionDetails, displayedXp, mergedFlags);
       const finalMessage: Message = { sender: 'ai', text: summaryText };
       setMessages(prev => [...prev, finalMessage]);
       setInputDisabled(true);
@@ -301,7 +313,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
           cxScores,
         });
 
-        await handleAiResponse(initialResponse);
+        await handleAiResponse(initialResponse, []);
       } catch (error: any) {
         console.error('Failed to start lesson:', error);
         toast({
@@ -343,7 +355,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
           cxScores,
       });
       
-      await handleAiResponse(response);
+      await handleAiResponse(response, newMessages);
     } catch (error: any) {
       console.error('Failed to continue lesson:', error);
       toast({
@@ -376,7 +388,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
           cxScores,
       });
       
-      await handleAiResponse(response);
+      await handleAiResponse(response, messages);
     } catch (error: any) {
       console.error('Failed to skip lesson:', error);
       toast({

@@ -16,20 +16,33 @@ type AssessmentInput = {
   xpAwarded: number;
 };
 
+const VIOLATION_THRESHOLD = 0.35;
+const MAX_XP_PENALTY = 100;
+const MIN_XP_PENALTY = 10;
+
 const PROFANITY_PATTERNS: RegExp[] = [
   /\bfuck(?:ing|ed|er|s)?\b/i,
   /\bshit(?:ty|s)?\b/i,
+  /\bbullshit\b/i,
+  /\bcrap\b/i,
   /\bbitch(?:es)?\b/i,
-  /\basshole\b/i,
-  /\bdick\b/i,
+  /\bass(?:hole)?\b/i,
+  /\bdick(?:head)?\b/i,
   /\bmotherfucker\b/i,
 ];
 
 const HARASSMENT_PATTERNS: RegExp[] = [
   /\byou(?:'re| are)?\s+(?:an?\s+)?(?:idiot|moron|stupid|dumb|pathetic|useless)\b/i,
+  /\byou(?:'re| are)\s+(?:trash|garbage|worthless)\b/i,
   /\bshut\s+up\b/i,
   /\byou\s+suck\b/i,
-  /\bthis\s+is\s+stupid\b/i,
+  /\bfuck\s+you\b/i,
+];
+
+const LESSON_CONTEMPT_PATTERNS: RegExp[] = [
+  /\b(?:this|your)\s+(?:lesson|training|class|content)\s+(?:is|was)\s+(?:stupid|dumb|garbage|trash|pointless|useless|bullshit)\b/i,
+  /\b(?:waste|wasting)\s+(?:my|our)\s+time\b/i,
+  /\b(?:this|that)\s+is\s+(?:bullshit|garbage|trash)\b/i,
 ];
 
 const THREAT_PATTERNS: RegExp[] = [
@@ -37,8 +50,16 @@ const THREAT_PATTERNS: RegExp[] = [
   /\bi\s+will\s+(?:kill|hurt|hit|beat|attack|slap|punch|shoot)\b/i,
 ];
 
+function toGlobalPattern(pattern: RegExp): RegExp {
+  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+  return new RegExp(pattern.source, flags);
+}
+
 function countMatches(text: string, patterns: RegExp[]): number {
-  return patterns.reduce((count, pattern) => (pattern.test(text) ? count + 1 : count), 0);
+  return patterns.reduce((count, pattern) => {
+    const globalPattern = toGlobalPattern(pattern);
+    return count + Array.from(text.matchAll(globalPattern)).length;
+  }, 0);
 }
 
 function uniqueFlags(flags: string[]): string[] {
@@ -62,20 +83,26 @@ export function assessBehaviorViolation(input: AssessmentInput): BehaviorViolati
 
   const profanityHits = countMatches(combined, PROFANITY_PATTERNS);
   const harassmentHits = countMatches(combined, HARASSMENT_PATTERNS);
+  const lessonContemptHits = countMatches(combined, LESSON_CONTEMPT_PATTERNS);
   const threatHits = countMatches(combined, THREAT_PATTERNS);
 
   const flags: string[] = [];
   if (profanityHits > 0) flags.push('profanity');
   if (harassmentHits > 0) flags.push('harassment');
+  if (lessonContemptHits > 0) flags.push('lesson_disrespect');
   if (threatHits > 0) flags.push('threatening_language');
 
+  const totalHits = profanityHits + harassmentHits + lessonContemptHits + threatHits;
+  const repetitionBoost = totalHits >= 4 ? 0.2 : totalHits >= 2 ? 0.1 : 0;
   const weightedScore =
-    profanityHits * 0.18 +
-    harassmentHits * 0.35 +
-    threatHits * 0.6;
+    profanityHits * 0.12 +
+    harassmentHits * 0.3 +
+    lessonContemptHits * 0.25 +
+    threatHits * 0.75 +
+    repetitionBoost;
 
   const score = clampScore(weightedScore);
-  const violated = score >= 0.25;
+  const violated = threatHits > 0 || score >= VIOLATION_THRESHOLD;
 
   if (!violated) {
     return {
@@ -87,7 +114,8 @@ export function assessBehaviorViolation(input: AssessmentInput): BehaviorViolati
   }
 
   const safeRatings = clampRatings(input.ratings);
-  const ratingReduction = 30 + score * 35;
+  const normalizedSeverity = clampScore((score - VIOLATION_THRESHOLD) / (1 - VIOLATION_THRESHOLD));
+  const ratingReduction = 20 + normalizedSeverity * 50;
 
   const adjustedRatings: Ratings = {
     empathy: Math.max(0, safeRatings.empathy - ratingReduction),
@@ -98,7 +126,13 @@ export function assessBehaviorViolation(input: AssessmentInput): BehaviorViolati
     relationship: Math.max(0, safeRatings.relationship - ratingReduction),
   };
 
-  const adjustedXpAwarded = -Math.round(20 + score * 40);
+  const penaltyMagnitude = Math.round(
+    Math.max(
+      MIN_XP_PENALTY,
+      Math.min(MAX_XP_PENALTY, MIN_XP_PENALTY + normalizedSeverity * (MAX_XP_PENALTY - MIN_XP_PENALTY))
+    )
+  );
+  const adjustedXpAwarded = -penaltyMagnitude;
 
   return {
     violated: true,

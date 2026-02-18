@@ -154,8 +154,8 @@ At the end of the lesson (after 10 interactions, if the user indicates they are 
 }
 
 XP Rules:
-- Minimum XP: 10
-- Maximum XP: 100
+- For normal behavior (severity: "normal"), XP must be between 10 and 100.
+- For behavior violations (severity: "behavior_violation"), XP must be between -100 and 0.
 - Award XP based on the quality of the user's answers throughout the entire lesson. Higher XP should be awarded for clear answers, demonstrated improvement, and consistent application of the target CX trait. Lower XP should be given for responses that are off-topic, ignore coaching, or fail to demonstrate the skill.
 - If the lesson is skipped because the user message is "@skip_lesson", award a standard amount of 50 XP and choose a reasonable summary for the trained trait.
 - Set "severity" to "behavior_violation" only if the user behavior clearly violates conduct/safety policy. In that case, XP may be reduced (including negative XP).

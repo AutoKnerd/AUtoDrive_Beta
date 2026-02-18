@@ -143,9 +143,17 @@ function normalizeFlags(flags?: string[]): string[] {
     return flags.filter(flag => typeof flag === 'string');
 }
 
+const MAX_NORMAL_XP_AWARD = 100;
+const MAX_BEHAVIOR_XP_PENALTY = 100;
+
 function sanitizeXpDelta(xpGained: number, severity: InteractionSeverity): number {
     const numericXp = Number.isFinite(xpGained) ? Math.round(xpGained) : 0;
-    return severity === 'behavior_violation' ? numericXp : Math.max(0, numericXp);
+    if (severity === 'behavior_violation') {
+        if (numericXp > 0) return 0;
+        return Math.max(-MAX_BEHAVIOR_XP_PENALTY, numericXp);
+    }
+
+    return Math.max(0, Math.min(MAX_NORMAL_XP_AWARD, numericXp));
 }
 
 function computeNextXp(currentXp: number, xpDelta: number, severity: InteractionSeverity): number {
