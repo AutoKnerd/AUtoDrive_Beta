@@ -1,5 +1,3 @@
-
-
 'use client';
 import { isToday, subDays } from 'date-fns';
 import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope, PendingInvitation } from './definitions';
@@ -156,6 +154,8 @@ export async function updateUser(userId: string, data: Partial<Omit<User, 'userI
         throw new Error("Authentication required");
     }
 
+    // CRITICAL: We use our server API endpoint for updates.
+    // This uses the Admin SDK on the backend, which bypasses security rules and avoids "aud claim" mismatch errors.
     const response = await fetch('/api/admin/updateUser', {
         method: 'POST',
         headers: {
@@ -167,7 +167,7 @@ export async function updateUser(userId: string, data: Partial<Omit<User, 'userI
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to update user');
+        throw new Error(errorData.message || 'Failed to update user profile via server API.');
     }
 
     const updatedUser = await getDataById<User>(db, 'users', userId);
