@@ -76,7 +76,7 @@ service cloud.firestore {
         && request.resource.data.userId == userId
         && request.resource.data.subscriptionStatus in ['inactive', 'active'];
       allow update: if 
-        (request.resource.data.userId == resource.data.userId) &&
+        (!('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId) &&
         (
           (isOwner(userId) && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)) || 
           hasAnyRole(['Admin', 'Developer'])

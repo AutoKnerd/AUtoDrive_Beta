@@ -4,7 +4,7 @@ import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCate
 import { lessonCategoriesByRole, noPersonalDevelopmentRoles } from './definitions';
 import { allBadges } from './badges';
 import { calculateLevel } from './xp';
-import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp, Firestore } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp, Firestore, orderBy, limit } from 'firebase/firestore';
 import { Auth } from 'firebase/auth';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -564,7 +564,169 @@ export async function getMessagesForUser(user: User): Promise<Message[]> {
     return snap.docs.map(d => ({ ...d.data(), id: d.id, timestamp: d.data().timestamp.toDate() } as Message));
 }
 
-// Private Lesson helper functions
+export type CreatedLessonStatus = {
+  lesson: Lesson;
+  assignedUserCount: number;
+  takenUserCount: number;
+  lastAssignedAt: Date | null;
+  assignees: Array<{ userId: string; name: string; role: string; taken: boolean; completedAt?: Date }>;
+};
+
+export async function getCreatedLessonStatuses(creatorId: string): Promise<CreatedLessonStatus[]> {
+  const isTour = isTouringUser(creatorId);
+  const lessonsRef = collection(db, 'lessons');
+  const q = query(lessonsRef, where('createdByUserId', '==', creatorId), orderBy('title', 'asc'));
+  const snap = isTour ? { docs: (await getTourData()).lessons.filter(l => l.createdByUserId === creatorId) } : await getDocs(q);
+  
+  const results: CreatedLessonStatus[] = [];
+  const assignmentsRef = collection(db, 'lessonAssignments');
+  const logsRef = collection(db, 'lessonLogs'); // Note: Global collection check might fail, using subcollections instead
+
+  for (const docSnap of (snap.docs as any[])) {
+    const lesson = isTour ? docSnap : { ...docSnap.data(), lessonId: docSnap.id } as Lesson;
+    
+    // Fetch all assignments for this lesson
+    const aSnap = await getDocs(query(assignmentsRef, where('lessonId', '==', lesson.lessonId)));
+    const assignments = aSnap.docs.map(d => d.data() as LessonAssignment);
+    
+    const assignees: CreatedLessonStatus['assignees'] = [];
+    let takenCount = 0;
+    let lastAssigned: Date | null = null;
+
+    for (const a of assignments) {
+      if (!lastAssigned || a.timestamp > lastAssigned) lastAssigned = a.timestamp;
+      
+      const user = await getUserById(a.userId);
+      if (!user) continue;
+
+      // Check if user has a log for this lesson
+      const logSnap = await getDocs(query(collection(db, `users/${user.userId}/lessonLogs`), where('lessonId', '==', lesson.lessonId), limit(1)));
+      const isTaken = !logSnap.empty;
+      if (isTaken) takenCount++;
+
+      assignees.push({
+        userId: user.userId,
+        name: user.name,
+        role: user.role,
+        taken: isTaken,
+        completedAt: isTaken ? (logSnap.docs[0].data().timestamp as Timestamp).toDate() : undefined
+      });
+    }
+
+    results.push({
+      lesson,
+      assignedUserCount: assignments.length,
+      takenUserCount: takenCount,
+      lastAssignedAt: lastAssigned,
+      assignees
+    });
+  }
+
+  return results;
+}
+
+export async function getSystemReport(actor: User): Promise<SystemReport> {
+  if (!['Admin', 'Developer'].includes(actor.role)) throw new Error('Unauthorized');
+  
+  const usersSnap = await getDocs(collection(db, 'users'));
+  const dealershipsSnap = await getDocs(collection(db, 'dealerships'));
+  
+  const users = usersSnap.docs.map(d => ({ ...d.data(), userId: d.id } as User));
+  const dealerships = dealershipsSnap.docs.map(d => ({ ...d.data(), id: d.id } as Dealership));
+  
+  const reportRows: SystemReportRow[] = [];
+  const thirtyDaysAgo = subDays(new Date(), 30);
+  
+  let totalLessons = 0;
+  let totalXp = 0;
+  let sumScores = 0;
+  let scoreCount = 0;
+
+  for (const user of users) {
+    const logsSnap = await getDocs(collection(db, `users/${user.userId}/lessonLogs`));
+    const logs = logsSnap.docs.map(d => d.data() as LessonLog);
+    
+    const lessonsCompleted = logs.length;
+    const userTotalXp = user.xp || 0;
+    const lastLog = logs.sort((a, b) => b.timestamp.toDate().getTime() - a.timestamp.toDate().getTime())[0];
+    const lastInteraction = lastLog ? lastLog.timestamp.toDate() : null;
+    const isActive30d = lastInteraction ? lastInteraction > thirtyDaysAgo : false;
+    
+    let userAvgScore = 0;
+    if (lessonsCompleted > 0) {
+      const uSum = logs.reduce((s, l) => s + ((l.empathy + l.listening + l.trust + l.followUp + l.closing + l.relationshipBuilding) / 6), 0);
+      userAvgScore = Math.round(uSum / lessonsCompleted);
+      sumScores += userAvgScore;
+      scoreCount++;
+    }
+
+    totalLessons += lessonsCompleted;
+    totalXp += userTotalXp;
+
+    reportRows.push({
+      userId: user.userId,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      dealershipIds: user.dealershipIds || [],
+      dealershipNames: (user.dealershipIds || []).map(id => dealerships.find(d => d.id === id)?.name || 'Unknown'),
+      subscriptionStatus: user.subscriptionStatus,
+      lessonsCompleted,
+      totalXp: userTotalXp,
+      avgScore: lessonsCompleted > 0 ? userAvgScore : null,
+      lastInteraction,
+      isActive30d
+    });
+  }
+
+  return {
+    generatedAt: new Date(),
+    users: {
+      total: users.length,
+      active30d: reportRows.filter(r => r.isActive30d).length,
+      ownersTotal: users.filter(u => u.role === 'Owner').length,
+      ownersActive30d: reportRows.filter(r => r.role === 'Owner' && r.isActive30d).length,
+    },
+    dealerships: {
+      total: dealerships.length,
+      active: dealerships.filter(d => d.status === 'active').length,
+      paused: dealerships.filter(d => d.status === 'paused').length,
+      deactivated: dealerships.filter(d => d.status === 'deactivated').length,
+    },
+    performance: {
+      totalLessonsCompleted: totalLessons,
+      averageScore: scoreCount > 0 ? Math.round(sumScores / scoreCount) : null,
+      totalXp
+    },
+    rows: reportRows
+  };
+}
+
+export type SystemReportRow = {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  dealershipIds: string[];
+  dealershipNames: string[];
+  subscriptionStatus?: string;
+  lessonsCompleted: number;
+  totalXp: number;
+  avgScore: number | null;
+  lastInteraction: Date | null;
+  isActive30d: boolean;
+};
+
+export type SystemReport = {
+  generatedAt: Date;
+  users: { total: number; active30d: number; ownersTotal: number; ownersActive30d: number };
+  dealerships: { total: number; active: number; paused: number; deactivated: number };
+  performance: { totalLessonsCompleted: number; averageScore: number | null; totalXp: number };
+  rows: SystemReportRow[];
+};
+
+const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+
 function cxTraitLabel(trait: string): string {
     return trait.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
 }
