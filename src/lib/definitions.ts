@@ -77,6 +77,7 @@ export type User = {
   selfDeclaredDealershipId?: string;
   stripeCustomerId?: string;
   subscriptionStatus?: 'active' | 'inactive';
+  stats?: Partial<UserStats>;
 };
 
 export type LessonRole = Exclude<UserRole, 'Owner' | 'Admin'> | 'global';
@@ -177,6 +178,26 @@ export const lessonCategories: LessonCategory[] = [...new Set(allCategories)];
 
 export type CxTrait = 'empathy' | 'listening' | 'trust' | 'followUp' | 'closing' | 'relationshipBuilding';
 
+export type RatingKey = 'empathy' | 'listening' | 'trust' | 'followUp' | 'closing' | 'relationship';
+
+export type Ratings = {
+  empathy: number;
+  listening: number;
+  trust: number;
+  followUp: number;
+  closing: number;
+  relationship: number;
+};
+
+export type InteractionSeverity = 'normal' | 'behavior_violation';
+
+export type UserStat = {
+  score: number;
+  lastUpdated: Date | { toDate: () => Date };
+};
+
+export type UserStats = Record<RatingKey, UserStat>;
+
 export type Lesson = {
   lessonId: string;
   title: string;
@@ -200,6 +221,20 @@ export type LessonLog = {
   followUp: number;
   closing: number;
   relationshipBuilding: number;
+  ratings?: Ratings;
+  severity?: InteractionSeverity;
+  flags?: string[];
+  trainedTrait?: string;
+  coachSummary?: string;
+  recommendedNextFocus?: string;
+  scoreDelta?: {
+    empathy: number;
+    listening: number;
+    trust: number;
+    followUp: number;
+    closing: number;
+    relationshipBuilding: number;
+  };
   isRecommended: boolean;
 };
 
@@ -224,6 +259,7 @@ export type Dealership = {
   trainerId?: string;
   status: 'active' | 'paused' | 'deactivated';
   address?: Address;
+  enableRetakeRecommendedTesting?: boolean;
 };
 
 export type LessonAssignment = {

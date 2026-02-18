@@ -140,7 +140,17 @@ At the end of the lesson (after 10 interactions, if the user indicates they are 
   "trainedTrait": "<trait name>",
   "xpAwarded": <number>,
   "coachSummary": "<1–2 sentence summary of progress>",
-  "recommendedNextFocus": "<same trait or next weakest trait>"
+  "recommendedNextFocus": "<same trait or next weakest trait>",
+  "ratings": {
+    "empathy": <number 0-100>,
+    "listening": <number 0-100>,
+    "trust": <number 0-100>,
+    "followUp": <number 0-100>,
+    "closing": <number 0-100>,
+    "relationship": <number 0-100>
+  },
+  "severity": "normal" | "behavior_violation",
+  "flags": ["optional short flag strings"]
 }
 
 XP Rules:
@@ -148,6 +158,11 @@ XP Rules:
 - Maximum XP: 100
 - Award XP based on the quality of the user's answers throughout the entire lesson. Higher XP should be awarded for clear answers, demonstrated improvement, and consistent application of the target CX trait. Lower XP should be given for responses that are off-topic, ignore coaching, or fail to demonstrate the skill.
 - If the lesson is skipped because the user message is "@skip_lesson", award a standard amount of 50 XP and choose a reasonable summary for the trained trait.
+- Set "severity" to "behavior_violation" only if the user behavior clearly violates conduct/safety policy. In that case, XP may be reduced (including negative XP).
+- Otherwise set "severity" to "normal" and keep XP non-negative.
+- Ratings must always be valid numbers from 0 to 100.
+- Include "flags" only when relevant; otherwise use an empty array.
+- If the user is abusive, hostile, threatening, or repeatedly disrespectful, mark severity as "behavior_violation", add relevant flags, lower ratings accordingly, and do not reward positive XP.
 
 End the session after outputting the JSON.
 
