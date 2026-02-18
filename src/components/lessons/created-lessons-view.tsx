@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { User } from '@/lib/definitions';
+import type { User, UserRole } from '@/lib/definitions';
 import { getCreatedLessonStatuses, assignLesson } from '@/lib/data.client';
 import type { CreatedLessonStatus } from '@/lib/data.client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -49,7 +48,6 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
 
   useEffect(() => {
     let active = true;
-
     const fetchCreatedLessons = async () => {
       setLoading(true);
       setError(null);
@@ -67,38 +65,25 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
         setSelectedLessonId(null);
         setError(e?.message || 'Failed to load created lessons.');
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     };
-
     fetchCreatedLessons();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [user.userId, refreshKey, internalRefreshKey]);
   
   const handleReassign = async (assigneeId: string, lessonId: string) => {
       setIsReassigning(assigneeId);
       try {
           await assignLesson(assigneeId, lessonId, user.userId);
-          toast({
-              title: "Lesson Re-assigned",
-              description: "A new assignment has been sent to the user.",
-          });
+          toast({ title: "Lesson Re-assigned", description: "A new assignment has been sent to the user." });
           setInternalRefreshKey(prev => prev + 1);
       } catch (e: any) {
-          toast({
-              variant: 'destructive',
-              title: 'Re-assignment Failed',
-              description: e.message || 'Could not re-assign the lesson.',
-          });
+          toast({ variant: 'destructive', title: 'Re-assignment Failed', description: e.message });
       } finally {
           setIsReassigning(null);
       }
   };
-
 
   if (loading) {
     return (
@@ -110,25 +95,13 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
     );
   }
 
-  if (error) {
-    return <p className="py-2 text-sm text-destructive">{error}</p>;
-  }
-
-  if (rows.length === 0) {
-    return (
-      <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 text-center text-muted-foreground">
-        <FileText className="h-5 w-5" />
-        <p className="text-sm">No created lessons found yet.</p>
-      </div>
-    );
-  }
-
+  if (error) return <p className="py-2 text-sm text-destructive">{error}</p>;
+  if (rows.length === 0) return <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 text-muted-foreground"><FileText className="h-5 w-5" /><p className="text-sm">No created lessons found yet.</p></div>;
   if (!selectedRow) return null;
-  const takenAssignees = selectedRow.assignees.filter((assignee) => assignee.taken);
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="overflow-x-auto -mx-4 px-4">
         <Table>
           <TableHeader>
             <TableRow>
@@ -152,18 +125,14 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
                   <TableCell className="font-medium">{row.lesson.title}</TableCell>
                   <TableCell className="hidden md:table-cell">{formatRoleLabel(row.lesson.role)}</TableCell>
                   <TableCell className="text-center">{row.assignedUserCount}</TableCell>
-                  <TableCell className="text-center">
-                    {row.assignedUserCount === 0 ? '0' : `${row.takenUserCount}/${row.assignedUserCount}`}
-                  </TableCell>
+                  <TableCell className="text-center">{row.assignedUserCount === 0 ? '0' : `${row.takenUserCount}/${row.assignedUserCount}`}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="inline-flex items-center gap-1.5">
                       {getStatusIcon(row)}
                       <span className="hidden sm:inline">{getStatusLabel(row)}</span>
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {row.lastAssignedAt ? row.lastAssignedAt.toLocaleDateString() : 'Not sent yet'}
-                  </TableCell>
+                  <TableCell className="hidden md:table-cell">{row.lastAssignedAt ? row.lastAssignedAt.toLocaleDateString() : 'Not sent'}</TableCell>
                 </TableRow>
               );
             })}
@@ -171,64 +140,43 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
         </Table>
       </div>
 
-      <div className="space-y-3 rounded-lg border p-4">
+      <div className="space-y-3 rounded-lg border p-4 bg-muted/20">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h4 className="font-semibold">{selectedRow.lesson.title}</h4>
-            <p className="text-sm text-muted-foreground">
-              {formatRoleLabel(selectedRow.lesson.role)} • {selectedRow.lesson.category}
-            </p>
+            <p className="text-sm text-muted-foreground">{formatRoleLabel(selectedRow.lesson.role)} • {selectedRow.lesson.category}</p>
           </div>
-          <Badge variant="secondary">
-            {selectedRow.takenUserCount > 1
-              ? 'Taken by Multiple'
-              : selectedRow.takenUserCount === 1
-                ? 'Taken by 1 Person'
-                : 'Not Taken Yet'}
-          </Badge>
+          <Badge variant="secondary">{selectedRow.takenUserCount > 1 ? 'Taken by Multiple' : selectedRow.takenUserCount === 1 ? 'Taken by 1' : 'Not Taken'}</Badge>
         </div>
 
         <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lesson Scenario</p>
-          <p className="text-sm">{selectedRow.lesson.customScenario || 'No custom scenario provided.'}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scenario</p>
+          <p className="text-sm italic">{selectedRow.lesson.customScenario || 'No scenario provided.'}</p>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            {selectedRow.takenUserCount} of {selectedRow.assignedUserCount} assigned people have taken this lesson.
-          </p>
+        <div className="space-y-2 pt-2">
+          <p className="text-sm font-medium">Assignee Completion:</p>
           {selectedRow.assignees.length === 0 ? (
-            <p className="text-sm text-muted-foreground">This lesson has not been assigned yet.</p>
+            <p className="text-sm text-muted-foreground">No assignments yet.</p>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {selectedRow.assignees.map((assignee) => (
-                <div key={assignee.userId} className="flex items-center justify-between rounded-md border px-3 py-2">
-                  <div>
-                    <p className="text-sm font-medium">{assignee.name}</p>
+                <div key={assignee.userId} className="flex items-center justify-between rounded-md border bg-card px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{assignee.name}</p>
                     {assignee.role && <p className="text-xs text-muted-foreground">{formatRoleLabel(assignee.role)}</p>}
                   </div>
                   {assignee.taken ? (
-                      <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => handleReassign(assignee.userId, selectedRow.lesson.lessonId)}
-                          disabled={isReassigning === assignee.userId}
-                          className="text-xs h-7"
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => handleReassign(assignee.userId, selectedRow.lesson.lessonId)} disabled={isReassigning === assignee.userId} className="text-xs h-7 text-cyan-400">
                           {isReassigning === assignee.userId ? <Spinner size="sm" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
                           Re-assign
                       </Button>
                   ) : (
-                      <Badge variant="outline">Pending</Badge>
+                      <Badge variant="outline" className="text-[10px]">Pending</Badge>
                   )}
                 </div>
               ))}
             </div>
-          )}
-          {takenAssignees.length > 1 && (
-            <p className="text-sm font-medium text-emerald-700">
-              Multiple people have taken this created lesson.
-            </p>
           )}
         </div>
       </div>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -22,7 +21,6 @@ import { AssignDealershipsForm } from '@/components/admin/assign-dealerships-for
 import { ManageDealershipForm } from '@/components/admin/ManageDealershipForm';
 import { EditUserForm } from '@/components/admin/edit-user-form';
 
-
 export default function DeveloperPage() {
   const { user, loading, setUser, originalUser } = useAuth();
   const router = useRouter();
@@ -35,7 +33,6 @@ export default function DeveloperPage() {
   const refreshData = useCallback(async () => {
     if (originalUser) {
       setDataLoading(true);
-      // For admins/devs, get all users, not just "manageable" ones in the hierarchy sense.
       const [users, dealerships] = await Promise.all([
         getManageableUsers(originalUser.userId),
         getDealerships()
@@ -46,32 +43,22 @@ export default function DeveloperPage() {
     }
   }, [originalUser]);
 
-
   useEffect(() => {
-    if (!loading && originalUser) {
-      refreshData();
-    }
+    if (!loading && originalUser) refreshData();
   }, [loading, originalUser, refreshData]);
 
   useEffect(() => {
-    // Redirect if not a developer/admin or if still loading
     if (!loading && (!user || (originalUser?.role !== 'Developer' && originalUser?.role !== 'Admin'))) {
       router.push('/login');
     }
   }, [user, loading, router, originalUser]);
 
   if (loading || !user || !originalUser || (originalUser.role !== 'Developer' && originalUser.role !== 'Admin')) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Spinner size="lg" />
-      </div>
-    );
+    return <div className="flex h-screen w-full items-center justify-center bg-background"><Spinner size="lg" /></div>;
   }
   
   const handleSwitchRole = (newRole: UserRole) => {
-    if (originalUser) {
-        setUser({ ...originalUser, role: newRole });
-    }
+    if (originalUser) setUser({ ...originalUser, role: newRole });
   };
 
   const isViewingAsManager = managerialRoles.includes(user.role);
@@ -90,14 +77,12 @@ export default function DeveloperPage() {
     <div className="flex min-h-screen w-full flex-col">
        <Header />
       <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-8">
-        <Card className="border-primary/50 bg-primary/5 text-primary-foreground">
+        <Card className="border-primary/50 bg-primary/5">
           <CardHeader className="flex-row items-center gap-4">
             <SlidersHorizontal className="h-10 w-10 text-primary" />
             <div>
                 <CardTitle className="text-2xl text-primary">God Mode</CardTitle>
-                <CardDescription className="text-primary/80">
-                    View the application as any user role, and manage users, dealerships, and system settings.
-                </CardDescription>
+                <CardDescription className="text-primary/80">Manage system-wide data or impersonate roles.</CardDescription>
             </div>
           </CardHeader>
         </Card>
@@ -115,26 +100,20 @@ export default function DeveloperPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-4">
-                             <span className="text-sm font-medium">Impersonating Role:</span>
+                             <span className="text-sm font-medium">Impersonating:</span>
                             <Select onValueChange={(role) => handleSwitchRole(role as UserRole)} value={user.role}>
                             <SelectTrigger className="w-[240px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 {allRoles.map((role) => (
-                                <SelectItem key={role} value={role}>
-                                    {role === 'manager' ? 'Sales Manager' : role}
-                                </SelectItem>
+                                <SelectItem key={role} value={role}>{role === 'manager' ? 'Sales Manager' : role}</SelectItem>
                                 ))}
                             </SelectContent>
                             </Select>
                         </div>
                         <div className="border-t pt-8 mt-6">
-                            {isViewingAsManager ? (
-                                <ManagerDashboard user={user} />
-                            ) : (
-                                <ConsultantDashboard user={user} />
-                            )}
+                            {isViewingAsManager ? <ManagerDashboard user={user} /> : <ConsultantDashboard user={user} />}
                         </div>
                     </CardContent>
                 </Card>
@@ -143,49 +122,31 @@ export default function DeveloperPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Management Tools</CardTitle>
-                        <CardDescription>
-                            Create, invite, assign, and remove users and dealerships.
-                        </CardDescription>
+                        <CardDescription>Consolidated system administration.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {dataLoading ? (
-                            <Spinner />
-                        ) : (
-                            <Tabs value={activeTool} onValueChange={setActiveTool} className="w-full">
-                                <div className="mb-4">
+                        {dataLoading ? <Spinner /> : (
+                            <div className="w-full">
+                                <div className="mb-6">
                                     <Select value={activeTool} onValueChange={setActiveTool}>
                                         <SelectTrigger className="w-full md:w-[300px]">
-                                            <SelectValue placeholder="Select a management tool..." />
+                                            <SelectValue placeholder="Select a tool..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {managementTools.map(tool => (
-                                                <SelectItem key={tool.value} value={tool.value}>{tool.label}</SelectItem>
-                                            ))}
+                                            {managementTools.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <TabsContent value="create_user" className="pt-4">
-                                    <CreateUserForm onUserCreated={refreshData} />
-                                </TabsContent>
-                                <TabsContent value="edit_user" className="pt-4">
-                                    <EditUserForm manageableUsers={manageableUsers} dealerships={allDealerships} onUserUpdated={refreshData} />
-                                </TabsContent>
-                                <TabsContent value="assign_dealerships" className="pt-4">
-                                    <AssignDealershipsForm manageableUsers={manageableUsers} dealerships={allDealerships} currentUser={originalUser} onDealershipsAssigned={refreshData} />
-                                </TabsContent>
-                                <TabsContent value="invite" className="pt-4">
-                                    <RegisterDealershipForm user={originalUser} dealerships={allDealerships} onUserInvited={refreshData} />
-                                </TabsContent>
-                                <TabsContent value="remove" className="pt-4">
-                                    <RemoveUserForm manageableUsers={manageableUsers} onUserRemoved={refreshData} />
-                                </TabsContent>
-                                <TabsContent value="create_dealership" className="pt-4">
-                                     <CreateDealershipForm user={originalUser} onDealershipCreated={refreshData} />
-                                </TabsContent>
-                                <TabsContent value="manage_dealerships" className="pt-4">
-                                    <ManageDealershipForm dealerships={allDealerships} onDealershipManaged={refreshData} />
-                                </TabsContent>
-                            </Tabs>
+                                <div className="mt-4">
+                                    {activeTool === 'create_user' && <CreateUserForm onUserCreated={refreshData} />}
+                                    {activeTool === 'edit_user' && <EditUserForm manageableUsers={manageableUsers} dealerships={allDealerships} onUserUpdated={refreshData} />}
+                                    {activeTool === 'assign_dealerships' && <AssignDealershipsForm manageableUsers={manageableUsers} dealerships={allDealerships} currentUser={originalUser!} onDealershipsAssigned={refreshData} />}
+                                    {activeTool === 'invite' && <RegisterDealershipForm user={originalUser!} dealerships={allDealerships} onUserInvited={refreshData} />}
+                                    {activeTool === 'remove' && <RemoveUserForm manageableUsers={manageableUsers} onUserRemoved={refreshData} />}
+                                    {activeTool === 'create_dealership' && <CreateDealershipForm user={originalUser!} onDealershipCreated={refreshData} />}
+                                    {activeTool === 'manage_dealerships' && <ManageDealershipForm dealerships={allDealerships} onDealershipManaged={refreshData} />}
+                                </div>
+                            </div>
                         )}
                     </CardContent>
                  </Card>
