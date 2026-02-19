@@ -312,6 +312,13 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [refreshKey, setRefreshKey] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
+  const scopedDealershipIds = useMemo(() => {
+    const ids = [...(user.dealershipIds ?? [])];
+    if (user.selfDeclaredDealershipId) {
+      ids.push(user.selfDeclaredDealershipId);
+    }
+    return Array.from(new Set(ids));
+  }, [user.dealershipIds, user.selfDeclaredDealershipId]);
 
 
   useEffect(() => {
@@ -351,8 +358,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       setNeedsBaselineAssessment(baselineRequired);
       setShowBaselineAssessment(baselineRequired);
       
-      if (user.dealershipIds.length > 0 && !isTouring) {
-          const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id, user.userId)));
+      if (scopedDealershipIds.length > 0 && !isTouring) {
+          const dealershipData = await Promise.all(scopedDealershipIds.map(id => getDealershipById(id, user.userId)));
           const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
           const hasRetakeTestingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
           const hasNewRecommendedTestingAccess = dealershipData.some(d => d?.enableNewRecommendedTesting === true);
@@ -376,7 +383,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       setLoading(false);
     }
     fetchData();
-  }, [user, isTouring, refreshKey]);
+  }, [user, isTouring, refreshKey, scopedDealershipIds]);
 
   useEffect(() => {
     if (isTouring) {
@@ -528,6 +535,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     }
   };
 
+  const showTestingControls = !needsBaselineAssessment && (canRetakeRecommendedTesting || canUseNewRecommendedTesting);
+
   const recentActivities = useMemo(() => {
     if (!activity || !user) return [];
 
@@ -672,44 +681,48 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                             <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
                                 Start: {availableRecommendedLesson.title}
                             </Link>
-                        ) : (retakeTestingLesson || availableRecommendedLesson) && lessonLimits.recommendedTaken ? (
-                            <div className="space-y-2">
-                                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-                                    <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</>
-                                </Button>
-                                {canRetakeRecommendedTesting && retakeTestingLesson && (
-                                    <Link
-                                      href={`/lesson/${retakeTestingLesson.lessonId}?recommended=true&retake=testing`}
-                                      className={cn(
-                                        "w-full",
-                                        buttonVariants({
-                                          variant: "outline",
-                                          className: "w-full font-semibold border-primary/50 text-primary hover:bg-primary/10 hover:text-primary dark:border-cyan-400/60 dark:text-cyan-200 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-100",
-                                        })
-                                      )}
-                                    >
-                                      Retake Recommended (Testing)
-                                    </Link>
-                                )}
-                                {canUseNewRecommendedTesting && (
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      disabled={creatingUniqueTestingLesson}
-                                      onClick={handleCreateUniqueRecommendedTestingLesson}
-                                      className="w-full font-semibold border-accent/60 text-foreground hover:bg-accent/10 hover:text-foreground dark:border-emerald-400/60 dark:text-emerald-200 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-100"
-                                    >
-                                      New Recommended (Testing)
-                                    </Button>
-                                )}
-                            </div>
-                        ) : (
-                            <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-                                No lesson available
-                            </Button>
-                        )}
-                    </Card>
-                )}
+	                        ) : (retakeTestingLesson || availableRecommendedLesson) && lessonLimits.recommendedTaken ? (
+	                            <div className="space-y-2">
+	                                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
+	                                    <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</>
+	                                </Button>
+	                            </div>
+	                        ) : (
+	                            <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
+	                                No lesson available
+	                            </Button>
+	                        )}
+                            {showTestingControls && (
+                                <div className="mt-2 space-y-2">
+                                    {canRetakeRecommendedTesting && retakeTestingLesson && (
+                                        <Link
+                                          href={`/lesson/${retakeTestingLesson.lessonId}?recommended=true&retake=testing`}
+                                          className={cn(
+                                            "w-full",
+                                            buttonVariants({
+                                              variant: "outline",
+                                              className: "w-full font-semibold border-primary/50 text-primary hover:bg-primary/10 hover:text-primary dark:border-cyan-400/60 dark:text-cyan-200 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-100",
+                                            })
+                                          )}
+                                        >
+                                          Retake Recommended (Testing)
+                                        </Link>
+                                    )}
+                                    {canUseNewRecommendedTesting && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          disabled={creatingUniqueTestingLesson}
+                                          onClick={handleCreateUniqueRecommendedTestingLesson}
+                                          className="w-full font-semibold border-accent/60 text-foreground hover:bg-accent/10 hover:text-foreground dark:border-emerald-400/60 dark:text-emerald-200 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-100"
+                                        >
+                                          New Recommended (Testing)
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+	                    </Card>
+	                )}
                 
                 {/* Assigned Lesson Card */}
                 {loading ? (

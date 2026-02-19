@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/header';
 import { LessonView } from '@/components/lessons/lesson-view';
 import { getDailyLessonLimits, getDealershipById, getLessonById } from '@/lib/data.client';
 import { Lesson, managerialRoles } from '@/lib/definitions';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -30,7 +30,13 @@ export default function LessonPage() {
     const [lesson, setLesson] = useState<Lesson | null>(null);
     const [loading, setLoading] = useState(true);
     const userId = user?.userId;
-    const dealershipIds = user?.dealershipIds ?? [];
+    const dealershipIds = useMemo(() => {
+        const ids = [...(user?.dealershipIds ?? [])];
+        if (user?.selfDeclaredDealershipId) {
+            ids.push(user.selfDeclaredDealershipId);
+        }
+        return Array.from(new Set(ids));
+    }, [user?.dealershipIds, user?.selfDeclaredDealershipId]);
     const dealershipIdsKey = dealershipIds.join('|');
 
     // Effect for fetching the lesson data, depends on lessonId and user for tour mode context
