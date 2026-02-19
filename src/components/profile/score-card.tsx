@@ -33,6 +33,7 @@ const metricIcons: Record<CxTrait, icons.LucideIcon> = {
 export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ user, activity, badges, dealerships }, ref) => {
   const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
   const hasActivity = activity.length > 0;
+  const avatarSrc = typeof user.avatarUrl === 'string' ? user.avatarUrl.trim() : '';
 
   const dealershipName = useMemo(() => {
     if (!dealerships || dealerships.length === 0) return '';
@@ -106,9 +107,9 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
         {/* Avatar */}
         <div className="flex-grow flex items-center justify-center my-2">
           <div className="relative w-28 h-28">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 blur-lg" />
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#8DC63F]/80 to-[#5E9F2F]/80 blur-xl" />
               <Avatar className="relative w-full h-full border-4 border-slate-700">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} crossOrigin="anonymous" />
+                  <AvatarImage src={avatarSrc || undefined} alt={user.name} />
                   <AvatarFallback className="text-5xl bg-slate-800 text-white">
                       {user.name.charAt(0)}
                   </AvatarFallback>
