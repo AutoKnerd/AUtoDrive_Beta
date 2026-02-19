@@ -131,7 +131,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                     <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="person portrait" />
                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                {withBlur && <div className="absolute inset-0 rounded-full border-2 border-cyan-400 blur-md" />}
+                {withBlur && <div className="absolute inset-0 rounded-full border-2 border-primary blur-md dark:border-cyan-400" />}
                 {isClient && unreadCount > 0 && (
                 <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-background" />
                 )}
@@ -145,7 +145,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                     {user.email}
                 </p>
                 {isViewingAsDifferentRole && (
-                     <p className="text-xs leading-none text-cyan-400/80 pt-1">
+                     <p className="pt-1 text-xs leading-none text-primary dark:text-cyan-400/80">
                         Viewing as: {user.role === 'manager' ? 'Sales Manager' : user.role}
                     </p>
                 )}

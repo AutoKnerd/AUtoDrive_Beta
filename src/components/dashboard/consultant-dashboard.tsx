@@ -2,8 +2,20 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { isToday } from 'date-fns';
+import { useRouter } from 'next/navigation';
 import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership, LessonRole } from '@/lib/definitions';
-import { getLessons, getConsultantActivity, getDailyLessonLimits, getAssignedLessons, getAllAssignedLessonIds, getEarnedBadgesByUserId, getDealershipById } from '@/lib/data.client';
+import {
+  getLessons,
+  getConsultantActivity,
+  getDailyLessonLimits,
+  getAssignedLessons,
+  getAllAssignedLessonIds,
+  getEarnedBadgesByUserId,
+  getDealershipById,
+  createUniqueRecommendedTestingLesson,
+  ensureDailyRecommendedLesson,
+} from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -27,6 +39,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -64,10 +77,88 @@ const metricIcons: Record<CxTrait, LucideIcon> = {
   relationshipBuilding: Users,
 };
 
+const dashboardFeatureCardClass =
+  'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
+const dashboardDisabledButtonClass =
+  'w-full border-border bg-muted/70 text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50';
+
 function normalizeScore(value: unknown): number | null {
   const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric)) return null;
   return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+type CxScoreSnapshot = Record<CxTrait, number>;
+
+const DEFAULT_CX_SCORES: CxScoreSnapshot = {
+  empathy: 75,
+  listening: 62,
+  trust: 80,
+  followUp: 70,
+  closing: 68,
+  relationshipBuilding: 85,
+};
+
+function scoreSnapshotFromUserStats(user: User): CxScoreSnapshot | null {
+  const stats = user.stats;
+  if (!stats) return null;
+
+  const empathy = normalizeScore(stats.empathy?.score);
+  const listening = normalizeScore(stats.listening?.score);
+  const trust = normalizeScore(stats.trust?.score);
+  const followUp = normalizeScore(stats.followUp?.score);
+  const closing = normalizeScore(stats.closing?.score);
+  const relationshipBuilding = normalizeScore(stats.relationship?.score);
+
+  if (
+    empathy === null ||
+    listening === null ||
+    trust === null ||
+    followUp === null ||
+    closing === null ||
+    relationshipBuilding === null
+  ) {
+    return null;
+  }
+
+  return {
+    empathy,
+    listening,
+    trust,
+    followUp,
+    closing,
+    relationshipBuilding,
+  };
+}
+
+function scoreSnapshotFromActivity(logs: LessonLog[]): CxScoreSnapshot {
+  if (!logs.length) return DEFAULT_CX_SCORES;
+
+  const totals = logs.reduce((acc, log) => {
+    acc.empathy += log.empathy || 0;
+    acc.listening += log.listening || 0;
+    acc.trust += log.trust || 0;
+    acc.followUp += log.followUp || 0;
+    acc.closing += log.closing || 0;
+    acc.relationshipBuilding += log.relationshipBuilding || 0;
+    return acc;
+  }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
+
+  const count = logs.length;
+  return {
+    empathy: Math.round(totals.empathy / count),
+    listening: Math.round(totals.listening / count),
+    trust: Math.round(totals.trust / count),
+    followUp: Math.round(totals.followUp / count),
+    closing: Math.round(totals.closing / count),
+    relationshipBuilding: Math.round(totals.relationshipBuilding / count),
+  };
+}
+
+function lowestTraitFromSnapshot(snapshot: CxScoreSnapshot): CxTrait {
+  return Object.entries(snapshot).reduce((lowest, [trait, score]) => (
+    score < lowest.score ? { trait: trait as CxTrait, score } : lowest
+  ), { trait: 'empathy' as CxTrait, score: Number.POSITIVE_INFINITY }).trait;
 }
 
 type LessonRatingKey = 'empathy' | 'listening' | 'trust' | 'followUp' | 'closing' | 'relationship';
@@ -156,7 +247,7 @@ function LevelDisplay({ user }: { user: User }) {
         return (
              <div className="space-y-2">
                 <p className="text-2xl font-bold">Level 100 - Master</p>
-                <p className="text-sm text-cyan-400">You have reached the pinnacle of sales excellence!</p>
+                <p className="text-sm text-primary">You have reached the pinnacle of sales excellence!</p>
             </div>
         )
     }
@@ -164,13 +255,16 @@ function LevelDisplay({ user }: { user: User }) {
     return (
         <div className="w-full space-y-2">
             <div className="flex items-baseline gap-4">
-                <p className="text-3xl font-bold text-white">Level {level}</p>
-                <Progress value={progress} className="h-4 bg-slate-700/50 border border-slate-600 [&>div]:bg-gradient-to-r [&>div]:from-cyan-400 [&>div]:to-blue-500" />
+                <p className="text-3xl font-bold text-foreground">Level {level}</p>
+                <Progress
+                  value={progress}
+                  className="h-4 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-blue-500 dark:border-slate-600 dark:bg-slate-700/50 dark:[&>div]:from-cyan-400"
+                />
             </div>
             <div className="flex justify-between text-xs font-semibold">
                 <span className="text-muted-foreground">{levelXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
                 <div className="text-right">
-                    <p className="text-cyan-400">Total: {user.xp.toLocaleString()} XP</p>
+                    <p className="text-primary">Total: {user.xp.toLocaleString()} XP</p>
                     <p className="text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
                 </div>
             </div>
@@ -188,7 +282,7 @@ const RecentActivityItem = ({ icon, text, note }: { icon: LucideIcon, text: stri
     const Icon = icon;
     return (
         <div className="flex items-center gap-4 py-3">
-            <Icon className="h-5 w-5 text-cyan-400" />
+            <Icon className="h-5 w-5 text-primary" />
             <div className="flex-1">
                 <p className="text-sm text-foreground">{text}</p>
                 {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
@@ -214,7 +308,10 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [showTourWelcome, setShowTourWelcome] = useState(false);
   const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
+  const [creatingUniqueTestingLesson, setCreatingUniqueTestingLesson] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const router = useRouter();
+  const { toast } = useToast();
 
 
   useEffect(() => {
@@ -229,13 +326,26 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         getAllAssignedLessonIds(user.userId),
         getEarnedBadgesByUserId(user.userId),
       ]);
-      setLessons(fetchedLessons);
+      const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
+
+      const lowestTrait = lowestTraitFromSnapshot(
+        scoreSnapshotFromUserStats(user) ?? scoreSnapshotFromActivity(fetchedActivity)
+      );
+
+      let lessonsForSelection = fetchedLessons;
+      if (baselineEligible && lessonRole !== 'global') {
+        const autoLesson = await ensureDailyRecommendedLesson(lessonRole, lowestTrait, user.userId);
+        if (autoLesson && !lessonsForSelection.some(l => l.lessonId === autoLesson.lessonId)) {
+          lessonsForSelection = [autoLesson, ...lessonsForSelection];
+        }
+      }
+
+      setLessons(lessonsForSelection);
       setActivity(fetchedActivity);
       setLessonLimits(limits);
       setAssignedLessons(fetchedAssignedLessons);
       setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
       setBadges(fetchedBadges);
-      const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
       const hasBaselineLog = fetchedActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
       const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
       setNeedsBaselineAssessment(baselineRequired);
@@ -348,16 +458,23 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     );
 
     const assignedLessonIds = new Set(assignedLessonHistoryIds);
-    const candidateLessons = lessons.filter(l => !assignedLessonIds.has(l.lessonId));
+    const completedRecommendedIds = new Set(
+      activity.filter(log => log.isRecommended).map(log => log.lessonId)
+    );
+    const candidateLessons = lessons.filter((lesson) => (
+      !assignedLessonIds.has(lesson.lessonId) &&
+      lesson.associatedTrait === lowestScoringTrait.trait
+    ));
     const roleSpecificLessons = candidateLessons.filter(l => l.role === user.role);
     const globalLessons = candidateLessons.filter(l => l.role === 'global');
+    const roleSpecificUnseen = roleSpecificLessons.filter(l => !completedRecommendedIds.has(l.lessonId));
+    const globalUnseen = globalLessons.filter(l => !completedRecommendedIds.has(l.lessonId));
 
     const prioritized = [
-      ...roleSpecificLessons.filter(l => l.associatedTrait === lowestScoringTrait.trait),
-      ...roleSpecificLessons.filter(l => l.associatedTrait !== lowestScoringTrait.trait),
-      ...globalLessons.filter(l => l.associatedTrait === lowestScoringTrait.trait),
-      ...globalLessons.filter(l => l.associatedTrait !== lowestScoringTrait.trait),
-      ...candidateLessons,
+      ...roleSpecificUnseen,
+      ...globalUnseen,
+      ...roleSpecificLessons,
+      ...globalLessons,
     ];
 
     const dedupedById = prioritized.filter((lesson, index, all) => (
@@ -365,10 +482,51 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     ));
 
     return dedupedById;
-  }, [lessons, assignedLessonHistoryIds, averageScores, user.role]);
+  }, [lessons, assignedLessonHistoryIds, averageScores, user.role, activity]);
 
-  const recommendedLesson = recommendedLessonQueue?.[0] ?? null;
-  const newRecommendedTestingLesson = recommendedLessonQueue?.find(l => l.lessonId !== recommendedLesson?.lessonId) ?? null;
+  const availableRecommendedLesson = recommendedLessonQueue?.[0] ?? null;
+  const todayRecommendedLessonId = activity.find(log => log.isRecommended && isToday(log.timestamp))?.lessonId ?? null;
+  const todayRecommendedLesson = todayRecommendedLessonId
+    ? lessons.find(lesson => lesson.lessonId === todayRecommendedLessonId) ?? null
+    : null;
+  const retakeTestingLesson = todayRecommendedLesson ?? availableRecommendedLesson;
+
+  const lowestScoringTrait = useMemo(() => {
+    return Object.entries(averageScores).reduce((lowest, [trait, score]) => (
+      score < lowest.score ? { trait: trait as CxTrait, score } : lowest
+    ), { trait: 'empathy' as CxTrait, score: Number.POSITIVE_INFINITY }).trait;
+  }, [averageScores]);
+
+  const handleCreateUniqueRecommendedTestingLesson = async () => {
+    if (creatingUniqueTestingLesson) return;
+    const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
+    if (lessonRole === 'global') {
+      toast({
+        variant: 'destructive',
+        title: 'Unavailable',
+        description: 'Unique recommended testing is not available for this role.',
+      });
+      return;
+    }
+
+    setCreatingUniqueTestingLesson(true);
+    try {
+      const lesson = await createUniqueRecommendedTestingLesson(lessonRole, lowestScoringTrait, user.userId);
+      if (!lesson) {
+        throw new Error('Could not generate a unique lesson.');
+      }
+      setLessons(prev => (prev.some(existing => existing.lessonId === lesson.lessonId) ? prev : [lesson, ...prev]));
+      router.push(`/lesson/${lesson.lessonId}?recommended=true&new=testing`);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not create lesson',
+        description: error?.message || 'Please try again.',
+      });
+    } finally {
+      setCreatingUniqueTestingLesson(false);
+    }
+  };
 
   const recentActivities = useMemo(() => {
     if (!activity || !user) return [];
@@ -419,7 +577,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   }, [activity, lessons, assignedLessons, user]);
 
   return (
-    <div className="space-y-8 pb-24 text-gray-300">
+    <div className="space-y-8 pb-24 text-foreground">
         <BaselineAssessmentDialog
           user={user}
           open={showBaselineAssessment}
@@ -446,7 +604,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         {/* Header */}
         <header className="flex items-center justify-between">
             <Logo variant="full" width={183} height={61} />
-            <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-cyan-400/50" withBlur />
+            <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-primary/50" withBlur />
         </header>
 
         {isPaused && (
@@ -475,32 +633,32 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         
         {/* Today's Lessons */}
         <section id="lessons" className="space-y-4">
-            <h2 className="text-xl font-bold text-white">Today's Lessons</h2>
+            <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Recommended Lesson Card */}
                 {loading ? (
                     <Skeleton className="h-full min-h-[160px] rounded-2xl" />
                 ) : (
                     <Card className={cn(
-                        "flex flex-col justify-between p-6 bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 shadow-lg shadow-cyan-500/10",
+                        `flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`,
                         isPaused && "opacity-50 pointer-events-none"
                     )}>
                         <div>
                             <div className="flex items-center gap-3 mb-2">
-                                <SteeringWheelIcon className="h-8 w-8 text-cyan-400" />
-                                <h3 className="text-2xl font-bold text-white">Recommended</h3>
+                                <SteeringWheelIcon className="h-8 w-8 text-primary dark:text-cyan-400" />
+                                <h3 className="text-2xl font-bold text-foreground">Recommended</h3>
                             </div>
                             <p className="text-sm text-muted-foreground mb-4">A daily lesson focused on your area for greatest improvement.</p>
                         </div>
                         {needsBaselineAssessment ? (
                             <div className="grid grid-cols-2 gap-2">
-                                {recommendedLesson && !lessonLimits.recommendedTaken ? (
-                                    <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
+                                {availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
+                                    <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
                                         Recommended Lesson
                                     </Link>
                                 ) : (
-                                    <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
-                                        {recommendedLesson ? 'Completed for today' : 'No lesson available'}
+                                    <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
+                                        {availableRecommendedLesson ? 'Completed for today' : 'No lesson available'}
                                     </Button>
                                 )}
                                 <Button
@@ -510,46 +668,43 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                                     Take Baseline Assessment
                                 </Button>
                             </div>
-                        ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
-                            <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
-                                Start: {recommendedLesson.title}
+                        ) : availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
+                            <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
+                                Start: {availableRecommendedLesson.title}
                             </Link>
-                        ) : recommendedLesson && lessonLimits.recommendedTaken ? (
+                        ) : (retakeTestingLesson || availableRecommendedLesson) && lessonLimits.recommendedTaken ? (
                             <div className="space-y-2">
-                                <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
                                     <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</>
                                 </Button>
-                                {canRetakeRecommendedTesting && (
+                                {canRetakeRecommendedTesting && retakeTestingLesson && (
                                     <Link
-                                      href={`/lesson/${recommendedLesson.lessonId}?recommended=true&retake=testing`}
+                                      href={`/lesson/${retakeTestingLesson.lessonId}?recommended=true&retake=testing`}
                                       className={cn(
                                         "w-full",
                                         buttonVariants({
                                           variant: "outline",
-                                          className: "w-full font-semibold border-cyan-400/60 text-cyan-200 hover:bg-cyan-500/10 hover:text-cyan-100",
+                                          className: "w-full font-semibold border-primary/50 text-primary hover:bg-primary/10 hover:text-primary dark:border-cyan-400/60 dark:text-cyan-200 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-100",
                                         })
                                       )}
                                     >
                                       Retake Recommended (Testing)
                                     </Link>
                                 )}
-                                {canUseNewRecommendedTesting && newRecommendedTestingLesson && (
-                                    <Link
-                                      href={`/lesson/${newRecommendedTestingLesson.lessonId}?recommended=true&new=testing`}
-                                      className={cn(
-                                        "w-full",
-                                        buttonVariants({
-                                          variant: "outline",
-                                          className: "w-full font-semibold border-emerald-400/60 text-emerald-200 hover:bg-emerald-500/10 hover:text-emerald-100",
-                                        })
-                                      )}
+                                {canUseNewRecommendedTesting && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      disabled={creatingUniqueTestingLesson}
+                                      onClick={handleCreateUniqueRecommendedTestingLesson}
+                                      className="w-full font-semibold border-accent/60 text-foreground hover:bg-accent/10 hover:text-foreground dark:border-emerald-400/60 dark:text-emerald-200 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-100"
                                     >
                                       New Recommended (Testing)
-                                    </Link>
+                                    </Button>
                                 )}
                             </div>
                         ) : (
-                            <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                            <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
                                 No lesson available
                             </Button>
                         )}
@@ -561,13 +716,13 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                     <Skeleton className="h-full min-h-[160px] rounded-2xl" />
                 ) : (
                     <Card className={cn(
-                        "flex flex-col p-6 bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 shadow-lg shadow-cyan-500/10",
+                        `flex flex-col p-6 ${dashboardFeatureCardClass}`,
                         isPaused && "opacity-50 pointer-events-none"
                     )}>
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                                <BookOpen className="h-8 w-8 text-cyan-400" />
-                                <h3 className="text-2xl font-bold text-white">Assigned</h3>
+                                <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+                                <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
                             </div>
                             <p className="text-sm text-muted-foreground mb-4">Lessons assigned to you by your manager.</p>
                         </div>
@@ -589,7 +744,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                                     </Link>
                                 ))
                             ) : (
-                                <div className="text-center text-muted-foreground p-4 rounded-md bg-slate-800/50 border border-slate-700">
+                                <div className="rounded-md border border-border bg-muted/50 p-4 text-center text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50">
                                     No assigned lessons
                                 </div>
                             )}
@@ -601,7 +756,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
         {/* My Stats */}
         <section id="stats">
-            <Card className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30">
+            <Card className={dashboardFeatureCardClass}>
                 <CardHeader>
                 <CardTitle>My Average CX Scores</CardTitle>
                 <CardDescription>
@@ -623,7 +778,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                             <Icon className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium text-foreground">{title}</span>
                         </div>
-                        <span className="font-bold text-cyan-400">{formatDisplayedScore(value)}</span>
+                        <span className="font-bold text-primary">{formatDisplayedScore(value)}</span>
                         </div>
                     );
                     })
@@ -637,28 +792,28 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         {/* My Badges */}
         <section>
              {loading ? (
-                <Skeleton className="h-40 w-full rounded-2xl bg-slate-900/50" />
+                <Skeleton className="h-40 w-full rounded-2xl" />
              ) : (
-                <BadgeShowcase badges={badges} className="bg-slate-900/50 backdrop-blur-md border border-cyan-400/30" />
+                <BadgeShowcase badges={badges} className={dashboardFeatureCardClass} />
              )}
         </section>
 
         {/* Recent Activity */}
         <section className="space-y-2">
-            <h2 className="text-xl font-bold text-white">Recent Activity</h2>
+            <h2 className="text-xl font-bold text-foreground">Recent Activity</h2>
              {loading ? (
                 <div className="space-y-2">
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                 </div>
             ) : recentActivities.length > 0 ? (
-                <div className="px-2 divide-y divide-slate-700/80">
+                <div className="divide-y divide-border px-2 dark:divide-slate-700/80">
                    {recentActivities.map((item, index) => (
                        <RecentActivityItem key={index} icon={item.icon} text={item.text} note={item.note} />
                    ))}
                 </div>
             ) : (
-                <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/80 rounded-xl p-4 text-center text-muted-foreground text-sm">
+                <div className="rounded-xl border border-border bg-muted/50 p-4 text-center text-sm text-muted-foreground dark:border-slate-700/80 dark:bg-slate-800/50 dark:backdrop-blur-sm">
                     No recent activity to show.
                 </div>
             )}

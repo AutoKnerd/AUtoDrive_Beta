@@ -47,6 +47,32 @@ type LessonCompletionResponse = {
   flags?: string[];
 };
 
+type FinalLessonCompletionResponse = LessonCompletionResponse & {
+  trainedTrait: string;
+  xpAwarded: number;
+  ratings: Ratings;
+};
+
+function hasValidCompletionRatings(ratings: Partial<Ratings> | undefined): ratings is Ratings {
+  if (!ratings) return false;
+  return (
+    typeof ratings.empathy === 'number' &&
+    typeof ratings.listening === 'number' &&
+    typeof ratings.trust === 'number' &&
+    typeof ratings.followUp === 'number' &&
+    typeof ratings.closing === 'number' &&
+    typeof ratings.relationship === 'number'
+  );
+}
+
+function isValidCompletionResponse(payload: LessonCompletionResponse | null): payload is FinalLessonCompletionResponse {
+  if (!payload) return false;
+  if (typeof payload.xpAwarded !== 'number' || !Number.isFinite(payload.xpAwarded)) return false;
+  if (typeof payload.trainedTrait !== 'string' || payload.trainedTrait.trim().length === 0) return false;
+  if (!hasValidCompletionRatings(payload.ratings)) return false;
+  return true;
+}
+
 function parseLessonCompletionResponse(responseText: string): LessonCompletionResponse | null {
   const candidates: string[] = [];
   const trimmed = responseText.trim();
@@ -169,6 +195,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
   const [cxScores, setCxScores] = useState<CxScores | null>(null);
   const [inputDisabled, setInputDisabled] = useState(false);
   const lessonStarted = useRef(false);
+  const finalizingLesson = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -179,6 +206,35 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
   useEffect(() => {
     async function fetchScores() {
       if (!user) return;
+      const rollingStats = user.stats;
+      const empathy = rollingStats?.empathy?.score;
+      const listening = rollingStats?.listening?.score;
+      const trust = rollingStats?.trust?.score;
+      const followUp = rollingStats?.followUp?.score;
+      const closing = rollingStats?.closing?.score;
+      const relationship = rollingStats?.relationship?.score;
+
+      const hasValidRollingScores = [
+        empathy,
+        listening,
+        trust,
+        followUp,
+        closing,
+        relationship,
+      ].every((value) => typeof value === 'number' && Number.isFinite(value));
+
+      if (hasValidRollingScores) {
+        setCxScores({
+          empathy: Math.round(empathy as number),
+          listening: Math.round(listening as number),
+          trust: Math.round(trust as number),
+          followUp: Math.round(followUp as number),
+          closing: Math.round(closing as number),
+          relationshipBuilding: Math.round(relationship as number),
+        });
+        return;
+      }
+
       try {
         const activity = await getConsultantActivity(user.userId);
         if (!activity.length) {
@@ -221,7 +277,9 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
   const handleAiResponse = async (responseText: string, conversationHistory?: Message[]) => {
     const result = parseLessonCompletionResponse(responseText);
 
-    if (result && typeof result.xpAwarded === 'number' && Number.isFinite(result.xpAwarded)) {
+    if (isValidCompletionResponse(result)) {
+      if (finalizingLesson.current || isCompleted) return;
+      finalizingLesson.current = true;
       let completionDetails: Pick<LessonCompletionDetails, 'severity' | 'ratingsUsed' | 'statChanges'> | undefined;
       let displayedXp = result.xpAwarded;
       let mergedFlags = result.flags ?? [];

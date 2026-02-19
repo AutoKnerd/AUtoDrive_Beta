@@ -39,12 +39,12 @@ export function TourFooter() {
   if (!user) return null;
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-50 h-20 border-t-2 border-primary/50 bg-slate-900/90 text-white backdrop-blur-lg">
+    <footer className="fixed bottom-0 left-0 right-0 z-50 h-20 border-t-2 border-primary/50 bg-background/95 text-foreground backdrop-blur-lg dark:bg-slate-900/90 dark:text-white">
       {/* Mobile Layout */}
       <div className="flex h-full items-center justify-around md:hidden">
         <Dialog>
           <DialogTrigger asChild>
-             <button className={cn('flex flex-col items-center justify-center gap-1 w-full h-full transition-colors text-gray-400 hover:text-white')}>
+             <button className={cn('flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground dark:hover:text-white')}>
               <Bot className="h-6 w-6" />
               <span className="text-xs font-medium">Guide</span>
             </button>
@@ -59,7 +59,7 @@ export function TourFooter() {
 
         <Dialog>
             <DialogTrigger asChild>
-                <button className={cn('flex flex-col items-center justify-center gap-1 w-full h-full transition-colors text-gray-400 hover:text-white')}>
+                <button className={cn('flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground dark:hover:text-white')}>
                     <Users className="h-6 w-6" />
                     <span className="text-xs font-medium">Switch Role</span>
                 </button>
@@ -73,7 +73,7 @@ export function TourFooter() {
                 </DialogHeader>
                 <div className="py-4">
                     <Select onValueChange={(role) => switchTourRole(role as UserRole)} value={user.role}>
-                        <SelectTrigger className="w-full bg-slate-800 border-slate-700">
+                        <SelectTrigger className="w-full border-border bg-background dark:border-slate-700 dark:bg-slate-800">
                             <SelectValue placeholder="Role" />
                         </SelectTrigger>
                         <SelectContent>
@@ -88,7 +88,7 @@ export function TourFooter() {
             </DialogContent>
         </Dialog>
         
-        <button onClick={handleRestartTour} className={cn('flex flex-col items-center justify-center gap-1 w-full h-full transition-colors text-gray-400 hover:text-white')}>
+        <button onClick={handleRestartTour} className={cn('flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground dark:hover:text-white')}>
             <RefreshCw className="h-6 w-6" />
             <span className="text-xs font-medium">Restart</span>
         </button>
@@ -103,7 +103,7 @@ export function TourFooter() {
       <div className="container mx-auto hidden h-20 items-center justify-between px-4 md:flex">
         <div className="flex items-center gap-2 md:gap-4">
           <div className="flex items-center gap-3">
-            <SlidersHorizontal className="h-6 w-6 text-cyan-400" />
+            <SlidersHorizontal className="h-6 w-6 text-primary dark:text-cyan-400" />
             <div>
               <p className="font-bold">Tour Control Panel</p>
               <p className="text-sm text-muted-foreground">You are in a guided tour.</p>
@@ -112,7 +112,7 @@ export function TourFooter() {
           
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground dark:hover:text-white">
                 <Bot className="h-5 w-5" />
                 <span className="sr-only">Ask AI Guide</span>
               </Button>
@@ -130,7 +130,7 @@ export function TourFooter() {
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground">Viewing as:</p>
               <Select onValueChange={(role) => switchTourRole(role as UserRole)} value={user.role}>
-                  <SelectTrigger className="w-[150px] bg-slate-800 border-slate-700">
+                  <SelectTrigger className="w-[150px] border-border bg-background dark:border-slate-700 dark:bg-slate-800">
                       <SelectValue placeholder="Role" />
                   </SelectTrigger>
                   <SelectContent>

@@ -71,6 +71,11 @@ const metricIcons: Record<CxTrait, React.ElementType> = {
   relationshipBuilding: Users,
 };
 
+const dashboardFeatureCardClass =
+  'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
+const dashboardDisabledButtonClass =
+  'w-full border-border bg-muted/70 text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50';
+
 function LevelDisplay({ user }: { user: User }) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
 
@@ -78,7 +83,7 @@ function LevelDisplay({ user }: { user: User }) {
         return (
              <div className="space-y-2">
                 <p className="text-2xl font-bold">Level 100 - Master</p>
-                <p className="text-sm text-cyan-400">You have reached the pinnacle of sales excellence!</p>
+                <p className="text-sm text-primary">You have reached the pinnacle of sales excellence!</p>
             </div>
         )
     }
@@ -86,14 +91,17 @@ function LevelDisplay({ user }: { user: User }) {
     return (
         <div className="w-full space-y-2">
             <div className="flex items-baseline gap-4">
-                <p className="text-3xl font-bold text-white">Level {level}</p>
-                <Progress value={progress} className="h-4 bg-slate-700/50 border border-slate-600 [&>div]:bg-gradient-to-r [&>div]:from-cyan-400 [&>div]:to-blue-500" />
+                <p className="text-3xl font-bold text-foreground">Level {level}</p>
+                <Progress
+                  value={progress}
+                  className="h-4 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-blue-500 dark:border-slate-600 dark:bg-slate-700/50 dark:[&>div]:from-cyan-400"
+                />
             </div>
             <div className="flex justify-between text-xs font-semibold">
                 <span className="text-muted-foreground">{levelXp.toLocaleString()} / {nextLevelXp.toLocaleString()}</span>
                 <p className="text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
             </div>
-             <p className="text-cyan-400 text-right font-semibold">Total: {user.xp.toLocaleString()} XP</p>
+             <p className="text-primary text-right font-semibold">Total: {user.xp.toLocaleString()} XP</p>
         </div>
     );
 }
@@ -169,7 +177,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       
       setStats(combinedData.managerStats);
       const teamActivityByUserId = new Map<string, TeamMemberStats>(
-        combinedData.teamActivity.map((row) => [row.consultant.userId, row])
+        combinedData.teamActivity.map((row: TeamMemberStats) => [row.consultant.userId, row])
       );
 
       const visibleActiveUsers = usersToManage.filter((u) => {
@@ -690,7 +698,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       </Dialog>
       <header className="flex items-center justify-between">
           <Logo variant="full" width={183} height={61} />
-          <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-cyan-400/50" withBlur />
+          <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-primary/50" withBlur />
       </header>
     
       <section className="space-y-3">
@@ -792,13 +800,13 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
         {showPersonalDevelopment && (
             <section className="space-y-4">
-                <h2 className="text-xl font-bold text-white">My Development</h2>
+                <h2 className="text-xl font-bold text-foreground">My Development</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card className="flex flex-col justify-between p-6 bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 shadow-lg shadow-cyan-500/10">
+                    <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
                         <div>
                             <div className="flex items-center gap-3 mb-2">
-                                <BookOpen className="h-8 w-8 text-cyan-400" />
-                                <h3 className="text-2xl font-bold text-white">Recommended Lesson</h3>
+                                <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+                                <h3 className="text-2xl font-bold text-foreground">Recommended Lesson</h3>
                             </div>
                             <p className="text-sm text-muted-foreground mb-4">A daily lesson focused on your area for greatest improvement as a leader.</p>
                         </div>
@@ -811,7 +819,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                       Recommended Lesson
                                   </Link>
                               ) : (
-                                  <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                                  <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
                                       {recommendedLesson ? 'Completed for today' : 'No lesson available'}
                                   </Button>
                               )}
@@ -827,7 +835,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 Start: {recommendedLesson.title}
                             </Link>
                         ) : (
-                            <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                            <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
                                 {recommendedLesson ? 
                                     <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</> :
                                     "No lesson available"
@@ -835,11 +843,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             </Button>
                         )}
                     </Card>
-                    <Card className="flex flex-col justify-between p-6 bg-slate-900/50 backdrop-blur-md border border-cyan-400/30 shadow-lg shadow-cyan-500/10">
+                    <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
                         <div>
                             <div className="flex items-center gap-3 mb-2">
-                                <BookOpen className="h-8 w-8 text-cyan-400" />
-                                <h3 className="text-2xl font-bold text-white">Assigned Lesson</h3>
+                                <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+                                <h3 className="text-2xl font-bold text-foreground">Assigned Lesson</h3>
                             </div>
                             <p className="text-sm text-muted-foreground mb-4">Manager-assigned training you can complete in addition to your recommended lesson.</p>
                         </div>
@@ -858,7 +866,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 Start: {assignedLessons[0].title}
                             </Link>
                         ) : (
-                            <Button variant="outline" disabled className="w-full bg-slate-800/50 border-slate-700">
+                            <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
                                 No assigned lessons
                             </Button>
                         )}
@@ -881,7 +889,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                         <Icon className="h-5 w-5 text-muted-foreground" />
                                         <span className="text-sm font-medium text-foreground">{title}</span>
                                     </div>
-                                    <span className="font-bold text-cyan-400">{value}%</span>
+                                    <span className="font-bold text-primary">{value}%</span>
                                     </div>
                                 );
                             })

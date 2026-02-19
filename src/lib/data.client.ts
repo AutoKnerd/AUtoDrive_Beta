@@ -10,6 +10,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { generateTourData } from './tour-data';
 import { initializeFirebase } from '@/firebase/init';
 import { BASELINE, clampRatings, updateRollingStats } from '@/lib/stats/updateRollingStats';
+import { buildAutoRecommendedLesson, buildUniqueRecommendedTestingLesson } from '@/lib/lessons/auto-recommended';
 
 const { firestore: db, auth } = initializeFirebase();
 
@@ -491,6 +492,88 @@ export async function getLessons(role: LessonRole, userId?: string): Promise<Les
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: lessonsCollection.path, operation: 'list' }));
         return buildRoleStarterLessons(role);
     }
+}
+
+export async function ensureDailyRecommendedLesson(
+    role: LessonRole,
+    trait: CxTrait,
+    userId: string
+): Promise<Lesson | null> {
+    if (role === 'global') return null;
+
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const lesson = buildAutoRecommendedLesson(role, trait);
+        const existing = tour.lessons.find(l => l.lessonId === lesson.lessonId);
+        if (existing) return existing;
+        tour.lessons.push(lesson);
+        return lesson;
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        return null;
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/lessons/ensureDailyRecommended', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ role, trait }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.message || 'Failed to ensure daily recommended lesson.';
+        console.warn('[ensureDailyRecommendedLesson] API request failed', { message, role, trait, userId });
+        return null;
+    }
+
+    const lesson = await response.json();
+    return lesson as Lesson;
+}
+
+export async function createUniqueRecommendedTestingLesson(
+    role: LessonRole,
+    trait: CxTrait,
+    userId: string
+): Promise<Lesson | null> {
+    if (role === 'global') return null;
+
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const lesson = buildUniqueRecommendedTestingLesson(role, trait);
+        tour.lessons.push(lesson);
+        return lesson;
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        return null;
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/lessons/createUniqueRecommendedTesting', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ role, trait }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.message || 'Failed to create unique recommended testing lesson.';
+        console.warn('[createUniqueRecommendedTestingLesson] API request failed', { message, role, trait, userId });
+        return null;
+    }
+
+    const lesson = await response.json();
+    return lesson as Lesson;
 }
 
 export async function getLessonById(lessonId: string, userId?: string): Promise<Lesson | null> {

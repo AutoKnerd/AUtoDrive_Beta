@@ -3,7 +3,7 @@
 
 import { Header } from '@/components/layout/header';
 import { LessonView } from '@/components/lessons/lesson-view';
-import { getDealershipById, getLessonById } from '@/lib/data.client';
+import { getDailyLessonLimits, getDealershipById, getLessonById } from '@/lib/data.client';
 import { Lesson, managerialRoles } from '@/lib/definitions';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
@@ -25,15 +25,20 @@ export default function LessonPage() {
     const [isPaused, setIsPaused] = useState(false);
     const [canUseTestingRetake, setCanUseTestingRetake] = useState(false);
     const [canUseTestingNewRecommended, setCanUseTestingNewRecommended] = useState(false);
+    const [recommendedTakenToday, setRecommendedTakenToday] = useState(false);
 
     const [lesson, setLesson] = useState<Lesson | null>(null);
     const [loading, setLoading] = useState(true);
+    const userId = user?.userId;
+    const dealershipIds = user?.dealershipIds ?? [];
+    const dealershipIdsKey = dealershipIds.join('|');
 
     // Effect for fetching the lesson data, depends on lessonId and user for tour mode context
     useEffect(() => {
         async function fetchLesson() {
+            if (!userId) return;
             setLoading(true);
-            const currentLesson = await getLessonById(params.lessonId, user?.userId);
+            const currentLesson = await getLessonById(params.lessonId, userId);
             if (currentLesson) {
                 setLesson(currentLesson);
             } else {
@@ -41,16 +46,18 @@ export default function LessonPage() {
             }
             setLoading(false);
         }
-        if (user) {
-            fetchLesson();
-        }
-    }, [params.lessonId, user]);
+        fetchLesson();
+    }, [params.lessonId, userId]);
 
     // Effect for checking user's paused status, depends on user
     useEffect(() => {
         async function checkStatus() {
-            if (user && user.dealershipIds.length > 0 && !isTouring) {
-                const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id, user.userId)));
+            if (!userId) return;
+            const limits = await getDailyLessonLimits(userId);
+            setRecommendedTakenToday(limits.recommendedTaken);
+
+            if (dealershipIds.length > 0 && !isTouring) {
+                const dealershipData = await Promise.all(dealershipIds.map(id => getDealershipById(id, userId)));
                 const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
                 const retakeTestingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
                 const newRecommendedTestingAccess = dealershipData.some(d => d?.enableNewRecommendedTesting === true);
@@ -67,10 +74,8 @@ export default function LessonPage() {
                  setCanUseTestingNewRecommended(false);
             }
         }
-        if (user) {
-            checkStatus();
-        }
-    }, [user, isTouring]);
+        checkStatus();
+    }, [userId, dealershipIdsKey, isTouring]);
 
 
     if (loading || !user) {
@@ -154,6 +159,36 @@ export default function LessonPage() {
                             <AlertTitle>Testing Access Restricted</AlertTitle>
                             <AlertDescription>
                                 Your dealership does not currently have access to the New Recommended (Testing) feature.
+                            </AlertDescription>
+                        </Alert>
+                        <Button asChild className="mt-4">
+                            <Link href="/">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Back to Dashboard
+                            </Link>
+                        </Button>
+                    </div>
+                </main>
+                {!isManager && !isTouring && <BottomNav />}
+            </div>
+        );
+    }
+
+    const isAllowedTestingRepeat =
+        (isTestingRetake && canUseTestingRetake) ||
+        (isTestingNewRecommended && canUseTestingNewRecommended);
+
+    if (isRecommended && recommendedTakenToday && !isAllowedTestingRepeat) {
+        return (
+            <div className="flex flex-col min-h-screen w-full">
+                <Header />
+                <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 pb-20 md:pb-8">
+                    <div className="w-full max-w-2xl">
+                        <Alert>
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Recommended Lesson Complete</AlertTitle>
+                            <AlertDescription>
+                                You have already completed today&apos;s recommended lesson. Only assigned lessons are available until tomorrow.
                             </AlertDescription>
                         </Alert>
                         <Button asChild className="mt-4">

@@ -95,6 +95,7 @@ If isRecommendedLesson is true:
   - Closing: {{cxScores.closing}}
   - Relationship Building: {{cxScores.relationshipBuilding}}
 - Train ONLY on that lowest-scoring trait for the entire session.
+- This lowest-scoring trait rule is mandatory and overrides any conflicting signal (including lesson title/category wording).
 
 If isRecommendedLesson is false:
 - Ignore lowest-score selection.
