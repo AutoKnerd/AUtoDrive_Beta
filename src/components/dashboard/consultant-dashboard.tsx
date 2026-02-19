@@ -208,6 +208,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [canRetakeRecommendedTesting, setCanRetakeRecommendedTesting] = useState(false);
+  const [canUseNewRecommendedTesting, setCanUseNewRecommendedTesting] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const { isTouring } = useAuth();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
@@ -243,8 +244,10 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       if (user.dealershipIds.length > 0 && !isTouring) {
           const dealershipData = await Promise.all(user.dealershipIds.map(id => getDealershipById(id, user.userId)));
           const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
-          const hasTestingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
-          setCanRetakeRecommendedTesting(hasTestingAccess);
+          const hasRetakeTestingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
+          const hasNewRecommendedTestingAccess = dealershipData.some(d => d?.enableNewRecommendedTesting === true);
+          setCanRetakeRecommendedTesting(hasRetakeTestingAccess);
+          setCanUseNewRecommendedTesting(hasNewRecommendedTestingAccess);
           if (activeDealerships.length === 0) {
               setIsPaused(true);
           } else {
@@ -252,6 +255,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
           }
       } else {
           setCanRetakeRecommendedTesting(false);
+          setCanUseNewRecommendedTesting(false);
           setIsPaused(false);
       }
 
@@ -337,7 +341,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     return `${Math.round(value)}%`;
   };
 
-  const recommendedLesson = useMemo(() => {
+  const recommendedLessonQueue = useMemo(() => {
     if (lessons.length === 0) return null;
     const lowestScoringTrait = Object.entries(averageScores).reduce((lowest, [trait, score]) => 
         score < lowest.score ? { trait: trait as CxTrait, score } : lowest, { trait: 'empathy' as CxTrait, score: 101 }
@@ -348,16 +352,23 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     const roleSpecificLessons = candidateLessons.filter(l => l.role === user.role);
     const globalLessons = candidateLessons.filter(l => l.role === 'global');
 
-    // Always prioritize lessons targeted to the signed-in role.
-    return (
-      roleSpecificLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) ||
-      roleSpecificLessons[0] ||
-      globalLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) ||
-      globalLessons[0] ||
-      candidateLessons[0] ||
-      null
-    );
+    const prioritized = [
+      ...roleSpecificLessons.filter(l => l.associatedTrait === lowestScoringTrait.trait),
+      ...roleSpecificLessons.filter(l => l.associatedTrait !== lowestScoringTrait.trait),
+      ...globalLessons.filter(l => l.associatedTrait === lowestScoringTrait.trait),
+      ...globalLessons.filter(l => l.associatedTrait !== lowestScoringTrait.trait),
+      ...candidateLessons,
+    ];
+
+    const dedupedById = prioritized.filter((lesson, index, all) => (
+      all.findIndex(other => other.lessonId === lesson.lessonId) === index
+    ));
+
+    return dedupedById;
   }, [lessons, assignedLessonHistoryIds, averageScores, user.role]);
+
+  const recommendedLesson = recommendedLessonQueue?.[0] ?? null;
+  const newRecommendedTestingLesson = recommendedLessonQueue?.find(l => l.lessonId !== recommendedLesson?.lessonId) ?? null;
 
   const recentActivities = useMemo(() => {
     if (!activity || !user) return [];
@@ -520,6 +531,20 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                                       )}
                                     >
                                       Retake Recommended (Testing)
+                                    </Link>
+                                )}
+                                {canUseNewRecommendedTesting && newRecommendedTestingLesson && (
+                                    <Link
+                                      href={`/lesson/${newRecommendedTestingLesson.lessonId}?recommended=true&new=testing`}
+                                      className={cn(
+                                        "w-full",
+                                        buttonVariants({
+                                          variant: "outline",
+                                          className: "w-full font-semibold border-emerald-400/60 text-emerald-200 hover:bg-emerald-500/10 hover:text-emerald-100",
+                                        })
+                                      )}
+                                    >
+                                      New Recommended (Testing)
                                     </Link>
                                 )}
                             </div>

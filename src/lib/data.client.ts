@@ -384,6 +384,7 @@ export async function createDealership(dealershipData: {
             status: 'active',
             address: dealershipData.address as Address,
             enableRetakeRecommendedTesting: false,
+            enableNewRecommendedTesting: false,
         };
         (await getTourData()).dealerships.push(newDealership);
         return newDealership;
@@ -919,6 +920,38 @@ export async function updateDealershipRetakeTestingAccess(
             path: dealershipRef.path,
             operation: 'update',
             requestResourceData: { enableRetakeRecommendedTesting: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+export async function updateDealershipNewRecommendedTestingAccess(
+    dealershipId: string,
+    enabled: boolean
+): Promise<Dealership> {
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.enableNewRecommendedTesting = enabled;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    const dealershipsCollection = collection(db, 'dealerships');
+    const dealershipRef = doc(dealershipsCollection, dealershipId);
+
+    try {
+        await updateDoc(dealershipRef, { enableNewRecommendedTesting: enabled });
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: { enableNewRecommendedTesting: enabled },
         });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;

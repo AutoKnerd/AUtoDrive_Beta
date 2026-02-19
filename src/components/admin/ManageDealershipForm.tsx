@@ -3,7 +3,11 @@
 
 import { useState, useMemo } from 'react';
 import { Dealership } from '@/lib/definitions';
-import { updateDealershipStatus, updateDealershipRetakeTestingAccess } from '@/lib/data.client';
+import {
+  updateDealershipStatus,
+  updateDealershipRetakeTestingAccess,
+  updateDealershipNewRecommendedTestingAccess,
+} from '@/lib/data.client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
@@ -35,6 +39,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [isConfirming, setIsConfirming] = useState< 'pause' | 'deactivate' | null>(null);
   const [confirmationInput, setConfirmationInput] = useState('');
   const [retakeTestingEnabled, setRetakeTestingEnabled] = useState(false);
+  const [newRecommendedTestingEnabled, setNewRecommendedTestingEnabled] = useState(false);
   const { toast } = useToast();
   
   const activeDealerships = useMemo(() => {
@@ -45,6 +50,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     const dealership = dealerships.find(d => d.id === dealershipId);
     setSelectedDealership(dealership || null);
     setRetakeTestingEnabled(dealership?.enableRetakeRecommendedTesting === true);
+    setNewRecommendedTestingEnabled(dealership?.enableNewRecommendedTesting === true);
   }
 
   async function handleUpdateStatus(newStatus: 'active' | 'paused' | 'deactivated') {
@@ -82,6 +88,30 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       toast({
         title: 'Testing Access Updated',
         description: `${selectedDealership.name} ${retakeTestingEnabled ? 'can now' : 'can no longer'} use the Retake Recommended (Testing) button.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleUpdateNewRecommendedTestingAccess() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      await updateDealershipNewRecommendedTestingAccess(selectedDealership.id, newRecommendedTestingEnabled);
+      setSelectedDealership((prev) => (
+        prev ? { ...prev, enableNewRecommendedTesting: newRecommendedTestingEnabled } : prev
+      ));
+      toast({
+        title: 'Testing Access Updated',
+        description: `${selectedDealership.name} ${newRecommendedTestingEnabled ? 'can now' : 'can no longer'} use the New Recommended (Testing) button.`,
       });
       onDealershipManaged?.();
     } catch (e) {
@@ -161,7 +191,32 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                   onClick={handleUpdateRetakeTestingAccess}
                   className="w-full md:w-auto"
                 >
-                  {isLoading ? <Spinner size="sm" /> : 'Save Testing Access'}
+                  {isLoading ? <Spinner size="sm" /> : 'Save Retake Access'}
+                </Button>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-medium">New Recommended (Testing)</p>
+                        <p className="text-xs text-muted-foreground">
+                            Allow users in this dealership to launch an extra recommended lesson for testing.
+                        </p>
+                    </div>
+                    <Switch
+                      checked={newRecommendedTestingEnabled}
+                      onCheckedChange={setNewRecommendedTestingEnabled}
+                      disabled={isLoading}
+                      aria-label="Enable new recommended testing"
+                    />
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={isLoading || newRecommendedTestingEnabled === (selectedDealership.enableNewRecommendedTesting === true)}
+                  onClick={handleUpdateNewRecommendedTestingAccess}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save New Lesson Access'}
                 </Button>
             </div>
 

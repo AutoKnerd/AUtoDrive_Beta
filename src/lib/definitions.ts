@@ -260,6 +260,7 @@ export type Dealership = {
   status: 'active' | 'paused' | 'deactivated';
   address?: Address;
   enableRetakeRecommendedTesting?: boolean;
+  enableNewRecommendedTesting?: boolean;
 };
 
 export type LessonAssignment = {
