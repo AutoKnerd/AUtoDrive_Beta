@@ -9,7 +9,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { generateTourData } from './tour-data';
 import { initializeFirebase } from '@/firebase/init';
-import { BASELINE, clampRatings, updateRollingStats } from '@/lib/stats/updateRollingStats';
+import { ALPHA, BASELINE, LAMBDA, clampRatings, updateRollingStats } from '@/lib/stats/updateRollingStats';
 import { buildAutoRecommendedLesson, buildUniqueRecommendedTestingLesson } from '@/lib/lessons/auto-recommended';
 
 const { firestore: db, auth } = initializeFirebase();
@@ -40,6 +40,26 @@ const getTourIdFromEmail = (email?: string | null): string | null => {
     return tourUserEmails[email.toLowerCase()] || null;
 };
 
+function cloneUserStats(stats?: Partial<User['stats']>): Partial<User['stats']> | undefined {
+    if (!stats) return undefined;
+    return {
+        empathy: stats.empathy ? { ...stats.empathy } : undefined,
+        listening: stats.listening ? { ...stats.listening } : undefined,
+        trust: stats.trust ? { ...stats.trust } : undefined,
+        followUp: stats.followUp ? { ...stats.followUp } : undefined,
+        closing: stats.closing ? { ...stats.closing } : undefined,
+        relationship: stats.relationship ? { ...stats.relationship } : undefined,
+    };
+}
+
+function cloneTourUser(user: User): User {
+    return {
+        ...user,
+        dealershipIds: [...(user.dealershipIds ?? [])],
+        stats: cloneUserStats(user.stats),
+    };
+}
+
 type LegacyLessonScores = {
     empathy: number;
     listening: number;
@@ -57,6 +77,95 @@ function buildDefaultUserStats(now: Date = new Date()): User['stats'] {
         followUp: { score: BASELINE, lastUpdated: now },
         closing: { score: BASELINE, lastUpdated: now },
         relationship: { score: BASELINE, lastUpdated: now },
+    };
+}
+
+function clampScore(value: number): number {
+    if (!Number.isFinite(value)) return BASELINE;
+    return Math.max(0, Math.min(100, value));
+}
+
+function toSafeDate(value: unknown, fallback: Date): Date {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return value;
+    }
+
+    if (value && typeof value === 'object') {
+        const maybeTimestamp = value as { toDate?: () => Date };
+        if (typeof maybeTimestamp.toDate === 'function') {
+            const parsed = maybeTimestamp.toDate();
+            if (parsed instanceof Date && !Number.isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+    }
+
+    return fallback;
+}
+
+function applyTourRollingStatsUpdate(
+    stats: User['stats'] | undefined,
+    ratings: Ratings,
+    now: Date
+): {
+    nextStats: User['stats'];
+    before: Ratings;
+    after: Ratings;
+} {
+    const baselineStats = buildDefaultUserStats(now);
+    const sourceStats = stats ?? baselineStats;
+    const msPerDay = 24 * 60 * 60 * 1000;
+
+    const calc = (key: keyof Ratings) => {
+        const currentStat = sourceStats?.[key];
+        const before = clampScore(typeof currentStat?.score === 'number' ? currentStat.score : BASELINE);
+        const lastUpdated = toSafeDate(currentStat?.lastUpdated, now);
+        const deltaDays = Math.max(0, (now.getTime() - lastUpdated.getTime()) / msPerDay);
+        const drifted = BASELINE + (before - BASELINE) * Math.exp(-LAMBDA * deltaDays);
+        const after = clampScore((1 - ALPHA) * drifted + ALPHA * ratings[key]);
+
+        return {
+            before,
+            after,
+            stat: {
+                score: after,
+                lastUpdated: now,
+            },
+        };
+    };
+
+    const empathy = calc('empathy');
+    const listening = calc('listening');
+    const trust = calc('trust');
+    const followUp = calc('followUp');
+    const closing = calc('closing');
+    const relationship = calc('relationship');
+
+    return {
+        nextStats: {
+            empathy: empathy.stat,
+            listening: listening.stat,
+            trust: trust.stat,
+            followUp: followUp.stat,
+            closing: closing.stat,
+            relationship: relationship.stat,
+        },
+        before: {
+            empathy: empathy.before,
+            listening: listening.before,
+            trust: trust.before,
+            followUp: followUp.before,
+            closing: closing.before,
+            relationship: relationship.before,
+        },
+        after: {
+            empathy: empathy.after,
+            listening: listening.after,
+            trust: trust.after,
+            followUp: followUp.after,
+            closing: closing.after,
+            relationship: relationship.after,
+        },
     };
 }
 
@@ -208,7 +317,8 @@ const getDataById = async <T>(db: Firestore, collectionName: string, id: string)
 export async function getUserById(userId: string): Promise<User | null> {
     if (isTouringUser(userId)) {
         const { users } = await getTourData();
-        return users.find(u => u.userId === userId) || null;
+        const tourUser = users.find(u => u.userId === userId);
+        return tourUser ? cloneTourUser(tourUser) : null;
     }
 
     const authTourId = auth.currentUser?.uid === userId
@@ -216,7 +326,7 @@ export async function getUserById(userId: string): Promise<User | null> {
         : null;
     if (authTourId) {
         const tourUser = (await getTourData()).users.find(u => u.userId === authTourId);
-        if (tourUser) return tourUser;
+        if (tourUser) return cloneTourUser(tourUser);
     }
 
     const userDoc = await getDoc(doc(db, 'users', userId)).catch(() => null);
@@ -224,7 +334,7 @@ export async function getUserById(userId: string): Promise<User | null> {
         const tourId = getTourIdFromEmail(userDoc.data()?.email);
         if (tourId) {
              const tourUser = (await getTourData()).users.find(u => u.userId === tourId);
-             return tourUser || null;
+             return tourUser ? cloneTourUser(tourUser) : null;
         }
     }
     
@@ -689,6 +799,11 @@ export async function getConsultantActivity(userId: string): Promise<LessonLog[]
 }
 
 export async function getDailyLessonLimits(userId: string): Promise<{ recommendedTaken: boolean, otherTaken: boolean }> {
+    if (isTouringUser(userId)) {
+        // Guided tours should remain repeatable and never be blocked by "daily" limits.
+        return { recommendedTaken: false, otherTaken: false };
+    }
+
     const logs = await getConsultantActivity(userId);
     const todayLogs = logs.filter(log => isToday(log.timestamp));
     return { recommendedTaken: todayLogs.some(l => l.isRecommended), otherTaken: todayLogs.some(l => !l.isRecommended) };
@@ -717,8 +832,64 @@ export async function logLessonCompletion(data: {
         const tour = await getTourData();
         const user = tour.users.find(u => u.userId === data.userId);
         if (!user) throw new Error('Tour user not found');
-        
+
+        const now = new Date();
+        const existingStatScores = getExistingRollingStatScores(user);
+        const shouldSeedStatsFromLegacyScores = !!data.scores && (
+            !existingStatScores || looksLikeLegacyBootstrapStats(existingStatScores)
+        );
+        const seededStats = shouldSeedStatsFromLegacyScores && data.scores
+            ? buildStatsSeedFromLegacyScores(data.scores, Timestamp.fromDate(now))
+            : user.stats;
+
+        const statsResult = applyTourRollingStatsUpdate(seededStats, normalizedRatings, now);
+        user.stats = statsResult.nextStats;
         user.xp = computeNextXp(user.xp, xpDelta, severity);
+
+        const scoreDelta = {
+            empathy: statsResult.after.empathy - statsResult.before.empathy,
+            listening: statsResult.after.listening - statsResult.before.listening,
+            trust: statsResult.after.trust - statsResult.before.trust,
+            followUp: statsResult.after.followUp - statsResult.before.followUp,
+            closing: statsResult.after.closing - statsResult.before.closing,
+            relationshipBuilding: statsResult.after.relationship - statsResult.before.relationship,
+        };
+
+        const newTourLog: LessonLog = {
+            logId: `tour-log-${data.userId}-${now.getTime()}`,
+            timestamp: now,
+            userId: data.userId,
+            lessonId: data.lessonId,
+            stepResults: { final: 'pass' },
+            xpGained: xpDelta,
+            empathy: normalizedScores.empathy,
+            listening: normalizedScores.listening,
+            trust: normalizedScores.trust,
+            followUp: normalizedScores.followUp,
+            closing: normalizedScores.closing,
+            relationshipBuilding: normalizedScores.relationshipBuilding,
+            ratings: normalizedRatings,
+            severity,
+            flags,
+            trainedTrait: data.trainedTrait,
+            coachSummary: data.coachSummary,
+            recommendedNextFocus: data.recommendedNextFocus,
+            scoreDelta,
+            isRecommended: data.isRecommended,
+        };
+        tour.lessonLogs.push(newTourLog);
+
+        if (data.isRecommended) {
+            const assignment = tour.lessonAssignments.find(a =>
+                a.userId === data.userId &&
+                a.lessonId === data.lessonId &&
+                !a.completed
+            );
+            if (assignment) {
+                assignment.completed = true;
+            }
+        }
+
         const newBadges: Badge[] = [];
         
         const badge = allBadges.find(b => b.id === 'first-drive');
@@ -728,10 +899,48 @@ export async function logLessonCompletion(data: {
         }
         
         return {
-            updatedUser: user,
+            updatedUser: cloneTourUser(user),
             newBadges: newBadges,
             severity,
             ratingsUsed: normalizedRatings,
+            statChanges: {
+                empathy: {
+                    before: statsResult.before.empathy,
+                    after: statsResult.after.empathy,
+                    delta: scoreDelta.empathy,
+                    rating: normalizedRatings.empathy,
+                },
+                listening: {
+                    before: statsResult.before.listening,
+                    after: statsResult.after.listening,
+                    delta: scoreDelta.listening,
+                    rating: normalizedRatings.listening,
+                },
+                trust: {
+                    before: statsResult.before.trust,
+                    after: statsResult.after.trust,
+                    delta: scoreDelta.trust,
+                    rating: normalizedRatings.trust,
+                },
+                followUp: {
+                    before: statsResult.before.followUp,
+                    after: statsResult.after.followUp,
+                    delta: scoreDelta.followUp,
+                    rating: normalizedRatings.followUp,
+                },
+                closing: {
+                    before: statsResult.before.closing,
+                    after: statsResult.after.closing,
+                    delta: scoreDelta.closing,
+                    rating: normalizedRatings.closing,
+                },
+                relationshipBuilding: {
+                    before: statsResult.before.relationship,
+                    after: statsResult.after.relationship,
+                    delta: scoreDelta.relationshipBuilding,
+                    rating: normalizedRatings.relationship,
+                },
+            },
         };
     }
 
@@ -921,6 +1130,109 @@ export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
     }
 };
 
+type TeamActivityRow = {
+    consultant: User;
+    lessonsCompleted: number;
+    totalXp: number;
+    avgScore: number;
+    topStrength: CxTrait | null;
+    weakestSkill: CxTrait | null;
+    lastInteraction: Date | null;
+};
+
+type ManagerStats = {
+    totalLessons: number;
+    avgScores: Record<CxTrait, number> | null;
+};
+
+function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivityRow {
+    if (!logs.length) {
+        return {
+            consultant: cloneTourUser(consultant),
+            lessonsCompleted: 0,
+            totalXp: consultant.xp,
+            avgScore: 0,
+            topStrength: null,
+            weakestSkill: null,
+            lastInteraction: null,
+        };
+    }
+
+    const traits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+    const totals = logs.reduce((acc, log) => {
+        acc.empathy += log.empathy || 0;
+        acc.listening += log.listening || 0;
+        acc.trust += log.trust || 0;
+        acc.followUp += log.followUp || 0;
+        acc.closing += log.closing || 0;
+        acc.relationshipBuilding += log.relationshipBuilding || 0;
+        return acc;
+    }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
+
+    const count = logs.length;
+    const avgByTrait: Record<CxTrait, number> = {
+        empathy: Math.round(totals.empathy / count),
+        listening: Math.round(totals.listening / count),
+        trust: Math.round(totals.trust / count),
+        followUp: Math.round(totals.followUp / count),
+        closing: Math.round(totals.closing / count),
+        relationshipBuilding: Math.round(totals.relationshipBuilding / count),
+    };
+
+    const topStrength = traits.reduce((best, trait) => (
+        avgByTrait[trait] > avgByTrait[best] ? trait : best
+    ), traits[0]);
+
+    const weakestSkill = traits.reduce((weakest, trait) => (
+        avgByTrait[trait] < avgByTrait[weakest] ? trait : weakest
+    ), traits[0]);
+
+    const lastInteraction = logs.reduce<Date | null>((latest, log) => {
+        if (!latest || log.timestamp > latest) return log.timestamp;
+        return latest;
+    }, null);
+
+    return {
+        consultant: cloneTourUser(consultant),
+        lessonsCompleted: count,
+        totalXp: consultant.xp,
+        avgScore: Math.round((Object.values(avgByTrait).reduce((sum, value) => sum + value, 0) / traits.length)),
+        topStrength,
+        weakestSkill,
+        lastInteraction,
+    };
+}
+
+function buildManagerStatsFromRows(rows: TeamActivityRow[], logsByUserId: Map<string, LessonLog[]>): ManagerStats {
+    const memberLogs = rows.flatMap(row => logsByUserId.get(row.consultant.userId) || []);
+    if (!memberLogs.length) {
+        return { totalLessons: 0, avgScores: null };
+    }
+
+    const totals = memberLogs.reduce((acc, log) => {
+        acc.empathy += log.empathy || 0;
+        acc.listening += log.listening || 0;
+        acc.trust += log.trust || 0;
+        acc.followUp += log.followUp || 0;
+        acc.closing += log.closing || 0;
+        acc.relationshipBuilding += log.relationshipBuilding || 0;
+        return acc;
+    }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
+
+    const totalLessons = memberLogs.length;
+    return {
+        totalLessons,
+        avgScores: {
+            empathy: Math.round(totals.empathy / totalLessons),
+            listening: Math.round(totals.listening / totalLessons),
+            trust: Math.round(totals.trust / totalLessons),
+            followUp: Math.round(totals.followUp / totalLessons),
+            closing: Math.round(totals.closing / totalLessons),
+            relationshipBuilding: Math.round(totals.relationshipBuilding / totalLessons),
+        },
+    };
+}
+
 export async function getDealerships(user?: User): Promise<Dealership[]> {
     if (isTouringUser(user?.userId)) return (await getTourData()).dealerships;
     const snap = await getDocs(collection(db, 'dealerships'));
@@ -932,6 +1244,37 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
 }
 
 export async function getCombinedTeamData(dealershipId: string, user: User): Promise<any> {
+    if (isTouringUser(user.userId)) {
+        const tour = await getTourData();
+        const roles = getTeamMemberRoles(user.role);
+        const members = tour.users.filter((member) => (
+            member.userId !== user.userId &&
+            roles.includes(member.role)
+        ));
+        const filtered = dealershipId === 'all'
+            ? members
+            : members.filter((member) => member.dealershipIds.includes(dealershipId));
+
+        const logsByUserId = new Map<string, LessonLog[]>();
+        for (const log of tour.lessonLogs) {
+            const existing = logsByUserId.get(log.userId);
+            if (existing) {
+                existing.push(log);
+            } else {
+                logsByUserId.set(log.userId, [log]);
+            }
+        }
+
+        const teamActivity = filtered.map((member) => (
+            buildTeamActivityRow(member, logsByUserId.get(member.userId) || [])
+        ));
+
+        return {
+            teamActivity,
+            managerStats: buildManagerStatsFromRows(teamActivity, logsByUserId),
+        };
+    }
+
     const roles = getTeamMemberRoles(user.role);
     const usersSnap = await getDocs(query(collection(db, 'users'), where("role", "in", roles)));
     const members = usersSnap.docs.map(d => ({ ...d.data(), userId: d.id } as User));
@@ -946,6 +1289,29 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
 export async function getManageableUsers(managerId: string): Promise<User[]> {
     const manager = await getUserById(managerId);
     if (!manager) return [];
+
+    if (isTouringUser(managerId)) {
+        const tour = await getTourData();
+        const isAdmin = ['Admin', 'Developer'].includes(manager.role);
+
+        if (isAdmin) {
+            return tour.users
+                .filter(user => user.userId !== managerId)
+                .map(cloneTourUser)
+                .sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        const roles = getTeamMemberRoles(manager.role);
+        return tour.users
+            .filter((user) => (
+                user.userId !== managerId &&
+                roles.includes(user.role) &&
+                user.dealershipIds.some((id) => manager.dealershipIds.includes(id))
+            ))
+            .map(cloneTourUser)
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
     const isAdmin = ['Admin', 'Developer'].includes(manager.role);
     
     const snap = await getDocs(collection(db, 'users'));
