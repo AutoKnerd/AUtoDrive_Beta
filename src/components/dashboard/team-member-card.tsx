@@ -20,6 +20,8 @@ import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { BadgeShowcase } from '../profile/badge-showcase';
 import { managerialRoles } from '@/lib/definitions';
+import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
+import { getDefaultScope } from '@/lib/cx/scope';
 
 interface TeamMemberCardProps {
   user: User;
@@ -229,6 +231,9 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const canManageAssignments = currentUser.userId !== user.userId && getTeamMemberRoles(currentUser.role).includes(user.role);
   const canAssignLessons = ['Owner', 'Admin', 'Trainer', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(currentUser.role);
 
+  const targetUserScope = useMemo(() => {
+    return getDefaultScope(user);
+  }, [user]);
 
   return (
     <div className="space-y-4">
@@ -285,6 +290,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             </Card>
         ) : (
             <>
+                <CxSoundwaveCard scope={targetUserScope} />
                 <Card>
                     <CardHeader>
                     <CardTitle>Average CX Scores</CardTitle>
