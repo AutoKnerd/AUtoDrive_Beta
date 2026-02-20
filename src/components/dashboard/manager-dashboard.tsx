@@ -680,6 +680,16 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return baseScope;
   }, [user, selectedDealershipId]);
 
+  const personalScope = useMemo(() => {
+    if (noPersonalDevelopmentRoles.includes(user.role)) return undefined;
+    return {
+      role: 'consultant' as const,
+      orgId: 'autodrive-org',
+      storeId: user.dealershipIds?.[0],
+      userId: user.userId,
+    };
+  }, [user]);
+
   return (
     <div className="space-y-8 pb-8">
       <BaselineAssessmentDialog
@@ -733,7 +743,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         {/* Trend Visualization */}
         {!isSuperAdmin && (
           <section>
-            <CxSoundwaveCard scope={activeScope} />
+            <CxSoundwaveCard scope={activeScope} personalScope={personalScope} />
           </section>
         )}
 
