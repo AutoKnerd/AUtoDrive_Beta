@@ -102,15 +102,14 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                   <Info className="h-4 w-4 text-muted-foreground/40 cursor-help hover:text-muted-foreground transition-colors" />
                 </TooltipTrigger>
                 <TooltipContent className="bg-popover border-border text-xs max-w-[200px]">
-                  Real-time skill averages indexed from recent lesson performance. 
-                  Neon lines show {getScopeLabel(activeScope).toLowerCase()} performance.
-                  {mode === 'compare' && ' Ghostly fills indicate delta vs higher-level average.'}
+                  {range === 'today' ? 'Current standing compared to dealership baseline.' : `Aggregated skill averages over the last ${range}. Neon lines show your performance.`}
+                  {mode === 'compare' && ' Grey nodes indicate dealership average.'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
           <CardDescription className="text-muted-foreground text-xs">
-            {getScopeLabel(activeScope)} {range === 'today' ? 'current standing' : `trends over the last ${range}`}.
+            {getScopeLabel(activeScope)} {range === 'today' ? 'current standing' : `averages over the last ${range}`}.
           </CardDescription>
         </div>
 
@@ -176,10 +175,13 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
           onSkillClick={setActiveSkillId} 
         />
 
-        {/* Current Snapshot Grid - Anchor numeric values to real data */}
+        {/* Current Snapshot Grid - Dynamic averages based on range */}
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-4 border-t border-border dark:border-white/5">
           {series.map((s) => {
-            const current = s.points[s.points.length - 1]?.foreground || 0;
+            const displayValue = range === 'today' 
+              ? (s.points[s.points.length - 1]?.foreground || 0)
+              : (s.points.reduce((acc, p) => acc + p.foreground, 0) / s.points.length);
+              
             const skill = CX_SKILLS.find(sk => sk.id === s.skillId);
             const Icon = skill?.icon || TrendingUp;
             const isActive = activeSkillId === s.skillId;
@@ -204,7 +206,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                     {s.label}
                   </p>
                   <p className="text-xl font-black tracking-tighter text-foreground">
-                    {current.toFixed(0)}%
+                    {displayValue.toFixed(0)}%
                   </p>
                 </div>
               </div>

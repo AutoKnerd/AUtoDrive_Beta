@@ -124,22 +124,29 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
             const yBaseline = yScale(bgPoints[0]);
 
             return (
-              <g key={s.skillId} className="transition-opacity duration-500" opacity={isDimmed ? 0.15 : 1}>
+              <g key={s.skillId} className="transition-all duration-500" opacity={isDimmed ? 0.15 : 1}>
                 {/* Single Point Connector Line (Ghostly) */}
                 {mode === 'compare' && (
                   <line 
                     x1={x} y1={yBaseline} x2={x} y2={y} 
-                    stroke={s.color} strokeOpacity="0.2" strokeWidth="2" strokeDasharray="4 2" 
+                    stroke="currentColor" 
+                    strokeOpacity="0.15" 
+                    strokeWidth="1.5" 
+                    strokeDasharray="4 2" 
+                    className="text-foreground"
                   />
                 )}
                 
-                {/* Baseline Point */}
+                {/* Baseline Point (Grey Dealer/Group Avg) */}
                 {mode === 'compare' && (
                   <circle 
-                    cx={x} cy={yBaseline} r="4" 
-                    fill="currentColor" fillOpacity="0.1" 
-                    className="text-foreground"
-                  />
+                    cx={x} cy={yBaseline} r="4.5" 
+                    fill="currentColor" 
+                    fillOpacity="0.2" 
+                    className="text-foreground hover:fill-opacity-40 transition-all cursor-help"
+                  >
+                    <title>Dealer Baseline: {bgPoints[0].toFixed(1)}%</title>
+                  </circle>
                 )}
 
                 {/* Main Foreground Point with Glow */}
