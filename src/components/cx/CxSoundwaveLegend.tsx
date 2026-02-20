@@ -25,18 +25,18 @@ export function CxSoundwaveLegend({ activeSkillId, onSkillHover, onSkillClick }:
             onClick={() => onSkillClick(isActive ? null : skill.id)}
             className={cn(
               "flex items-center gap-2 px-2 py-1 rounded-full transition-all duration-300",
-              isActive ? "bg-white/10 ring-1 ring-white/20" : "hover:bg-white/5",
+              isActive ? "bg-muted ring-1 ring-border dark:bg-white/10 dark:ring-white/20" : "hover:bg-muted/50 dark:hover:bg-white/5",
               isDimmed ? "opacity-40 grayscale-[0.5]" : "opacity-100"
             )}
           >
             <div 
-              className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]" 
+              className="w-2 h-2 rounded-full shadow-sm dark:shadow-[0_0_8px_rgba(0,0,0,0.5)]" 
               style={{ 
                 backgroundColor: skill.color,
                 boxShadow: isActive ? `0 0 10px ${skill.color}` : 'none'
               }} 
             />
-            <span className="text-[10px] font-semibold tracking-wider uppercase text-white/70">
+            <span className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground hover:text-foreground dark:text-white/70">
               {skill.label}
             </span>
           </button>

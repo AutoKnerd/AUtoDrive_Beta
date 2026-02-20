@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { CxSeries, CxPoint } from '@/lib/cx/rollups';
 import { CxSkillId } from '@/lib/cx/skills';
+import { cn } from '@/lib/utils';
 
 interface CxSoundwaveChartProps {
   series: CxSeries[];
@@ -92,9 +93,17 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
           ))}
         </defs>
 
-        {/* Grid lines (faint) */}
-        <line x1={padding.left} y1={yScale(50)} x2={width - padding.right} y2={yScale(50)} stroke="white" strokeOpacity="0.05" strokeDasharray="4 4" />
-        <line x1={padding.left} y1={yScale(100)} x2={width - padding.right} y2={yScale(100)} stroke="white" strokeOpacity="0.05" />
+        {/* Grid lines */}
+        <line 
+          x1={padding.left} y1={yScale(50)} x2={width - padding.right} y2={yScale(50)} 
+          stroke="currentColor" strokeOpacity="0.1" strokeDasharray="4 4" 
+          className="text-foreground"
+        />
+        <line 
+          x1={padding.left} y1={yScale(100)} x2={width - padding.right} y2={yScale(100)} 
+          stroke="currentColor" strokeOpacity="0.1" 
+          className="text-foreground"
+        />
 
         {series.map((s) => {
           const isActive = activeSkillId === s.skillId;
@@ -109,7 +118,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
                 <path
                   d={getValleyPath(fgPoints, bgPoints)}
                   fill={`url(#grad-${s.skillId})`}
-                  className="pointer-events-none"
+                  className="pointer-events-none opacity-40 dark:opacity-100"
                 />
               )}
 
@@ -118,11 +127,11 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
                 <path
                   d={getPath(bgPoints)}
                   fill="none"
-                  stroke="white"
-                  strokeOpacity="0.1"
+                  stroke="currentColor"
+                  strokeOpacity="0.2"
                   strokeWidth="1"
                   strokeDasharray="2 2"
-                  className="pointer-events-none"
+                  className="pointer-events-none text-foreground"
                 />
               )}
 
@@ -142,8 +151,8 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
         {/* Tooltip Marker */}
         {hoveredPoint && (
           <g>
-            <line x1={hoveredPoint.x} y1={padding.top} x2={hoveredPoint.x} y2={height - padding.bottom} stroke="white" strokeOpacity="0.2" />
-            <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="4" fill="white" className="animate-pulse" />
+            <line x1={hoveredPoint.x} y1={padding.top} x2={hoveredPoint.x} y2={height - padding.bottom} stroke="currentColor" strokeOpacity="0.2" className="text-foreground" />
+            <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="4" fill="currentColor" className="animate-pulse text-foreground" />
           </g>
         )}
       </svg>
@@ -151,33 +160,33 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
       {/* Tooltip Overlay */}
       {hoveredPoint && (
         <div 
-          className="absolute z-50 pointer-events-none bg-slate-900/90 border border-white/10 p-3 rounded-lg backdrop-blur-md shadow-2xl text-[10px] space-y-1"
+          className="absolute z-50 pointer-events-none bg-card/95 border border-border p-3 rounded-lg backdrop-blur-md shadow-2xl text-[10px] space-y-1 dark:bg-slate-900/90 dark:border-white/10"
           style={{ 
             left: hoveredPoint.x > width / 2 ? hoveredPoint.x - 160 : hoveredPoint.x + 20,
             top: hoveredPoint.y - 40
           }}
         >
-          <p className="text-white/50 font-medium">{hoveredPoint.point.date}</p>
+          <p className="text-muted-foreground font-medium">{hoveredPoint.point.date}</p>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: series.find(s => s.skillId === hoveredPoint.skillId)?.color }} />
-            <p className="text-white font-bold text-sm uppercase">{series.find(s => s.skillId === hoveredPoint.skillId)?.label}</p>
+            <p className="text-foreground font-bold text-sm uppercase">{series.find(s => s.skillId === hoveredPoint.skillId)?.label}</p>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 pt-1 border-t border-white/5">
+          <div className="grid grid-cols-2 gap-x-4 pt-1 border-t border-border dark:border-white/5">
             <div>
-              <p className="text-white/40">Current</p>
-              <p className="text-lg font-bold text-white">{hoveredPoint.point.foreground.toFixed(1)}%</p>
+              <p className="text-muted-foreground">Current</p>
+              <p className="text-lg font-bold text-foreground">{hoveredPoint.point.foreground.toFixed(1)}%</p>
             </div>
             {mode === 'compare' && (
               <div>
-                <p className="text-white/40">Baseline</p>
-                <p className="text-lg font-bold text-white/60">{hoveredPoint.point.baseline.toFixed(1)}%</p>
+                <p className="text-muted-foreground">Baseline</p>
+                <p className="text-lg font-bold text-muted-foreground/60">{hoveredPoint.point.baseline.toFixed(1)}%</p>
               </div>
             )}
           </div>
           {mode === 'compare' && (
             <p className={cn(
               "font-bold",
-              hoveredPoint.point.foreground >= hoveredPoint.point.baseline ? "text-green-400" : "text-red-400"
+              hoveredPoint.point.foreground >= hoveredPoint.point.baseline ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
             )}>
               {hoveredPoint.point.foreground >= hoveredPoint.point.baseline ? '↑' : '↓'} 
               {Math.abs(hoveredPoint.point.foreground - hoveredPoint.point.baseline).toFixed(1)}% vs baseline
