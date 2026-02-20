@@ -62,7 +62,7 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
       <div className="absolute top-[-10%] -left-[10%] w-[40%] h-[40%] bg-cyan-500/5 blur-[100px] rounded-full pointer-events-none dark:bg-cyan-500/10" />
       <div className="absolute bottom-[-10%] -right-[10%] w-[40%] h-[40%] bg-purple-500/5 blur-[100px] rounded-full pointer-events-none dark:bg-purple-500/10" />
 
-      <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 space-y-0 pb-4">
+      <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 space-y-0 pb-2">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <CardTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -136,8 +136,8 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
         </div>
       </CardHeader>
 
-      <CardContent className="pt-2">
-        <div className="space-y-6">
+      <CardContent className="pt-0">
+        <div className="space-y-4">
           <CxSoundwaveChart 
             series={series} 
             activeSkillId={activeSkillId} 
@@ -150,7 +150,7 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
           />
 
           {/* Current Snapshot Grid */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-6 border-t border-border dark:border-white/5">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-4 border-t border-border dark:border-white/5">
             {series.map((s) => {
               const current = s.points[s.points.length - 1]?.foreground || 0;
               const skill = CX_SKILLS.find(sk => sk.id === s.skillId);

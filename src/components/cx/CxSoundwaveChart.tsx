@@ -14,9 +14,9 @@ interface CxSoundwaveChartProps {
 export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<{ skillId: CxSkillId; point: CxPoint; x: number; y: number } | null>(null);
 
-  const padding = { top: 40, bottom: 20, left: 10, right: 10 };
+  const padding = { top: 20, bottom: 10, left: 10, right: 10 };
   const width = 800;
-  const height = 300;
+  const height = 200;
 
   const pointsCount = series[0]?.points.length || 0;
   const xScale = (width - padding.left - padding.right) / Math.max(1, pointsCount - 1);
@@ -56,7 +56,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
   };
 
   return (
-    <div className="relative w-full aspect-[8/3]">
+    <div className="relative w-full aspect-[4/1]">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full h-full overflow-visible"
