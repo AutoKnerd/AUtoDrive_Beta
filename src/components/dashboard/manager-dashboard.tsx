@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -732,6 +733,38 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             )}
       </section>
 
+      {/* REORDERED: Dealership Selector Card at the top of content */}
+      {(['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
+        <Card className="bg-card/50 backdrop-blur-sm border-dashed">
+            <CardHeader className="py-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <CardTitle className="text-lg">Dealership Overview</CardTitle>
+                        <CardDescription>Choose a store to update statistics and trends.</CardDescription>
+                    </div>
+                    <Select value={selectedDealershipId || ''} onValueChange={handleDealershipChange}>
+                        <SelectTrigger className="w-full md:w-[280px] bg-background">
+                            <SelectValue placeholder="Select a dealership" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) && <SelectItem value="all">All Dealerships</SelectItem>}
+                            {dealerships.map(d => (
+                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </CardHeader>
+        </Card>
+      )}
+
+        {/* REORDERED: Trend Visualization right after selector */}
+        {!isSuperAdmin && (
+          <section>
+            <CxSoundwaveCard scope={activeScope} personalScope={personalScope} />
+          </section>
+        )}
+
         <section>
             {loading ? (
             <Skeleton className="h-40 w-full" />
@@ -739,13 +772,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             <BadgeShowcase badges={managerBadges} />
             )}
         </section>
-
-        {/* Trend Visualization */}
-        {!isSuperAdmin && (
-          <section>
-            <CxSoundwaveCard scope={activeScope} personalScope={personalScope} />
-          </section>
-        )}
 
         {isSuperAdmin && (
              <Tabs defaultValue="dealership" className="w-full">
@@ -927,28 +953,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             </section>
         )}
 
-      {(['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
-        <Card>
-            <CardHeader>
-                <CardTitle>Dealership Overview</CardTitle>
-                <CardDescription>Select a dealership to view its performance statistics.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Select value={selectedDealershipId || ''} onValueChange={handleDealershipChange}>
-                    <SelectTrigger className="w-full md:w-1/3">
-                        <SelectValue placeholder="Select a dealership" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) && <SelectItem value="all">All Dealerships</SelectItem>}
-                        {dealerships.map(d => (
-                            <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </CardContent>
-        </Card>
-      )}
-      
       {isSoloManager ? (
         <>
             <Card>

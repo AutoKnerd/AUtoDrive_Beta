@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CxScope, getScopeLabel } from '@/lib/cx/scope';
 import { rollupCxTrend } from '@/lib/cx/rollups';
 import { CxSkillId } from '@/lib/cx/skills';
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Info, TrendingUp } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface CxSoundwaveCardProps {
   scope: CxScope;
@@ -22,15 +24,35 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
   const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [activeSkillId, setActiveSkillId] = useState<CxSkillId | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const activeScope = viewMode === 'personal' && personalScope ? personalScope : scope;
 
   const series = useMemo(() => {
+    if (!mounted) return [];
     const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
     return rollupCxTrend(activeScope, days);
-  }, [activeScope, range]);
+  }, [activeScope, range, mounted]);
 
   const mode = activeScope.role === 'owner' && !activeScope.storeId ? 'groupOnly' : 'compare';
+
+  if (!mounted) {
+    return (
+      <Card className={cn("h-[400px] bg-card border-border", className)}>
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <Skeleton className="h-6 w-[200px]" />
+          <Skeleton className="h-8 w-[150px]" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[250px] w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={cn(
@@ -69,7 +91,7 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
         <div className="flex flex-wrap items-center gap-3">
           {/* View Toggle */}
           {personalScope && (
-            <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5 dark:border-white/5">
+            <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
               <Button
                 variant="ghost"
                 size="sm"
@@ -96,7 +118,7 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
           )}
 
           {/* Range Toggle */}
-          <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5 dark:border-white/5">
+          <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
             {(['7d', '30d', '90d'] as const).map((r) => (
               <Button
                 key={r}
