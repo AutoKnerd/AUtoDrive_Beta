@@ -90,7 +90,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
           <div className="flex items-center gap-2">
             <CardTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary dark:text-cyan-400" />
-              CX Skill Velocity
+              Average CX Scores
             </CardTitle>
             <TooltipProvider>
               <Tooltip>
@@ -98,7 +98,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                   <Info className="h-4 w-4 text-muted-foreground/40 cursor-help hover:text-muted-foreground transition-colors" />
                 </TooltipTrigger>
                 <TooltipContent className="bg-popover border-border text-xs max-w-[200px]">
-                  Real-time skill trends indexed from recent lesson performance. 
+                  Real-time skill averages indexed from recent lesson performance. 
                   Neon lines show {getScopeLabel(activeScope).toLowerCase()} performance.
                   {mode === 'compare' && ' Ghostly fills indicate delta vs higher-level average.'}
                 </TooltipContent>

@@ -732,7 +732,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             )}
       </section>
 
-      {/* REORDERED: Dealership Selector Card at the top of content */}
+      {/* Dealership Selector Card */}
       {(['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
         <Card className="bg-card/50 backdrop-blur-sm border-dashed">
             <CardHeader className="py-4">
@@ -757,7 +757,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </Card>
       )}
 
-        {/* REORDERED: Trend Visualization right after selector - Sync with team scores */}
+        {/* Average CX Scores Trend Visualization */}
         {!isSuperAdmin && (
           <section>
             <CxSoundwaveCard 
@@ -855,7 +855,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         {showPersonalDevelopment && (
             <section className="space-y-4">
                 <h2 className="text-xl font-bold text-foreground">My Development</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
                         <div>
                             <div className="flex items-center gap-3 mb-2">
@@ -924,33 +924,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 No assigned lessons
                             </Button>
                         )}
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>My Personal CX Scores</CardTitle>
-                            <CardDescription>Your performance across completed lessons.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="grid gap-x-8 gap-y-4">
-                        {loading ? (
-                            Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
-                        ) : managerAverageScores ? (
-                            Object.entries(managerAverageScores).map(([key, value]) => {
-                                const Icon = metricIcons[key as keyof typeof metricIcons];
-                                const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                                return (
-                                    <div key={key} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Icon className="h-5 w-5 text-muted-foreground" />
-                                        <span className="text-sm font-medium text-foreground">{title}</span>
-                                    </div>
-                                    <span className="font-bold text-primary">{value}%</span>
-                                    </div>
-                                );
-                            })
-                        ) : (
-                            <p className="text-muted-foreground col-span-full text-center">No scores available yet.</p>
-                        )}
-                        </CardContent>
                     </Card>
                 </div>
             </section>

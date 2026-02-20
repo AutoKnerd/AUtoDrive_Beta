@@ -452,13 +452,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     return Object.fromEntries(Object.entries(total).map(([key, value]) => [key, Math.round(value / count)])) as typeof total;
   }, [activity, rollingScores]);
 
-  const formatDisplayedScore = (value: number) => {
-    if (rollingScores) {
-      return `${value.toFixed(1)}%`;
-    }
-    return `${Math.round(value)}%`;
-  };
-
   const recommendedLessonQueue = useMemo(() => {
     if (lessons.length === 0) return null;
     const lowestScoringTrait = Object.entries(averageScores).reduce((lowest, [trait, score]) => 
@@ -641,7 +634,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
              )}
         </section>
 
-        {/* Trend Visualization - Anchor to actual scores */}
+        {/* Trend Visualization - Primary source for CX Scores */}
         <section>
           <CxSoundwaveCard 
             scope={getDefaultScope(user)} 
@@ -774,41 +767,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                     </Card>
                 )}
             </div>
-        </section>
-
-        {/* My Stats */}
-        <section id="stats">
-            <Card className={dashboardFeatureCardClass}>
-                <CardHeader>
-                <CardTitle>My Average CX Scores</CardTitle>
-                <CardDescription>
-                  {rollingScores
-                    ? 'Your rolling CX performance from recent lesson outcomes.'
-                    : 'Your average performance across all completed lessons.'}
-                </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-                {loading ? (
-                    Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
-                ) : averageScores ? (
-                    Object.entries(averageScores).map(([key, value]) => {
-                    const Icon = metricIcons[key as keyof typeof metricIcons];
-                    const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                    return (
-                        <div key={key} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Icon className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm font-medium text-foreground">{title}</span>
-                        </div>
-                        <span className="font-bold text-primary">{formatDisplayedScore(value)}</span>
-                        </div>
-                    );
-                    })
-                ) : (
-                    <p className="text-muted-foreground col-span-full text-center">No scores available yet.</p>
-                )}
-                </CardContent>
-            </Card>
         </section>
 
         {/* My Badges */}
