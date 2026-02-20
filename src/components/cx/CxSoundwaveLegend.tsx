@@ -12,7 +12,7 @@ interface CxSoundwaveLegendProps {
 
 export function CxSoundwaveLegend({ activeSkillId, onSkillHover, onSkillClick }: CxSoundwaveLegendProps) {
   return (
-    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4">
+    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
       {CX_SKILLS.map((skill) => {
         const isActive = activeSkillId === skill.id;
         const isDimmed = activeSkillId !== null && !isActive;

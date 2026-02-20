@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { CxScope, getScopeLabel } from '@/lib/cx/scope';
 import { rollupCxTrend } from '@/lib/cx/rollups';
-import { CxSkillId } from '@/lib/cx/skills';
+import { CX_SKILLS, CxSkillId } from '@/lib/cx/skills';
 import { CxSoundwaveChart } from './CxSoundwaveChart';
 import { CxSoundwaveLegend } from './CxSoundwaveLegend';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -138,16 +137,54 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
       </CardHeader>
 
       <CardContent className="pt-2">
-        <CxSoundwaveChart 
-          series={series} 
-          activeSkillId={activeSkillId} 
-          mode={mode} 
-        />
-        <CxSoundwaveLegend 
-          activeSkillId={activeSkillId} 
-          onSkillHover={setActiveSkillId} 
-          onSkillClick={setActiveSkillId} 
-        />
+        <div className="space-y-6">
+          <CxSoundwaveChart 
+            series={series} 
+            activeSkillId={activeSkillId} 
+            mode={mode} 
+          />
+          <CxSoundwaveLegend 
+            activeSkillId={activeSkillId} 
+            onSkillHover={setActiveSkillId} 
+            onSkillClick={setActiveSkillId} 
+          />
+
+          {/* Current Snapshot Grid */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-6 border-t border-border dark:border-white/5">
+            {series.map((s) => {
+              const current = s.points[s.points.length - 1]?.foreground || 0;
+              const skill = CX_SKILLS.find(sk => sk.id === s.skillId);
+              const Icon = skill?.icon || TrendingUp;
+              const isActive = activeSkillId === s.skillId;
+              const isDimmed = activeSkillId !== null && !isActive;
+
+              return (
+                <div 
+                  key={s.skillId} 
+                  onMouseEnter={() => setActiveSkillId(s.skillId)}
+                  onMouseLeave={() => setActiveSkillId(null)}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 transition-all duration-500 cursor-default p-2 rounded-2xl",
+                    isActive ? "bg-muted dark:bg-white/5 ring-1 ring-border dark:ring-white/10" : "",
+                    isDimmed ? "opacity-30 grayscale-[0.5]" : "opacity-100"
+                  )}
+                >
+                  <div className="p-2 rounded-lg bg-background shadow-sm dark:bg-slate-900">
+                    <Icon className="h-4 w-4" style={{ color: s.color }} />
+                  </div>
+                  <div className="text-center space-y-0.5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none">
+                      {s.label}
+                    </p>
+                    <p className="text-xl font-black tracking-tighter text-foreground">
+                      {current.toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
