@@ -305,7 +305,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [canRetakeRecommendedTesting, setCanRetakeRecommendedTesting] = useState(false);
   const [canUseNewRecommendedTesting, setCanUseNewRecommendedTesting] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
-  const { isTouring } = useAuth();
+  const { isTouring, setUser } = useAuth();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
   const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
@@ -532,7 +532,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         description: error?.message || 'Please try again.',
       });
     } finally {
-      setIsLoading(false);
       setCreatingUniqueTestingLesson(false);
     }
   };
@@ -642,9 +641,12 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
              )}
         </section>
 
-        {/* Trend Visualization */}
+        {/* Trend Visualization - Anchor to actual scores */}
         <section>
-          <CxSoundwaveCard scope={getDefaultScope(user)} />
+          <CxSoundwaveCard 
+            scope={getDefaultScope(user)} 
+            data={averageScores}
+          />
         </section>
         
         {/* Today's Lessons */}

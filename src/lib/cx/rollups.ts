@@ -15,9 +15,16 @@ export interface CxSeries {
   points: CxPoint[];
 }
 
-export function rollupCxTrend(scope: CxScope, days: number = 30): CxSeries[] {
-  const fgData = getMockCxTrend(scope.userId || scope.storeId || scope.orgId, days);
+export function rollupCxTrend(
+  scope: CxScope, 
+  days: number = 30, 
+  anchorScores?: Partial<Record<CxSkillId, number>>
+): CxSeries[] {
+  // Use real data anchoring for the foreground if provided
+  const fgData = getMockCxTrend(scope.userId || scope.storeId || scope.orgId, days, anchorScores);
+  
   const comparison = getComparisonScope(scope);
+  // For the baseline comparison, we don't anchor it to the same values (to show the "valley" delta)
   const bgData = comparison 
     ? getMockCxTrend(comparison.userId || comparison.storeId || comparison.orgId, days)
     : null;

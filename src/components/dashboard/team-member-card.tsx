@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -102,7 +101,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
       setLoading(false);
     }
     fetchData();
-  }, [user, hideMetrics]);
+  }, [user, hideMetrics, currentUser.userId, viewerIsAdmin, viewerIsTrainer, viewerIsOwner, viewerIsManager]);
   
   const currentDealershipNames = useMemo(() => {
     if (user.dealershipIds && user.dealershipIds.length > 0) {
@@ -186,6 +185,28 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   }, [activity]);
   
   const averageScores = useMemo(() => {
+    // Prefer rolling scores if available for this specific user
+    const stats = user.stats;
+    if (stats) {
+      const empathy = stats.empathy?.score;
+      const listening = stats.listening?.score;
+      const trust = stats.trust?.score;
+      const followUp = stats.followUp?.score;
+      const closing = stats.closing?.score;
+      const relationship = stats.relationship?.score;
+
+      if ([empathy, listening, trust, followUp, closing, relationship].every(v => typeof v === 'number')) {
+        return {
+          empathy: Math.round(empathy!),
+          listening: Math.round(listening!),
+          trust: Math.round(trust!),
+          followUp: Math.round(followUp!),
+          closing: Math.round(closing!),
+          relationshipBuilding: Math.round(relationship!),
+        };
+      }
+    }
+
     if (!activity.length) return {
       empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0
     };
@@ -209,7 +230,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
         closing: Math.round(total.closing / count),
         relationshipBuilding: Math.round(total.relationshipBuilding / count),
     };
-  }, [activity]);
+  }, [activity, user.stats]);
 
   const criticalTraits = useMemo(() => {
     if (!activity.length) return { topStrength: null as CxTrait | null, weakestSkill: null as CxTrait | null };
@@ -290,7 +311,11 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             </Card>
         ) : (
             <>
-                <CxSoundwaveCard scope={targetUserScope} />
+                {/* Sync trend data with actual average scores */}
+                <CxSoundwaveCard 
+                  scope={targetUserScope} 
+                  data={averageScores}
+                />
                 <Card>
                     <CardHeader>
                     <CardTitle>Average CX Scores</CardTitle>

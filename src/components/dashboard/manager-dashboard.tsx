@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -109,7 +108,7 @@ function LevelDisplay({ user }: { user: User }) {
 
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const { toast } = useToast();
-  const { originalUser, isTouring } = useAuth();
+  const { originalUser, isTouring, setUser } = useAuth();
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -758,10 +757,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </Card>
       )}
 
-        {/* REORDERED: Trend Visualization right after selector */}
+        {/* REORDERED: Trend Visualization right after selector - Sync with team scores */}
         {!isSuperAdmin && (
           <section>
-            <CxSoundwaveCard scope={activeScope} personalScope={personalScope} />
+            <CxSoundwaveCard 
+              scope={activeScope} 
+              personalScope={personalScope} 
+              data={stats?.avgScores || managerAverageScores}
+            />
           </section>
         )}
 

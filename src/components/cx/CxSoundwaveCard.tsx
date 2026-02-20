@@ -17,9 +17,29 @@ interface CxSoundwaveCardProps {
   scope: CxScope;
   personalScope?: CxScope;
   className?: string;
+  /** 
+   * Real-time scores to anchor the trend data to. 
+   * This ensures the visual matches your actual dashboard statistics.
+   */
+  data?: Partial<Record<string, number>>;
 }
 
-export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwaveCardProps) {
+/**
+ * Normalizes keys like 'relationshipBuilding' to the internal 'relationship' skill ID.
+ */
+function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<CxSkillId, number>> | undefined {
+  if (!raw) return undefined;
+  return {
+    empathy: raw.empathy,
+    listening: raw.listening,
+    trust: raw.trust,
+    followUp: raw.followUp,
+    closing: raw.closing,
+    relationship: raw.relationship ?? raw.relationshipBuilding,
+  } as Partial<Record<CxSkillId, number>>;
+}
+
+export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSoundwaveCardProps) {
   const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [activeSkillId, setActiveSkillId] = useState<CxSkillId | null>(null);
@@ -30,12 +50,15 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
   }, []);
 
   const activeScope = viewMode === 'personal' && personalScope ? personalScope : scope;
+  const anchoredScores = useMemo(() => normalizeScores(data), [data]);
 
   const series = useMemo(() => {
     if (!mounted) return [];
     const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
-    return rollupCxTrend(activeScope, days);
-  }, [activeScope, range, mounted]);
+    // We only anchor the "Personal" view or the current scoped view if data was provided for it
+    const shouldAnchor = (viewMode === 'personal' && personalScope) || (viewMode === 'team');
+    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined);
+  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope]);
 
   const mode = activeScope.role === 'owner' && !activeScope.storeId ? 'groupOnly' : 'compare';
 
@@ -136,54 +159,53 @@ export function CxSoundwaveCard({ scope, personalScope, className }: CxSoundwave
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
-        <div className="space-y-4">
-          <CxSoundwaveChart 
-            series={series} 
-            activeSkillId={activeSkillId} 
-            mode={mode} 
-          />
-          <CxSoundwaveLegend 
-            activeSkillId={activeSkillId} 
-            onSkillHover={setActiveSkillId} 
-            onSkillClick={setActiveSkillId} 
-          />
+      <CardContent className="pt-0 space-y-2">
+        <CxSoundwaveChart 
+          series={series} 
+          activeSkillId={activeSkillId} 
+          mode={mode} 
+        />
+        
+        <CxSoundwaveLegend 
+          activeSkillId={activeSkillId} 
+          onSkillHover={setActiveSkillId} 
+          onSkillClick={setActiveSkillId} 
+        />
 
-          {/* Current Snapshot Grid */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-4 border-t border-border dark:border-white/5">
-            {series.map((s) => {
-              const current = s.points[s.points.length - 1]?.foreground || 0;
-              const skill = CX_SKILLS.find(sk => sk.id === s.skillId);
-              const Icon = skill?.icon || TrendingUp;
-              const isActive = activeSkillId === s.skillId;
-              const isDimmed = activeSkillId !== null && !isActive;
+        {/* Current Snapshot Grid - Anchor numeric values to real data */}
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-4 border-t border-border dark:border-white/5">
+          {series.map((s) => {
+            const current = s.points[s.points.length - 1]?.foreground || 0;
+            const skill = CX_SKILLS.find(sk => sk.id === s.skillId);
+            const Icon = skill?.icon || TrendingUp;
+            const isActive = activeSkillId === s.skillId;
+            const isDimmed = activeSkillId !== null && !isActive;
 
-              return (
-                <div 
-                  key={s.skillId} 
-                  onMouseEnter={() => setActiveSkillId(s.skillId)}
-                  onMouseLeave={() => setActiveSkillId(null)}
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 transition-all duration-500 cursor-default p-2 rounded-2xl",
-                    isActive ? "bg-muted dark:bg-white/5 ring-1 ring-border dark:ring-white/10" : "",
-                    isDimmed ? "opacity-30 grayscale-[0.5]" : "opacity-100"
-                  )}
-                >
-                  <div className="p-2 rounded-lg bg-background shadow-sm dark:bg-slate-900">
-                    <Icon className="h-4 w-4" style={{ color: s.color }} />
-                  </div>
-                  <div className="text-center space-y-0.5">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none">
-                      {s.label}
-                    </p>
-                    <p className="text-xl font-black tracking-tighter text-foreground">
-                      {current.toFixed(0)}%
-                    </p>
-                  </div>
+            return (
+              <div 
+                key={s.skillId} 
+                onMouseEnter={() => setActiveSkillId(s.skillId)}
+                onMouseLeave={() => setActiveSkillId(null)}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 transition-all duration-500 cursor-default p-2 rounded-2xl",
+                  isActive ? "bg-muted dark:bg-white/5 ring-1 ring-border dark:ring-white/10" : "",
+                  isDimmed ? "opacity-30 grayscale-[0.5]" : "opacity-100"
+                )}
+              >
+                <div className="p-2 rounded-lg bg-background shadow-sm dark:bg-slate-900">
+                  <Icon className="h-4 w-4" style={{ color: s.color }} />
                 </div>
-              );
-            })}
-          </div>
+                <div className="text-center space-y-0.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none">
+                    {s.label}
+                  </p>
+                  <p className="text-xl font-black tracking-tighter text-foreground">
+                    {current.toFixed(0)}%
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
