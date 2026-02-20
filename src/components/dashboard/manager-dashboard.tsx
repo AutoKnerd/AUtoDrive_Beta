@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -39,6 +37,8 @@ import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { CreatedLessonsView } from '../lessons/created-lessons-view';
+import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
+import { getDefaultScope } from '@/lib/cx/scope';
 
 
 interface ManagerDashboardProps {
@@ -672,6 +672,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       ? 'Sales Manager'
       : user.role;
 
+  const activeScope = useMemo(() => {
+    const baseScope = getDefaultScope(user);
+    if (selectedDealershipId && selectedDealershipId !== 'all') {
+      return { ...baseScope, storeId: selectedDealershipId };
+    }
+    return baseScope;
+  }, [user, selectedDealershipId]);
+
   return (
     <div className="space-y-8 pb-8">
       <BaselineAssessmentDialog
@@ -721,6 +729,13 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             <BadgeShowcase badges={managerBadges} />
             )}
         </section>
+
+        {/* Trend Visualization */}
+        {!isSuperAdmin && (
+          <section>
+            <CxSoundwaveCard scope={activeScope} />
+          </section>
+        )}
 
         {isSuperAdmin && (
              <Tabs defaultValue="dealership" className="w-full">

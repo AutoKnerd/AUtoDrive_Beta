@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -40,6 +39,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
+import { getDefaultScope } from '@/lib/cx/scope';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -531,6 +532,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         description: error?.message || 'Please try again.',
       });
     } finally {
+      setIsLoading(false);
       setCreatingUniqueTestingLesson(false);
     }
   };
@@ -638,6 +640,11 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                     )}
                 </div>
              )}
+        </section>
+
+        {/* Trend Visualization */}
+        <section>
+          <CxSoundwaveCard scope={getDefaultScope(user)} />
         </section>
         
         {/* Today's Lessons */}
