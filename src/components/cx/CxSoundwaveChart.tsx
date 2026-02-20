@@ -19,7 +19,14 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
   const height = 200;
 
   const pointsCount = series[0]?.points.length || 0;
-  const xScale = (width - padding.left - padding.right) / Math.max(1, pointsCount - 1);
+  const isPointGraph = pointsCount === 1;
+
+  // For multi-point trends, calculate scales based on total points
+  // For single-point graph, distribute points horizontally across the width
+  const xScale = isPointGraph 
+    ? (width - padding.left - padding.right) / Math.max(1, series.length) 
+    : (width - padding.left - padding.right) / Math.max(1, pointsCount - 1);
+
   const yScale = (val: number) => padding.top + (1 - val / 100) * (height - padding.top - padding.bottom);
 
   // Cubic Bezier interpolation for smooth paths
@@ -61,7 +68,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
         viewBox={`0 0 ${width} ${height}`}
         className="w-full h-full overflow-visible"
         onMouseMove={(e) => {
-          if (!series.length) return;
+          if (!series.length || isPointGraph) return;
           const rect = e.currentTarget.getBoundingClientRect();
           const mouseX = ((e.clientX - rect.left) / rect.width) * width;
           const idx = Math.round((mouseX - padding.left) / xScale);
@@ -105,11 +112,57 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
           className="text-foreground"
         />
 
-        {series.map((s) => {
+        {series.map((s, sIdx) => {
           const isActive = activeSkillId === s.skillId;
           const isDimmed = activeSkillId !== null && !isActive;
           const fgPoints = s.points.map(p => p.foreground);
           const bgPoints = s.points.map(p => p.baseline);
+
+          if (isPointGraph) {
+            const x = padding.left + (sIdx + 0.5) * xScale;
+            const y = yScale(fgPoints[0]);
+            const yBaseline = yScale(bgPoints[0]);
+
+            return (
+              <g key={s.skillId} className="transition-opacity duration-500" opacity={isDimmed ? 0.15 : 1}>
+                {/* Single Point Connector Line (Ghostly) */}
+                {mode === 'compare' && (
+                  <line 
+                    x1={x} y1={yBaseline} x2={x} y2={y} 
+                    stroke={s.color} strokeOpacity="0.2" strokeWidth="2" strokeDasharray="4 2" 
+                  />
+                )}
+                
+                {/* Baseline Point */}
+                {mode === 'compare' && (
+                  <circle 
+                    cx={x} cy={yBaseline} r="4" 
+                    fill="currentColor" fillOpacity="0.1" 
+                    className="text-foreground"
+                  />
+                )}
+
+                {/* Main Foreground Point with Glow */}
+                <circle 
+                  cx={x} cy={y} r={isActive ? 8 : 6} 
+                  fill={s.color} 
+                  filter="url(#neon-glow)" 
+                  className={cn("transition-all duration-300", isActive ? "animate-pulse" : "")}
+                  onMouseEnter={() => !activeSkillId && setHoveredPoint({ skillId: s.skillId, point: s.points[0], x, y })}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                />
+                
+                {/* Outer Rim */}
+                <circle 
+                  cx={x} cy={y} r={isActive ? 12 : 10} 
+                  fill="none" 
+                  stroke={s.color} 
+                  strokeWidth="1" 
+                  strokeOpacity="0.3" 
+                />
+              </g>
+            );
+          }
 
           return (
             <g key={s.skillId} className="transition-opacity duration-500" opacity={isDimmed ? 0.15 : 1}>
@@ -149,7 +202,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
         })}
 
         {/* Tooltip Marker */}
-        {hoveredPoint && (
+        {hoveredPoint && !isPointGraph && (
           <g>
             <line x1={hoveredPoint.x} y1={padding.top} x2={hoveredPoint.x} y2={height - padding.bottom} stroke="currentColor" strokeOpacity="0.2" className="text-foreground" />
             <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="4" fill="currentColor" className="animate-pulse text-foreground" />

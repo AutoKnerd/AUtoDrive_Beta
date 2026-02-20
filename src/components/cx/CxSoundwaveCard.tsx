@@ -40,7 +40,7 @@ function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<
 }
 
 export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSoundwaveCardProps) {
-  const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('30d');
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [activeSkillId, setActiveSkillId] = useState<CxSkillId | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -54,7 +54,11 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
 
   const series = useMemo(() => {
     if (!mounted) return [];
-    const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
+    let days = 30;
+    if (range === 'today') days = 1;
+    else if (range === '7d') days = 7;
+    else if (range === '90d') days = 90;
+
     // We only anchor the "Personal" view or the current scoped view if data was provided for it
     const shouldAnchor = (viewMode === 'personal' && personalScope) || (viewMode === 'team');
     return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined);
@@ -106,7 +110,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
             </TooltipProvider>
           </div>
           <CardDescription className="text-muted-foreground text-xs">
-            {getScopeLabel(activeScope)} trends over {range === '7d' ? 'the last week' : range === '30d' ? '30 days' : '90 days'}.
+            {getScopeLabel(activeScope)} {range === 'today' ? 'current standing' : `trends over the last ${range}`}.
           </CardDescription>
         </div>
 
@@ -141,7 +145,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
 
           {/* Range Toggle */}
           <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
-            {(['7d', '30d', '90d'] as const).map((r) => (
+            {(['today', '7d', '30d', '90d'] as const).map((r) => (
               <Button
                 key={r}
                 variant="ghost"
@@ -152,7 +156,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                   range === r ? "bg-background text-foreground shadow-sm dark:bg-white/10 dark:text-white" : "text-muted-foreground/60 hover:text-foreground dark:text-white/30 dark:hover:text-white/60"
                 )}
               >
-                {r}
+                {r === 'today' ? 'Today' : r}
               </Button>
             ))}
           </div>
