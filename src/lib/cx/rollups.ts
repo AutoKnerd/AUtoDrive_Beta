@@ -1,6 +1,8 @@
-import { CxDataPoint, getMockCxTrend } from './mockData';
+
+import { getMockCxTrend } from './mockData';
 import { CxScope, getComparisonScope } from './scope';
 import { CX_SKILLS, CxSkillId } from './skills';
+import { differenceInDays, startOfDay } from 'date-fns';
 
 export interface CxPoint {
   date: string;
@@ -13,34 +15,66 @@ export interface CxSeries {
   label: string;
   color: string;
   points: CxPoint[];
+  startDateIndex: number | null;
 }
 
+/**
+ * Rolls up CX trend data, calculating the start date index based on user tenure.
+ */
 export function rollupCxTrend(
   scope: CxScope, 
   days: number = 30, 
-  anchorScores?: Partial<Record<CxSkillId, number>>
+  anchorScores?: Partial<Record<CxSkillId, number>>,
+  memberSince?: string | null
 ): CxSeries[] {
   // Use real data anchoring for the foreground if provided
   const fgData = getMockCxTrend(scope.userId || scope.storeId || scope.orgId, days, anchorScores);
   
   const comparison = getComparisonScope(scope);
-  // For the baseline comparison, we don't anchor it to the same values (to show the "valley" delta)
+  // For the baseline comparison
   const bgData = comparison 
     ? getMockCxTrend(comparison.userId || comparison.storeId || comparison.orgId, days)
     : null;
 
+  // Calculate where the "Start Date Line" should be
+  let startDateIndex: number | null = null;
+  if (memberSince && scope.userId) {
+    const joinDate = startOfDay(new Date(memberSince));
+    const today = startOfDay(new Date());
+    const daysSinceJoining = differenceInDays(today, joinDate);
+    
+    // If they joined within the current view window
+    if (daysSinceJoining < days) {
+      startDateIndex = (days - 1) - daysSinceJoining;
+    } else {
+      // They joined before this window started
+      startDateIndex = null;
+    }
+  }
+
   return CX_SKILLS.map((skill) => {
-    const points: CxPoint[] = fgData.map((d, i) => ({
-      date: d.date,
-      foreground: d.scores[skill.id],
-      baseline: bgData ? bgData[i].scores[skill.id] : d.scores[skill.id],
-    }));
+    const points: CxPoint[] = fgData.map((d, i) => {
+      let foregroundValue = d.scores[skill.id];
+      
+      // If we have a start index, data before that point should be treated as "pre-history"
+      // We'll keep the values for the visual wave but the line renderer can handle the break
+      if (startDateIndex !== null && i < startDateIndex) {
+        // Optional: darken or baseline pre-history values if needed
+      }
+
+      return {
+        date: d.date,
+        foreground: foregroundValue,
+        baseline: bgData ? bgData[i].scores[skill.id] : d.scores[skill.id],
+      };
+    });
 
     return {
       skillId: skill.id,
       label: skill.label,
       color: skill.color,
       points,
+      startDateIndex,
     };
   });
 }

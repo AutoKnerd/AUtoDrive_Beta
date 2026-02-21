@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -18,14 +19,11 @@ interface CxSoundwaveCardProps {
   className?: string;
   /** 
    * Real-time scores to anchor the trend data to. 
-   * This ensures the visual matches your actual dashboard statistics.
    */
   data?: Partial<Record<string, number>>;
+  memberSince?: string | null;
 }
 
-/**
- * Normalizes keys like 'relationshipBuilding' to the internal 'relationship' skill ID.
- */
 function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<CxSkillId, number>> | undefined {
   if (!raw) return undefined;
   return {
@@ -38,7 +36,7 @@ function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<
   } as Partial<Record<CxSkillId, number>>;
 }
 
-export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSoundwaveCardProps) {
+export function CxSoundwaveCard({ scope, personalScope, className, data, memberSince }: CxSoundwaveCardProps) {
   const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('30d');
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [hoveredSkillId, setHoveredSkillId] = useState<CxSkillId | null>(null);
@@ -60,10 +58,9 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
     else if (range === '7d') days = 7;
     else if (range === '90d') days = 90;
 
-    // We only anchor the "Personal" view or the current scoped view if data was provided for it
     const shouldAnchor = (viewMode === 'personal' && personalScope) || (viewMode === 'team');
-    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined);
-  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope]);
+    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince);
+  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince]);
 
   const mode = activeScope.role === 'owner' && !activeScope.storeId ? 'groupOnly' : 'compare';
 
@@ -90,7 +87,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
       "relative overflow-hidden bg-card border-border shadow-2xl transition-all duration-500 dark:bg-slate-950 dark:border-white/5",
       className
     )}>
-      {/* Premium Background Glows */}
+      {/* Background Glows */}
       <div className="absolute top-[-10%] -left-[10%] w-[40%] h-[40%] bg-cyan-500/5 blur-[100px] rounded-full pointer-events-none dark:bg-cyan-500/10" />
       <div className="absolute bottom-[-10%] -right-[10%] w-[40%] h-[40%] bg-purple-500/5 blur-[100px] rounded-full pointer-events-none dark:bg-purple-500/10" />
 
@@ -107,8 +104,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                   <Info className="h-4 w-4 text-muted-foreground/40 cursor-help hover:text-muted-foreground transition-colors" />
                 </TooltipTrigger>
                 <TooltipContent className="bg-popover border-border text-xs max-w-[240px]">
-                  {range === 'today' ? 'Your current performance score compared to the mean average of the team.' : `Your performance averages over the last ${range}. Neon waves track your individual scores.`}
-                  {mode === 'compare' && ' Grey nodes indicate the Team Benchmark—the collective mean average of all team members at this location.'}
+                  {range === 'today' ? 'Your current standing vs colleagues.' : `Trends over the last ${range}. The "Start Date Line" indicates when your membership began.`}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -119,7 +115,6 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* View Toggle */}
           {personalScope && (
             <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
               <Button
@@ -147,7 +142,6 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
             </div>
           )}
 
-          {/* Range Toggle */}
           <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
             {(['today', '7d', '30d', '90d'] as const).map((r) => (
               <Button
@@ -168,8 +162,8 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
       </CardHeader>
 
       <CardContent className="pt-0 space-y-4">
-        {/* Visual Container for the Chart and Ledger */}
-        <div className="rounded-2xl border border-border/50 bg-muted/5 p-4 dark:bg-white/2 shadow-inner">
+        {/* Scores Area with Border */}
+        <div className="rounded-2xl border border-border/60 bg-muted/5 p-4 dark:bg-white/2 shadow-inner">
           <CxSoundwaveChart 
             series={series} 
             activeSkillId={activeSkillId} 
@@ -178,13 +172,11 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
             onSkillClick={handleSkillClick}
           />
           
-          {/* Visual Ledger / Key */}
+          {/* Visual Ledger */}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-t border-border/50 py-3 dark:border-white/5">
             <div className="flex items-center gap-2">
-              <div className="flex items-center">
-                <div className="w-8 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Your Performance Wave</span>
+              <div className="w-8 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Performance Wave</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-cyan-400/20 border border-cyan-400/50 animate-pulse" />
@@ -209,7 +201,6 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
           </div>
         </div>
 
-        {/* Current Snapshot Grid */}
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-2">
           {series.map((s) => {
             const displayValue = range === 'today' 
