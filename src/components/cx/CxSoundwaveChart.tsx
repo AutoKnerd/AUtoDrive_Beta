@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { CxSeries, CxPoint } from '@/lib/cx/rollups';
 import { CxSkillId } from '@/lib/cx/skills';
 import { cn } from '@/lib/utils';
@@ -9,20 +9,20 @@ interface CxSoundwaveChartProps {
   series: CxSeries[];
   activeSkillId: CxSkillId | null;
   mode: 'groupOnly' | 'compare';
+  onSkillHover?: (id: CxSkillId | null) => void;
+  onSkillClick?: (id: CxSkillId | null) => void;
 }
 
-export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveChartProps) {
+export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, onSkillClick }: CxSoundwaveChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<{ skillId: CxSkillId; point: CxPoint; x: number; y: number } | null>(null);
 
   const padding = { top: 20, bottom: 20, left: 5, right: 5 };
   const width = 800;
-  const height = 300; // Increased from 200 to 300 for more vertical presence
+  const height = 300; 
 
   const pointsCount = series[0]?.points.length || 0;
   const isPointGraph = pointsCount === 1;
 
-  // For multi-point trends, calculate scales based on total points
-  // For single-point graph, distribute points horizontally across the width
   const xScale = isPointGraph 
     ? (width - padding.left - padding.right) / Math.max(1, series.length) 
     : (width - padding.left - padding.right) / Math.max(1, pointsCount - 1);
@@ -62,29 +62,36 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
     return `${fgPath} L ${padding.left + (bg.length - 1) * xScale} ${yScale(bg[bg.length - 1])} ${bgPathBack} Z`;
   };
 
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!series.length || isPointGraph || !activeSkillId) {
+      setHoveredPoint(null);
+      return;
+    }
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * width;
+    const idx = Math.round((mouseX - padding.left) / xScale);
+    
+    if (idx >= 0 && idx < pointsCount) {
+      const skill = series.find(s => s.skillId === activeSkillId);
+      if (skill) {
+        const pt = skill.points[idx];
+        setHoveredPoint({
+          skillId: skill.skillId,
+          point: pt,
+          x: padding.left + idx * xScale,
+          y: yScale(pt.foreground)
+        });
+      }
+    }
+  };
+
   return (
     <div className="relative w-full aspect-[8/3]">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full h-full overflow-visible"
-        onMouseMove={(e) => {
-          if (!series.length || isPointGraph) return;
-          const rect = e.currentTarget.getBoundingClientRect();
-          const mouseX = ((e.clientX - rect.left) / rect.width) * width;
-          const idx = Math.round((mouseX - padding.left) / xScale);
-          if (idx >= 0 && idx < pointsCount) {
-            const skill = activeSkillId ? series.find(s => s.skillId === activeSkillId) : series[0];
-            if (skill) {
-              const pt = skill.points[idx];
-              setHoveredPoint({
-                skillId: skill.skillId,
-                point: pt,
-                x: padding.left + idx * xScale,
-                y: yScale(pt.foreground)
-              });
-            }
-          }
-        }}
+        onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoveredPoint(null)}
       >
         <defs>
@@ -124,7 +131,14 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
             const yBaseline = yScale(bgPoints[0]);
 
             return (
-              <g key={s.skillId} className="transition-all duration-500" opacity={isDimmed ? 0.15 : 1}>
+              <g 
+                key={s.skillId} 
+                className="transition-all duration-500 cursor-pointer" 
+                opacity={isDimmed ? 0.15 : 1}
+                onClick={() => onSkillClick?.(s.skillId)}
+                onMouseEnter={() => onSkillHover?.(s.skillId)}
+                onMouseLeave={() => onSkillHover?.(null)}
+              >
                 {/* Single Point Connector Line (Ghostly) */}
                 {mode === 'compare' && (
                   <line 
@@ -155,8 +169,6 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
                   fill={s.color} 
                   filter="url(#neon-glow)" 
                   className={cn("transition-all duration-300", isActive ? "animate-pulse" : "")}
-                  onMouseEnter={() => !activeSkillId && setHoveredPoint({ skillId: s.skillId, point: s.points[0], x, y })}
-                  onMouseLeave={() => setHoveredPoint(null)}
                 />
                 
                 {/* Outer Rim */}
@@ -204,13 +216,25 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
                 filter="url(#neon-glow)"
                 className="pointer-events-none"
               />
+
+              {/* Hit Area for clicking/hovering the wave */}
+              <path
+                d={getPath(fgPoints)}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={20}
+                className="cursor-pointer"
+                onClick={() => onSkillClick?.(s.skillId)}
+                onMouseEnter={() => onSkillHover?.(s.skillId)}
+                onMouseLeave={() => onSkillHover?.(null)}
+              />
             </g>
           );
         })}
 
         {/* Tooltip Marker */}
         {hoveredPoint && !isPointGraph && (
-          <g>
+          <g className="pointer-events-none">
             <line x1={hoveredPoint.x} y1={padding.top} x2={hoveredPoint.x} y2={height - padding.bottom} stroke="currentColor" strokeOpacity="0.2" className="text-foreground" />
             <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="4" fill="currentColor" className="animate-pulse text-foreground" />
           </g>

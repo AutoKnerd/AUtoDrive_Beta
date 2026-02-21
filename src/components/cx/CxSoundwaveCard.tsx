@@ -42,13 +42,15 @@ function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<
 export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSoundwaveCardProps) {
   const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('30d');
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
-  const [activeSkillId, setActiveSkillId] = useState<CxSkillId | null>(null);
+  const [hoveredSkillId, setHoveredSkillId] = useState<CxSkillId | null>(null);
+  const [selectedSkillId, setSelectedSkillId] = useState<CxSkillId | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const activeSkillId = hoveredSkillId || selectedSkillId;
   const activeScope = viewMode === 'personal' && personalScope ? personalScope : scope;
   const anchoredScores = useMemo(() => normalizeScores(data), [data]);
 
@@ -65,6 +67,10 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
   }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope]);
 
   const mode = activeScope.role === 'owner' && !activeScope.storeId ? 'groupOnly' : 'compare';
+
+  const handleSkillClick = (id: CxSkillId | null) => {
+    setSelectedSkillId(prev => prev === id ? null : id);
+  };
 
   if (!mounted) {
     return (
@@ -167,12 +173,14 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
           series={series} 
           activeSkillId={activeSkillId} 
           mode={mode} 
+          onSkillHover={setHoveredSkillId}
+          onSkillClick={handleSkillClick}
         />
         
         <CxSoundwaveLegend 
           activeSkillId={activeSkillId} 
-          onSkillHover={setActiveSkillId} 
-          onSkillClick={setActiveSkillId} 
+          onSkillHover={setHoveredSkillId} 
+          onSkillClick={handleSkillClick} 
         />
 
         {/* Current Snapshot Grid - Dynamic averages based on range */}
@@ -190,11 +198,12 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
             return (
               <div 
                 key={s.skillId} 
-                onMouseEnter={() => setActiveSkillId(s.skillId)}
-                onMouseLeave={() => setActiveSkillId(null)}
+                onMouseEnter={() => setHoveredSkillId(s.skillId)}
+                onMouseLeave={() => setHoveredSkillId(null)}
+                onClick={() => handleSkillClick(s.skillId)}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 transition-all duration-500 cursor-default p-2 rounded-2xl",
-                  isActive ? "bg-muted dark:bg-white/5 ring-1 ring-border dark:ring-white/10" : "",
+                  "flex flex-col items-center gap-1.5 transition-all duration-500 cursor-pointer p-2 rounded-2xl",
+                  isActive ? "bg-muted dark:bg-white/5 ring-1 ring-border dark:ring-white/10" : "hover:bg-muted/50 dark:hover:bg-white/5",
                   isDimmed ? "opacity-30 grayscale-[0.5]" : "opacity-100"
                 )}
               >
