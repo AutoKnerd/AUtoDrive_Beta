@@ -156,14 +156,38 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
                 onMouseLeave={() => onSkillHover?.(null)}
               >
                 {mode === 'compare' && (
-                  <line x1={x} y1={yBaseline} x2={x} y2={y} stroke="currentColor" strokeOpacity="0.15" strokeWidth="1.5" strokeDasharray="4 2" className="text-foreground" />
+                  <line 
+                    x1={x} 
+                    y1={yBaseline} 
+                    x2={x} 
+                    y2={y} 
+                    stroke="currentColor" 
+                    strokeOpacity="0.3" 
+                    strokeWidth="1.5" 
+                    strokeDasharray="4 2" 
+                    className="text-foreground dark:text-white/40" 
+                  />
                 )}
                 
                 {mode === 'compare' && (
-                  <circle cx={x} cy={yBaseline} r="4.5" fill="currentColor" fillOpacity="0.2" className="text-foreground" />
+                  <circle 
+                    cx={x} 
+                    cy={yBaseline} 
+                    r="5.5" 
+                    fill="currentColor" 
+                    fillOpacity="0.55" 
+                    className="text-foreground dark:text-white/70" 
+                  />
                 )}
 
-                <circle cx={x} cy={y} r={isActive ? 12 : 8} fill={s.color} filter="url(#neon-glow)" className={cn("transition-all duration-300", isActive ? "animate-pulse" : "")} />
+                <circle 
+                  cx={x} 
+                  cy={y} 
+                  r={isActive ? 12 : 8} 
+                  fill={s.color} 
+                  filter="url(#neon-glow)" 
+                  className={cn("transition-all duration-300", isActive ? "animate-pulse" : "")} 
+                />
               </g>
             );
           }
