@@ -17,8 +17,8 @@ interface CxSoundwaveChartProps {
 export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, onSkillClick }: CxSoundwaveChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<{ skillId: CxSkillId; point: CxPoint; x: number; y: number } | null>(null);
 
-  // Buffer reduced to minimize wasted space at the top
-  const padding = { top: 10, bottom: 40, left: 10, right: 10 };
+  // Buffer reduced to minimize wasted space at the top and bottom
+  const padding = { top: 10, bottom: 10, left: 10, right: 10 };
   const width = 800;
   const height = 450; 
 
