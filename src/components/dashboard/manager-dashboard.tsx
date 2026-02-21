@@ -764,6 +764,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               scope={activeScope} 
               personalScope={personalScope} 
               data={stats?.avgScores || managerAverageScores}
+              memberSince={user.memberSince}
             />
           </section>
         )}

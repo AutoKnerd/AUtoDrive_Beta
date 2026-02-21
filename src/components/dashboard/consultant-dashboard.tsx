@@ -639,6 +639,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
           <CxSoundwaveCard 
             scope={getDefaultScope(user)} 
             data={averageScores}
+            memberSince={user.memberSince}
           />
         </section>
         

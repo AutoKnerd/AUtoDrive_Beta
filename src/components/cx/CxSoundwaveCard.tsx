@@ -8,9 +8,10 @@ import { CxSoundwaveChart } from './CxSoundwaveChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Info, TrendingUp } from 'lucide-react';
+import { Info, TrendingUp, Lock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
+import { differenceInDays } from 'date-fns';
 
 interface CxSoundwaveCardProps {
   scope: CxScope;
@@ -33,7 +34,7 @@ function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<
 }
 
 export function CxSoundwaveCard({ scope, personalScope, className, data, memberSince }: CxSoundwaveCardProps) {
-  const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('30d');
+  const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('today');
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [hoveredSkillId, setHoveredSkillId] = useState<CxSkillId | null>(null);
   const [selectedSkillId, setSelectedSkillId] = useState<CxSkillId | null>(null);
@@ -42,6 +43,31 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const daysSinceJoining = useMemo(() => {
+    if (!memberSince) return 100; // Safe default for missing data
+    try {
+      return Math.max(0, differenceInDays(new Date(), new Date(memberSince)));
+    } catch {
+      return 100;
+    }
+  }, [memberSince]);
+
+  const rangeAvailability = useMemo(() => ({
+    today: true,
+    '7d': daysSinceJoining >= 7,
+    '30d': daysSinceJoining >= 30,
+    '90d': daysSinceJoining >= 90,
+  }), [daysSinceJoining]);
+
+  // Set initial best range on mount
+  useEffect(() => {
+    if (mounted) {
+      if (rangeAvailability['30d']) setRange('30d');
+      else if (rangeAvailability['7d']) setRange('7d');
+      else setRange('today');
+    }
+  }, [mounted, rangeAvailability]);
 
   const activeSkillId = hoveredSkillId || selectedSkillId;
   const activeScope = viewMode === 'personal' && personalScope ? personalScope : scope;
@@ -77,6 +103,13 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
       </Card>
     );
   }
+
+  const rangeOptions = [
+    { id: 'today', label: 'Today', min: 0 },
+    { id: '7d', label: '7d', min: 7 },
+    { id: '30d', label: '30d', min: 30 },
+    { id: '90d', label: '90d', min: 90 },
+  ] as const;
 
   return (
     <Card className={cn(
@@ -134,29 +167,50 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
             </div>
           )}
 
-          <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
-            {(['today', '7d', '30d', '90d'] as const).map((r) => (
-              <Button
-                key={r}
-                variant="ghost"
-                size="sm"
-                onClick={() => setRange(r)}
-                className={cn(
-                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase",
-                  range === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
-                )}
-              >
-                {r === 'today' ? 'Today' : r}
-              </Button>
-            ))}
-          </div>
+          <TooltipProvider>
+            <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
+              {rangeOptions.map((opt) => {
+                const isAvailable = rangeAvailability[opt.id];
+                const button = (
+                  <Button
+                    key={opt.id}
+                    variant="ghost"
+                    size="sm"
+                    disabled={!isAvailable}
+                    onClick={() => setRange(opt.id)}
+                    className={cn(
+                      "h-7 px-3 text-[10px] font-bold tracking-widest uppercase flex items-center gap-1",
+                      range === opt.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60",
+                      !isAvailable && "opacity-40 cursor-not-allowed"
+                    )}
+                  >
+                    {!isAvailable && <Lock className="h-2.5 w-2.5" />}
+                    {opt.label}
+                  </Button>
+                );
+
+                if (!isAvailable) {
+                  return (
+                    <Tooltip key={opt.id}>
+                      <TooltipTrigger asChild>{button}</TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">Unlock after {opt.min} days in the system.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return button;
+              })}
+            </div>
+          </TooltipProvider>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 space-y-4 px-0 md:px-6">
-        <div className="rounded-2xl border border-border/60 bg-muted/5 overflow-hidden dark:bg-white/2">
+      <CardContent className="pt-0 space-y-4 px-0">
+        <div className="border border-border/60 bg-muted/5 overflow-hidden dark:bg-white/2">
           {/* Visual Ledger at Top */}
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-b border-border/50 p-3 dark:border-white/5 bg-muted/10">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-b border-border/50 p-1.5 md:p-3 dark:border-white/5 bg-muted/10">
             <div className="flex items-center gap-2">
               <div className="w-6 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
               <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Performance Wave</span>
@@ -192,7 +246,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
           />
         </div>
 
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-2 px-4 md:px-0 pb-4">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-2 px-4 pb-4">
           {series.map((s) => {
             const displayValue = range === 'today' 
               ? (s.points[s.points.length - 1]?.foreground || 0)

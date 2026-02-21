@@ -315,6 +315,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                 <CxSoundwaveCard 
                   scope={targetUserScope} 
                   data={averageScores}
+                  memberSince={user.memberSince}
                 />
                 <BadgeShowcase badges={badges} />
                  <Card>
