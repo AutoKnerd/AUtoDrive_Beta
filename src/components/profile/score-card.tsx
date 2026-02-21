@@ -30,6 +30,15 @@ const metricIcons: Record<CxTrait, icons.LucideIcon> = {
   relationshipBuilding: icons.Users,
 };
 
+const traitColors: Record<CxTrait, string> = {
+  empathy: '#00f2ff', // Neon Cyan
+  listening: '#70ff00', // Neon Lime
+  trust: '#ff00ea', // Neon Pink
+  followUp: '#ffff00', // Neon Yellow
+  closing: '#9d00ff', // Neon Purple
+  relationshipBuilding: '#ffae00', // Neon Orange
+};
+
 export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ user, activity, badges, dealerships }, ref) => {
   const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
   const hasActivity = activity.length > 0;
@@ -140,11 +149,17 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
         <div className="grid grid-cols-3 gap-y-1 gap-x-2 text-center">
             {Object.entries(averageScores).map(([key, value]) => {
                 const Icon = metricIcons[key as keyof typeof metricIcons];
+                const traitColor = traitColors[key as keyof typeof traitColors] || '#ffffff';
                 const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                 return (
                     <div key={key} className="flex flex-col items-center">
                         <Icon className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-base font-bold text-white">{hasActivity ? `${value}%` : '--'}</span>
+                        <span 
+                          className="text-base font-bold" 
+                          style={{ color: hasActivity ? traitColor : '#ffffff' }}
+                        >
+                          {hasActivity ? `${value}%` : '--'}
+                        </span>
                         <span className="text-[10px] leading-tight text-muted-foreground">{title}</span>
                     </div>
                 );
