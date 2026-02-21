@@ -33,7 +33,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <main className="flex-1 p-4 md:p-6 lg:p-8">
+      <main className="container mx-auto flex-1 p-4 md:p-6 lg:p-8 max-w-6xl w-full">
         {isManager ? (
           <ManagerDashboard user={user} />
         ) : (

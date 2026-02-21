@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -70,7 +69,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
 
   if (!mounted) {
     return (
-      <Card className={cn("h-[400px] bg-card border-border", className)}>
+      <Card className={cn("h-[400px] w-full bg-card border-border", className)}>
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <Skeleton className="h-6 w-[200px]" />
           <Skeleton className="h-8 w-[150px]" />
@@ -84,7 +83,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
 
   return (
     <Card className={cn(
-      "relative overflow-hidden bg-card border-border shadow-2xl transition-all duration-500 dark:bg-slate-950 dark:border-white/5",
+      "relative w-full overflow-hidden bg-card border-border shadow-2xl transition-all duration-500 dark:bg-slate-950 dark:border-white/5",
       className
     )}>
       {/* Background Glows */}
