@@ -107,8 +107,8 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                   <Info className="h-4 w-4 text-muted-foreground/40 cursor-help hover:text-muted-foreground transition-colors" />
                 </TooltipTrigger>
                 <TooltipContent className="bg-popover border-border text-xs max-w-[240px]">
-                  {range === 'today' ? 'Your current standing compared to the team benchmark.' : `Your aggregated skill averages over the last ${range}. Neon lines track your performance over time.`}
-                  {mode === 'compare' && ' Grey nodes indicate the collective dealership average (Team Benchmark).'}
+                  {range === 'today' ? 'Your current score compared to the dealership average.' : `Your performance averages over the last ${range}. Neon waves track your individual scores.`}
+                  {mode === 'compare' && ' Grey nodes indicate the Team Benchmark—the collective average of all team members at this location.'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -186,7 +186,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-cyan-400/20 border border-cyan-400/50 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Depth of Mastery (Glow intensity reflects proficiency)</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Depth of Mastery (Glow intensity reflects higher scores)</span>
           </div>
           {mode === 'compare' && (
             <div className="flex items-center gap-2">
