@@ -8,7 +8,7 @@ import { CxSoundwaveChart } from './CxSoundwaveChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Info, TrendingUp, Activity, Target } from 'lucide-react';
+import { Info, TrendingUp } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -16,9 +16,6 @@ interface CxSoundwaveCardProps {
   scope: CxScope;
   personalScope?: CxScope;
   className?: string;
-  /** 
-   * Real-time scores to anchor the trend data to. 
-   */
   data?: Partial<Record<string, number>>;
   memberSince?: string | null;
 }
@@ -86,10 +83,6 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
       "relative w-full overflow-hidden bg-card border-border shadow-2xl transition-all duration-500 dark:bg-slate-950 dark:border-white/5",
       className
     )}>
-      {/* Background Glows */}
-      <div className="absolute top-[-10%] -left-[10%] w-[40%] h-[40%] bg-cyan-500/5 blur-[100px] rounded-full pointer-events-none dark:bg-cyan-500/10" />
-      <div className="absolute bottom-[-10%] -right-[10%] w-[40%] h-[40%] bg-purple-500/5 blur-[100px] rounded-full pointer-events-none dark:bg-purple-500/10" />
-
       <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 space-y-0 pb-2">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -121,8 +114,8 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
                 size="sm"
                 onClick={() => setViewMode('team')}
                 className={cn(
-                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase transition-all",
-                  viewMode === 'team' ? "bg-background text-foreground shadow-sm dark:bg-white/10 dark:text-white" : "text-muted-foreground/60 hover:text-foreground dark:text-white/30 dark:hover:text-white/60"
+                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase",
+                  viewMode === 'team' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
                 )}
               >
                 Dealership
@@ -132,8 +125,8 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
                 size="sm"
                 onClick={() => setViewMode('personal')}
                 className={cn(
-                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase transition-all",
-                  viewMode === 'personal' ? "bg-background text-foreground shadow-sm dark:bg-white/10 dark:text-white" : "text-muted-foreground/60 hover:text-foreground dark:text-white/30 dark:hover:text-white/60"
+                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase",
+                  viewMode === 'personal' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
                 )}
               >
                 Personal
@@ -149,8 +142,8 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
                 size="sm"
                 onClick={() => setRange(r)}
                 className={cn(
-                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase transition-all",
-                  range === r ? "bg-background text-foreground shadow-sm dark:bg-white/10 dark:text-white" : "text-muted-foreground/60 hover:text-foreground dark:text-white/30 dark:hover:text-white/60"
+                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase",
+                  range === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
                 )}
               >
                 {r === 'today' ? 'Today' : r}
@@ -160,17 +153,16 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 space-y-4">
-        {/* Scores Area with Border - Edge-to-Edge Chart Container */}
-        <div className="rounded-2xl border border-border/60 bg-muted/5 overflow-hidden dark:bg-white/2 shadow-inner">
-          {/* Visual Ledger - Padded internally but border spans full width */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 md:gap-x-8 gap-y-2 md:gap-y-3 border-b border-border/50 p-2 md:p-4 dark:border-white/5">
+      <CardContent className="pt-0 space-y-4 px-0 md:px-6">
+        <div className="rounded-2xl border border-border/60 bg-muted/5 overflow-hidden dark:bg-white/2">
+          {/* Visual Ledger at Top */}
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-b border-border/50 p-3 dark:border-white/5 bg-muted/10">
             <div className="flex items-center gap-2">
-              <div className="w-6 md:w-8 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+              <div className="w-6 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
               <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Performance Wave</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2.5 md:w-3 h-2.5 md:h-3 rounded-full bg-cyan-400/20 border border-cyan-400/50 animate-pulse" />
+              <div className="w-2.5 h-2.5 rounded-full bg-cyan-400/20 border border-cyan-400/50" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Depth of Mastery</span>
                 <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">Proficiency intensity</span>
@@ -180,7 +172,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-                  <div className="w-3 md:w-4 h-[1px] border-t border-dashed border-muted-foreground/40" />
+                  <div className="w-3 h-[1px] border-t border-dashed border-muted-foreground/40" />
                   <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
                 </div>
                 <div className="flex flex-col">
@@ -200,7 +192,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
           />
         </div>
 
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-2">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-2 px-4 md:px-0 pb-4">
           {series.map((s) => {
             const displayValue = range === 'today' 
               ? (s.points[s.points.length - 1]?.foreground || 0)
@@ -219,7 +211,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
                 onClick={() => handleSkillClick(s.skillId)}
                 className={cn(
                   "flex flex-col items-center gap-1.5 transition-all duration-500 cursor-pointer p-2 rounded-2xl",
-                  isActive ? "bg-muted dark:bg-white/5 ring-1 ring-border dark:ring-white/10" : "hover:bg-muted/50 dark:hover:bg-white/5",
+                  isActive ? "bg-muted dark:bg-white/5 ring-1 ring-border" : "hover:bg-muted/50",
                   isDimmed ? "opacity-30 grayscale-[0.5]" : "opacity-100"
                 )}
               >

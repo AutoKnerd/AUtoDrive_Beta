@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -17,8 +16,6 @@ interface CxSoundwaveChartProps {
 export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, onSkillClick }: CxSoundwaveChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<{ skillId: CxSkillId; point: CxPoint; x: number; y: number } | null>(null);
 
-  // Buffer reduced to minimize wasted space at the top and bottom. 
-  // Horizontal padding set to 0 to go border-to-border.
   const padding = { top: 10, bottom: 10, left: 0, right: 0 };
   const width = 800;
   const height = 450; 
@@ -34,7 +31,6 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
 
   const startDateIndex = series[0]?.startDateIndex ?? null;
 
-  // Cubic Bezier interpolation for smooth paths
   const getPath = (points: number[]) => {
     if (points.length < 2) return '';
     let d = `M ${padding.left} ${yScale(points[0])}`;
@@ -112,26 +108,16 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
           ))}
         </defs>
 
-        {/* Grid lines */}
-        <line 
-          x1={padding.left} y1={yScale(50)} x2={width - padding.right} y2={yScale(50)} 
-          stroke="currentColor" strokeOpacity="0.1" strokeDasharray="4 4" 
-          className="text-foreground"
-        />
-        <line 
-          x1={padding.left} y1={yScale(100)} x2={width - padding.right} y2={yScale(100)} 
-          stroke="currentColor" strokeOpacity="0.1" 
-          className="text-foreground"
-        />
+        <line x1={padding.left} y1={yScale(50)} x2={width - padding.right} y2={yScale(50)} stroke="currentColor" strokeOpacity="0.1" strokeDasharray="4 4" className="text-foreground" />
+        <line x1={padding.left} y1={yScale(100)} x2={width - padding.right} y2={yScale(100)} stroke="currentColor" strokeOpacity="0.1" className="text-foreground" />
 
-        {/* Start Date Line (Tenure Marker) */}
         {startDateIndex !== null && !isPointGraph && (
           <g className="tenure-marker">
             <line 
               x1={padding.left + startDateIndex * xScale} 
-              y1={padding.top - 5} 
+              y1={padding.top} 
               x2={padding.left + startDateIndex * xScale} 
-              y2={height - padding.bottom + 10} 
+              y2={height - padding.bottom} 
               stroke="currentColor" 
               strokeOpacity="0.4" 
               strokeWidth="2" 
@@ -140,9 +126,9 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
             />
             <text 
               x={padding.left + startDateIndex * xScale} 
-              y={padding.top + 12} 
+              y={padding.top + 15} 
               textAnchor="middle" 
-              className="fill-cyan-400 text-[10px] font-black uppercase tracking-tighter"
+              className="fill-cyan-400 text-[9px] font-black uppercase"
             >
               Start Date Line
             </text>
@@ -170,41 +156,14 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
                 onMouseLeave={() => onSkillHover?.(null)}
               >
                 {mode === 'compare' && (
-                  <line 
-                    x1={x} y1={yBaseline} x2={x} y2={y} 
-                    stroke="currentColor" 
-                    strokeOpacity="0.15" 
-                    strokeWidth="1.5" 
-                    strokeDasharray="4 2" 
-                    className="text-foreground"
-                  />
+                  <line x1={x} y1={yBaseline} x2={x} y2={y} stroke="currentColor" strokeOpacity="0.15" strokeWidth="1.5" strokeDasharray="4 2" className="text-foreground" />
                 )}
                 
                 {mode === 'compare' && (
-                  <circle 
-                    cx={x} cy={yBaseline} r="4.5" 
-                    fill="currentColor" 
-                    fillOpacity="0.2" 
-                    className="text-foreground hover:fill-opacity-40 transition-all cursor-help"
-                  >
-                    <title>Team Benchmark: {bgPoints[0].toFixed(1)}%</title>
-                  </circle>
+                  <circle cx={x} cy={yBaseline} r="4.5" fill="currentColor" fillOpacity="0.2" className="text-foreground" />
                 )}
 
-                <circle 
-                  cx={x} cy={y} r={isActive ? 12 : 8} 
-                  fill={s.color} 
-                  filter="url(#neon-glow)" 
-                  className={cn("transition-all duration-300", isActive ? "animate-pulse" : "")}
-                />
-                
-                <circle 
-                  cx={x} cy={y} r={isActive ? 16 : 12} 
-                  fill="none" 
-                  stroke={s.color} 
-                  strokeWidth="1" 
-                  strokeOpacity="0.3" 
-                />
+                <circle cx={x} cy={y} r={isActive ? 12 : 8} fill={s.color} filter="url(#neon-glow)" className={cn("transition-all duration-300", isActive ? "animate-pulse" : "")} />
               </g>
             );
           }
@@ -212,33 +171,14 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
           return (
             <g key={s.skillId} className="transition-opacity duration-500" opacity={isDimmed ? 0.15 : 1}>
               {mode === 'compare' && (
-                <path
-                  d={getValleyPath(fgPoints, bgPoints)}
-                  fill={`url(#grad-${s.skillId})`}
-                  className="pointer-events-none opacity-40 dark:opacity-100"
-                />
+                <path d={getValleyPath(fgPoints, bgPoints)} fill={`url(#grad-${s.skillId})`} className="pointer-events-none opacity-40" />
               )}
 
               {mode === 'compare' && (
-                <path
-                  d={getPath(bgPoints)}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeOpacity="0.2"
-                  strokeWidth="1"
-                  strokeDasharray="2 2"
-                  className="pointer-events-none text-foreground"
-                />
+                <path d={getPath(bgPoints)} fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="1" strokeDasharray="2 2" className="pointer-events-none" />
               )}
 
-              <path
-                d={getPath(fgPoints)}
-                fill="none"
-                stroke={s.color}
-                strokeWidth={isActive ? 5 : 3}
-                filter="url(#neon-glow)"
-                className="pointer-events-none"
-              />
+              <path d={getPath(fgPoints)} fill="none" stroke={s.color} strokeWidth={isActive ? 5 : 3} filter="url(#neon-glow)" className="pointer-events-none" />
 
               <path
                 d={getPath(fgPoints)}
@@ -264,7 +204,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
 
       {hoveredPoint && (
         <div 
-          className="absolute z-50 pointer-events-none bg-card/95 border border-border p-3 rounded-lg backdrop-blur-md shadow-2xl text-[10px] space-y-1 dark:bg-slate-900/90 dark:border-white/10"
+          className="absolute z-50 pointer-events-none bg-card/95 border border-border p-3 rounded-lg backdrop-blur-md shadow-2xl text-[10px] space-y-1 dark:bg-slate-900/90"
           style={{ 
             left: hoveredPoint.x > width / 2 ? hoveredPoint.x - 160 : hoveredPoint.x + 20,
             top: hoveredPoint.y - 40
@@ -275,7 +215,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: series.find(s => s.skillId === hoveredPoint.skillId)?.color }} />
             <p className="text-foreground font-bold text-sm uppercase">{series.find(s => s.skillId === hoveredPoint.skillId)?.label}</p>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 pt-1 border-t border-border dark:border-white/5">
+          <div className="grid grid-cols-2 gap-x-4 pt-1 border-t border-border">
             <div>
               <p className="text-muted-foreground">Proficiency</p>
               <p className="text-lg font-bold text-foreground">{hoveredPoint.point.foreground.toFixed(1)}%</p>
