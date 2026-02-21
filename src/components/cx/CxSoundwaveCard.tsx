@@ -106,9 +106,9 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                 <TooltipTrigger asChild>
                   <Info className="h-4 w-4 text-muted-foreground/40 cursor-help hover:text-muted-foreground transition-colors" />
                 </TooltipTrigger>
-                <TooltipContent className="bg-popover border-border text-xs max-w-[200px]">
-                  {range === 'today' ? 'Current standing compared to dealership baseline.' : `Aggregated skill averages over the last ${range}. Neon lines show your performance.`}
-                  {mode === 'compare' && ' Grey nodes indicate dealership average.'}
+                <TooltipContent className="bg-popover border-border text-xs max-w-[240px]">
+                  {range === 'today' ? 'Your current standing compared to the team benchmark.' : `Your aggregated skill averages over the last ${range}. Neon lines track your performance over time.`}
+                  {mode === 'compare' && ' Grey nodes indicate the collective dealership average (Team Benchmark).'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -177,16 +177,16 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
         />
         
         {/* Visual Ledger / Key */}
-        <div className="flex flex-wrap items-center justify-center gap-6 py-2 border-y border-border dark:border-white/5 bg-muted/30 dark:bg-white/2">
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 py-3 border-y border-border dark:border-white/5 bg-muted/30 dark:bg-white/2 rounded-xl">
           <div className="flex items-center gap-2">
             <div className="flex items-center">
               <div className="w-8 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Performance Wave</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Your Performance Wave</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-cyan-400/20 border border-cyan-400/50 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Skill Intensity (Glow)</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Depth of Mastery (Glow intensity reflects proficiency)</span>
           </div>
           {mode === 'compare' && (
             <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                 <div className="w-4 h-[1px] border-t border-dashed border-muted-foreground/40" />
                 <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Dealership Baseline</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Team Benchmark (Dealership Average)</span>
             </div>
           )}
         </div>
