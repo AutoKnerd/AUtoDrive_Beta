@@ -8,7 +8,7 @@ import { CxSoundwaveChart } from './CxSoundwaveChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Info, TrendingUp } from 'lucide-react';
+import { Info, TrendingUp, Activity, Target } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -176,8 +176,32 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
           onSkillClick={handleSkillClick}
         />
         
-        {/* Current Snapshot Grid - Moved up, replacing the secondary legend */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-4 border-t border-border dark:border-white/5">
+        {/* Visual Ledger / Key */}
+        <div className="flex flex-wrap items-center justify-center gap-6 py-2 border-y border-border dark:border-white/5 bg-muted/30 dark:bg-white/2">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center">
+              <div className="w-8 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Performance Wave</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-cyan-400/20 border border-cyan-400/50 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Skill Intensity (Glow)</span>
+          </div>
+          {mode === 'compare' && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                <div className="w-4 h-[1px] border-t border-dashed border-muted-foreground/40" />
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Dealership Baseline</span>
+            </div>
+          )}
+        </div>
+
+        {/* Current Snapshot Grid */}
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-2">
           {series.map((s) => {
             const displayValue = range === 'today' 
               ? (s.points[s.points.length - 1]?.foreground || 0)
