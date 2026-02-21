@@ -17,9 +17,10 @@ interface CxSoundwaveChartProps {
 export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, onSkillClick }: CxSoundwaveChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<{ skillId: CxSkillId; point: CxPoint; x: number; y: number } | null>(null);
 
-  const padding = { top: 40, bottom: 40, left: 10, right: 10 };
+  // Buffer reduced to minimize wasted space at the top
+  const padding = { top: 10, bottom: 40, left: 10, right: 10 };
   const width = 800;
-  const height = 450; // Increased height for better vertical resolution
+  const height = 450; 
 
   const pointsCount = series[0]?.points.length || 0;
   const isPointGraph = pointsCount === 1;
@@ -90,7 +91,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
   };
 
   return (
-    <div className="relative w-full aspect-[4/3] md:aspect-[8/3]">
+    <div className="relative w-full aspect-[16/9] md:aspect-[8/3]">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full h-full overflow-visible"
@@ -127,7 +128,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
           <g className="tenure-marker">
             <line 
               x1={padding.left + startDateIndex * xScale} 
-              y1={padding.top - 10} 
+              y1={padding.top - 5} 
               x2={padding.left + startDateIndex * xScale} 
               y2={height - padding.bottom + 10} 
               stroke="currentColor" 
@@ -138,7 +139,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
             />
             <text 
               x={padding.left + startDateIndex * xScale} 
-              y={padding.top - 15} 
+              y={padding.top + 12} 
               textAnchor="middle" 
               className="fill-cyan-400 text-[10px] font-black uppercase tracking-tighter"
             >
