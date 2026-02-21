@@ -5,7 +5,6 @@ import { CxScope, getScopeLabel } from '@/lib/cx/scope';
 import { rollupCxTrend } from '@/lib/cx/rollups';
 import { CX_SKILLS, CxSkillId } from '@/lib/cx/skills';
 import { CxSoundwaveChart } from './CxSoundwaveChart';
-import { CxSoundwaveLegend } from './CxSoundwaveLegend';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -168,7 +167,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 space-y-2">
+      <CardContent className="pt-0 space-y-4">
         <CxSoundwaveChart 
           series={series} 
           activeSkillId={activeSkillId} 
@@ -177,13 +176,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
           onSkillClick={handleSkillClick}
         />
         
-        <CxSoundwaveLegend 
-          activeSkillId={activeSkillId} 
-          onSkillHover={setHoveredSkillId} 
-          onSkillClick={handleSkillClick} 
-        />
-
-        {/* Current Snapshot Grid - Dynamic averages based on range */}
+        {/* Current Snapshot Grid - Moved up, replacing the secondary legend */}
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-4 border-t border-border dark:border-white/5">
           {series.map((s) => {
             const displayValue = range === 'today' 
