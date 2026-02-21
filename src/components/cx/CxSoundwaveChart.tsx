@@ -14,9 +14,9 @@ interface CxSoundwaveChartProps {
 export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<{ skillId: CxSkillId; point: CxPoint; x: number; y: number } | null>(null);
 
-  const padding = { top: 20, bottom: 10, left: 10, right: 10 };
+  const padding = { top: 20, bottom: 20, left: 5, right: 5 };
   const width = 800;
-  const height = 200;
+  const height = 300; // Increased from 200 to 300 for more vertical presence
 
   const pointsCount = series[0]?.points.length || 0;
   const isPointGraph = pointsCount === 1;
@@ -63,7 +63,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
   };
 
   return (
-    <div className="relative w-full aspect-[4/1]">
+    <div className="relative w-full aspect-[8/3]">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full h-full overflow-visible"
@@ -89,12 +89,12 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
       >
         <defs>
           <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feGaussianBlur stdDeviation="4" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
           {series.map(s => (
             <linearGradient key={`grad-${s.skillId}`} id={`grad-${s.skillId}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={s.color} stopOpacity="0.15" />
+              <stop offset="0%" stopColor={s.color} stopOpacity="0.2" />
               <stop offset="100%" stopColor={s.color} stopOpacity="0" />
             </linearGradient>
           ))}
@@ -151,7 +151,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
 
                 {/* Main Foreground Point with Glow */}
                 <circle 
-                  cx={x} cy={y} r={isActive ? 8 : 6} 
+                  cx={x} cy={y} r={isActive ? 10 : 7} 
                   fill={s.color} 
                   filter="url(#neon-glow)" 
                   className={cn("transition-all duration-300", isActive ? "animate-pulse" : "")}
@@ -161,7 +161,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
                 
                 {/* Outer Rim */}
                 <circle 
-                  cx={x} cy={y} r={isActive ? 12 : 10} 
+                  cx={x} cy={y} r={isActive ? 14 : 11} 
                   fill="none" 
                   stroke={s.color} 
                   strokeWidth="1" 
@@ -200,7 +200,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode }: CxSoundwaveCha
                 d={getPath(fgPoints)}
                 fill="none"
                 stroke={s.color}
-                strokeWidth={isActive ? 3 : 2}
+                strokeWidth={isActive ? 4 : 2.5}
                 filter="url(#neon-glow)"
                 className="pointer-events-none"
               />

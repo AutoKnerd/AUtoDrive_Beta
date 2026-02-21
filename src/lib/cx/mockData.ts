@@ -14,7 +14,7 @@ function generateTrend(base: number, volatility: number, length: number, target?
   for (let i = 1; i < length; i++) {
     const prev = points[i - 1];
     const change = (Math.random() - 0.5) * volatility;
-    points.push(Math.max(20, Math.min(100, prev + change)));
+    points.push(Math.max(10, Math.min(100, prev + change)));
   }
 
   // If a target is provided, adjust the series so it ends exactly at the target
@@ -43,11 +43,14 @@ export function getMockCxTrend(id: string, days: number = 90, anchorScores?: Par
   CX_SKILLS.forEach((skill, idx) => {
     // Determine a reasonable starting point based on the anchor or a random base
     const target = anchorScores?.[skill.id];
+    
+    // Spread the base scores out more vertically when no target exists
     const base = target !== undefined 
-      ? Math.max(20, Math.min(100, target + (Math.random() - 0.5) * 20))
-      : 65 + idx * 4 + (Math.random() * 5);
+      ? Math.max(10, Math.min(100, target + (Math.random() - 0.5) * 30))
+      : 30 + idx * 12 + (Math.random() * 15);
       
-    skillTrends[skill.id] = generateTrend(base, 6, days, target);
+    // Increased volatility from 6 to 12 to make the lines "spread out" and more wavy
+    skillTrends[skill.id] = generateTrend(base, 12, days, target);
   });
 
   for (let i = 0; i < days; i++) {
