@@ -7,7 +7,7 @@ import { calculateLevel } from '@/lib/xp';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, PlusCircle, ShieldOff } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ import { BadgeShowcase } from '../profile/badge-showcase';
 import { managerialRoles } from '@/lib/definitions';
 import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
+import { AvatarSoundRing } from '../profile/avatar-sound-ring';
 
 interface TeamMemberCardProps {
   user: User;
@@ -261,10 +262,15 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
         <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
                 <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16">
-                        <AvatarImage src={user.avatarUrl} data-ai-hint="person portrait" />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative w-16 h-16">
+                        {/* Dynamic Sound Ring Frame for the performance snapshot */}
+                        <AvatarSoundRing scores={averageScores} hasActivity={activity.length > 0} />
+                        
+                        <Avatar className="relative w-full h-full border-2 border-slate-700">
+                            <AvatarImage src={user.avatarUrl} data-ai-hint="person portrait" />
+                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                    </div>
                     <div>
                         <CardTitle className="text-2xl">{user.name}</CardTitle>
                         <CardDescription>{user.role === 'manager' ? 'Sales Manager' : user.role} at {currentDealershipNames}</CardDescription>

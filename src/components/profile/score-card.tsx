@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -13,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/logo';
+import { AvatarSoundRing } from './avatar-sound-ring';
 
 interface ScoreCardProps {
   user: User;
@@ -104,10 +104,12 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
             </div>
         </div>
 
-        {/* Avatar */}
+        {/* Avatar with Dynamic Sound Ring Frame */}
         <div className="flex-grow flex items-center justify-center my-2">
           <div className="relative w-28 h-28">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#8DC63F]/80 to-[#5E9F2F]/80 blur-xl" />
+              {/* Dynamic Soundwave Ring Frame reacting to trait scores */}
+              <AvatarSoundRing scores={averageScores} hasActivity={hasActivity} />
+              
               <Avatar className="relative w-full h-full border-4 border-slate-700">
                   <AvatarImage src={avatarSrc || undefined} alt={user.name} />
                   <AvatarFallback className="text-5xl bg-slate-800 text-white">
@@ -178,5 +180,3 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
   );
 });
 ScoreCard.displayName = 'ScoreCard';
-
-    
