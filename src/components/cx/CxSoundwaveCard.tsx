@@ -107,8 +107,8 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
                   <Info className="h-4 w-4 text-muted-foreground/40 cursor-help hover:text-muted-foreground transition-colors" />
                 </TooltipTrigger>
                 <TooltipContent className="bg-popover border-border text-xs max-w-[240px]">
-                  {range === 'today' ? 'Your current score compared to the dealership average.' : `Your performance averages over the last ${range}. Neon waves track your individual scores.`}
-                  {mode === 'compare' && ' Grey nodes indicate the Team Benchmark—the collective average of all team members at this location.'}
+                  {range === 'today' ? 'Your current performance score compared to the mean average of the team.' : `Your performance averages over the last ${range}. Neon waves track your individual scores.`}
+                  {mode === 'compare' && ' Grey nodes indicate the Team Benchmark—the collective mean average of all team members at this location.'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -168,36 +168,45 @@ export function CxSoundwaveCard({ scope, personalScope, className, data }: CxSou
       </CardHeader>
 
       <CardContent className="pt-0 space-y-4">
-        <CxSoundwaveChart 
-          series={series} 
-          activeSkillId={activeSkillId} 
-          mode={mode} 
-          onSkillHover={setHoveredSkillId}
-          onSkillClick={handleSkillClick}
-        />
-        
-        {/* Visual Ledger / Key */}
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 py-3 border-y border-border dark:border-white/5 bg-muted/30 dark:bg-white/2 rounded-xl">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center">
-              <div className="w-8 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Your Performance Wave</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-cyan-400/20 border border-cyan-400/50 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Depth of Mastery (Glow intensity reflects higher scores)</span>
-          </div>
-          {mode === 'compare' && (
+        {/* Visual Container for the Chart and Ledger */}
+        <div className="rounded-2xl border border-border/50 bg-muted/5 p-4 dark:bg-white/2 shadow-inner">
+          <CxSoundwaveChart 
+            series={series} 
+            activeSkillId={activeSkillId} 
+            mode={mode} 
+            onSkillHover={setHoveredSkillId}
+            onSkillClick={handleSkillClick}
+          />
+          
+          {/* Visual Ledger / Key */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-t border-border/50 py-3 dark:border-white/5">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-                <div className="w-4 h-[1px] border-t border-dashed border-muted-foreground/40" />
-                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+              <div className="flex items-center">
+                <div className="w-8 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Team Benchmark (Dealership Average)</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Your Performance Wave</span>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-cyan-400/20 border border-cyan-400/50 animate-pulse" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Depth of Mastery</span>
+                <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">Proficiency intensity</span>
+              </div>
+            </div>
+            {mode === 'compare' && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                  <div className="w-4 h-[1px] border-t border-dashed border-muted-foreground/40" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Team Benchmark</span>
+                  <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">Mean average of colleagues</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Current Snapshot Grid */}
