@@ -223,7 +223,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   useEffect(() => {
     if (user.memberSince) {
-      memberSince = new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      setMemberSince(new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
     }
   }, [user.memberSince]);
 
