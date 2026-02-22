@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,7 +17,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, User as UserIcon, MessageSquare, CreditCard, Undo2 } from 'lucide-react';
+import { LogOut, User as UserIcon, MessageSquare, CreditCard, Undo2, Home } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 function MessageItem({ message }: { message: Message }) {
@@ -158,6 +156,10 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                     <span>Back to Developer</span>
                 </DropdownMenuItem>
             )}
+            <DropdownMenuItem onSelect={() => router.push('/')}>
+                <Home className="mr-2 h-4 w-4" />
+                <span>Dashboard</span>
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => router.push('/profile')}>
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>Profile</span>
