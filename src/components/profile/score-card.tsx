@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/logo';
 import { AvatarSoundRing } from './avatar-sound-ring';
+import { getTraitColor } from '@/lib/cx/skills';
 
 interface ScoreCardProps {
   user: User;
@@ -21,22 +22,13 @@ interface ScoreCardProps {
   dealerships: Dealership[];
 }
 
-const metricIcons: Record<CxTrait, icons.LucideIcon> = {
+const metricIcons: Record<string, icons.LucideIcon> = {
   empathy: icons.Smile,
   listening: icons.Ear,
   trust: icons.Handshake,
   followUp: icons.Repeat,
   closing: icons.Target,
   relationshipBuilding: icons.Users,
-};
-
-const traitColors: Record<CxTrait, string> = {
-  empathy: '#00f2ff', // Neon Cyan
-  listening: '#70ff00', // Neon Lime
-  trust: '#ff00ea', // Neon Pink
-  followUp: '#ffff00', // Neon Yellow
-  closing: '#9d00ff', // Neon Purple
-  relationshipBuilding: '#ffae00', // Neon Orange
 };
 
 export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ user, activity, badges, dealerships }, ref) => {
@@ -72,7 +64,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
     const total = activity.reduce(
       (acc, log) => {
         Object.keys(acc).forEach(key => {
-          acc[key as CxTrait] += log[key as CxTrait];
+          acc[key as CxTrait] += log[key as CxTrait] || 0;
         });
         return acc;
       },
@@ -117,7 +109,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
         <div className="flex-grow flex items-center justify-center my-2">
           <div className="relative w-28 h-28">
               {/* Dynamic Soundwave Ring Frame reacting to trait scores */}
-              <AvatarSoundRing scores={averageScores} hasActivity={hasActivity} />
+              <AvatarSoundRing scores={averageScores} hasActivity={hasActivity} useProfessionalTheme={user.useProfessionalTheme} />
               
               <Avatar className="relative w-full h-full border-4 border-slate-700">
                   <AvatarImage src={avatarSrc || undefined} alt={user.name} />
@@ -149,7 +141,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
         <div className="grid grid-cols-3 gap-y-1 gap-x-2 text-center">
             {Object.entries(averageScores).map(([key, value]) => {
                 const Icon = metricIcons[key as keyof typeof metricIcons];
-                const traitColor = traitColors[key as keyof typeof traitColors] || '#ffffff';
+                const traitColor = getTraitColor(key, user.useProfessionalTheme);
                 const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                 return (
                     <div key={key} className="flex flex-col items-center">

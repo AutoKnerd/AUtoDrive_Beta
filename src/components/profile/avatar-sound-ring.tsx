@@ -1,25 +1,27 @@
 'use client';
 
 import React from 'react';
+import { getTraitColor } from '@/lib/cx/skills';
 
 interface AvatarSoundRingProps {
   scores?: Record<string, number>;
   hasActivity?: boolean;
+  useProfessionalTheme?: boolean;
 }
 
 /**
  * A circular soundwave frame for avatars that reacts to CX scores.
  * Colors and lengths are driven by the user's proficiency traits.
  */
-export function AvatarSoundRing({ scores, hasActivity = true }: AvatarSoundRingProps) {
+export function AvatarSoundRing({ scores, hasActivity = true, useProfessionalTheme = false }: AvatarSoundRingProps) {
   // Mapping traits to the standard AutoDrive CX color grade
   const traits = [
-    { id: 'empathy', color: '#00f2ff' }, // Neon Cyan
-    { id: 'listening', color: '#70ff00' }, // Neon Lime
-    { id: 'trust', color: '#ff00ea' }, // Neon Pink
-    { id: 'followUp', color: '#ffff00' }, // Neon Yellow
-    { id: 'closing', color: '#9d00ff' }, // Neon Purple
-    { id: 'relationshipBuilding', color: '#ffae00' }, // Neon Orange
+    { id: 'empathy' }, 
+    { id: 'listening' },
+    { id: 'trust' },
+    { id: 'followUp' },
+    { id: 'closing' },
+    { id: 'relationship' },
   ];
   
   const barCount = 96; // 16 bars per trait for a smooth circle
@@ -47,10 +49,12 @@ export function AvatarSoundRing({ scores, hasActivity = true }: AvatarSoundRingP
         <g filter="url(#sound-glow)">
           {Array.from({ length: barCount }).map((_, i) => {
             const traitIndex = Math.floor(i / barsPerTrait);
-            const trait = traits[traitIndex];
+            const traitId = traits[traitIndex].id;
+            const traitColor = getTraitColor(traitId, useProfessionalTheme);
             
             // Safely retrieve score or default to a baseline for new users
-            const baseScore = scores ? (scores[trait.id] || 50) : 60;
+            const scoreKey = traitId === 'relationship' ? 'relationshipBuilding' : traitId;
+            const baseScore = scores ? (scores[scoreKey] || scores[traitId] || 50) : 60;
             const score = hasActivity ? baseScore : 40;
             
             // Calculate polar coordinates for the bar
@@ -78,7 +82,7 @@ export function AvatarSoundRing({ scores, hasActivity = true }: AvatarSoundRingP
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={trait.color}
+                stroke={traitColor}
                 strokeWidth="1.2"
                 strokeLinecap="round"
                 className="animate-pulse"

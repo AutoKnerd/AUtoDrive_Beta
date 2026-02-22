@@ -19,6 +19,7 @@ interface CxSoundwaveCardProps {
   className?: string;
   data?: Partial<Record<string, number>>;
   memberSince?: string | null;
+  useProfessionalTheme?: boolean;
 }
 
 function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<CxSkillId, number>> | undefined {
@@ -33,7 +34,7 @@ function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<
   } as Partial<Record<CxSkillId, number>>;
 }
 
-export function CxSoundwaveCard({ scope, personalScope, className, data, memberSince }: CxSoundwaveCardProps) {
+export function CxSoundwaveCard({ scope, personalScope, className, data, memberSince, useProfessionalTheme }: CxSoundwaveCardProps) {
   const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('today');
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [hoveredSkillId, setHoveredSkillId] = useState<CxSkillId | null>(null);
@@ -81,8 +82,8 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
     else if (range === '90d') days = 90;
 
     const shouldAnchor = (viewMode === 'personal' && personalScope) || (viewMode === 'team');
-    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince);
-  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince]);
+    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince, useProfessionalTheme);
+  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince, useProfessionalTheme]);
 
   const mode = activeScope.role === 'owner' && !activeScope.storeId ? 'groupOnly' : 'compare';
 

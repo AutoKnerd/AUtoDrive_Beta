@@ -1,5 +1,3 @@
-
-
 export const carBrands = [
   'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'Cadillac', 'Chevrolet', 
   'Chrysler', 'Dodge', 'Fiat', 'Ford', 'Genesis', 'GMC', 'Honda', 'Hyundai', 
@@ -73,6 +71,7 @@ export type User = {
   isPrivate?: boolean;
   isPrivateFromOwner?: boolean;
   showDealerCriticalOnly?: boolean;
+  useProfessionalTheme?: boolean;
   memberSince?: string;
   selfDeclaredDealershipId?: string;
   stripeCustomerId?: string;

@@ -264,7 +264,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                 <div className="flex items-center gap-4">
                     <div className="relative w-16 h-16">
                         {/* Dynamic Sound Ring Frame for the performance snapshot */}
-                        <AvatarSoundRing scores={averageScores} hasActivity={activity.length > 0} />
+                        <AvatarSoundRing scores={averageScores} hasActivity={activity.length > 0} useProfessionalTheme={user.useProfessionalTheme} />
                         
                         <Avatar className="relative w-full h-full border-2 border-slate-700">
                             <AvatarImage src={user.avatarUrl} data-ai-hint="person portrait" />
@@ -322,6 +322,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                   scope={targetUserScope} 
                   data={averageScores}
                   memberSince={user.memberSince}
+                  useProfessionalTheme={user.useProfessionalTheme}
                 />
                 <BadgeShowcase badges={badges} />
                  <Card>

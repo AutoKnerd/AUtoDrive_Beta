@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -18,7 +16,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge as UiBadge } from '@/components/ui/badge';
 import placeholderImagesData from '@/lib/placeholder-images.json';
-import { Camera, X, CheckCircle, ExternalLink } from 'lucide-react';
+import { Camera, X, CheckCircle, ExternalLink, Sparkles, Shield } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +51,7 @@ const profileSchema = z.object({
   isPrivate: z.boolean().optional(),
   isPrivateFromOwner: z.boolean().optional(),
   showDealerCriticalOnly: z.boolean().optional(),
+  useProfessionalTheme: z.boolean().optional(),
   selfDeclaredDealershipId: z.string().optional(),
 });
 
@@ -88,6 +87,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       isPrivate: user.isPrivate || false,
       isPrivateFromOwner: user.isPrivateFromOwner || false,
       showDealerCriticalOnly: user.showDealerCriticalOnly || false,
+      useProfessionalTheme: user.useProfessionalTheme || false,
       selfDeclaredDealershipId: user.selfDeclaredDealershipId || '',
     },
   });
@@ -505,6 +505,38 @@ export function ProfileForm({ user }: ProfileFormProps) {
                         </div>
                     )}
                 </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Interface Preferences</CardTitle>
+                <CardDescription>Customize the visual style of your performance visualizations.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <FormField
+                control={form.control}
+                name="useProfessionalTheme"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                        <FormLabel className="text-base flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        Professional Theme
+                        </FormLabel>
+                        <FormDescription>
+                        Switch from vibrant neons to a more understated monochromatic color palette for sound rings and charts.
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                    </FormItem>
+                )}
+                />
             </CardContent>
         </Card>
 

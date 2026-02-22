@@ -640,6 +640,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             scope={getDefaultScope(user)} 
             data={averageScores}
             memberSince={user.memberSince}
+            useProfessionalTheme={user.useProfessionalTheme}
           />
         </section>
         
