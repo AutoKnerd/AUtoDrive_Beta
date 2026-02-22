@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -145,25 +146,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           // Critical validation
           // Demo accounts intentionally resolve to canonical `tour-*` IDs.
+          // If we fail to load a profile, we set the user to null rather than forcing a sign-out
+          // which can cause redirection loops during transient backend issues.
           if (!userProfile || (!isDemoAuthUser && hasUidMismatch) || !userProfile.role) {
-            console.error(
-              `CRITICAL: User profile validation failed for UID ${fbUser.uid}. ` +
-                `Profile exists: ${!!userProfile}, UID Match: ${userProfile?.userId === fbUser.uid}, Demo Auth User: ${isDemoAuthUser}, Role Exists: ${!!userProfile?.role}. Signing out.`
+            console.warn(
+              `[AuthProvider] User profile validation failed for UID ${fbUser.uid}. ` +
+                `Profile exists: ${!!userProfile}, UID Match: ${userProfile?.userId === fbUser.uid}, Demo Auth User: ${isDemoAuthUser}, Role Exists: ${!!userProfile?.role}.`
             );
-            await auth.signOut();
-            return;
-          }
-
-          setUser(userProfile);
-
-          if (userProfile.role === 'Developer' || userProfile.role === 'Admin') {
-            setOriginalUser(userProfile);
-          } else {
+            setUser(null);
             setOriginalUser(null);
-          }
+            setIsTouring(false);
+          } else {
+            setUser(userProfile);
 
-          if (userProfile.email) {
-            setIsTouring(demoUserEmails.includes(userProfile.email));
+            if (userProfile.role === 'Developer' || userProfile.role === 'Admin') {
+              setOriginalUser(userProfile);
+            } else {
+              setOriginalUser(null);
+            }
+
+            if (userProfile.email) {
+              setIsTouring(demoUserEmails.includes(userProfile.email));
+            }
           }
         } else {
           setUser(null);
@@ -175,11 +179,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         setOriginalUser(null);
         setIsTouring(false);
-        try {
-          await auth.signOut();
-        } catch {
-          // no-op: best effort cleanup
-        }
       } finally {
         setLoading(false);
       }

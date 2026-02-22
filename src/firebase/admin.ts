@@ -1,3 +1,4 @@
+
 import type { App } from 'firebase-admin/app';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -54,7 +55,6 @@ function getEnvServiceAccount():
 }
 
 function initializeAdmin() {
-  // If already initialized and we have an app instance, we are done.
   if (initializationAttempted && app) {
     return;
   }
@@ -71,13 +71,6 @@ function initializeAdmin() {
       throw new Error("Missing projectId in firebaseConfig");
     }
 
-    // CRITICAL: Force the environment variables to match our target project.
-    // This helps the underlying Google Cloud SDKs (like gRPC/Firestore) 
-    // correctly scope their token requests to the metadata server.
-    process.env.GCLOUD_PROJECT = targetProjectId;
-    process.env.GOOGLE_CLOUD_PROJECT = targetProjectId;
-
-    // 1. Try to find an existing app instance that matches our target project ID.
     const existingApps = appModule.getApps();
     app = existingApps.find(a => a.options.projectId === targetProjectId);
 
@@ -94,29 +87,25 @@ function initializeAdmin() {
           privateKey: envServiceAccount.privateKey,
         });
       } else {
+        // Fallback to ADC
         options.credential = appModule.applicationDefault();
       }
 
-      // 2. Determine if we can use the default name '[DEFAULT]' or if we need a named app.
-      const hasDefaultApp = existingApps.some(a => a.name === '[DEFAULT]');
+      // Check if [DEFAULT] is taken by a different project
       const defaultApp = existingApps.find(a => a.name === '[DEFAULT]');
-      
-      if (!hasDefaultApp || (defaultApp && defaultApp.options.projectId === targetProjectId)) {
-        // No default app exists, or the default app is already configured for our project.
+      if (!defaultApp || defaultApp.options.projectId === targetProjectId) {
         app = appModule.initializeApp(options);
       } else {
-        // A default app exists but its projectId doesn't match our target.
-        // We MUST initialize a named app instance to avoid audience claim mismatches.
-        const appName = `studio-app-${targetProjectId}`;
+        // Use a named app to avoid audience claim mismatches
+        const appName = `autodrive-${targetProjectId}`;
         app = existingApps.find(a => a.name === appName) || appModule.initializeApp(options, appName);
       }
     }
 
     if (!app) {
-      throw new Error("Failed to resolve or initialize Firebase Admin app instance.");
+      throw new Error("Failed to initialize Firebase Admin app instance.");
     }
 
-    // 3. Initialize service instances tied to our specific app instance.
     _adminDb = firestoreModule.getFirestore(app);
     _adminAuth = authModule.getAuth(app);
     
@@ -142,22 +131,16 @@ function initializeAdmin() {
 
     _adminAuth = {
       verifyIdToken: async () => {
-        throw makeErr(
-          'Ensure Application Default Credentials are available (GOOGLE_APPLICATION_CREDENTIALS) or run in App Hosting.'
-        );
+        throw makeErr('Verify application credentials or project ID configuration.');
       },
     } as unknown as Auth;
 
     _adminDb = {
       collection: () => {
-        throw makeErr(
-          'Ensure Application Default Credentials are available (GOOGLE_APPLICATION_CREDENTIALS) or run in App Hosting.'
-        );
+        throw makeErr('Verify application credentials or project ID configuration.');
       },
       runTransaction: async () => {
-        throw makeErr(
-          'Ensure Application Default Credentials are available (GOOGLE_APPLICATION_CREDENTIALS) or run in App Hosting.'
-        );
+        throw makeErr('Verify application credentials or project ID configuration.');
       },
     } as unknown as Firestore;
   }
