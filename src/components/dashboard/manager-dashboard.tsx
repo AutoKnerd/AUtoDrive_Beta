@@ -223,7 +223,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   useEffect(() => {
     if (user.memberSince) {
-      setMemberSince(new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+      memberSince = new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     }
   }, [user.memberSince]);
 
@@ -306,6 +306,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return roleSpecificLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) || roleSpecificLessons[0] || globalLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) || globalLessons[0] || candidateLessons[0] || null;
   }, [loading, lessons, assignedLessonHistoryIds, managerAverageScores, user.role]);
 
+  const hasAvailableLessons = useMemo(() => {
+    return !loading && ((recommendedLesson && !lessonLimits.recommendedTaken) || assignedLessons.length > 0);
+  }, [loading, recommendedLesson, lessonLimits.recommendedTaken, assignedLessons.length]);
+
   const dealershipInsights = useMemo(() => {
     if (!stats?.avgScores) return { bestStat: null, watchStat: null };
     const scores = Object.entries(stats.avgScores) as [CxTrait, number][];
@@ -342,7 +346,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
 
   return (
-    <div className="space-y-8 pb-8">
+    <div className="space-y-8 pb-8 text-foreground">
       <BaselineAssessmentDialog user={user} open={showBaselineAssessment} onOpenChange={setShowBaselineAssessment} onCompleted={async () => { setShowBaselineAssessment(false); setNeedsBaselineAssessment(false); await fetchData(selectedDealershipId); }} />
       <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
           <DialogContent>
@@ -383,7 +387,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                   size="sm"
                   onClick={() => setViewMode('team')}
                   className={cn(
-                      "h-8 px-4 text-xs font-bold uppercase",
+                      "h-8 px-4 text-xs font-bold uppercase transition-all duration-300",
                       viewMode === 'team' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
                   )}
               >
@@ -395,8 +399,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                       size="sm"
                       onClick={() => setViewMode('personal')}
                       className={cn(
-                          "h-8 px-4 text-xs font-bold uppercase",
-                          viewMode === 'personal' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
+                          "h-8 px-4 text-xs font-bold uppercase transition-all duration-300",
+                          viewMode === 'personal' 
+                            ? "bg-background text-foreground shadow-sm" 
+                            : (hasAvailableLessons ? "text-[#8DC63F] drop-shadow-[0_0_8px_rgba(141,198,63,0.5)]" : "text-muted-foreground/60")
                       )}
                   >
                       My Development

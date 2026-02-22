@@ -455,6 +455,11 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   }, [lessons, assignedLessonHistoryIds, averageScores, user.role, activity]);
 
   const availableRecommendedLesson = recommendedLessonQueue?.[0] ?? null;
+  
+  const hasAvailableLessons = useMemo(() => {
+    return !loading && ((availableRecommendedLesson && !lessonLimits.recommendedTaken) || assignedLessons.length > 0);
+  }, [loading, availableRecommendedLesson, lessonLimits.recommendedTaken, assignedLessons.length]);
+
   const todayRecommendedLessonId = activity.find(log => log.isRecommended && isToday(log.timestamp))?.lessonId ?? null;
   const todayRecommendedLesson = todayRecommendedLessonId
     ? lessons.find(lesson => lesson.lessonId === todayRecommendedLessonId) ?? null
@@ -588,8 +593,10 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                     size="sm"
                     onClick={() => setViewMode('personal')}
                     className={cn(
-                        "h-8 px-4 text-xs font-bold uppercase",
-                        viewMode === 'personal' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
+                        "h-8 px-4 text-xs font-bold uppercase transition-all duration-300",
+                        viewMode === 'personal' 
+                            ? "bg-background text-foreground shadow-sm" 
+                            : (hasAvailableLessons ? "text-[#8DC63F] drop-shadow-[0_0_8px_rgba(141,198,63,0.5)]" : "text-muted-foreground/60")
                     )}
                 >
                     Personal
@@ -599,7 +606,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                     size="sm"
                     onClick={() => setViewMode('team')}
                     className={cn(
-                        "h-8 px-4 text-xs font-bold uppercase",
+                        "h-8 px-4 text-xs font-bold uppercase transition-all duration-300",
                         viewMode === 'team' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
                     )}
                 >
