@@ -77,11 +77,6 @@ function dateTimeKey(date: Date): string {
   return `${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}`;
 }
 
-function dateLabel(key: string): string {
-  if (!/^\d{8}$/.test(key)) return key;
-  return `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-}
-
 function pickCategory(role: LessonRole, trait: CxTrait, key: string): LessonCategory {
   const categories = lessonCategoriesByRole[role] as LessonCategory[] | undefined;
   if (!categories || categories.length === 0) return 'Product Knowledge';
@@ -122,7 +117,8 @@ export function buildAutoRecommendedLesson(
 ): Lesson {
   const key = dateKey(now);
   const lessonId = buildAutoRecommendedLessonId(role, trait, now);
-  const title = `${role} ${traitLabel(trait)} Daily Drill (${dateLabel(key)})`;
+  // Removed date label from the title per user request to reduce crowding on buttons
+  const title = `${role} ${traitLabel(trait)} Daily Drill`;
 
   return {
     lessonId,
@@ -144,7 +140,8 @@ export function buildUniqueRecommendedTestingLesson(
   const nonce = randomSuffix();
   const entropyKey = `${timestamp}-${nonce}`;
   const lessonId = `auto-testing-${toRoleSlug(role)}-${trait}-${entropyKey}`;
-  const title = `${role} ${traitLabel(trait)} Testing Drill ${now.toLocaleString('en-US')}`;
+  // Removed timestamp from the title per user request
+  const title = `${role} ${traitLabel(trait)} Testing Drill`;
   const baseScenario = pickScenario(role, trait, entropyKey);
   const twist = pickTestingTwist(role, trait, entropyKey);
 

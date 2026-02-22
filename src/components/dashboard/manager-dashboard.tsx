@@ -678,6 +678,19 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             )}
       </section>
 
+      {/* Trend Visualization - Primary source for CX Scores */}
+      {!isSuperAdmin && (
+        <section>
+          <CxSoundwaveCard 
+            scope={activeScope} 
+            personalScope={personalScope} 
+            data={stats?.avgScores || managerAverageScores}
+            memberSince={user.memberSince}
+            themePreference={themePreference}
+          />
+        </section>
+      )}
+
       {/* Dealership Selector Card */}
       {(['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
         <Card className="bg-card/50 backdrop-blur-sm border-dashed">
@@ -702,19 +715,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             </CardHeader>
         </Card>
       )}
-
-        {/* Average CX Scores Trend Visualization */}
-        {!isSuperAdmin && (
-          <section>
-            <CxSoundwaveCard 
-              scope={activeScope} 
-              personalScope={personalScope} 
-              data={stats?.avgScores || managerAverageScores}
-              memberSince={user.memberSince}
-              themePreference={themePreference}
-            />
-          </section>
-        )}
 
         <section>
             {loading ? (
@@ -834,7 +834,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             </div>
                         ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
                             <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
-                                Start: {recommendedLesson.title}
+                                {recommendedLesson.title}
                             </Link>
                         ) : (
                             <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
@@ -865,7 +865,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 })
                               )}
                             >
-                                Start: {assignedLessons[0].title}
+                                {assignedLessons[0].title}
                             </Link>
                         ) : (
                             <Button variant="outline" disabled className={dashboardDisabledButtonClass}>

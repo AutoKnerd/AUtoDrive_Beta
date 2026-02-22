@@ -685,7 +685,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                             </div>
                         ) : availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
                             <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
-                                Start: {availableRecommendedLesson.title}
+                                {availableRecommendedLesson.title}
                             </Link>
 	                        ) : (retakeTestingLesson || availableRecommendedLesson) && lessonLimits.recommendedTaken ? (
 	                            <div className="space-y-2">
