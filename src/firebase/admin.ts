@@ -54,7 +54,8 @@ function getEnvServiceAccount():
 }
 
 function initializeAdmin() {
-  if (initializationAttempted) {
+  // If already initialized and we have an app instance, we are done.
+  if (initializationAttempted && app) {
     return;
   }
 
@@ -65,34 +66,60 @@ function initializeAdmin() {
     const firestoreModule = require('firebase-admin/firestore') as typeof import('firebase-admin/firestore');
     const authModule = require('firebase-admin/auth') as typeof import('firebase-admin/auth');
 
-    if (appModule.getApps().length === 0) {
-      const envServiceAccount = getEnvServiceAccount();
-      if (envServiceAccount) {
-        app = appModule.initializeApp({
-          credential: appModule.cert({
-            projectId: envServiceAccount.projectId,
-            clientEmail: envServiceAccount.clientEmail,
-            privateKey: envServiceAccount.privateKey,
-          }),
-        });
-      } else {
-        // Force the project ID from config to avoid 'aud' claim mismatches
-        // where the environment defaults to a different project (like 'monospace-11')
-        app = appModule.initializeApp({
-          credential: appModule.applicationDefault(),
-          projectId: firebaseConfig.projectId,
-        });
-      }
-    } else {
-      app = appModule.getApps()[0];
+    const targetProjectId = firebaseConfig.projectId;
+    if (!targetProjectId) {
+      throw new Error("Missing projectId in firebaseConfig");
     }
 
+    // 1. Try to find an existing app instance that matches our target project ID.
+    const existingApps = appModule.getApps();
+    app = existingApps.find(a => a.options.projectId === targetProjectId);
+
+    if (!app) {
+      const envServiceAccount = getEnvServiceAccount();
+      const options: any = {
+        projectId: targetProjectId,
+      };
+
+      if (envServiceAccount) {
+        options.credential = appModule.cert({
+          projectId: envServiceAccount.projectId,
+          clientEmail: envServiceAccount.clientEmail,
+          privateKey: envServiceAccount.privateKey,
+        });
+      } else {
+        options.credential = appModule.applicationDefault();
+      }
+
+      // 2. Determine if we can use the default name '[DEFAULT]' or if we need a named app.
+      // This is crucial because in some cloud environments, a default app might already be
+      // initialized with environment-specific (and potentially wrong) configuration like 'monospace-11'.
+      const hasDefaultApp = existingApps.some(a => a.name === '[DEFAULT]');
+      
+      if (!hasDefaultApp) {
+        // No default app exists, we can initialize it safely.
+        app = appModule.initializeApp(options);
+      } else {
+        // A default app exists but its projectId didn't match our target (or we wouldn't be here).
+        // Initialize a named app instance to ensure we use the correct Project ID for token verification.
+        const appName = `studio-app-${targetProjectId}`;
+        app = existingApps.find(a => a.name === appName) || appModule.initializeApp(options, appName);
+      }
+    }
+
+    if (!app) {
+      throw new Error("Failed to resolve or initialize Firebase Admin app instance.");
+    }
+
+    // 3. Initialize service instances tied to our specific app instance.
+    // verifyIdToken will use app.options.projectId to check the 'aud' claim.
     _adminDb = firestoreModule.getFirestore(app);
     _adminAuth = authModule.getAuth(app);
+    
     isAdminInitialized = true;
     adminInitErrorMessage = null;
 
-    console.log(`[Firebase Admin] Initialized with project ID: ${app.options.projectId ?? firebaseConfig.projectId}`);
+    console.log(`[Firebase Admin] App initialized: ${app.name} (Project: ${app.options.projectId})`);
   } catch (err: any) {
     const errMsg = err?.message ? String(err.message) : String(err);
     adminInitErrorMessage = errMsg;
