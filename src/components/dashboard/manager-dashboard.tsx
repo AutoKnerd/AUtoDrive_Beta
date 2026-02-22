@@ -37,7 +37,7 @@ import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { CreatedLessonsView } from '../lessons/created-lessons-view';
-import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
+import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
 
 interface ManagerDashboardProps {
@@ -120,7 +120,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [manageableUsers, setManageableUsers] = useState<User[]>([]);
   const [allDealershipsForAdmin, setAllDealershipsForAdmin] = useState<Dealership[]>([]);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
-  const [allDealershipStats, setAllDealershipStats] = useState<Record<string, { bestStat: DealershipInsight | null, watchStat: DealershipInsight | null }>>({});
   const [teamSortField, setTeamSortField] = useState<TeamSortField>('name');
   const [teamSortDirection, setTeamSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
@@ -128,6 +127,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [systemReport, setSystemReport] = useState<SystemReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
+  const [range, setRange] = useState<CxRange>('today');
   const router = useRouter();
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
@@ -262,22 +262,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     if (user.role === 'Owner') return member.isPrivateFromOwner === true;
     return member.isPrivate === true;
   }, [user.role]);
-
-  const isCriticalOnlyForViewer = useCallback((member: User) => {
-    if (!managerialRoles.includes(user.role)) return false;
-    if (member.userId === user.userId) return false;
-    if (isMetricsHiddenForViewer(member)) return false;
-    return member.showDealerCriticalOnly === true;
-  }, [user.role, user.userId, isMetricsHiddenForViewer]);
-
-  const handleTeamSort = useCallback((field: TeamSortField) => {
-    if (teamSortField === field) {
-      setTeamSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-    setTeamSortField(field);
-    setTeamSortDirection('asc');
-  }, [teamSortField]);
 
   const sortedTeamActivity = useMemo(() => {
     const list = [...teamActivity];
@@ -421,12 +405,24 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             {loading ? <Skeleton className="h-24 w-full" /> : <div><LevelDisplay user={user} />{memberSince && <p className="text-sm text-muted-foreground mt-2">Member since {memberSince}</p>}</div>}
       </section>
 
+      {/* Stability Layer: Chart stays in place, props drive the content */}
+      <section>
+        <CxSoundwaveCard 
+          scope={activeScope} 
+          personalScope={personalScope}
+          data={viewMode === 'team' ? stats?.avgScores : managerAverageScores} 
+          memberSince={user.memberSince} 
+          themePreference={themePreference} 
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          range={range}
+          onRangeChange={setRange}
+          hideInternalToggle 
+        />
+      </section>
+
       {viewMode === 'team' ? (
           <>
-            <section>
-              <CxSoundwaveCard scope={activeScope} data={stats?.avgScores} memberSince={user.memberSince} themePreference={themePreference} hideInternalToggle />
-            </section>
-
             <Card>
               <CardHeader><CardTitle>Team Statistics</CardTitle><CardDescription>{selectedDealershipId === 'all' ? 'Across all dealerships' : `Performance overview`}</CardDescription></CardHeader>
               <CardContent>
@@ -510,9 +506,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           </>
       ) : (
           <div className="space-y-8">
-              <section>
-                <CxSoundwaveCard scope={personalScope!} data={managerAverageScores} memberSince={user.memberSince} themePreference={themePreference} hideInternalToggle />
-              </section>
               <section className="space-y-4">
                   <h2 className="text-xl font-bold text-foreground">My Development</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

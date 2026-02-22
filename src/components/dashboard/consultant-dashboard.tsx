@@ -39,7 +39,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
+import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
 
 interface ConsultantDashboardProps {
@@ -289,6 +289,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [creatingUniqueTestingLesson, setCreatingUniqueTestingLesson] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('personal');
+  const [range, setRange] = useState<CxRange>('today');
   const router = useRouter();
   const { toast } = useToast();
   
@@ -615,6 +616,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             themePreference={themePreference}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
+            range={range}
+            onRangeChange={setRange}
             hideInternalToggle
           />
         </section>

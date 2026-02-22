@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { differenceInDays } from 'date-fns';
 import type { ThemePreference } from '@/lib/definitions';
 
+export type CxRange = 'today' | '7d' | '30d' | '90d';
+
 interface CxSoundwaveCardProps {
   scope: CxScope;
   personalScope?: CxScope;
@@ -23,6 +25,8 @@ interface CxSoundwaveCardProps {
   themePreference?: ThemePreference;
   viewMode?: 'team' | 'personal';
   onViewModeChange?: (mode: 'team' | 'personal') => void;
+  range?: CxRange;
+  onRangeChange?: (range: CxRange) => void;
   hideInternalToggle?: boolean;
 }
 
@@ -47,15 +51,19 @@ export function CxSoundwaveCard({
   themePreference = 'vibrant',
   viewMode: externalViewMode,
   onViewModeChange,
+  range: externalRange,
+  onRangeChange: externalOnRangeChange,
   hideInternalToggle = false
 }: CxSoundwaveCardProps) {
-  const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('today');
+  const [internalRange, setInternalRange] = useState<CxRange>('today');
   const [internalViewMode, setInternalViewMode] = useState<'team' | 'personal'>('team');
   const [hoveredSkillId, setHoveredSkillId] = useState<CxSkillId | null>(null);
   const [selectedSkillId, setSelectedSkillId] = useState<CxSkillId | null>(null);
   const [mounted, setMounted] = useState(false);
 
   const viewMode = externalViewMode || internalViewMode;
+  const range = externalRange || internalRange;
+  const setRange = externalOnRangeChange || setInternalRange;
 
   useEffect(() => {
     setMounted(true);
@@ -77,11 +85,11 @@ export function CxSoundwaveCard({
     '90d': daysSinceJoining >= 90,
   }), [daysSinceJoining]);
 
+  // Set initial sensible default based on tenure
   useEffect(() => {
-    if (mounted) {
+    if (mounted && range === 'today') {
       if (rangeAvailability['30d']) setRange('30d');
       else if (rangeAvailability['7d']) setRange('7d');
-      else setRange('today');
     }
   }, [mounted, rangeAvailability]);
 
