@@ -501,7 +501,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     }, { trait: 'empathy' as CxTrait, score: 101 });
 
     const assignedLessonIds = new Set(assignedLessonHistoryIds);
-    const candidateLessons = lessons.filter(l => !assignedLessonHistoryIds.has(l.lessonId));
+    const candidateLessons = lessons.filter(l => !assignedLessonIds.has(l.lessonId));
     const roleSpecificLessons = candidateLessons.filter(l => l.role === user.role);
     const globalLessons = candidateLessons.filter(l => l.role === 'global');
 
