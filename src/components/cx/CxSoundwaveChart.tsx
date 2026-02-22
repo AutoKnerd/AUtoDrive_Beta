@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -88,10 +89,11 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
   };
 
   return (
-    <div className="relative w-full aspect-[16/9] md:aspect-[8/3]">
+    <div className="relative w-full aspect-[16/9] md:aspect-[2.4/1]">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full h-full overflow-visible"
+        preserveAspectRatio="none"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoveredPoint(null)}
       >
@@ -221,7 +223,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
         {hoveredPoint && !isPointGraph && (
           <g className="pointer-events-none">
             <line x1={hoveredPoint.x} y1={padding.top} x2={hoveredPoint.x} y2={height - padding.bottom} stroke="currentColor" strokeOpacity="0.2" className="text-foreground" />
-            <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="5" fill="currentColor" className="animate-pulse text-foreground" />
+            <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r={5} fill="currentColor" className="animate-pulse text-foreground" />
           </g>
         )}
       </svg>
