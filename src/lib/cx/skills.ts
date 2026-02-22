@@ -19,14 +19,18 @@ export const VIBRANT_PALETTE: Record<string, string> = {
   relationshipBuilding: '#ffae00',
 };
 
+/**
+ * "Elite Executive" Palette
+ * A sophisticated blend of Purple, Green, and Gold.
+ */
 export const PROFESSIONAL_PALETTE: Record<string, string> = {
-  empathy: '#22d3ee', // Cyan 400
-  listening: '#38bdf8', // Sky 400
-  trust: '#06b6d4', // Cyan 500
-  followUp: '#0ea5e9', // Sky 500
-  closing: '#64748b', // Slate 500
-  relationship: '#2dd4bf', // Teal 400
-  relationshipBuilding: '#2dd4bf',
+  empathy: '#a855f7', // Purple 500
+  listening: '#22c55e', // Green 500
+  trust: '#eab308', // Gold 500
+  followUp: '#7e22ce', // Purple 700 (Deep Purple)
+  closing: '#15803d', // Green 700 (Deep Green)
+  relationship: '#a16207', // Gold 700 (Deep Gold)
+  relationshipBuilding: '#a16207',
 };
 
 /**
@@ -34,7 +38,7 @@ export const PROFESSIONAL_PALETTE: Record<string, string> = {
  */
 export function getTraitColor(id: string, useProfessionalTheme?: boolean): string {
   const palette = useProfessionalTheme ? PROFESSIONAL_PALETTE : VIBRANT_PALETTE;
-  return palette[id] || palette.empathy;
+  return palette[id] || palette[id === 'relationshipBuilding' ? 'relationship' : 'empathy'];
 }
 
 export const CX_SKILLS: CxSkill[] = [

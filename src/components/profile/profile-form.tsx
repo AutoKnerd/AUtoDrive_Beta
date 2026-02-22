@@ -522,10 +522,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     <div className="space-y-0.5">
                         <FormLabel className="text-base flex items-center gap-2">
                         <Shield className="h-4 w-4 text-primary" />
-                        Professional Theme
+                        Elite Executive Theme
                         </FormLabel>
                         <FormDescription>
-                        Switch from vibrant neons to a more understated monochromatic color palette for sound rings and charts.
+                        Switch from vibrant neons to a more understated palette of Purple, Green, and Gold for sound rings and charts.
                         </FormDescription>
                     </div>
                     <FormControl>
