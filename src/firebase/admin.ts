@@ -71,6 +71,12 @@ function initializeAdmin() {
       throw new Error("Missing projectId in firebaseConfig");
     }
 
+    // CRITICAL: Force the environment variables to match our target project.
+    // This helps the underlying Google Cloud SDKs (like gRPC/Firestore) 
+    // correctly scope their token requests to the metadata server.
+    process.env.GCLOUD_PROJECT = targetProjectId;
+    process.env.GOOGLE_CLOUD_PROJECT = targetProjectId;
+
     // 1. Try to find an existing app instance that matches our target project ID.
     const existingApps = appModule.getApps();
     app = existingApps.find(a => a.options.projectId === targetProjectId);
@@ -92,16 +98,15 @@ function initializeAdmin() {
       }
 
       // 2. Determine if we can use the default name '[DEFAULT]' or if we need a named app.
-      // This is crucial because in some cloud environments, a default app might already be
-      // initialized with environment-specific (and potentially wrong) configuration like 'monospace-11'.
       const hasDefaultApp = existingApps.some(a => a.name === '[DEFAULT]');
+      const defaultApp = existingApps.find(a => a.name === '[DEFAULT]');
       
-      if (!hasDefaultApp) {
-        // No default app exists, we can initialize it safely.
+      if (!hasDefaultApp || (defaultApp && defaultApp.options.projectId === targetProjectId)) {
+        // No default app exists, or the default app is already configured for our project.
         app = appModule.initializeApp(options);
       } else {
-        // A default app exists but its projectId didn't match our target (or we wouldn't be here).
-        // Initialize a named app instance to ensure we use the correct Project ID for token verification.
+        // A default app exists but its projectId doesn't match our target.
+        // We MUST initialize a named app instance to avoid audience claim mismatches.
         const appName = `studio-app-${targetProjectId}`;
         app = existingApps.find(a => a.name === appName) || appModule.initializeApp(options, appName);
       }
@@ -112,7 +117,6 @@ function initializeAdmin() {
     }
 
     // 3. Initialize service instances tied to our specific app instance.
-    // verifyIdToken will use app.options.projectId to check the 'aud' claim.
     _adminDb = firestoreModule.getFirestore(app);
     _adminAuth = authModule.getAuth(app);
     
