@@ -1,6 +1,7 @@
 import type { App } from 'firebase-admin/app';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
+import { firebaseConfig } from '@/firebase/config';
 
 let app: App | undefined;
 let _adminDb: Firestore | null = null;
@@ -75,9 +76,11 @@ function initializeAdmin() {
           }),
         });
       } else {
-        // In managed Google Cloud environments, ADC works with runtime service account.
+        // Force the project ID from config to avoid 'aud' claim mismatches
+        // where the environment defaults to a different project (like 'monospace-11')
         app = appModule.initializeApp({
           credential: appModule.applicationDefault(),
+          projectId: firebaseConfig.projectId,
         });
       }
     } else {
@@ -89,10 +92,8 @@ function initializeAdmin() {
     isAdminInitialized = true;
     adminInitErrorMessage = null;
 
-    console.log(`[Firebase Admin] Initialized with project ID: ${app.options.projectId ?? 'unknown'}`);
+    console.log(`[Firebase Admin] Initialized with project ID: ${app.options.projectId ?? firebaseConfig.projectId}`);
   } catch (err: any) {
-    // Initialization can fail if ADC is unavailable during local dev.
-    // Keep module import safe so routes can return controlled 503 errors.
     const errMsg = err?.message ? String(err.message) : String(err);
     adminInitErrorMessage = errMsg;
     isAdminInitialized = false;
