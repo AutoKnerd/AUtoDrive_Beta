@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { isToday } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership, LessonRole } from '@/lib/definitions';
+import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership, LessonRole, ThemePreference } from '@/lib/definitions';
 import {
   getLessons,
   getConsultantActivity,
@@ -320,6 +320,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     }
     return Array.from(new Set(ids));
   }, [user.dealershipIds, user.selfDeclaredDealershipId]);
+
+  const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
 
 
   useEffect(() => {
@@ -640,7 +642,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             scope={getDefaultScope(user)} 
             data={averageScores}
             memberSince={user.memberSince}
-            useProfessionalTheme={user.useProfessionalTheme}
+            themePreference={themePreference}
           />
         </section>
         

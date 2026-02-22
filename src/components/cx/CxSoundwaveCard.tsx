@@ -12,6 +12,7 @@ import { Info, TrendingUp, Lock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { differenceInDays } from 'date-fns';
+import type { ThemePreference } from '@/lib/definitions';
 
 interface CxSoundwaveCardProps {
   scope: CxScope;
@@ -19,7 +20,7 @@ interface CxSoundwaveCardProps {
   className?: string;
   data?: Partial<Record<string, number>>;
   memberSince?: string | null;
-  useProfessionalTheme?: boolean;
+  themePreference?: ThemePreference;
 }
 
 function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<CxSkillId, number>> | undefined {
@@ -34,7 +35,7 @@ function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<
   } as Partial<Record<CxSkillId, number>>;
 }
 
-export function CxSoundwaveCard({ scope, personalScope, className, data, memberSince, useProfessionalTheme }: CxSoundwaveCardProps) {
+export function CxSoundwaveCard({ scope, personalScope, className, data, memberSince, themePreference = 'vibrant' }: CxSoundwaveCardProps) {
   const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('today');
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [hoveredSkillId, setHoveredSkillId] = useState<CxSkillId | null>(null);
@@ -82,8 +83,8 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
     else if (range === '90d') days = 90;
 
     const shouldAnchor = (viewMode === 'personal' && personalScope) || (viewMode === 'team');
-    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince, useProfessionalTheme);
-  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince, useProfessionalTheme]);
+    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince, themePreference);
+  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince, themePreference]);
 
   const mode = activeScope.role === 'owner' && !activeScope.storeId ? 'groupOnly' : 'compare';
 

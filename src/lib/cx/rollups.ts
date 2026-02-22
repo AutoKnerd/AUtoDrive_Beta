@@ -2,6 +2,7 @@ import { getMockCxTrend } from './mockData';
 import { CxScope, getComparisonScope } from './scope';
 import { CX_SKILLS, CxSkillId, getTraitColor } from './skills';
 import { differenceInDays, startOfDay } from 'date-fns';
+import type { ThemePreference } from '@/lib/definitions';
 
 export interface CxPoint {
   date: string;
@@ -25,7 +26,7 @@ export function rollupCxTrend(
   days: number = 30, 
   anchorScores?: Partial<Record<CxSkillId, number>>,
   memberSince?: string | null,
-  useProfessionalTheme?: boolean
+  themePreference: ThemePreference = 'vibrant'
 ): CxSeries[] {
   // Use real data anchoring for the foreground if provided
   const fgData = getMockCxTrend(scope.userId || scope.storeId || scope.orgId, days, anchorScores);
@@ -72,7 +73,7 @@ export function rollupCxTrend(
     return {
       skillId: skill.id,
       label: skill.label,
-      color: getTraitColor(skill.id, useProfessionalTheme),
+      color: getTraitColor(skill.id, themePreference),
       points,
       startDateIndex,
     };

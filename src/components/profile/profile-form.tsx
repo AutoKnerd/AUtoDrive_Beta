@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { User, Dealership, carBrands } from '@/lib/definitions';
+import { User, Dealership, carBrands, type ThemePreference } from '@/lib/definitions';
 import { updateUser, getDealerships, updateUserDealerships } from '@/lib/data.client';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -16,7 +16,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge as UiBadge } from '@/components/ui/badge';
 import placeholderImagesData from '@/lib/placeholder-images.json';
-import { Camera, X, CheckCircle, ExternalLink, Sparkles, Shield } from 'lucide-react';
+import { Camera, X, CheckCircle, ExternalLink, Sparkles, Shield, Palette } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +51,7 @@ const profileSchema = z.object({
   isPrivate: z.boolean().optional(),
   isPrivateFromOwner: z.boolean().optional(),
   showDealerCriticalOnly: z.boolean().optional(),
-  useProfessionalTheme: z.boolean().optional(),
+  themePreference: z.enum(['vibrant', 'executive', 'steel']).optional(),
   selfDeclaredDealershipId: z.string().optional(),
 });
 
@@ -87,7 +87,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       isPrivate: user.isPrivate || false,
       isPrivateFromOwner: user.isPrivateFromOwner || false,
       showDealerCriticalOnly: user.showDealerCriticalOnly || false,
-      useProfessionalTheme: user.useProfessionalTheme || false,
+      themePreference: user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant'),
       selfDeclaredDealershipId: user.selfDeclaredDealershipId || '',
     },
   });
@@ -168,7 +168,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
   async function onSubmit(data: ProfileFormValues) {
     setIsSubmitting(true);
     try {
-      const updatedUserData = await updateUser(user.userId, data);
+      // Sync legacy boolean for backward compatibility
+      const updatedData = {
+        ...data,
+        useProfessionalTheme: data.themePreference === 'executive' || data.themePreference === 'steel',
+      };
+      
+      const updatedUserData = await updateUser(user.userId, updatedData);
       setUser(updatedUserData);
       toast({
         title: 'Profile Updated',
@@ -516,24 +522,28 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <CardContent className="space-y-4">
                 <FormField
                 control={form.control}
-                name="useProfessionalTheme"
+                name="themePreference"
                 render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                        <FormLabel className="text-base flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-primary" />
-                        Elite Executive Theme
-                        </FormLabel>
-                        <FormDescription>
-                        Switch from vibrant neons to a more understated palette of Purple, Green, and Gold for sound rings and charts.
-                        </FormDescription>
+                    <FormItem className="space-y-3">
+                    <div className="flex flex-row items-center gap-2">
+                        <Palette className="h-4 w-4 text-primary" />
+                        <FormLabel className="text-base">Performance Visualization Theme</FormLabel>
                     </div>
-                    <FormControl>
-                        <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value || 'vibrant'}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a theme..." />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="vibrant">Vibrant Neon (High Energy)</SelectItem>
+                            <SelectItem value="executive">Elite Executive (Purple, Green, Gold)</SelectItem>
+                            <SelectItem value="steel">Professional Steel (Cyan, Sky, Slate)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormDescription>
+                        Choose the color palette for your sound rings, charts, and score cards.
+                    </FormDescription>
                     </FormItem>
                 )}
                 />

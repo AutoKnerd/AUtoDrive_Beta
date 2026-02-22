@@ -1,4 +1,5 @@
 import { Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon } from 'lucide-react';
+import type { ThemePreference } from '@/lib/definitions';
 
 export type CxSkillId = 'empathy' | 'listening' | 'trust' | 'followUp' | 'closing' | 'relationship';
 
@@ -23,7 +24,7 @@ export const VIBRANT_PALETTE: Record<string, string> = {
  * "Elite Executive" Palette
  * A sophisticated blend of Purple, Green, and Gold.
  */
-export const PROFESSIONAL_PALETTE: Record<string, string> = {
+export const EXECUTIVE_PALETTE: Record<string, string> = {
   empathy: '#a855f7', // Purple 500
   listening: '#22c55e', // Green 500
   trust: '#eab308', // Gold 500
@@ -34,10 +35,27 @@ export const PROFESSIONAL_PALETTE: Record<string, string> = {
 };
 
 /**
+ * "Professional Steel" Palette
+ * A tech-forward blend of Slate, Sky, and Blue.
+ */
+export const STEEL_PALETTE: Record<string, string> = {
+  empathy: '#94a3b8', // Slate 400
+  listening: '#0ea5e9', // Sky 500
+  trust: '#0891b2', // Cyan 600
+  followUp: '#1d4ed8', // Blue 700
+  closing: '#3730a3', // Indigo 800
+  relationship: '#475569', // Slate 600
+  relationshipBuilding: '#475569',
+};
+
+/**
  * Returns the correct hex color for a skill based on user theme preference.
  */
-export function getTraitColor(id: string, useProfessionalTheme?: boolean): string {
-  const palette = useProfessionalTheme ? PROFESSIONAL_PALETTE : VIBRANT_PALETTE;
+export function getTraitColor(id: string, theme: ThemePreference = 'vibrant'): string {
+  let palette = VIBRANT_PALETTE;
+  if (theme === 'executive') palette = EXECUTIVE_PALETTE;
+  if (theme === 'steel') palette = STEEL_PALETTE;
+  
   return palette[id] || palette[id === 'relationshipBuilding' ? 'relationship' : 'empathy'];
 }
 

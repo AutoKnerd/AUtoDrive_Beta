@@ -2,18 +2,19 @@
 
 import React from 'react';
 import { getTraitColor } from '@/lib/cx/skills';
+import type { ThemePreference } from '@/lib/definitions';
 
 interface AvatarSoundRingProps {
   scores?: Record<string, number>;
   hasActivity?: boolean;
-  useProfessionalTheme?: boolean;
+  themePreference?: ThemePreference;
 }
 
 /**
  * A circular soundwave frame for avatars that reacts to CX scores.
  * Colors and lengths are driven by the user's proficiency traits.
  */
-export function AvatarSoundRing({ scores, hasActivity = true, useProfessionalTheme = false }: AvatarSoundRingProps) {
+export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 'vibrant' }: AvatarSoundRingProps) {
   // Mapping traits to the standard AutoDrive CX color grade
   const traits = [
     { id: 'empathy' }, 
@@ -50,7 +51,7 @@ export function AvatarSoundRing({ scores, hasActivity = true, useProfessionalThe
           {Array.from({ length: barCount }).map((_, i) => {
             const traitIndex = Math.floor(i / barsPerTrait);
             const traitId = traits[traitIndex].id;
-            const traitColor = getTraitColor(traitId, useProfessionalTheme);
+            const traitColor = getTraitColor(traitId, themePreference);
             
             // Safely retrieve score or default to a baseline for new users
             const scoreKey = traitId === 'relationship' ? 'relationshipBuilding' : traitId;

@@ -35,6 +35,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
   const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
   const hasActivity = activity.length > 0;
   const avatarSrc = typeof user.avatarUrl === 'string' ? user.avatarUrl.trim() : '';
+  const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
 
   const dealershipName = useMemo(() => {
     if (!dealerships || dealerships.length === 0) return '';
@@ -109,7 +110,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
         <div className="flex-grow flex items-center justify-center my-2">
           <div className="relative w-28 h-28">
               {/* Dynamic Soundwave Ring Frame reacting to trait scores */}
-              <AvatarSoundRing scores={averageScores} hasActivity={hasActivity} useProfessionalTheme={user.useProfessionalTheme} />
+              <AvatarSoundRing scores={averageScores} hasActivity={hasActivity} themePreference={themePreference} />
               
               <Avatar className="relative w-full h-full border-4 border-slate-700">
                   <AvatarImage src={avatarSrc || undefined} alt={user.name} />
@@ -141,7 +142,7 @@ export const ScoreCard = React.forwardRef<HTMLDivElement, ScoreCardProps>(({ use
         <div className="grid grid-cols-3 gap-y-1 gap-x-2 text-center">
             {Object.entries(averageScores).map(([key, value]) => {
                 const Icon = metricIcons[key as keyof typeof metricIcons];
-                const traitColor = getTraitColor(key, user.useProfessionalTheme);
+                const traitColor = getTraitColor(key, themePreference);
                 const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                 return (
                     <div key={key} className="flex flex-col items-center">

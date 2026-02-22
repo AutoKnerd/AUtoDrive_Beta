@@ -57,6 +57,8 @@ export const managerialRoles: UserRole[] = [
 
 export const noPersonalDevelopmentRoles: UserRole[] = ['Owner', 'Trainer', 'Admin', 'Developer'];
 
+export type ThemePreference = 'vibrant' | 'executive' | 'steel';
+
 export type User = {
   userId: string;
   name: string;
@@ -72,6 +74,7 @@ export type User = {
   isPrivateFromOwner?: boolean;
   showDealerCriticalOnly?: boolean;
   useProfessionalTheme?: boolean;
+  themePreference?: ThemePreference;
   memberSince?: string;
   selfDeclaredDealershipId?: string;
   stripeCustomerId?: string;

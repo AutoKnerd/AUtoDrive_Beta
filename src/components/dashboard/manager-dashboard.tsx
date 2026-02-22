@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation } from '@/lib/definitions';
+import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
 import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
@@ -141,6 +141,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [systemReport, setSystemReport] = useState<SystemReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const router = useRouter();
+
+  const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
 
 
   const teamContext = useMemo(() => {
@@ -434,62 +436,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       ) as typeof total;
   }, [managerActivity]);
 
-  const getPendingInviteKey = useCallback((invite: PendingInvitation) => {
-    return `${invite.email.toLowerCase()}::${invite.dealershipId}::${invite.role}`;
-  }, []);
-
-  const getPendingInviteUrl = useCallback(
-    (invite: PendingInvitation) => {
-      const key = getPendingInviteKey(invite);
-      const linkFromState = pendingInviteLinksByKey[key];
-      if (linkFromState) return linkFromState;
-      if (typeof window !== 'undefined') return `${window.location.origin}/register?token=${invite.token}`;
-      return `/register?token=${invite.token}`;
-    },
-    [getPendingInviteKey, pendingInviteLinksByKey]
-  );
-
-  const copyPendingInviteLink = useCallback(
-    async (invite: PendingInvitation) => {
-      try {
-        await navigator.clipboard.writeText(getPendingInviteUrl(invite));
-        toast({ title: 'Link Copied', description: `Copied invite link for ${invite.email}.` });
-      } catch {
-        toast({
-          variant: 'destructive',
-          title: 'Copy Failed',
-          description: 'Could not copy invite link on this device.',
-        });
-      }
-    },
-    [getPendingInviteUrl, toast]
-  );
-
-  const regeneratePendingInviteLink = useCallback(
-    async (invite: PendingInvitation) => {
-      const key = getPendingInviteKey(invite);
-      setIsResendingInvite(key);
-      try {
-        const { url } = await createInvitationLink(invite.dealershipId, invite.email, invite.role, user.userId);
-        setPendingInviteLinksByKey((prev) => ({ ...prev, [key]: url }));
-        await navigator.clipboard.writeText(url).catch(() => {});
-        toast({
-          title: 'New Invite Link Generated',
-          description: `A fresh link for ${invite.email} is ready${typeof navigator !== 'undefined' ? ' and copied.' : '.'}`,
-        });
-      } catch (e: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Resend Failed',
-          description: e?.message || 'Could not generate a new invite link.',
-        });
-      } finally {
-        setIsResendingInvite(null);
-      }
-    },
-    [getPendingInviteKey, toast, user.userId]
-  );
-
   const recommendedLesson = useMemo(() => {
     if (loading || lessons.length === 0 || !managerAverageScores) return null;
 
@@ -765,7 +711,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               personalScope={personalScope} 
               data={stats?.avgScores || managerAverageScores}
               memberSince={user.memberSince}
-              useProfessionalTheme={user.useProfessionalTheme}
+              themePreference={themePreference}
             />
           </section>
         )}
