@@ -14,7 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
 import { Badge as UiBadge } from '../ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Button, buttonVariants } from '../ui/button';
 import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -357,7 +357,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-primary/50" withBlur />
       </header>
 
-      {/* Control Bar */}
+      <section className="space-y-3">
+            {loading ? <Skeleton className="h-24 w-full" /> : <div><LevelDisplay user={user} />{memberSince && <p className="text-sm text-muted-foreground mt-2">Member since {memberSince}</p>}</div>}
+      </section>
+
+      {/* Control Bar - Repositioned below Identity */}
       <div className="flex flex-col md:flex-row items-center justify-center bg-card/50 backdrop-blur-sm border rounded-xl p-3 gap-4">
           {(['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
               <div className="flex items-center gap-2 w-full md:w-auto">
@@ -400,10 +404,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               )}
           </div>
       </div>
-    
-      <section className="space-y-3">
-            {loading ? <Skeleton className="h-24 w-full" /> : <div><LevelDisplay user={user} />{memberSince && <p className="text-sm text-muted-foreground mt-2">Member since {memberSince}</p>}</div>}
-      </section>
 
       {/* Stability Layer: Chart stays in place, props drive the content */}
       <section>

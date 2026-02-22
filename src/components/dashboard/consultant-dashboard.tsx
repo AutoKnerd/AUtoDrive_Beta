@@ -557,7 +557,30 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-primary/50" withBlur />
         </header>
 
-        {/* Control Bar */}
+        {isPaused && (
+            <Alert variant="destructive" className="mb-6 bg-destructive/10 border-destructive/50 text-destructive-foreground">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <AlertTitle>Account Activity Paused</AlertTitle>
+                <AlertDescription>
+                    Your dealership's account is currently paused. Access to new lessons is temporarily unavailable. Please contact your manager for more information.
+                </AlertDescription>
+            </Alert>
+        )}
+
+        <section className="space-y-3">
+             {loading ? <Skeleton className="h-24 w-full" /> : (
+                <div>
+                    <LevelDisplay user={user} />
+                    {memberSince && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                            Member since {memberSince}
+                        </p>
+                    )}
+                </div>
+             )}
+        </section>
+
+        {/* Control Bar - Positioned below Identity */}
         <div className="flex items-center justify-center bg-card/50 backdrop-blur-sm border rounded-xl p-2 gap-4">
             <div className="flex bg-muted p-1 rounded-lg border">
                 <Button
@@ -584,29 +607,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                 </Button>
             </div>
         </div>
-
-        {isPaused && (
-            <Alert variant="destructive" className="mb-6 bg-destructive/10 border-destructive/50 text-destructive-foreground">
-                <AlertCircle className="h-4 w-4 text-destructive" />
-                <AlertTitle>Account Activity Paused</AlertTitle>
-                <AlertDescription>
-                    Your dealership's account is currently paused. Access to new lessons is temporarily unavailable. Please contact your manager for more information.
-                </AlertDescription>
-            </Alert>
-        )}
-
-        <section className="space-y-3">
-             {loading ? <Skeleton className="h-24 w-full" /> : (
-                <div>
-                    <LevelDisplay user={user} />
-                    {memberSince && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                            Member since {memberSince}
-                        </p>
-                    )}
-                </div>
-             )}
-        </section>
 
         <section>
           <CxSoundwaveCard 
