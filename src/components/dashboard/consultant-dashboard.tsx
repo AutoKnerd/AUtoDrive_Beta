@@ -56,28 +56,6 @@ const SteeringWheelIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-
-const lessonIcons: Record<string, LucideIcon | React.FC<React.SVGProps<SVGSVGElement>>> = {
-  'Advanced Cornering': Spline,
-  'Efficient Driving': Gauge,
-  'Advanced Hopping': SteeringWheelIcon,
-  'Building Rapport on the Lot': Users,
-  'Uncovering Customer Needs': Ear,
-  'Handling Price Objections': Handshake,
-  'Confident Closing': Target,
-  'Service Follow-up Excellence': Repeat,
-  'The Perfect Service Greeting': Smile,
-};
-
-const metricIcons: Record<CxTrait, LucideIcon> = {
-  empathy: Smile,
-  listening: Ear,
-  trust: Handshake,
-  followUp: Repeat,
-  closing: Target,
-  relationshipBuilding: Users,
-};
-
 const dashboardFeatureCardClass =
   'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
 const dashboardDisabledButtonClass =
@@ -292,7 +270,6 @@ const RecentActivityItem = ({ icon, text, note }: { icon: LucideIcon, text: stri
     );
 };
 
-
 export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [activity, setActivity] = useState<LessonLog[]>([]);
@@ -311,8 +288,10 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
   const [creatingUniqueTestingLesson, setCreatingUniqueTestingLesson] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [viewMode, setViewMode] = useState<'team' | 'personal'>('personal');
   const router = useRouter();
   const { toast } = useToast();
+  
   const scopedDealershipIds = useMemo(() => {
     const ids = [...(user.dealershipIds ?? [])];
     if (user.selfDeclaredDealershipId) {
@@ -322,7 +301,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   }, [user.dealershipIds, user.selfDeclaredDealershipId]);
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
-
 
   useEffect(() => {
     async function fetchData() {
@@ -404,60 +382,48 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     setShowTourWelcome(open);
   }
 
-  const rollingScores = useMemo(() => {
-    const stats = user.stats;
-    if (!stats) return null;
-
-    const empathy = normalizeScore(stats.empathy?.score);
-    const listening = normalizeScore(stats.listening?.score);
-    const trust = normalizeScore(stats.trust?.score);
-    const followUp = normalizeScore(stats.followUp?.score);
-    const closing = normalizeScore(stats.closing?.score);
-    const relationshipBuilding = normalizeScore(stats.relationship?.score);
-
-    if (
-      empathy === null ||
-      listening === null ||
-      trust === null ||
-      followUp === null ||
-      closing === null ||
-      relationshipBuilding === null
-    ) {
-      return null;
-    }
-
-    return {
-      empathy,
-      listening,
-      trust,
-      followUp,
-      closing,
-      relationshipBuilding,
-    };
-  }, [user.stats]);
-  
   const averageScores = useMemo(() => {
-    if (rollingScores) {
-      return rollingScores;
+    const stats = user.stats;
+    if (stats) {
+      const empathy = normalizeScore(stats.empathy?.score);
+      const listening = normalizeScore(stats.listening?.score);
+      const trust = normalizeScore(stats.trust?.score);
+      const followUp = normalizeScore(stats.followUp?.score);
+      const closing = normalizeScore(stats.closing?.score);
+      const relationshipBuilding = normalizeScore(stats.relationship?.score);
+
+      if ([empathy, listening, trust, followUp, closing, relationshipBuilding].every(v => v !== null)) {
+        return {
+          empathy: empathy!,
+          listening: listening!,
+          trust: trust!,
+          followUp: followUp!,
+          closing: closing!,
+          relationshipBuilding: relationshipBuilding!,
+        };
+      }
     }
 
-    if (!activity.length) return {
-      empathy: 75, listening: 62, trust: 80, followUp: 70, closing: 68, relationshipBuilding: 85
-    };
+    if (!activity.length) return DEFAULT_CX_SCORES;
 
     const total = activity.reduce((acc, log) => {
-        Object.keys(acc).forEach(key => acc[key as CxTrait] += log[key as CxTrait] || 0);
+        acc.empathy += log.empathy || 0;
+        acc.listening += log.listening || 0;
+        acc.trust += log.trust || 0;
+        acc.followUp += log.followUp || 0;
+        acc.closing += log.closing || 0;
+        acc.relationshipBuilding += log.relationshipBuilding || 0;
         return acc;
     }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
 
     const count = activity.length;
-    return Object.fromEntries(Object.entries(total).map(([key, value]) => [key, Math.round(value / count)])) as typeof total;
-  }, [activity, rollingScores]);
+    return Object.fromEntries(Object.entries(total).map(([key, value]) => [key, Math.round(value / count)])) as any;
+  }, [activity, user.stats]);
 
   const recommendedLessonQueue = useMemo(() => {
     if (lessons.length === 0) return null;
     const lowestScoringTrait = Object.entries(averageScores).reduce((lowest, [trait, score]) => 
-        score < lowest.score ? { trait: trait as CxTrait, score } : lowest, { trait: 'empathy' as CxTrait, score: 101 }
+        (score as number) < lowest.score ? { trait: trait as CxTrait, score: score as number } : lowest, { trait: 'empathy' as CxTrait, score: 101 }
     );
 
     const assignedLessonIds = new Set(assignedLessonHistoryIds);
@@ -496,7 +462,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
   const lowestScoringTrait = useMemo(() => {
     return Object.entries(averageScores).reduce((lowest, [trait, score]) => (
-      score < lowest.score ? { trait: trait as CxTrait, score } : lowest
+      (score as number) < lowest.score ? { trait: trait as CxTrait, score: score as number } : lowest
     ), { trait: 'empathy' as CxTrait, score: Number.POSITIVE_INFINITY }).trait;
   }, [averageScores]);
 
@@ -504,28 +470,18 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     if (creatingUniqueTestingLesson) return;
     const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
     if (lessonRole === 'global') {
-      toast({
-        variant: 'destructive',
-        title: 'Unavailable',
-        description: 'Unique recommended testing is not available for this role.',
-      });
+      toast({ variant: 'destructive', title: 'Unavailable', description: 'Unique recommended testing is not available for this role.' });
       return;
     }
 
     setCreatingUniqueTestingLesson(true);
     try {
       const lesson = await createUniqueRecommendedTestingLesson(lessonRole, lowestScoringTrait, user.userId);
-      if (!lesson) {
-        throw new Error('Could not generate a unique lesson.');
-      }
+      if (!lesson) throw new Error('Could not generate a unique lesson.');
       setLessons(prev => (prev.some(existing => existing.lessonId === lesson.lessonId) ? prev : [lesson, ...prev]));
       router.push(`/lesson/${lesson.lessonId}?recommended=true&new=testing`);
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Could not create lesson',
-        description: error?.message || 'Please try again.',
-      });
+      toast({ variant: 'destructive', title: 'Could not create lesson', description: error?.message || 'Please try again.' });
     } finally {
       setCreatingUniqueTestingLesson(false);
     }
@@ -535,20 +491,16 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
   const recentActivities = useMemo(() => {
     if (!activity || !user) return [];
-
     const allLessons = [...lessons, ...assignedLessons];
     const combinedActivities: { type: string; timestamp: Date; text: string; note?: string }[] = [];
     let currentXp = user.xp;
 
-    // The activity is sorted from newest to oldest. We'll iterate backwards.
     for (const log of activity) {
         const xpAfter = currentXp;
         const levelAfter = calculateLevel(xpAfter).level;
-        
         const xpBefore = xpAfter - log.xpGained;
         const levelBefore = calculateLevel(xpBefore).level;
 
-        // Add the lesson completion activity
         const lessonTitle = allLessons.find(l => l.lessonId === log.lessonId)?.title || 'a lesson';
         combinedActivities.push({
             type: 'completed',
@@ -557,28 +509,20 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             note: buildLessonActivityNote(log),
         });
 
-        // Check if a level up occurred after this lesson
         if (levelAfter > levelBefore) {
             combinedActivities.push({
                 type: 'levelup',
-                // Place level-up event slightly after the lesson for correct sorting
                 timestamp: new Date(new Date(log.timestamp).getTime() + 1),
                 text: `Congratulations! You've reached Level ${levelAfter}!`
             });
         }
-        
         currentXp = xpBefore;
     }
 
-    // Sort all generated activities by timestamp (newest first) and take the top 4
     return combinedActivities
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, 4)
-        .map(act => ({
-            icon: activityIcons[act.type],
-            text: act.text,
-            note: act.note,
-        }));
+        .map(act => ({ icon: activityIcons[act.type], text: act.text, note: act.note }));
   }, [activity, lessons, assignedLessons, user]);
 
   return (
@@ -612,6 +556,34 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-primary/50" withBlur />
         </header>
 
+        {/* Control Bar */}
+        <div className="flex items-center justify-center bg-card/50 backdrop-blur-sm border rounded-xl p-2 gap-4">
+            <div className="flex bg-muted p-1 rounded-lg border">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewMode('personal')}
+                    className={cn(
+                        "h-8 px-4 text-xs font-bold uppercase",
+                        viewMode === 'personal' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
+                    )}
+                >
+                    Personal
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewMode('team')}
+                    className={cn(
+                        "h-8 px-4 text-xs font-bold uppercase",
+                        viewMode === 'team' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
+                    )}
+                >
+                    Dealership
+                </Button>
+            </div>
+        </div>
+
         {isPaused && (
             <Alert variant="destructive" className="mb-6 bg-destructive/10 border-destructive/50 text-destructive-foreground">
                 <AlertCircle className="h-4 w-4 text-destructive" />
@@ -622,7 +594,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             </Alert>
         )}
 
-        {/* Level & XP */}
         <section className="space-y-3">
              {loading ? <Skeleton className="h-24 w-full" /> : (
                 <div>
@@ -636,21 +607,21 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
              )}
         </section>
 
-        {/* Trend Visualization - Primary source for CX Scores */}
         <section>
           <CxSoundwaveCard 
             scope={getDefaultScope(user)} 
             data={averageScores}
             memberSince={user.memberSince}
             themePreference={themePreference}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            hideInternalToggle
           />
         </section>
         
-        {/* Today's Lessons */}
         <section id="lessons" className="space-y-4">
             <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Recommended Lesson Card */}
                 {loading ? (
                     <Skeleton className="h-full min-h-[160px] rounded-2xl" />
                 ) : (
@@ -680,7 +651,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                                   className="w-full font-bold bg-[#8DC63F] text-black hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]"
                                   onClick={() => setShowBaselineAssessment(true)}
                                 >
-                                    Take Baseline Assessment
+                                    Take Baseline
                                 </Button>
                             </div>
                         ) : availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
@@ -730,7 +701,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 	                    </Card>
 	                )}
                 
-                {/* Assigned Lesson Card */}
                 {loading ? (
                     <Skeleton className="h-full min-h-[160px] rounded-2xl" />
                 ) : (
@@ -773,7 +743,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             </div>
         </section>
 
-        {/* My Badges */}
         <section>
              {loading ? (
                 <Skeleton className="h-40 w-full rounded-2xl" />
@@ -782,7 +751,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
              )}
         </section>
 
-        {/* Recent Activity */}
         <section className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">Recent Activity</h2>
              {loading ? (

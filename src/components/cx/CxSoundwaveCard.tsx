@@ -21,6 +21,9 @@ interface CxSoundwaveCardProps {
   data?: Partial<Record<string, number>>;
   memberSince?: string | null;
   themePreference?: ThemePreference;
+  viewMode?: 'team' | 'personal';
+  onViewModeChange?: (mode: 'team' | 'personal') => void;
+  hideInternalToggle?: boolean;
 }
 
 function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<CxSkillId, number>> | undefined {
@@ -35,19 +38,31 @@ function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<
   } as Partial<Record<CxSkillId, number>>;
 }
 
-export function CxSoundwaveCard({ scope, personalScope, className, data, memberSince, themePreference = 'vibrant' }: CxSoundwaveCardProps) {
+export function CxSoundwaveCard({ 
+  scope, 
+  personalScope, 
+  className, 
+  data, 
+  memberSince, 
+  themePreference = 'vibrant',
+  viewMode: externalViewMode,
+  onViewModeChange,
+  hideInternalToggle = false
+}: CxSoundwaveCardProps) {
   const [range, setRange] = useState<'today' | '7d' | '30d' | '90d'>('today');
-  const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
+  const [internalViewMode, setInternalViewMode] = useState<'team' | 'personal'>('team');
   const [hoveredSkillId, setHoveredSkillId] = useState<CxSkillId | null>(null);
   const [selectedSkillId, setSelectedSkillId] = useState<CxSkillId | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  const viewMode = externalViewMode || internalViewMode;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const daysSinceJoining = useMemo(() => {
-    if (!memberSince) return 100; // Safe default for missing data
+    if (!memberSince) return 100;
     try {
       return Math.max(0, differenceInDays(new Date(), new Date(memberSince)));
     } catch {
@@ -62,7 +77,6 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
     '90d': daysSinceJoining >= 90,
   }), [daysSinceJoining]);
 
-  // Set initial best range on mount
   useEffect(() => {
     if (mounted) {
       if (rangeAvailability['30d']) setRange('30d');
@@ -90,6 +104,14 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
 
   const handleSkillClick = (id: CxSkillId | null) => {
     setSelectedSkillId(prev => prev === id ? null : id);
+  };
+
+  const handleViewModeToggle = (mode: 'team' | 'personal') => {
+    if (onViewModeChange) {
+      onViewModeChange(mode);
+    } else {
+      setInternalViewMode(mode);
+    }
   };
 
   if (!mounted) {
@@ -142,12 +164,12 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {personalScope && (
+          {personalScope && !hideInternalToggle && (
             <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setViewMode('team')}
+                onClick={() => handleViewModeToggle('team')}
                 className={cn(
                   "h-7 px-3 text-[10px] font-bold tracking-widest uppercase",
                   viewMode === 'team' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
@@ -158,7 +180,7 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setViewMode('personal')}
+                onClick={() => handleViewModeToggle('personal')}
                 className={cn(
                   "h-7 px-3 text-[10px] font-bold tracking-widest uppercase",
                   viewMode === 'personal' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
@@ -211,7 +233,6 @@ export function CxSoundwaveCard({ scope, personalScope, className, data, memberS
 
       <CardContent className="pt-0 space-y-4 px-0">
         <div className="border border-border/60 bg-muted/5 overflow-hidden dark:bg-white/2">
-          {/* Visual Ledger at Top */}
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-b border-border/50 p-1.5 md:p-3 dark:border-white/5 bg-muted/10">
             <div className="flex items-center gap-2">
               <div className="w-6 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
