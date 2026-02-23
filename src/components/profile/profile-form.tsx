@@ -96,11 +96,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const criticalOnlyValue = form.watch('showDealerCriticalOnly');
 
   useEffect(() => {
+    let active = true;
+
     async function fetchDealerships() {
-        const dealerships = await getDealerships();
-        setAllDealerships(dealerships);
+        try {
+          const dealerships = await getDealerships();
+          if (!active) return;
+          setAllDealerships(dealerships);
+        } catch (error) {
+          console.error('[ProfileForm] Failed to load dealerships', error);
+          if (!active) return;
+          setAllDealerships([]);
+        }
     }
+
     fetchDealerships();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const userDealerships = useMemo(() => {

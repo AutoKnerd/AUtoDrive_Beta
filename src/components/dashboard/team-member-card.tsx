@@ -72,39 +72,65 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
 
 
   useEffect(() => {
+    let active = true;
+
     async function fetchData() {
       setLoading(true);
       if (!user) return;
       if (hideMetrics) {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
         return;
       }
-      const canViewBadges =
-        currentUser.userId === user.userId ||
-        viewerIsAdmin ||
-        viewerIsTrainer ||
-        viewerIsOwner ||
-        viewerIsManager;
-      const [fetchedLessons, fetchedActivity, fetchedBadges] = await Promise.all([
-        getLessons(user.role as LessonRole, user.userId),
-        getConsultantActivity(user.userId),
-        canViewBadges ? getEarnedBadgesByUserId(user.userId) : Promise.resolve([]),
-      ]);
-      setLessons(fetchedLessons);
-      setActivity(fetchedActivity);
-      setBadges(fetchedBadges);
-      
-      if (user.memberSince) {
-        setMemberSince(new Date(user.memberSince).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-      }
-      if (fetchedActivity.length > 0) {
-        setRecentActivityDate(new Date(fetchedActivity[0].timestamp).toLocaleDateString());
-      }
+      try {
+        const canViewBadges =
+          currentUser.userId === user.userId ||
+          viewerIsAdmin ||
+          viewerIsTrainer ||
+          viewerIsOwner ||
+          viewerIsManager;
+        const [fetchedLessons, fetchedActivity, fetchedBadges] = await Promise.all([
+          getLessons(user.role as LessonRole, user.userId),
+          getConsultantActivity(user.userId),
+          canViewBadges ? getEarnedBadgesByUserId(user.userId) : Promise.resolve([]),
+        ]);
 
-      setLoading(false);
+        if (!active) return;
+
+        setLessons(fetchedLessons);
+        setActivity(fetchedActivity);
+        setBadges(fetchedBadges);
+        
+        setMemberSince(
+          user.memberSince
+            ? new Date(user.memberSince).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            : null
+        );
+        if (fetchedActivity.length > 0) {
+          setRecentActivityDate(new Date(fetchedActivity[0].timestamp).toLocaleDateString());
+        } else {
+          setRecentActivityDate(null);
+        }
+      } catch (error) {
+        console.error('[TeamMemberCard] Failed to load member data', { userId: user.userId, error });
+        if (!active) return;
+        toast({
+          variant: 'destructive',
+          title: 'Member data unavailable',
+          description: 'Could not load this profile snapshot right now.',
+        });
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
     }
     fetchData();
-  }, [user, hideMetrics, currentUser.userId, viewerIsAdmin, viewerIsTrainer, viewerIsOwner, viewerIsManager]);
+    return () => {
+      active = false;
+    };
+  }, [user, hideMetrics, currentUser.userId, viewerIsAdmin, viewerIsTrainer, viewerIsOwner, viewerIsManager, toast]);
   
   const currentDealershipNames = useMemo(() => {
     if (user.dealershipIds && user.dealershipIds.length > 0) {

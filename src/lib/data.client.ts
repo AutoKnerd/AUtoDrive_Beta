@@ -815,10 +815,17 @@ export async function getConsultantActivity(userId: string): Promise<LessonLog[]
         return lessonLogs.filter(log => log.userId === userId).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }
     const snapshot = await getDocs(collection(db, `users/${userId}/lessonLogs`));
-    return snapshot.docs.map(doc => {
-        const data = doc.data() as any;
-        return { ...data, id: doc.id, timestamp: data.timestamp.toDate() };
-    }).sort((a, b) => b.timestamp - a.timestamp);
+    return snapshot.docs
+        .map(doc => {
+            const data = doc.data() as any;
+            return {
+                ...data,
+                id: doc.id,
+                timestamp: toSafeDate(data.timestamp, new Date(0)),
+            };
+        })
+        .filter(log => log.timestamp.getTime() > 0)
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
 
 export async function getDailyLessonLimits(userId: string): Promise<{ recommendedTaken: boolean, otherTaken: boolean }> {
@@ -1142,8 +1149,9 @@ export async function logLessonCompletion(data: {
 export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
     switch (managerRole) {
         case 'manager': return ['Sales Consultant'];
-        case 'Service Writer': return ['Service Writer'];
-        case 'Parts Consultant': return ['Parts Consultant'];
+        case 'Service Manager': return ['Service Writer'];
+        case 'Parts Manager': return ['Parts Consultant'];
+        case 'Finance Manager': return ['Finance Manager'];
         case 'General Manager':
         case 'Owner':
         case 'Trainer':
@@ -1273,6 +1281,12 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
     if (isTouringUser(user.userId)) {
         const tour = await getTourData();
         const roles = getTeamMemberRoles(user.role);
+        if (!roles.length) {
+            return {
+                teamActivity: [],
+                managerStats: { totalLessons: 0, avgScores: null },
+            };
+        }
         const members = tour.users.filter((member) => (
             member.userId !== user.userId &&
             roles.includes(member.role)
@@ -1302,6 +1316,13 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
     }
 
     const roles = getTeamMemberRoles(user.role);
+    if (!roles.length) {
+        return {
+            teamActivity: [],
+            managerStats: { totalLessons: 0, avgScores: null },
+        };
+    }
+
     const usersSnap = await getDocs(query(collection(db, 'users'), where("role", "in", roles)));
     const members = usersSnap.docs.map(d => ({ ...d.data(), userId: d.id } as User));
     const filtered = dealershipId === 'all' ? members : members.filter(m => m.dealershipIds.includes(dealershipId));

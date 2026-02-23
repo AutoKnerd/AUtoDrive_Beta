@@ -304,68 +304,89 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
 
   useEffect(() => {
+    let active = true;
+
     async function fetchData() {
       setLoading(true);
-      const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
-      const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges] = await Promise.all([
-        getLessons(lessonRole, user.userId),
-        getConsultantActivity(user.userId),
-        getDailyLessonLimits(user.userId),
-        getAssignedLessons(user.userId),
-        getAllAssignedLessonIds(user.userId),
-        getEarnedBadgesByUserId(user.userId),
-      ]);
-      const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
+      try {
+        const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
+        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges] = await Promise.all([
+          getLessons(lessonRole, user.userId),
+          getConsultantActivity(user.userId),
+          getDailyLessonLimits(user.userId),
+          getAssignedLessons(user.userId),
+          getAllAssignedLessonIds(user.userId),
+          getEarnedBadgesByUserId(user.userId),
+        ]);
+        const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
 
-      const lowestTrait = lowestTraitFromSnapshot(
-        scoreSnapshotFromUserStats(user) ?? scoreSnapshotFromActivity(fetchedActivity)
-      );
+        const lowestTrait = lowestTraitFromSnapshot(
+          scoreSnapshotFromUserStats(user) ?? scoreSnapshotFromActivity(fetchedActivity)
+        );
 
-      let lessonsForSelection = fetchedLessons;
-      if (baselineEligible && lessonRole !== 'global') {
-        const autoLesson = await ensureDailyRecommendedLesson(lessonRole, lowestTrait, user.userId);
-        if (autoLesson && !lessonsForSelection.some(l => l.lessonId === autoLesson.lessonId)) {
-          lessonsForSelection = [autoLesson, ...lessonsForSelection];
+        let lessonsForSelection = fetchedLessons;
+        if (baselineEligible && lessonRole !== 'global') {
+          const autoLesson = await ensureDailyRecommendedLesson(lessonRole, lowestTrait, user.userId);
+          if (autoLesson && !lessonsForSelection.some(l => l.lessonId === autoLesson.lessonId)) {
+            lessonsForSelection = [autoLesson, ...lessonsForSelection];
+          }
         }
-      }
 
-      setLessons(lessonsForSelection);
-      setActivity(fetchedActivity);
-      setLessonLimits(limits);
-      setAssignedLessons(fetchedAssignedLessons);
-      setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
-      setBadges(fetchedBadges);
-      const hasBaselineLog = fetchedActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
-      const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
-      setNeedsBaselineAssessment(baselineRequired);
-      setShowBaselineAssessment(baselineRequired);
-      
-      if (scopedDealershipIds.length > 0 && !isTouring) {
+        if (!active) return;
+        setLessons(lessonsForSelection);
+        setActivity(fetchedActivity);
+        setLessonLimits(limits);
+        setAssignedLessons(fetchedAssignedLessons);
+        setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
+        setBadges(fetchedBadges);
+        const hasBaselineLog = fetchedActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
+        const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
+        setNeedsBaselineAssessment(baselineRequired);
+        setShowBaselineAssessment(baselineRequired);
+
+        if (scopedDealershipIds.length > 0 && !isTouring) {
           const dealershipData = await Promise.all(scopedDealershipIds.map(id => getDealershipById(id, user.userId)));
+          if (!active) return;
           const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
           const hasRetakeTestingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
           const hasNewRecommendedTestingAccess = dealershipData.some(d => d?.enableNewRecommendedTesting === true);
           setCanRetakeRecommendedTesting(hasRetakeTestingAccess);
           setCanUseNewRecommendedTesting(hasNewRecommendedTestingAccess);
-          if (activeDealerships.length === 0) {
-              setIsPaused(true);
-          } else {
-              setIsPaused(false);
-          }
-      } else {
+          setIsPaused(activeDealerships.length === 0);
+        } else {
           setCanRetakeRecommendedTesting(false);
           setCanUseNewRecommendedTesting(false);
           setIsPaused(false);
-      }
+        }
 
-      if (user.memberSince) {
-        setMemberSince(new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+        setMemberSince(
+          user.memberSince
+            ? new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+            : null
+        );
+      } catch (error) {
+        console.error('[ConsultantDashboard] Failed to load dashboard data', error);
+        if (!active) return;
+        setCanRetakeRecommendedTesting(false);
+        setCanUseNewRecommendedTesting(false);
+        setIsPaused(false);
+        toast({
+          variant: 'destructive',
+          title: 'Dashboard data unavailable',
+          description: 'Some profile and lesson data could not be loaded right now. Please refresh in a moment.',
+        });
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
-
-      setLoading(false);
     }
+
     fetchData();
-  }, [user, isTouring, refreshKey, scopedDealershipIds]);
+    return () => {
+      active = false;
+    };
+  }, [user, isTouring, refreshKey, scopedDealershipIds, toast]);
 
   useEffect(() => {
     if (isTouring) {
