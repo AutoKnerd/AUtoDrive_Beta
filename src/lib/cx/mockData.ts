@@ -31,7 +31,6 @@ function generateTrend(base: number, volatility: number, length: number, target?
 const MOCK_CACHE: Record<string, CxDataPoint[]> = {};
 
 export function getMockCxTrend(id: string, days: number = 90, anchorScores?: Partial<Record<CxSkillId, number>>): CxDataPoint[] {
-  // We include the anchor scores in the cache key to ensure we recalculate if they change
   const anchorKey = anchorScores ? JSON.stringify(anchorScores) : 'no-anchor';
   const cacheKey = `${id}-${days}-${anchorKey}`;
   
@@ -41,16 +40,15 @@ export function getMockCxTrend(id: string, days: number = 90, anchorScores?: Par
   const skillTrends: Record<CxSkillId, number[]> = {} as any;
 
   CX_SKILLS.forEach((skill, idx) => {
-    // Determine a reasonable starting point based on the anchor or a random base
     const target = anchorScores?.[skill.id];
     
-    // Spread the base scores out more vertically when no target exists
+    // Spread the base scores out significantly more vertically to fill the chart area
     const base = target !== undefined 
-      ? Math.max(10, Math.min(100, target + (Math.random() - 0.5) * 30))
-      : 30 + idx * 12 + (Math.random() * 15);
+      ? Math.max(10, Math.min(100, target + (Math.random() - 0.5) * 50))
+      : 15 + idx * 18 + (Math.random() * 20);
       
-    // Increased volatility from 6 to 12 to make the lines "spread out" and more wavy
-    skillTrends[skill.id] = generateTrend(base, 12, days, target);
+    // Higher volatility (22) ensures the lines "spread out" and fill the empty space with energy
+    skillTrends[skill.id] = generateTrend(base, 22, days, target);
   });
 
   for (let i = 0; i < days; i++) {

@@ -85,7 +85,6 @@ export function CxSoundwaveCard({
     '90d': daysSinceJoining >= 90,
   }), [daysSinceJoining]);
 
-  // Set initial sensible default based on tenure
   useEffect(() => {
     if (mounted && range === 'today') {
       if (rangeAvailability['30d']) setRange('30d');
@@ -277,6 +276,7 @@ export function CxSoundwaveCard({
           />
         </div>
 
+        {/* Skill grid with percentages, now moved up and interactive */}
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-2 px-4 pb-4">
           {series.map((s) => {
             const displayValue = range === 'today' 

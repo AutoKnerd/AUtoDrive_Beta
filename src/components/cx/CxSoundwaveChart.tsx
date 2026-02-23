@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -206,6 +205,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
 
               <path d={getPath(fgPoints)} fill="none" stroke={s.color} strokeWidth={isActive ? 5 : 3} filter="url(#neon-glow)" className="pointer-events-none" />
 
+              {/* Invisible wide line for easier clicking/hovering */}
               <path
                 d={getPath(fgPoints)}
                 fill="none"
