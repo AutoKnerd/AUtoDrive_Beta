@@ -35,11 +35,11 @@ function getEnvServiceAccount():
         };
       }
     } catch {
-      // Fall through to split env vars.
+      // Fall through
     }
   }
 
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
 
@@ -91,14 +91,16 @@ function initializeAdmin() {
         options.credential = appModule.applicationDefault();
       }
 
-      // Check if [DEFAULT] is taken by a different project
+      // Check if [DEFAULT] is taken by a different project ID or is missing
       const defaultApp = existingApps.find(a => a.name === '[DEFAULT]');
-      if (!defaultApp || defaultApp.options.projectId === targetProjectId) {
+      const isDefaultTakenByOther = defaultApp && defaultApp.options.projectId !== targetProjectId;
+
+      if (!defaultApp || !isDefaultTakenByOther) {
         app = appModule.initializeApp(options);
       } else {
-        // Use a named app to avoid audience claim mismatches
-        const appName = `autodrive-${targetProjectId}`;
-        app = existingApps.find(a => a.name === appName) || appModule.initializeApp(options, appName);
+        // Use a unique named app to avoid audience claim mismatches
+        const appName = `autodrive-${targetProjectId}-${Date.now()}`;
+        app = appModule.initializeApp(options, appName);
       }
     }
 
@@ -131,16 +133,16 @@ function initializeAdmin() {
 
     _adminAuth = {
       verifyIdToken: async () => {
-        throw makeErr('Verify application credentials or project ID configuration.');
+        throw makeErr('Check application credentials.');
       },
     } as unknown as Auth;
 
     _adminDb = {
       collection: () => {
-        throw makeErr('Verify application credentials or project ID configuration.');
+        throw makeErr('Check application credentials.');
       },
       runTransaction: async () => {
-        throw makeErr('Verify application credentials or project ID configuration.');
+        throw makeErr('Check application credentials.');
       },
     } as unknown as Firestore;
   }

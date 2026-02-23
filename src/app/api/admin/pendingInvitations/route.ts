@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User } from '@/lib/definitions';
@@ -84,6 +85,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ pendingInvitations }, { status: 200 });
   } catch (error: any) {
     console.error('[API PendingInvitations] Error:', error);
+
+    // Specific mapping for environment/credential errors
+    if (error?.message && (error.message.includes('access token') || error.message.includes('aud'))) {
+        return NextResponse.json({ message: 'Service Temporarily Unavailable: Credential Error' }, { status: 503 });
+    }
 
     if (error?.code === 'admin/not-initialized') {
       return NextResponse.json({ message: error.message }, { status: 503 });

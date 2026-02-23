@@ -558,30 +558,43 @@ export async function getPendingInvitations(dealershipId: string, user: User): P
     const { auth } = getFirebase();
     if (isTouringUser(user.userId)) return [];
 
-    const idToken = await auth.currentUser?.getIdToken(true);
-    const params = new URLSearchParams({ dealershipId });
-    const response = await fetch(`/api/admin/pendingInvitations?${params.toString()}`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${idToken}` },
-    });
+    try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return [];
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || 'Failed to fetch pending invitations.';
-        if (errorMessage.includes('"aud" (audience) claim')) {
-            console.warn(`[data.client] Suppressing audience claim error. Check backend config.`);
-            return [];
+        const idToken = await currentUser.getIdToken(true);
+        const params = new URLSearchParams({ dealershipId });
+        const response = await fetch(`/api/admin/pendingInvitations?${params.toString()}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${idToken}` },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.message || 'Failed to fetch pending invitations.';
+            
+            // Soft handle common environment/auth errors
+            if (errorMessage.includes('"aud" (audience) claim') || 
+                errorMessage.includes('refresh access token') ||
+                response.status === 503) {
+                console.warn(`[getPendingInvitations] Degraded state: ${errorMessage}`);
+                return [];
+            }
+            
+            if (response.status === 403) return [];
+            return []; // Graceful return
         }
-        if (response.status === 403) return [];
-        throw new Error(errorMessage);
-    }
 
-    const data = await response.json();
-    return (data?.pendingInvitations || []).map((invite: any) => ({
-        ...invite,
-        createdAt: invite.createdAt ? new Date(invite.createdAt) : undefined,
-        expiresAt: invite.expiresAt ? new Date(invite.expiresAt) : undefined,
-    } as PendingInvitation));
+        const data = await response.json();
+        return (data?.pendingInvitations || []).map((invite: any) => ({
+            ...invite,
+            createdAt: invite.createdAt ? new Date(invite.createdAt) : undefined,
+            expiresAt: invite.expiresAt ? new Date(invite.expiresAt) : undefined,
+        } as PendingInvitation));
+    } catch (e) {
+        console.warn('[getPendingInvitations] API error caught:', e);
+        return [];
+    }
 }
 
 export async function getLessons(role: LessonRole, userId?: string): Promise<Lesson[]> {

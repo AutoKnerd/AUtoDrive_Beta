@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -144,62 +145,76 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const fetchData = useCallback(async (dealershipId: string | null) => {
       if (!dealershipId) return;
       setLoading(true);
-      const combinedDataPromise = getCombinedTeamData(dealershipId, user);
-      const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations] = await Promise.all([
-        combinedDataPromise,
-        getManageableUsers(user.userId),
-        getLessons(user.role as LessonRole, user.userId),
-        getConsultantActivity(user.userId),
-        getEarnedBadgesByUserId(user.userId),
-        getAssignedLessons(user.userId),
-        getAllAssignedLessonIds(user.userId),
-        getDailyLessonLimits(user.userId),
-        getPendingInvitations(dealershipId, user),
-      ]);
-      
-      setStats(combinedData.managerStats);
-      const teamActivityByUserId = new Map<string, TeamMemberStats>(
-        combinedData.teamActivity.map((row: TeamMemberStats) => [row.consultant.userId, row])
-      );
+      try {
+          const combinedDataPromise = getCombinedTeamData(dealershipId, user);
+          const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations] = await Promise.all([
+            combinedDataPromise,
+            getManageableUsers(user.userId),
+            getLessons(user.role as LessonRole, user.userId),
+            getConsultantActivity(user.userId),
+            getEarnedBadgesByUserId(user.userId),
+            getAssignedLessons(user.userId),
+            getAllAssignedLessonIds(user.userId),
+            getDailyLessonLimits(user.userId),
+            getPendingInvitations(dealershipId, user),
+          ]);
+          
+          setStats(combinedData.managerStats);
+          const teamActivityByUserId = new Map<string, TeamMemberStats>(
+            combinedData.teamActivity.map((row: TeamMemberStats) => [row.consultant.userId, row])
+          );
 
-      const visibleActiveUsers = usersToManage.filter((u) => {
-        if (dealershipId === 'all') return ['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role);
-        return u.dealershipIds?.includes(dealershipId);
-      });
-
-      visibleActiveUsers.forEach((u) => {
-        if (!teamActivityByUserId.has(u.userId)) {
-          teamActivityByUserId.set(u.userId, {
-            consultant: u, lessonsCompleted: 0, totalXp: u.xp, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null,
+          const visibleActiveUsers = usersToManage.filter((u) => {
+            if (dealershipId === 'all') return ['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role);
+            return u.dealershipIds?.includes(dealershipId);
           });
-        }
-      });
 
-      const pendingRows: TeamMemberStats[] = pendingInvitations.map((invite) => ({
-        consultant: { userId: `invite-${invite.token}`, name: invite.email.split('@')[0] || invite.email, email: invite.email, role: invite.role, dealershipIds: [invite.dealershipId], avatarUrl: '', xp: 0 },
-        lessonsCompleted: 0, totalXp: 0, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null, pendingInvite: invite,
-      }));
+          visibleActiveUsers.forEach((u) => {
+            if (!teamActivityByUserId.has(u.userId)) {
+              teamActivityByUserId.set(u.userId, {
+                consultant: u, lessonsCompleted: 0, totalXp: u.xp, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null,
+              });
+            }
+          });
 
-      setTeamActivity([...Array.from(teamActivityByUserId.values()), ...pendingRows]);
-      setManageableUsers(usersToManage);
-      setLessons(fetchedLessons);
-      setManagerActivity(fetchedManagerActivity);
-      setManagerBadges(fetchedBadges);
-      setAssignedLessons(fetchedAssignedLessons);
-      setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
-      setLessonLimits(limits);
-      const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
-      const hasBaselineLog = fetchedManagerActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
-      const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
-      setNeedsBaselineAssessment(baselineRequired);
-      setShowBaselineAssessment(baselineRequired);
-      setLoading(false);
-  }, [user, isTouring]);
+          const pendingRows: TeamMemberStats[] = pendingInvitations.map((invite) => ({
+            consultant: { userId: `invite-${invite.token}`, name: invite.email.split('@')[0] || invite.email, email: invite.email, role: invite.role, dealershipIds: [invite.dealershipId], avatarUrl: '', xp: 0 },
+            lessonsCompleted: 0, totalXp: 0, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null, pendingInvite: invite,
+          }));
+
+          setTeamActivity([...Array.from(teamActivityByUserId.values()), ...pendingRows]);
+          setManageableUsers(usersToManage);
+          setLessons(fetchedLessons);
+          setManagerActivity(fetchedManagerActivity);
+          setManagerBadges(fetchedBadges);
+          setAssignedLessons(fetchedAssignedLessons);
+          setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
+          setLessonLimits(limits);
+          const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
+          const hasBaselineLog = fetchedManagerActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
+          const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
+          setNeedsBaselineAssessment(baselineRequired);
+          setShowBaselineAssessment(baselineRequired);
+      } catch (error) {
+          console.warn("Dashboard partially failed to load team data:", error);
+          toast({
+              variant: 'destructive',
+              title: 'Loading Warning',
+              description: 'Some administrative data could not be retrieved at this time.',
+          });
+      } finally {
+          setLoading(false);
+      }
+  }, [user, isTouring, toast]);
 
   const fetchAdminData = useCallback(async () => {
-    const fetchedDealerships = await getDealerships(user);
-    if (['Admin', 'Developer'].includes(user.role)) setAllDealershipsForAdmin(fetchedDealerships);
-    setDealerships(fetchedDealerships.filter(d => ['Admin', 'Developer'].includes(user.role) ? true : d.status !== 'deactivated'));
+    try {
+        const fetchedDealerships = await getDealerships(user);
+        if (['Admin', 'Developer'].includes(user.role)) setAllDealershipsForAdmin(fetchedDealerships);
+        setDealerships(fetchedDealerships.filter(d => ['Admin', 'Developer'].includes(user.role) ? true : d.status !== 'deactivated'));
+    } catch (e) {
+        console.warn("Could not fetch dealerships list.");
+    }
   }, [user]);
 
   useEffect(() => {
@@ -207,7 +222,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         if (!managerialRoles.includes(user.role)) return;
         setLoading(true);
         await fetchAdminData();
-        let initialDealerships: Dealership[] = await getDealerships(user);
+        let initialDealerships: Dealership[] = [];
+        try {
+            initialDealerships = await getDealerships(user);
+        } catch (e) {}
+        
         let currentSelectedId = selectedDealershipId;
         if (currentSelectedId === null) {
             if (['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role)) currentSelectedId = 'all';
@@ -411,7 +430,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           </div>
       </div>
 
-      {/* Stability Layer: Chart stays in place, props drive the content */}
       <section>
         <CxSoundwaveCard 
           scope={activeScope} 
