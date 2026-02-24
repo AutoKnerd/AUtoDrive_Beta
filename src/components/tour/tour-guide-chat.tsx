@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import Image from 'next/image';
+import { ASSISTANT_AVATAR_SRC, ASSISTANT_NAME } from '@/lib/assistant';
 
 interface Message {
   role: 'user' | 'model';
@@ -87,7 +88,7 @@ export function TourGuideChat({ user }: TourGuideChatProps) {
             <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
               {message.role === 'model' && (
                 <Avatar className="h-8 w-8">
-                  <Image src="/autodrive-ai-icon1.png" alt="AI Guide" width={32} height={32} />
+                  <Image src={ASSISTANT_AVATAR_SRC} alt={`${ASSISTANT_NAME} Guide`} width={32} height={32} />
                 </Avatar>
               )}
               <div className={`rounded-lg p-3 text-sm max-w-[85%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
@@ -103,7 +104,7 @@ export function TourGuideChat({ user }: TourGuideChatProps) {
           {isLoading && messages.length > 0 && (
              <div className="flex items-start gap-3">
                 <Avatar className="h-8 w-8 animate-pulse">
-                    <Image src="/autodrive-ai-icon1.png" alt="Thinking..." width={32} height={32} />
+                    <Image src={ASSISTANT_AVATAR_SRC} alt={`${ASSISTANT_NAME} is thinking...`} width={32} height={32} />
                 </Avatar>
              </div>
           )}

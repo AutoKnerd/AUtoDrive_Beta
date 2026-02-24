@@ -80,6 +80,23 @@ export type User = {
   stripeCustomerId?: string;
   subscriptionStatus?: 'active' | 'inactive';
   stats?: Partial<UserStats>;
+  ppp_enabled?: boolean;
+  ppp_level?: number;
+  ppp_lessons_passed?: Record<string, string[]>;
+  ppp_progress_percentage?: number;
+  ppp_badge?: string;
+  ppp_abandonment_counter?: number;
+  ppp_certified?: boolean;
+  saas_ppp_enabled?: boolean;
+  saas_ppp_level_completed?: number;
+  saas_ppp_current_level?: number;
+  saas_ppp_current_level_progress?: number;
+  saas_ppp_primary_channel?: string;
+  saas_ppp_secondary_channel?: string | null;
+  saas_ppp_certified_timestamp?: string | null;
+  saas_ppp_l2_phase?: 'primary' | 'secondary';
+  saas_ppp_lessons_passed?: Record<string, string[]>;
+  saas_ppp_abandonment_counter?: number;
 };
 
 export type LessonRole = Exclude<UserRole, 'Owner' | 'Admin'> | 'global';
@@ -263,6 +280,8 @@ export type Dealership = {
   address?: Address;
   enableRetakeRecommendedTesting?: boolean;
   enableNewRecommendedTesting?: boolean;
+  enablePppProtocol?: boolean;
+  enableSaasPppTraining?: boolean;
 };
 
 export type LessonAssignment = {

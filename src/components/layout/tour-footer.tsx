@@ -9,6 +9,7 @@ import { Bot, LogOut, Users, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { TourGuideChat } from '@/components/tour/tour-guide-chat';
 import { cn } from '@/lib/utils';
+import { ASSISTANT_NAME } from '@/lib/assistant';
 
 const tourRoles: { label: string; value: UserRole }[] = [
   { label: 'Sales Consultant', value: 'Sales Consultant' },
@@ -49,9 +50,9 @@ export function TourFooter() {
               <span className="text-xs font-medium">Guide</span>
             </button>
           </DialogTrigger>
-          <DialogContent className="p-0 gap-0 sm:max-w-lg">
+            <DialogContent className="p-0 gap-0 sm:max-w-lg">
             <DialogHeader className="p-4 border-b">
-              <DialogTitle>AI Tour Guide</DialogTitle>
+              <DialogTitle>{ASSISTANT_NAME} Tour Guide</DialogTitle>
             </DialogHeader>
             <TourGuideChat user={user} />
           </DialogContent>
@@ -114,12 +115,12 @@ export function TourFooter() {
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground dark:hover:text-white">
                 <Bot className="h-5 w-5" />
-                <span className="sr-only">Ask AI Guide</span>
+                <span className="sr-only">Ask {ASSISTANT_NAME}</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="p-0 gap-0 sm:max-w-lg">
               <DialogHeader className="p-4 border-b">
-                <DialogTitle>AI Tour Guide</DialogTitle>
+                <DialogTitle>{ASSISTANT_NAME} Tour Guide</DialogTitle>
               </DialogHeader>
               <TourGuideChat user={user} />
             </DialogContent>

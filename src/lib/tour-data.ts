@@ -66,6 +66,8 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 id: `tour-dealership-${i + 1}`,
                 name: dealershipNames[i],
                 status: 'active',
+                enablePppProtocol: false,
+                enableSaasPppTraining: false,
                 address: {
                     street: `${100 + i} Tour Ave`,
                     city: "DemoCity",

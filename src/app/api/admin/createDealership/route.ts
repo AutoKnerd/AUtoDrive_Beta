@@ -53,6 +53,8 @@ export async function POST(
       status: 'active',
       enableRetakeRecommendedTesting: false,
       enableNewRecommendedTesting: false,
+      enablePppProtocol: false,
+      enableSaasPppTraining: false,
     };
 
     if (trainerId) newDealershipData.trainerId = trainerId;

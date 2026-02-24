@@ -17,6 +17,7 @@ import { Spinner } from '../ui/spinner';
 import { getConsultantActivity, logLessonCompletion, type LessonCompletionDetails } from '@/lib/data.client';
 import { useToast } from '@/hooks/use-toast';
 import { assessBehaviorViolation } from '@/lib/moderation/behavior-violation';
+import { ASSISTANT_AVATAR_SRC, ASSISTANT_NAME } from '@/lib/assistant';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -160,7 +161,7 @@ function buildCompletionSummary(
     for (const key of STAT_ORDER) {
       const stat = details.statChanges[key];
       lines.push(
-        `${STAT_LABELS[key]}: ${stat.before.toFixed(1)}% -> ${stat.after.toFixed(1)}% (${formatSigned(stat.delta)}) | AI Rating: ${stat.rating.toFixed(0)}`
+        `${STAT_LABELS[key]}: ${stat.before.toFixed(1)}% -> ${stat.after.toFixed(1)}% (${formatSigned(stat.delta)}) | ${ASSISTANT_NAME} Rating: ${stat.rating.toFixed(0)}`
       );
     }
   }
@@ -168,7 +169,7 @@ function buildCompletionSummary(
   if (details) {
     lines.push(
       '',
-      `AI Ratings Used: Empathy ${details.ratingsUsed.empathy}, Listening ${details.ratingsUsed.listening}, Trust ${details.ratingsUsed.trust}, Follow Up ${details.ratingsUsed.followUp}, Closing ${details.ratingsUsed.closing}, Relationship ${details.ratingsUsed.relationship}`
+      `${ASSISTANT_NAME} Ratings Used: Empathy ${details.ratingsUsed.empathy}, Listening ${details.ratingsUsed.listening}, Trust ${details.ratingsUsed.trust}, Follow Up ${details.ratingsUsed.followUp}, Closing ${details.ratingsUsed.closing}, Relationship ${details.ratingsUsed.relationship}`
     );
     lines.push('', `Severity: ${details.severity}`);
     if (details.severity === 'behavior_violation') {
@@ -180,7 +181,7 @@ function buildCompletionSummary(
         lines.push(`Flags: ${flags.join(', ')}`);
       }
     }
-    lines.push('Why this changed: each skill updates independently toward its own AI rating after each lesson.');
+    lines.push(`Why this changed: each skill updates independently toward its own ${ASSISTANT_NAME} rating after each lesson.`);
   }
 
   return lines.join('\n');
@@ -477,7 +478,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                         <div key={index} className={`flex items-start gap-4 ${message.sender === 'user' ? 'justify-end' : ''}`}>
                             {message.sender === 'ai' && (
                                 <Avatar className="h-8 w-8">
-                                    <Image src="/autodrive-ai-icon1.png" alt="AutoDrive AI" width={32} height={32} />
+                                    <Image src={ASSISTANT_AVATAR_SRC} alt={ASSISTANT_NAME} width={32} height={32} />
                                 </Avatar>
                             )}
                             <div className={`rounded-lg p-3 text-sm max-w-[80%] ${message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
@@ -494,7 +495,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
                         {isLoading && messages.length > 0 && messages[messages.length-1].sender === 'user' && (
                             <div className="flex items-start gap-4">
                                 <Avatar className="h-8 w-8 animate-spin">
-                                    <Image src="/autodrive-ai-icon1.png" alt="Thinking..." width={32} height={32} />
+                                    <Image src={ASSISTANT_AVATAR_SRC} alt={`${ASSISTANT_NAME} is thinking...`} width={32} height={32} />
                                 </Avatar>
                             </div>
                         )}

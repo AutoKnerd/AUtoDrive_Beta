@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/firebase/admin";
+import { buildDefaultPppState } from '@/lib/ppp/state';
+import { buildDefaultSaasPppState } from '@/lib/saas-ppp/state';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -123,6 +125,10 @@ export async function POST(
       // Create or update user profile
       const dealershipId = invite.dealershipId;
       const role = invite.role;
+      const dealershipRef = dealershipId ? adminDb.collection('dealerships').doc(dealershipId) : null;
+      const dealershipSnap = dealershipRef ? await tx.get(dealershipRef) : null;
+      const pppEnabled = dealershipSnap?.exists && dealershipSnap.data()?.status === 'active' && dealershipSnap.data()?.enablePppProtocol === true;
+      const saasPppEnabled = dealershipSnap?.exists && dealershipSnap.data()?.status === 'active' && dealershipSnap.data()?.enableSaasPppTraining === true;
 
       if (!userSnap.exists) {
         const now = new Date();
@@ -141,6 +147,8 @@ export async function POST(
           subscriptionStatus: ["Owner", "General Manager", "Trainer", "Admin", "Developer"].includes(role)
             ? "active"
             : "inactive",
+          ...buildDefaultPppState(pppEnabled),
+          ...buildDefaultSaasPppState(saasPppEnabled),
         });
       } else {
         // Add dealership if missing
@@ -153,6 +161,8 @@ export async function POST(
         tx.update(userRef, {
           dealershipIds: nextIds,
           role: existing.role || role,
+          ppp_enabled: existing.ppp_enabled === true || pppEnabled,
+          saas_ppp_enabled: existing.saas_ppp_enabled === true || saasPppEnabled,
         });
       }
     });

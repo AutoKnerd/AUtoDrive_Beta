@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb, getAdminAuth } from '@/firebase/admin';
+import { buildDefaultPppState } from '@/lib/ppp/state';
+import { buildDefaultSaasPppState } from '@/lib/saas-ppp/state';
 
 type Decoded = { uid: string; email?: string | null };
 
@@ -198,6 +200,8 @@ export async function POST(req: Request) {
       memberSince: now.toISOString(),
       phone: phone || undefined,
       stats: buildDefaultStats(now),
+      ...buildDefaultPppState(false),
+      ...buildDefaultSaasPppState(false),
     };
 
     // Save the user document to Firestore

@@ -9,6 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { ASSISTANT_NAME } from '@/lib/assistant';
 
 const MessageSchema = z.object({
   sender: z.enum(['user', 'ai']),
@@ -49,7 +50,7 @@ const lessonPrompt = ai.definePrompt({
     name: 'lessonPrompt',
     input: { schema: ConductLessonInputSchema },
     output: { format: 'text' },
-    prompt: `You are AutoDrive Classroom AI, a professional automotive customer experience training coach.
+    prompt: `You are ${ASSISTANT_NAME}, AutoDrive's professional automotive customer experience training coach.
 
 Your role:
 You conduct short, focused training sessions for automotive sales consultants inside the AutoDrive app. Your goal is to improve the consultant’s weakest customer experience (CX) skill, not to entertain or lecture.
@@ -194,7 +195,7 @@ Conversation History:
 User's latest response:
 {{userMessage}}
 
-Your turn to respond as AutoDrive Classroom AI:`,
+Your turn to respond as ${ASSISTANT_NAME}:`,
 });
 
 const conductLessonFlow = ai.defineFlow(
