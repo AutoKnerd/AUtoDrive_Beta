@@ -32,6 +32,21 @@ type PppEvaluation = {
 };
 
 function parsePppEvaluation(responseText: string): PppEvaluation | null {
+  const parseOutcome = (text: string): 'pass' | 'not_yet' | null => {
+    const match = text.match(/["']?outcome["']?\s*[:=]\s*["']?(pass|not_yet)["']?/i);
+    if (!match?.[1]) return null;
+    return match[1].toLowerCase() === 'pass' ? 'pass' : 'not_yet';
+  };
+
+  const extractField = (text: string, field: 'coachFeedback' | 'nextStep' | 'adaptationHint'): string | null => {
+    const quoted = text.match(new RegExp(`["']?${field}["']?\\s*:\\s*"([\\s\\S]*?)"\\s*(?:,|}|$)`, 'i'));
+    if (quoted?.[1]) return quoted[1].trim();
+
+    const loose = text.match(new RegExp(`["']?${field}["']?\\s*:\\s*([^\\n\\r}]+)`, 'i'));
+    if (!loose?.[1]) return null;
+    return loose[1].trim().replace(/^["']/, '').replace(/["'],?$/, '').trim();
+  };
+
   const candidates: string[] = [];
   const trimmed = responseText.trim();
   if (trimmed.length > 0) candidates.push(trimmed);
@@ -49,8 +64,12 @@ function parsePppEvaluation(responseText: string): PppEvaluation | null {
   }
 
   for (const candidate of candidates) {
+    const normalized = candidate
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"');
+
     try {
-      const parsed = JSON.parse(candidate);
+      const parsed = JSON.parse(normalized);
       if (!parsed || typeof parsed !== 'object') continue;
       const outcome = parsed.outcome;
       if (outcome !== 'pass' && outcome !== 'not_yet') continue;
@@ -62,7 +81,15 @@ function parsePppEvaluation(responseText: string): PppEvaluation | null {
         adaptationHint: typeof parsed.adaptationHint === 'string' ? parsed.adaptationHint : 'Difficulty will adapt to support your next attempt.',
       };
     } catch {
-      // Continue.
+      const outcome = parseOutcome(normalized);
+      if (!outcome) continue;
+
+      return {
+        outcome,
+        coachFeedback: extractField(normalized, 'coachFeedback') || 'Keep practicing this behavior.',
+        nextStep: extractField(normalized, 'nextStep') || 'Retry with a more structured response.',
+        adaptationHint: extractField(normalized, 'adaptationHint') || 'Difficulty will adapt to support your next attempt.',
+      };
     }
   }
 
@@ -218,8 +245,13 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
       if (!flowInput) return;
 
       const response = await conductPppLesson(flowInput);
-      setMessages((prev) => [...prev, { sender: 'ai', text: response }]);
-      ensureScrollToBottom();
+      const inlineEvaluation = parsePppEvaluation(response);
+      if (inlineEvaluation) {
+        await applyPppEvaluation(inlineEvaluation);
+      } else {
+        setMessages((prev) => [...prev, { sender: 'ai', text: response }]);
+        ensureScrollToBottom();
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -229,6 +261,43 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function applyPppEvaluation(evaluation: PppEvaluation) {
+    if (!activeLesson || !user) return;
+
+    const evaluationMessage = [
+      evaluation.outcome === 'pass' ? 'Outcome: PASS' : 'Outcome: NOT YET',
+      evaluation.coachFeedback,
+      `Next Step: ${evaluation.nextStep}`,
+      `Adaptation: ${evaluation.adaptationHint}`,
+    ].join('\n');
+
+    setMessages((prev) => [...prev, { sender: 'ai', text: evaluationMessage }]);
+    ensureScrollToBottom();
+
+    if (evaluation.outcome === 'pass') {
+      const result = await completePppLessonPass(user.userId, activeLesson.level, activeLesson.lessonId);
+      setUser(result.updatedUser);
+      setAttemptOutcome('pass');
+      toast({
+        title: result.alreadyPassed ? 'Already Passed' : 'PPP Lesson Passed',
+        description: result.alreadyPassed
+          ? 'This lesson was already completed. Progress remains unchanged.'
+          : `+${result.xpAwarded} XP awarded. ${result.levelAdvanced ? 'Next level unlocked.' : 'Next lesson unlocked.'}`,
+      });
+      return;
+    }
+
+    setAttemptOutcome('not_yet');
+    setFailureCounts((prev) => ({
+      ...prev,
+      [activeLesson.lessonId]: (prev[activeLesson.lessonId] || 0) + 1,
+    }));
+    toast({
+      title: 'Not Yet',
+      description: `No XP awarded. Retry this lesson and ${ASSISTANT_NAME} will adapt support.`,
+    });
   }
 
   async function handleEvaluateAttempt() {
@@ -245,37 +314,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
         throw new Error('PPP evaluator did not return a valid Pass/Not Yet result.');
       }
 
-      const evaluationMessage = [
-        evaluation.outcome === 'pass' ? 'Outcome: PASS' : 'Outcome: NOT YET',
-        evaluation.coachFeedback,
-        `Next Step: ${evaluation.nextStep}`,
-        `Adaptation: ${evaluation.adaptationHint}`,
-      ].join('\n');
-
-      setMessages((prev) => [...prev, { sender: 'ai', text: evaluationMessage }]);
-      ensureScrollToBottom();
-
-      if (evaluation.outcome === 'pass') {
-        const result = await completePppLessonPass(user.userId, activeLesson.level, activeLesson.lessonId);
-        setUser(result.updatedUser);
-        setAttemptOutcome('pass');
-        toast({
-          title: result.alreadyPassed ? 'Already Passed' : 'PPP Lesson Passed',
-          description: result.alreadyPassed
-            ? 'This lesson was already completed. Progress remains unchanged.'
-            : `+${result.xpAwarded} XP awarded to your AutoDrive XP pool.`,
-        });
-      } else {
-        setAttemptOutcome('not_yet');
-        setFailureCounts((prev) => ({
-          ...prev,
-          [activeLesson.lessonId]: (prev[activeLesson.lessonId] || 0) + 1,
-        }));
-        toast({
-          title: 'Not Yet',
-          description: `No XP awarded. Retry this lesson and ${ASSISTANT_NAME} will adapt support.`,
-        });
-      }
+      await applyPppEvaluation(evaluation);
     } catch (error: any) {
       toast({
         variant: 'destructive',

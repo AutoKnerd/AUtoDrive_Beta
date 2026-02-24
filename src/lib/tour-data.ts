@@ -68,6 +68,13 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 status: 'active',
                 enablePppProtocol: false,
                 enableSaasPppTraining: false,
+                billingTier: 'sales_fi',
+                billingSubscriptionStatus: 'active',
+                billingTrialStartedAt: null,
+                billingTrialEndsAt: null,
+                billingUserCount: 20,
+                billingOwnerAccountCount: 1,
+                billingStoreCount: 1,
                 address: {
                     street: `${100 + i} Tour Ave`,
                     city: "DemoCity",

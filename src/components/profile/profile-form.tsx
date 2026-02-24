@@ -31,6 +31,8 @@ import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { cn } from '@/lib/utils';
 import { createCustomerPortalSession } from '@/app/actions/stripe';
+import { resolveBillingAccess } from '@/lib/billing/access';
+import { getDaysRemaining } from '@/lib/billing/trial';
 
 interface ProfileFormProps {
   user: User;
@@ -121,7 +123,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
       .map(id => allDealerships.find(d => d.id === id))
       .filter((d): d is Dealership => d !== undefined);
   }, [user.dealershipIds, allDealerships]);
-  const isDealerEnrolled = (user.dealershipIds?.length || 0) > 0;
+  const billingAccess = useMemo(() => resolveBillingAccess(user, userDealerships), [user, userDealerships]);
+  const trialDaysRemaining = useMemo(() => getDaysRemaining(billingAccess.trialEndsAt), [billingAccess.trialEndsAt]);
 
   const { placeholderImages } = placeholderImagesData;
   
@@ -394,42 +397,58 @@ export function ProfileForm({ user }: ProfileFormProps) {
           </CardContent>
         </Card>
 
-         <Card>
+        <Card>
           <CardHeader>
             <CardTitle>Subscription</CardTitle>
             <CardDescription>Current account enrollment status.</CardDescription>
           </CardHeader>
           <CardContent>
-            {isDealerEnrolled ? (
-              <div className="space-y-4 rounded-lg border border-green-500/50 bg-green-500/10 p-4">
+            {billingAccess.source === 'dealership' ? (
+              <div className={cn(
+                "space-y-4 rounded-lg border p-4",
+                billingAccess.accessGranted
+                  ? "border-green-500/50 bg-green-500/10"
+                  : "border-amber-500/50 bg-amber-500/10"
+              )}>
                 <div className='flex items-center gap-2'>
-                    <CheckCircle className="h-5 w-5 text-green-400" />
-                    <h4 className="font-semibold text-green-300">Dealer Enrolled</h4>
+                    <CheckCircle className={cn("h-5 w-5", billingAccess.accessGranted ? "text-green-400" : "text-amber-400")} />
+                    <h4 className={cn("font-semibold", billingAccess.accessGranted ? "text-green-300" : "text-amber-300")}>
+                      {billingAccess.accessGranted ? 'Dealership Billing Active' : 'Dealership Billing Inactive'}
+                    </h4>
                 </div>
-                <p className="text-sm text-green-200/80">
-                  Your account is enrolled through your dealership. Subscription access is managed at the dealership level.
+                <p className={cn("text-sm", billingAccess.accessGranted ? "text-green-200/80" : "text-amber-200/80")}>
+                  Your access is controlled by your dealership plan. Individual billing is overridden while you are dealership-enrolled.
+                  {billingAccess.status === 'trialing' && trialDaysRemaining > 0
+                    ? ` Trial time remaining: ${trialDaysRemaining} day${trialDaysRemaining === 1 ? '' : 's'}.`
+                    : ''}
                 </p>
               </div>
-            ) : user.subscriptionStatus === 'active' ? (
+            ) : billingAccess.source === 'individual' && billingAccess.accessGranted ? (
               <div className="space-y-4 rounded-lg border border-green-500/50 bg-green-500/10 p-4">
                 <div className="flex items-center justify-between">
                     <div className='flex items-center gap-2'>
                         <CheckCircle className="h-5 w-5 text-green-400" />
-                        <h4 className="font-semibold text-green-300">AutoDrive Pro is Active</h4>
+                        <h4 className="font-semibold text-green-300">
+                          {billingAccess.status === 'trialing' ? '30-Day Trial Active' : 'AutoDrive Pro is Active'}
+                        </h4>
                     </div>
-                    <Button type="button" onClick={handleManageSubscription} variant="ghost" disabled={isPortalLoading} className="text-sm">
-                        {isPortalLoading ? <Spinner size="sm" /> : <>Manage <ExternalLink className="ml-2 h-4 w-4" /></>}
-                    </Button>
+                    {user.stripeCustomerId ? (
+                      <Button type="button" onClick={handleManageSubscription} variant="ghost" disabled={isPortalLoading} className="text-sm">
+                          {isPortalLoading ? <Spinner size="sm" /> : <>Manage <ExternalLink className="ml-2 h-4 w-4" /></>}
+                      </Button>
+                    ) : null}
                 </div>
                 <p className="text-sm text-green-200/80">
-                  You have full access to all features. You can manage your billing information, invoices, and subscription status through our secure payment portal.
+                  {billingAccess.status === 'trialing'
+                    ? `Your individual trial is active with ${trialDaysRemaining} day${trialDaysRemaining === 1 ? '' : 's'} remaining.`
+                    : 'You have full access to all features. You can manage billing and invoices through the secure payment portal.'}
                 </p>
               </div>
             ) : (
               <div className="space-y-3 rounded-lg border p-4">
-                 <h4 className="font-semibold">Subscription</h4>
+                 <h4 className="font-semibold">Subscription Inactive</h4>
                 <p className="text-sm text-muted-foreground">
-                  Subscription self-service is temporarily unavailable in the app.
+                  Your trial has ended or billing has not been activated yet. Contact your manager or activate an individual plan.
                 </p>
               </div>
             )}

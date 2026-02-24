@@ -14,6 +14,7 @@ import { ALPHA, BASELINE, LAMBDA, clampRatings, updateRollingStats } from '@/lib
 import { buildAutoRecommendedLesson, buildUniqueRecommendedTestingLesson } from '@/lib/lessons/auto-recommended';
 import { clampPppLevel, getPppLessonsForLevel, getPppLevelBadge, getPppLevelXp } from '@/lib/ppp/definitions';
 import { buildDefaultPppState, getNextPppLevel, getPppLevelKey, normalizePppUserState } from '@/lib/ppp/state';
+import { buildTrialWindow } from '@/lib/billing/trial';
 import {
   clampSaasPppLevel,
   getSaasPppLessonsForLevel,
@@ -452,6 +453,9 @@ export async function createUserProfile(userId: string, name: string, email: str
         ));
     }
 
+    const trialWindow = buildTrialWindow(now);
+    const isPrivilegedRole = ['Admin', 'Developer'].includes(role);
+
     const newUser: User = {
         userId: userId,
         name: name,
@@ -464,7 +468,9 @@ export async function createUserProfile(userId: string, name: string, email: str
         isPrivateFromOwner: false,
         showDealerCriticalOnly: false,
         memberSince: now.toISOString(),
-        subscriptionStatus: ['Admin', 'Developer', 'Owner', 'Trainer', 'General Manager'].includes(role) ? 'active' : 'inactive',
+        subscriptionStatus: isPrivilegedRole ? 'active' : 'trialing',
+        trialStartedAt: isPrivilegedRole ? null : trialWindow.trialStartedAt,
+        trialEndsAt: isPrivilegedRole ? null : trialWindow.trialEndsAt,
         stats: buildDefaultUserStats(now),
         ...buildDefaultPppState(pppEnabled),
         ...buildDefaultSaasPppState(saasPppEnabled),
@@ -587,6 +593,7 @@ export async function createDealership(dealershipData: {
     trainerId?: string;
 }): Promise<Dealership> {
     if (isTouringUser(dealershipData.trainerId)) {
+        const trialWindow = buildTrialWindow(new Date());
         const newDealership: Dealership = {
             id: `tour-dealership-${Math.random()}`,
             name: dealershipData.name,
@@ -596,6 +603,13 @@ export async function createDealership(dealershipData: {
             enableNewRecommendedTesting: false,
             enablePppProtocol: false,
             enableSaasPppTraining: false,
+            billingTier: 'sales_fi',
+            billingSubscriptionStatus: 'trialing',
+            billingTrialStartedAt: trialWindow.trialStartedAt,
+            billingTrialEndsAt: trialWindow.trialEndsAt,
+            billingUserCount: 0,
+            billingOwnerAccountCount: 0,
+            billingStoreCount: 1,
         };
         (await getTourData()).dealerships.push(newDealership);
         return newDealership;
@@ -1624,6 +1638,62 @@ export async function updateDealershipSaasPppAccess(
             path: dealershipRef.path,
             operation: 'update',
             requestResourceData: { enableSaasPppTraining: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+function toSafeNonNegativeInt(value: number | undefined): number {
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.round(value as number));
+}
+
+export async function updateDealershipBillingConfig(
+    dealershipId: string,
+    payload: {
+        billingTier: Dealership['billingTier'];
+        billingUserCount?: number;
+        billingOwnerAccountCount?: number;
+        billingStoreCount?: number;
+    }
+): Promise<Dealership> {
+    const { firestore: db } = getFirebase();
+    const billingTier = payload.billingTier || 'sales_fi';
+    const billingUserCount = toSafeNonNegativeInt(payload.billingUserCount);
+    const billingOwnerAccountCount = toSafeNonNegativeInt(payload.billingOwnerAccountCount);
+    const billingStoreCount = Math.max(1, toSafeNonNegativeInt(payload.billingStoreCount));
+
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.billingTier = billingTier;
+            dealership.billingUserCount = billingUserCount;
+            dealership.billingOwnerAccountCount = billingOwnerAccountCount;
+            dealership.billingStoreCount = billingStoreCount;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    const dealershipRef = doc(collection(db, 'dealerships'), dealershipId);
+    const patch: Partial<Dealership> = {
+        billingTier,
+        billingUserCount,
+        billingOwnerAccountCount,
+        billingStoreCount,
+    };
+
+    try {
+        await updateDoc(dealershipRef, patch);
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: patch,
         });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;

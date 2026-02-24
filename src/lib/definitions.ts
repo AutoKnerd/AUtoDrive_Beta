@@ -59,6 +59,15 @@ export const noPersonalDevelopmentRoles: UserRole[] = ['Owner', 'Trainer', 'Admi
 
 export type ThemePreference = 'vibrant' | 'executive' | 'steel';
 
+export type BillingSubscriptionStatus =
+  | 'active'
+  | 'inactive'
+  | 'trialing'
+  | 'past_due'
+  | 'canceled';
+
+export type DealershipBillingTier = 'sales_fi' | 'service_parts' | 'owner_hq';
+
 export type User = {
   userId: string;
   name: string;
@@ -78,7 +87,9 @@ export type User = {
   memberSince?: string;
   selfDeclaredDealershipId?: string;
   stripeCustomerId?: string;
-  subscriptionStatus?: 'active' | 'inactive';
+  subscriptionStatus?: BillingSubscriptionStatus;
+  trialStartedAt?: string | null;
+  trialEndsAt?: string | null;
   stats?: Partial<UserStats>;
   ppp_enabled?: boolean;
   ppp_level?: number;
@@ -282,6 +293,15 @@ export type Dealership = {
   enableNewRecommendedTesting?: boolean;
   enablePppProtocol?: boolean;
   enableSaasPppTraining?: boolean;
+  billingTier?: DealershipBillingTier;
+  billingSubscriptionStatus?: BillingSubscriptionStatus;
+  billingTrialStartedAt?: string | null;
+  billingTrialEndsAt?: string | null;
+  billingStripeCustomerId?: string;
+  billingStripeSubscriptionId?: string;
+  billingUserCount?: number;
+  billingOwnerAccountCount?: number;
+  billingStoreCount?: number;
 };
 
 export type LessonAssignment = {

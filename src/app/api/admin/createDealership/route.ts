@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb, getAdminAuth } from '@/firebase/admin';
 import { Address } from '@/lib/definitions';
+import { buildTrialWindow } from '@/lib/billing/trial';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,8 @@ export async function POST(
 
     const dealershipRef = adminDb.collection('dealerships').doc();
 
+    const trialWindow = buildTrialWindow(new Date());
+
     const newDealershipData: any = {
       id: dealershipRef.id,
       name: dealershipName,
@@ -55,6 +58,13 @@ export async function POST(
       enableNewRecommendedTesting: false,
       enablePppProtocol: false,
       enableSaasPppTraining: false,
+      billingTier: 'sales_fi',
+      billingSubscriptionStatus: 'trialing',
+      billingTrialStartedAt: trialWindow.trialStartedAt,
+      billingTrialEndsAt: trialWindow.trialEndsAt,
+      billingUserCount: 0,
+      billingOwnerAccountCount: 0,
+      billingStoreCount: 1,
     };
 
     if (trainerId) newDealershipData.trainerId = trainerId;

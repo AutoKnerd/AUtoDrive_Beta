@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminDb, getAdminAuth } from '@/firebase/admin';
 import { buildDefaultPppState } from '@/lib/ppp/state';
 import { buildDefaultSaasPppState } from '@/lib/saas-ppp/state';
+import { buildTrialWindow } from '@/lib/billing/trial';
 
 type Decoded = { uid: string; email?: string | null };
 
@@ -186,6 +187,9 @@ export async function POST(req: Request) {
     const newUserRef = adminDb.collection('users').doc(newUserId);
 
     const now = new Date();
+    const trialWindow = buildTrialWindow(now);
+    const isPrivilegedRole = ['Admin', 'Developer'].includes(finalRole);
+
     const newUserData = {
       userId: newUserId,
       name,
@@ -199,6 +203,9 @@ export async function POST(req: Request) {
       showDealerCriticalOnly: false,
       memberSince: now.toISOString(),
       phone: phone || undefined,
+      subscriptionStatus: isPrivilegedRole ? 'active' : 'trialing',
+      trialStartedAt: isPrivilegedRole ? null : trialWindow.trialStartedAt,
+      trialEndsAt: isPrivilegedRole ? null : trialWindow.trialEndsAt,
       stats: buildDefaultStats(now),
       ...buildDefaultPppState(false),
       ...buildDefaultSaasPppState(false),

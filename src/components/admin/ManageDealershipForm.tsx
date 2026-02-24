@@ -2,14 +2,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Dealership } from '@/lib/definitions';
+import { Dealership, type DealershipBillingTier } from '@/lib/definitions';
 import {
   updateDealershipStatus,
   updateDealershipRetakeTestingAccess,
   updateDealershipNewRecommendedTestingAccess,
   updateDealershipPppAccess,
   updateDealershipSaasPppAccess,
+  updateDealershipBillingConfig,
 } from '@/lib/data.client';
+import { BILLING_PRICING, calculateDealershipMonthlyCents, formatUsdFromCents } from '@/lib/billing/tiers';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
@@ -26,7 +28,6 @@ import {
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
-import { cn } from '@/lib/utils';
 import { Ban, Play, Trash2 } from 'lucide-react';
 import { Switch } from '../ui/switch';
 
@@ -44,8 +45,18 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [newRecommendedTestingEnabled, setNewRecommendedTestingEnabled] = useState(false);
   const [pppProtocolEnabled, setPppProtocolEnabled] = useState(false);
   const [saasPppTrainingEnabled, setSaasPppTrainingEnabled] = useState(false);
+  const [billingTier, setBillingTier] = useState<DealershipBillingTier>('sales_fi');
+  const [billingUserCount, setBillingUserCount] = useState('0');
+  const [billingOwnerAccountCount, setBillingOwnerAccountCount] = useState('0');
+  const [billingStoreCount, setBillingStoreCount] = useState('1');
   const { toast } = useToast();
   
+  const toSafeCount = (value: string, fallback = 0): number => {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(0, parsed);
+  };
+
   const handleSelectDealership = (dealershipId: string) => {
     const dealership = dealerships.find(d => d.id === dealershipId);
     setSelectedDealership(dealership || null);
@@ -53,6 +64,10 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     setNewRecommendedTestingEnabled(dealership?.enableNewRecommendedTesting === true);
     setPppProtocolEnabled(dealership?.enablePppProtocol === true);
     setSaasPppTrainingEnabled(dealership?.enableSaasPppTraining === true);
+    setBillingTier((dealership?.billingTier as DealershipBillingTier) || 'sales_fi');
+    setBillingUserCount(String(dealership?.billingUserCount ?? 0));
+    setBillingOwnerAccountCount(String(dealership?.billingOwnerAccountCount ?? 0));
+    setBillingStoreCount(String(dealership?.billingStoreCount ?? 1));
   }
 
   async function handleUpdateStatus(newStatus: 'active' | 'paused' | 'deactivated') {
@@ -174,6 +189,33 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       setIsLoading(false);
     }
   }
+
+  async function handleUpdateBillingConfig() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      const next = await updateDealershipBillingConfig(selectedDealership.id, {
+        billingTier,
+        billingUserCount: toSafeCount(billingUserCount, 0),
+        billingOwnerAccountCount: toSafeCount(billingOwnerAccountCount, 0),
+        billingStoreCount: Math.max(1, toSafeCount(billingStoreCount, 1)),
+      });
+      setSelectedDealership(next);
+      toast({
+        title: 'Billing Configuration Updated',
+        description: `${selectedDealership.name} billing tier is now ${BILLING_PRICING[billingTier].label}.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
   
   const getStatusBadge = (status: Dealership['status']) => {
       switch(status) {
@@ -187,6 +229,18 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   }
 
   const confirmationText = isConfirming === 'pause' ? 'PAUSE' : 'DEACTIVATE';
+  const estimatedMonthly = formatUsdFromCents(calculateDealershipMonthlyCents({
+    tier: billingTier,
+    userCount: toSafeCount(billingUserCount, 0),
+    ownerAccountCount: toSafeCount(billingOwnerAccountCount, 0),
+    storeCount: Math.max(1, toSafeCount(billingStoreCount, 1)),
+  }));
+  const billingDirty = !selectedDealership || (
+    billingTier !== (selectedDealership.billingTier || 'sales_fi') ||
+    toSafeCount(billingUserCount, 0) !== (selectedDealership.billingUserCount ?? 0) ||
+    toSafeCount(billingOwnerAccountCount, 0) !== (selectedDealership.billingOwnerAccountCount ?? 0) ||
+    Math.max(1, toSafeCount(billingStoreCount, 1)) !== (selectedDealership.billingStoreCount ?? 1)
+  );
 
   return (
     <div className="grid gap-6">
@@ -317,6 +371,80 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                   className="w-full md:w-auto"
                 >
                   {isLoading ? <Spinner size="sm" /> : 'Save SaaS PPP Access'}
+                </Button>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+                <div>
+                    <p className="text-sm font-medium">Billing Tier Configuration</p>
+                    <p className="text-xs text-muted-foreground">
+                        Configure pricing model inputs for this dealership. This controls billing calculations and Stripe tier mapping.
+                    </p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Tier</p>
+                        <Select value={billingTier} onValueChange={(value) => setBillingTier(value as DealershipBillingTier)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="sales_fi">Sales and F&amp;I</SelectItem>
+                                <SelectItem value="service_parts">Service and Parts</SelectItem>
+                                <SelectItem value="owner_hq">Ownership (All Stores)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {billingTier === 'owner_hq' ? (
+                        <>
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground">Owner Accounts</p>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={billingOwnerAccountCount}
+                                  onChange={(event) => setBillingOwnerAccountCount(event.target.value)}
+                                  disabled={isLoading}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground">Store Count</p>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={billingStoreCount}
+                                  onChange={(event) => setBillingStoreCount(event.target.value)}
+                                  disabled={isLoading}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div className="space-y-2">
+                            <p className="text-xs font-medium text-muted-foreground">User Count</p>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={billingUserCount}
+                              onChange={(event) => setBillingUserCount(event.target.value)}
+                              disabled={isLoading}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <div className="rounded-md border border-dashed p-3 text-sm">
+                    Estimated monthly total: <span className="font-semibold">{estimatedMonthly}</span>
+                </div>
+
+                <Button
+                  variant="outline"
+                  disabled={isLoading || !billingDirty}
+                  onClick={handleUpdateBillingConfig}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save Billing Tier'}
                 </Button>
             </div>
 

@@ -53,6 +53,7 @@ Tone and behavior rules:
 - Ask one question at a time.
 - Use fictional SaaS sales scenarios.
 - Adapt to user role context: Sales, Service, Parts, F&I, Manager, GM.
+- For all non-evaluation messages, respond in plain language only (no JSON objects, no code blocks, no braces).
 
 Current lesson context:
 - Level: LVL {{level}} - {{levelTitle}}
@@ -110,6 +111,9 @@ If the user chooses to debrief and provides a real interaction summary or pasted
 If user declines debrief:
 - Continue with simulation.
 - Do not apply penalty language.
+
+For all non-evaluation messages:
+- Do not output JSON format.
 
 Conversation history:
 {{#if history.length}}

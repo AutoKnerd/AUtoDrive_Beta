@@ -46,6 +46,21 @@ type SaasPppEvaluation = {
 };
 
 function parseSaasPppEvaluation(responseText: string): SaasPppEvaluation | null {
+  const parseOutcome = (text: string): 'pass' | 'not_yet' | null => {
+    const match = text.match(/["']?outcome["']?\s*[:=]\s*["']?(pass|not_yet)["']?/i);
+    if (!match?.[1]) return null;
+    return match[1].toLowerCase() === 'pass' ? 'pass' : 'not_yet';
+  };
+
+  const extractField = (text: string, field: 'coachFeedback' | 'nextStep' | 'adaptationHint'): string | null => {
+    const quoted = text.match(new RegExp(`["']?${field}["']?\\s*:\\s*"([\\s\\S]*?)"\\s*(?:,|}|$)`, 'i'));
+    if (quoted?.[1]) return quoted[1].trim();
+
+    const loose = text.match(new RegExp(`["']?${field}["']?\\s*:\\s*([^\\n\\r}]+)`, 'i'));
+    if (!loose?.[1]) return null;
+    return loose[1].trim().replace(/^["']/, '').replace(/["'],?$/, '').trim();
+  };
+
   const candidates: string[] = [];
   const trimmed = responseText.trim();
   if (trimmed.length > 0) candidates.push(trimmed);
@@ -63,8 +78,12 @@ function parseSaasPppEvaluation(responseText: string): SaasPppEvaluation | null 
   }
 
   for (const candidate of candidates) {
+    const normalized = candidate
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"');
+
     try {
-      const parsed = JSON.parse(candidate);
+      const parsed = JSON.parse(normalized);
       if (!parsed || typeof parsed !== 'object') continue;
       const outcome = parsed.outcome;
       if (outcome !== 'pass' && outcome !== 'not_yet') continue;
@@ -76,7 +95,15 @@ function parseSaasPppEvaluation(responseText: string): SaasPppEvaluation | null 
         adaptationHint: typeof parsed.adaptationHint === 'string' ? parsed.adaptationHint : 'Next attempt will be adapted for clarity.',
       };
     } catch {
-      // Continue parsing candidates.
+      const outcome = parseOutcome(normalized);
+      if (!outcome) continue;
+
+      return {
+        outcome,
+        coachFeedback: extractField(normalized, 'coachFeedback') || 'Refine your structure and retry.',
+        nextStep: extractField(normalized, 'nextStep') || 'Retry with clear authority and pacing.',
+        adaptationHint: extractField(normalized, 'adaptationHint') || 'Next attempt will be adapted for clarity.',
+      };
     }
   }
 
@@ -263,8 +290,13 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
       if (!flowInput) return;
 
       const response = await conductSaasPppLesson(flowInput);
-      setMessages((prev) => [...prev, { sender: 'ai', text: response }]);
-      ensureScrollToBottom();
+      const inlineEvaluation = parseSaasPppEvaluation(response);
+      if (inlineEvaluation) {
+        await applySaasPppEvaluation(inlineEvaluation);
+      } else {
+        setMessages((prev) => [...prev, { sender: 'ai', text: response }]);
+        ensureScrollToBottom();
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -274,6 +306,52 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function applySaasPppEvaluation(evaluation: SaasPppEvaluation) {
+    if (!activeLesson || !user) return;
+
+    const evaluationMessage = [
+      evaluation.outcome === 'pass' ? 'Outcome: PASS' : 'Outcome: NOT YET',
+      evaluation.coachFeedback,
+      `Next Step: ${evaluation.nextStep}`,
+      `Adaptation: ${evaluation.adaptationHint}`,
+    ].join('\n');
+
+    setMessages((prev) => [...prev, { sender: 'ai', text: evaluationMessage }]);
+    ensureScrollToBottom();
+
+    if (evaluation.outcome === 'pass') {
+      const result = await completeSaasPppLessonPass(user.userId, activeLesson.level, activeLesson.lessonId);
+      setUser(result.updatedUser);
+      setAttemptOutcome('pass');
+
+      const contextLabel = result.currentLevel === 2 && result.currentPhase === 'secondary'
+        ? 'Primary channel complete. Secondary channel unlocked.'
+        : result.certified
+          ? 'Certification complete.'
+          : result.levelAdvanced
+            ? 'Next level unlocked.'
+            : 'Next lesson unlocked.';
+
+      toast({
+        title: result.alreadyPassed ? 'Already Passed' : 'Lesson Passed',
+        description: result.alreadyPassed
+          ? 'This lesson was already completed. Progress remains unchanged.'
+          : `+${result.xpAwarded} XP awarded. ${contextLabel}`,
+      });
+      return;
+    }
+
+    setAttemptOutcome('not_yet');
+    setFailureCounts((prev) => ({
+      ...prev,
+      [activeLesson.lessonId]: (prev[activeLesson.lessonId] || 0) + 1,
+    }));
+    toast({
+      title: 'Not Yet',
+      description: `No XP awarded. Retry now and ${ASSISTANT_NAME} will adapt coaching support.`,
+    });
   }
 
   async function handleEvaluateAttempt() {
@@ -290,46 +368,7 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
         throw new Error('SaaS PPP evaluator did not return a valid Pass/Not Yet result.');
       }
 
-      const evaluationMessage = [
-        evaluation.outcome === 'pass' ? 'Outcome: PASS' : 'Outcome: NOT YET',
-        evaluation.coachFeedback,
-        `Next Step: ${evaluation.nextStep}`,
-        `Adaptation: ${evaluation.adaptationHint}`,
-      ].join('\n');
-
-      setMessages((prev) => [...prev, { sender: 'ai', text: evaluationMessage }]);
-      ensureScrollToBottom();
-
-      if (evaluation.outcome === 'pass') {
-        const result = await completeSaasPppLessonPass(user.userId, activeLesson.level, activeLesson.lessonId);
-        setUser(result.updatedUser);
-        setAttemptOutcome('pass');
-
-        const contextLabel = result.currentLevel === 2 && result.currentPhase === 'secondary'
-          ? 'Primary channel complete. Secondary channel unlocked.'
-          : result.certified
-            ? 'Certification complete.'
-            : result.levelAdvanced
-              ? 'Next level unlocked.'
-              : 'Progress updated.';
-
-        toast({
-          title: result.alreadyPassed ? 'Already Passed' : 'Lesson Passed',
-          description: result.alreadyPassed
-            ? 'This lesson was already completed. Progress remains unchanged.'
-            : `+${result.xpAwarded} XP awarded. ${contextLabel}`,
-        });
-      } else {
-        setAttemptOutcome('not_yet');
-        setFailureCounts((prev) => ({
-          ...prev,
-          [activeLesson.lessonId]: (prev[activeLesson.lessonId] || 0) + 1,
-        }));
-        toast({
-          title: 'Not Yet',
-          description: `No XP awarded. Retry now and ${ASSISTANT_NAME} will adapt coaching support.`,
-        });
-      }
+      await applySaasPppEvaluation(evaluation);
     } catch (error: any) {
       toast({
         variant: 'destructive',

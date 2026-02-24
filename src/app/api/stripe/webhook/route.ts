@@ -2,15 +2,32 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { getAdminDb } from '@/firebase/admin';
+import type { BillingSubscriptionStatus } from '@/lib/definitions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function isSubscriptionActive(status: Stripe.Subscription.Status): boolean {
-  return ['active', 'trialing', 'past_due'].includes(status);
+function mapStripeStatus(status: Stripe.Subscription.Status): BillingSubscriptionStatus {
+  switch (status) {
+    case 'active':
+      return 'active';
+    case 'trialing':
+      return 'trialing';
+    case 'past_due':
+      return 'past_due';
+    case 'canceled':
+      return 'canceled';
+    default:
+      return 'inactive';
+  }
 }
 
-async function updateUserByCustomerId(customerId: string, active: boolean) {
+function toIsoFromUnix(epochSeconds?: number | null): string | null {
+  if (!epochSeconds || !Number.isFinite(epochSeconds)) return null;
+  return new Date(epochSeconds * 1000).toISOString();
+}
+
+async function updateUserByCustomerId(customerId: string, patch: Record<string, unknown>): Promise<boolean> {
   const adminDb = getAdminDb();
   const usersSnap = await adminDb
     .collection('users')
@@ -18,57 +35,111 @@ async function updateUserByCustomerId(customerId: string, active: boolean) {
     .limit(1)
     .get();
 
-  if (usersSnap.empty) return;
-
+  if (usersSnap.empty) return false;
   const userRef = usersSnap.docs[0].ref;
-  await userRef.set(
+  await userRef.set(patch, { merge: true });
+  return true;
+}
+
+async function updateDealershipByCustomerId(customerId: string, patch: Record<string, unknown>): Promise<boolean> {
+  const adminDb = getAdminDb();
+  const dealershipsSnap = await adminDb
+    .collection('dealerships')
+    .where('billingStripeCustomerId', '==', customerId)
+    .limit(1)
+    .get();
+
+  if (dealershipsSnap.empty) return false;
+  const dealershipRef = dealershipsSnap.docs[0].ref;
+  await dealershipRef.set(patch, { merge: true });
+  return true;
+}
+
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  const adminDb = getAdminDb();
+  const customerId = typeof session.customer === 'string' ? session.customer : null;
+  if (!customerId) return;
+
+  const billingScope = session.metadata?.billingScope;
+
+  if (billingScope === 'dealership') {
+    const dealershipId = session.metadata?.dealershipId;
+    if (!dealershipId) return;
+
+    await adminDb.collection('dealerships').doc(dealershipId).set(
+      {
+        billingStripeCustomerId: customerId,
+        billingSubscriptionStatus: 'trialing',
+        billingTier: session.metadata?.dealershipTier || undefined,
+      },
+      { merge: true }
+    );
+    return;
+  }
+
+  const firebaseUserId = session.metadata?.firebaseUserId || session.client_reference_id;
+  if (!firebaseUserId) return;
+
+  await adminDb.collection('users').doc(firebaseUserId).set(
     {
-      subscriptionStatus: active ? 'active' : 'inactive',
+      stripeCustomerId: customerId,
+      subscriptionStatus: 'trialing',
     },
     { merge: true }
   );
 }
 
-async function handleEvent(event: Stripe.Event) {
-  const adminDb = getAdminDb();
+async function handleSubscriptionLifecycleEvent(subscription: Stripe.Subscription, isDeleteEvent = false) {
+  const customerId = typeof subscription.customer === 'string' ? subscription.customer : null;
+  if (!customerId) return;
 
+  const mappedStatus = isDeleteEvent ? 'canceled' : mapStripeStatus(subscription.status);
+  const trialStartIso = toIsoFromUnix(subscription.trial_start);
+  const trialEndIso = toIsoFromUnix(subscription.trial_end);
+
+  const userPatch: Record<string, unknown> = {
+    subscriptionStatus: mappedStatus,
+  };
+
+  if (trialStartIso) userPatch.trialStartedAt = trialStartIso;
+  if (trialEndIso) userPatch.trialEndsAt = trialEndIso;
+
+  const dealershipPatch: Record<string, unknown> = {
+    billingSubscriptionStatus: mappedStatus,
+    billingStripeSubscriptionId: subscription.id,
+  };
+
+  if (trialStartIso) dealershipPatch.billingTrialStartedAt = trialStartIso;
+  if (trialEndIso) dealershipPatch.billingTrialEndsAt = trialEndIso;
+
+  const [updatedUser, updatedDealership] = await Promise.all([
+    updateUserByCustomerId(customerId, userPatch),
+    updateDealershipByCustomerId(customerId, dealershipPatch),
+  ]);
+
+  if (!updatedUser && !updatedDealership) {
+    console.warn('[Stripe Webhook] No matching user or dealership for customer', customerId);
+  }
+}
+
+async function handleEvent(event: Stripe.Event) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
-      const customerId = typeof session.customer === 'string' ? session.customer : null;
-      const firebaseUserId = session.metadata?.firebaseUserId || session.client_reference_id;
-
-      if (firebaseUserId && customerId) {
-        await adminDb
-          .collection('users')
-          .doc(firebaseUserId)
-          .set(
-            {
-              stripeCustomerId: customerId,
-              subscriptionStatus: 'active',
-            },
-            { merge: true }
-          );
-      }
+      await handleCheckoutSessionCompleted(session);
       break;
     }
 
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       const subscription = event.data.object as Stripe.Subscription;
-      const customerId = typeof subscription.customer === 'string' ? subscription.customer : null;
-      if (customerId) {
-        await updateUserByCustomerId(customerId, isSubscriptionActive(subscription.status));
-      }
+      await handleSubscriptionLifecycleEvent(subscription, false);
       break;
     }
 
     case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
-      const customerId = typeof subscription.customer === 'string' ? subscription.customer : null;
-      if (customerId) {
-        await updateUserByCustomerId(customerId, false);
-      }
+      await handleSubscriptionLifecycleEvent(subscription, true);
       break;
     }
 

@@ -61,20 +61,37 @@ export function SignupForm() {
 
       toast({
         title: 'Account Created!',
-        description: 'Opening Stripe Checkout…',
+        description: 'Your 30-day trial is active. Opening Stripe Checkout…',
       });
 
       // This is a Server Action that will redirect the browser to Stripe.
       await createIndividualCheckoutSession(idToken);
 
       // Fallback (should rarely happen because the Server Action redirects)
-      router.push('/subscribe');
+      router.push('/');
     } catch (error: any) {
       // Next.js redirect() in server actions throws a control-flow error.
       // Do not treat it as a registration failure toast in the client.
       if (error?.message === 'NEXT_REDIRECT' || String(error?.digest || '').includes('NEXT_REDIRECT')) {
         return;
       }
+
+      // The account may already be created while billing setup is still being configured.
+      // Keep the user moving with trial access.
+      if (typeof error?.message === 'string' && (
+        error.message.includes('Missing Stripe price ID') ||
+        error.message.includes('Missing APP_URL') ||
+        error.message.includes('Billing is not fully configured')
+      )) {
+        toast({
+          title: 'Account Created',
+          description: 'Your 30-day trial is active. Billing checkout is not fully configured yet.',
+        });
+        setIsSubmitting(false);
+        router.push('/');
+        return;
+      }
+
       toast({
         variant: 'destructive',
         title: 'Registration Failed',
@@ -134,7 +151,7 @@ export function SignupForm() {
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? <Spinner size="sm" /> : 'Sign Up & Subscribe'}
+              {isSubmitting ? <Spinner size="sm" /> : 'Sign Up & Start Trial'}
             </Button>
           </CardFooter>
         </form>

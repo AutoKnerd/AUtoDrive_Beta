@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/firebase/admin";
 import { buildDefaultPppState } from '@/lib/ppp/state';
 import { buildDefaultSaasPppState } from '@/lib/saas-ppp/state';
+import { buildTrialWindow } from '@/lib/billing/trial';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -132,6 +133,8 @@ export async function POST(
 
       if (!userSnap.exists) {
         const now = new Date();
+        const trialWindow = buildTrialWindow(now);
+        const isPrivilegedRole = ["Admin", "Developer"].includes(role);
         tx.set(userRef, {
           userId: uid,
           email: authedEmail,
@@ -144,9 +147,9 @@ export async function POST(
           memberSince: now.toISOString(),
           xp: 0,
           stats: buildDefaultStats(now),
-          subscriptionStatus: ["Owner", "General Manager", "Trainer", "Admin", "Developer"].includes(role)
-            ? "active"
-            : "inactive",
+          subscriptionStatus: isPrivilegedRole ? "active" : "trialing",
+          trialStartedAt: isPrivilegedRole ? null : trialWindow.trialStartedAt,
+          trialEndsAt: isPrivilegedRole ? null : trialWindow.trialEndsAt,
           ...buildDefaultPppState(pppEnabled),
           ...buildDefaultSaasPppState(saasPppEnabled),
         });
