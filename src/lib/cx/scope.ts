@@ -30,6 +30,10 @@ export function getDefaultScope(user: { role: UserRole; userId: string; dealersh
 
 export function getComparisonScope(scope: CxScope): CxScope | null {
   if (scope.userId) {
+    // Single-user accounts without a store assignment should not render a benchmark.
+    if (!scope.storeId) {
+      return null;
+    }
     // Consultant vs Store
     return { role: 'manager', orgId: scope.orgId, storeId: scope.storeId };
   }

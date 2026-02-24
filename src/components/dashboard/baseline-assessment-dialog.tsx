@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { CxTrait, User } from '@/lib/definitions';
 import { logLessonCompletion } from '@/lib/data.client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ function clampScore(value: number): number {
 
 export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted }: BaselineAssessmentDialogProps) {
   const { toast } = useToast();
+  const { setUser } = useAuth();
   const [scores, setScores] = useState<ScoreMap>(defaultScores);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -55,13 +57,14 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
     setIsSubmitting(true);
     try {
       const baselineId = `baseline-${new Date().toISOString().slice(0, 10)}`;
-      await logLessonCompletion({
+      const result = await logLessonCompletion({
         userId: user.userId,
         lessonId: baselineId,
         xpGained: 0,
         isRecommended: false,
         scores,
       });
+      setUser(result.updatedUser);
 
       toast({
         title: 'Baseline saved',

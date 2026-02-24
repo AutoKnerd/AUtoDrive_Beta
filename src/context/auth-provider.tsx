@@ -253,6 +253,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email,
         'Sales Consultant', // Default role for public signups
         [], // No dealership association initially
+        { requireCheckoutForTrial: true },
       );
       
     } catch(error: any) {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { CxScope, getScopeLabel } from '@/lib/cx/scope';
+import { CxScope, getComparisonScope, getScopeLabel } from '@/lib/cx/scope';
 import { rollupCxTrend } from '@/lib/cx/rollups';
 import { CX_SKILLS, CxSkillId } from '@/lib/cx/skills';
 import { CxSoundwaveChart } from './CxSoundwaveChart';
@@ -94,6 +94,7 @@ export function CxSoundwaveCard({
 
   const activeSkillId = hoveredSkillId || selectedSkillId;
   const activeScope = viewMode === 'personal' && personalScope ? personalScope : scope;
+  const comparisonScope = useMemo(() => getComparisonScope(activeScope), [activeScope]);
   const anchoredScores = useMemo(() => normalizeScores(data), [data]);
 
   const series = useMemo(() => {
@@ -107,7 +108,7 @@ export function CxSoundwaveCard({
     return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince, themePreference);
   }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince, themePreference]);
 
-  const mode = activeScope.role === 'owner' && !activeScope.storeId ? 'groupOnly' : 'compare';
+  const mode = comparisonScope ? 'compare' : 'groupOnly';
 
   const handleSkillClick = (id: CxSkillId | null) => {
     setSelectedSkillId(prev => prev === id ? null : id);

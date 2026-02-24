@@ -306,6 +306,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     }
     return Array.from(new Set(ids));
   }, [user.dealershipIds, user.selfDeclaredDealershipId]);
+  const hasDealershipContext = scopedDealershipIds.length > 0;
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
 
@@ -408,6 +409,12 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       }
     }
   }, [isTouring, user.role]);
+
+  useEffect(() => {
+    if (!hasDealershipContext && viewMode !== 'personal') {
+      setViewMode('personal');
+    }
+  }, [hasDealershipContext, viewMode]);
   
   const handleWelcomeDialogChange = (open: boolean) => {
     if (!open) {
@@ -634,17 +641,19 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                 >
                     Personal
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewMode('team')}
-                    className={cn(
-                        "h-8 px-4 text-xs font-bold uppercase transition-all duration-300",
-                        viewMode === 'team' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
-                    )}
-                >
-                    Dealership
-                </Button>
+                {hasDealershipContext && (
+                  <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewMode('team')}
+                      className={cn(
+                          "h-8 px-4 text-xs font-bold uppercase transition-all duration-300",
+                          viewMode === 'team' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
+                      )}
+                  >
+                      Dealership
+                  </Button>
+                )}
             </div>
         </div>
 
@@ -654,7 +663,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             data={averageScores}
             memberSince={user.memberSince}
             themePreference={themePreference}
-            viewMode={viewMode}
+            viewMode={hasDealershipContext ? viewMode : 'personal'}
             onViewModeChange={setViewMode}
             range={range}
             onRangeChange={setRange}

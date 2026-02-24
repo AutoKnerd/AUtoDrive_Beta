@@ -21,6 +21,8 @@ import { AssignDealershipsForm } from '@/components/admin/assign-dealerships-for
 import { ManageDealershipForm } from '@/components/admin/ManageDealershipForm';
 import { EditUserForm } from '@/components/admin/edit-user-form';
 
+type DashboardMode = 'role_based' | 'single_user';
+
 export default function DeveloperPage() {
   const { user, loading, setUser, originalUser } = useAuth();
   const router = useRouter();
@@ -29,6 +31,7 @@ export default function DeveloperPage() {
   const [allDealerships, setAllDealerships] = useState<Dealership[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [activeTool, setActiveTool] = useState('create_user');
+  const [dashboardMode, setDashboardMode] = useState<DashboardMode>('role_based');
 
   const refreshData = useCallback(async () => {
     if (originalUser) {
@@ -61,7 +64,16 @@ export default function DeveloperPage() {
     if (originalUser) setUser({ ...originalUser, role: newRole });
   };
 
-  const isViewingAsManager = managerialRoles.includes(user.role);
+  const dashboardUser: User = dashboardMode === 'single_user'
+    ? {
+        ...user,
+        role: 'Sales Consultant',
+        dealershipIds: [],
+        selfDeclaredDealershipId: undefined,
+      }
+    : user;
+
+  const isViewingAsManager = managerialRoles.includes(dashboardUser.role);
   
   const managementTools = [
     { value: 'create_user', label: 'Create User' },
@@ -96,13 +108,27 @@ export default function DeveloperPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Dashboard View</CardTitle>
-                        <CardDescription>Select a role to view the corresponding user dashboard.</CardDescription>
+                        <CardDescription>
+                          Use role-based impersonation or jump directly into a single-user dashboard with no dealership assignment.
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-wrap items-center gap-4">
+                             <span className="text-sm font-medium">Mode:</span>
+                            <Select onValueChange={(mode) => setDashboardMode(mode as DashboardMode)} value={dashboardMode}>
+                              <SelectTrigger className="w-[240px]">
+                                  <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="role_based">Role-Based</SelectItem>
+                                  <SelectItem value="single_user">Single User</SelectItem>
+                              </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-center gap-4">
                              <span className="text-sm font-medium">Impersonating:</span>
                             <Select onValueChange={(role) => handleSwitchRole(role as UserRole)} value={user.role}>
-                            <SelectTrigger className="w-[240px]">
+                            <SelectTrigger className="w-[240px]" disabled={dashboardMode === 'single_user'}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -111,9 +137,14 @@ export default function DeveloperPage() {
                                 ))}
                             </SelectContent>
                             </Select>
+                            {dashboardMode === 'single_user' && (
+                              <span className="text-xs text-muted-foreground">
+                                Single User mode uses `Sales Consultant` with no dealership.
+                              </span>
+                            )}
                         </div>
                         <div className="border-t pt-8 mt-6">
-                            {isViewingAsManager ? <ManagerDashboard user={user} /> : <ConsultantDashboard user={user} />}
+                            {isViewingAsManager ? <ManagerDashboard user={dashboardUser} /> : <ConsultantDashboard user={dashboardUser} />}
                         </div>
                     </CardContent>
                 </Card>

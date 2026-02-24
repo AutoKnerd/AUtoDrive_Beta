@@ -18,8 +18,8 @@ export default function PaymentCancelPage() {
         </CardHeader>
         <CardContent>
           <Button asChild className="w-full" variant="outline">
-            <Link href="/profile">
-              Back to Profile
+            <Link href="/subscribe">
+              Return to Billing Setup
             </Link>
           </Button>
         </CardContent>

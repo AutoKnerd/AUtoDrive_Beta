@@ -85,10 +85,10 @@ export function SignupForm() {
       )) {
         toast({
           title: 'Account Created',
-          description: 'Your 30-day trial is active. Billing checkout is not fully configured yet.',
+          description: 'Your account is created. Complete billing setup to start your trial.',
         });
         setIsSubmitting(false);
-        router.push('/');
+        router.push('/subscribe');
         return;
       }
 

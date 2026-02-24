@@ -74,7 +74,7 @@ service cloud.firestore {
       allow list: if isManager();
       allow create: if request.auth.uid == userId
         && request.resource.data.userId == userId
-        && request.resource.data.subscriptionStatus in ['inactive', 'active'];
+        && request.resource.data.subscriptionStatus in ['inactive', 'active', 'trialing'];
       allow update: if 
         (!('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId) &&
         (

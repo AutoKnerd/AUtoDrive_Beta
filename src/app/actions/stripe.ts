@@ -1,15 +1,26 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
-import type { Dealership, DealershipBillingTier, User } from '@/lib/definitions';
+import type { BillingSubscriptionStatus, Dealership, DealershipBillingTier, User } from '@/lib/definitions';
 import { BILLING_PRICING } from '@/lib/billing/tiers';
 import { DEFAULT_TRIAL_DAYS } from '@/lib/billing/trial';
 
 type BillingCycle = 'monthly' | 'annual';
 
-function getAppUrl(): string {
+async function getAppUrl(): Promise<string> {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get('x-forwarded-host') || requestHeaders.get('host');
+  const forwardedProto = requestHeaders.get('x-forwarded-proto');
+  if (host) {
+    const isLocalHost = host.includes('localhost') || host.startsWith('127.0.0.1');
+    const proto = forwardedProto || (isLocalHost ? 'http' : 'https');
+    return `${proto}://${host}`.replace(/\/$/, '');
+  }
+
   const raw = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
   if (!raw) {
     throw new Error('Missing APP_URL or NEXT_PUBLIC_APP_URL for Stripe redirects.');
@@ -57,6 +68,26 @@ function getDealershipTierPriceId(tier: DealershipBillingTier): string {
 function normalizeTier(tier?: DealershipBillingTier | null): DealershipBillingTier {
   if (tier === 'service_parts' || tier === 'owner_hq') return tier;
   return 'sales_fi';
+}
+
+function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status): BillingSubscriptionStatus {
+  switch (status) {
+    case 'active':
+      return 'active';
+    case 'trialing':
+      return 'trialing';
+    case 'past_due':
+      return 'past_due';
+    case 'canceled':
+      return 'canceled';
+    default:
+      return 'inactive';
+  }
+}
+
+function toIsoFromUnix(epochSeconds?: number | null): string | null {
+  if (!epochSeconds || !Number.isFinite(epochSeconds)) return null;
+  return new Date(epochSeconds * 1000).toISOString();
 }
 
 async function ensureUserCustomer(userId: string, userData: Partial<User>) {
@@ -115,7 +146,7 @@ async function ensureDealershipCustomer(dealershipId: string, dealershipData: Pa
 async function createIndividualSession(userId: string, billingCycle: BillingCycle) {
   const adminDb = getAdminDb();
   const stripe = getStripe();
-  const appUrl = getAppUrl();
+  const appUrl = await getAppUrl();
   const trialDays = getTrialDays();
 
   const userSnap = await adminDb.collection('users').doc(userId).get();
@@ -181,7 +212,7 @@ export async function createDealershipCheckoutSession(input: {
   const adminAuth = getAdminAuth();
   const adminDb = getAdminDb();
   const stripe = getStripe();
-  const appUrl = getAppUrl();
+  const appUrl = await getAppUrl();
   const trialDays = getTrialDays();
 
   const decoded = await adminAuth.verifyIdToken(input.idToken);
@@ -278,7 +309,7 @@ export async function createDealershipCheckoutSession(input: {
 }
 
 export async function createCustomerPortalSession(stripeCustomerId: string) {
-  const appUrl = getAppUrl();
+  const appUrl = await getAppUrl();
   const stripe = getStripe();
 
   if (!stripeCustomerId) {
@@ -295,6 +326,103 @@ export async function createCustomerPortalSession(stripeCustomerId: string) {
   }
 
   redirect(session.url);
+}
+
+export async function finalizeCheckoutSession(idToken: string, sessionId: string) {
+  if (!idToken) {
+    throw new Error('Missing idToken.');
+  }
+  if (!sessionId) {
+    throw new Error('Missing checkout session id.');
+  }
+
+  const adminAuth = getAdminAuth();
+  const adminDb = getAdminDb();
+  const stripe = getStripe();
+  const decoded = await adminAuth.verifyIdToken(idToken);
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ['subscription'],
+  });
+
+  if (session.mode !== 'subscription') {
+    throw new Error('Checkout session is not a subscription session.');
+  }
+
+  const sessionUserId = session.metadata?.firebaseUserId || session.client_reference_id;
+  const sessionScope = session.metadata?.billingScope || 'individual';
+
+  if (sessionScope === 'individual') {
+    if (!sessionUserId || sessionUserId !== decoded.uid) {
+      throw new Error('Checkout session does not belong to this user.');
+    }
+
+    const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+    if (!customerId) {
+      throw new Error('Checkout session has no customer id.');
+    }
+
+    const patch: Record<string, unknown> = {
+      stripeCustomerId: customerId,
+      subscriptionStatus: 'trialing',
+    };
+
+    let subscription: Stripe.Subscription | null = null;
+    if (session.subscription) {
+      subscription = typeof session.subscription === 'string'
+        ? await stripe.subscriptions.retrieve(session.subscription)
+        : session.subscription;
+    }
+
+    if (subscription) {
+      patch.subscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
+      const trialStartedAt = toIsoFromUnix(subscription.trial_start);
+      const trialEndsAt = toIsoFromUnix(subscription.trial_end);
+      if (trialStartedAt) patch.trialStartedAt = trialStartedAt;
+      if (trialEndsAt) patch.trialEndsAt = trialEndsAt;
+    }
+
+    await adminDb.collection('users').doc(decoded.uid).set(patch, { merge: true });
+    return { ok: true as const, scope: 'individual' as const, status: patch.subscriptionStatus as BillingSubscriptionStatus };
+  }
+
+  if (sessionScope === 'dealership') {
+    const dealershipId = session.metadata?.dealershipId;
+    if (!dealershipId) {
+      throw new Error('Dealership checkout session is missing dealership id.');
+    }
+
+    const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+    if (!customerId) {
+      throw new Error('Checkout session has no customer id.');
+    }
+
+    const patch: Record<string, unknown> = {
+      billingStripeCustomerId: customerId,
+      billingSubscriptionStatus: 'trialing',
+    };
+
+    let subscription: Stripe.Subscription | null = null;
+    if (session.subscription) {
+      subscription = typeof session.subscription === 'string'
+        ? await stripe.subscriptions.retrieve(session.subscription)
+        : session.subscription;
+    }
+
+    if (subscription) {
+      patch.billingSubscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
+      patch.billingStripeSubscriptionId = subscription.id;
+      const trialStartedAt = toIsoFromUnix(subscription.trial_start);
+      const trialEndsAt = toIsoFromUnix(subscription.trial_end);
+      if (trialStartedAt) patch.billingTrialStartedAt = trialStartedAt;
+      if (trialEndsAt) patch.billingTrialEndsAt = trialEndsAt;
+    }
+
+    await adminDb.collection('dealerships').doc(dealershipId).set(patch, { merge: true });
+    return { ok: true as const, scope: 'dealership' as const, status: patch.billingSubscriptionStatus as BillingSubscriptionStatus };
+  }
+
+  throw new Error(`Unsupported billing scope: ${sessionScope}`);
 }
 
 export async function assertBillingEnabled() {

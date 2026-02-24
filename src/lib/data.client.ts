@@ -431,7 +431,19 @@ export async function getUserById(userId: string): Promise<User | null> {
     return getDataById<User>(db, 'users', userId);
 }
 
-export async function createUserProfile(userId: string, name: string, email: string, role: UserRole, dealershipIds: string[]): Promise<User> {
+type CreateUserProfileOptions = {
+    // For direct individual signups, require Stripe Checkout before trial starts.
+    requireCheckoutForTrial?: boolean;
+};
+
+export async function createUserProfile(
+    userId: string,
+    name: string,
+    email: string,
+    role: UserRole,
+    dealershipIds: string[],
+    options?: CreateUserProfileOptions
+): Promise<User> {
     const { firestore: db } = getFirebase();
     const now = new Date();
     if (['Admin', 'Developer', 'Trainer'].includes(role) && dealershipIds.length === 0) {
@@ -455,6 +467,11 @@ export async function createUserProfile(userId: string, name: string, email: str
 
     const trialWindow = buildTrialWindow(now);
     const isPrivilegedRole = ['Admin', 'Developer'].includes(role);
+    const shouldRequireCheckoutForTrial = Boolean(
+        options?.requireCheckoutForTrial
+        && !isPrivilegedRole
+        && dealershipIds.length === 0
+    );
 
     const newUser: User = {
         userId: userId,
@@ -468,9 +485,15 @@ export async function createUserProfile(userId: string, name: string, email: str
         isPrivateFromOwner: false,
         showDealerCriticalOnly: false,
         memberSince: now.toISOString(),
-        subscriptionStatus: isPrivilegedRole ? 'active' : 'trialing',
-        trialStartedAt: isPrivilegedRole ? null : trialWindow.trialStartedAt,
-        trialEndsAt: isPrivilegedRole ? null : trialWindow.trialEndsAt,
+        subscriptionStatus: isPrivilegedRole
+            ? 'active'
+            : (shouldRequireCheckoutForTrial ? 'inactive' : 'trialing'),
+        trialStartedAt: isPrivilegedRole || shouldRequireCheckoutForTrial
+            ? null
+            : trialWindow.trialStartedAt,
+        trialEndsAt: isPrivilegedRole || shouldRequireCheckoutForTrial
+            ? null
+            : trialWindow.trialEndsAt,
         stats: buildDefaultUserStats(now),
         ...buildDefaultPppState(pppEnabled),
         ...buildDefaultSaasPppState(saasPppEnabled),
@@ -976,6 +999,7 @@ export async function logLessonCompletion(data: {
     const normalizedScores = toLegacyScores(normalizedRatings);
     const xpDelta = sanitizeXpDelta(data.xpGained, severity);
     const flags = normalizeFlags(data.flags);
+    const isBaselineAssessment = String(data.lessonId || '').startsWith('baseline-');
 
     if (isTouringUser(data.userId)) {
         const tour = await getTourData();
@@ -983,16 +1007,49 @@ export async function logLessonCompletion(data: {
         if (!user) throw new Error('Tour user not found');
 
         const now = new Date();
-        const existingStatScores = getExistingRollingStatScores(user);
-        const shouldSeedStatsFromLegacyScores = !!data.scores && (
-            !existingStatScores || looksLikeLegacyBootstrapStats(existingStatScores)
-        );
-        const seededStats = shouldSeedStatsFromLegacyScores && data.scores
-            ? buildStatsSeedFromLegacyScores(data.scores, Timestamp.fromDate(now))
-            : user.stats;
+        let statsResult: ReturnType<typeof applyTourRollingStatsUpdate>;
+        if (isBaselineAssessment) {
+            const currentStats = user.stats || buildDefaultUserStats(now);
+            const nextStats: User['stats'] = {
+                empathy: { score: normalizedRatings.empathy, lastUpdated: now },
+                listening: { score: normalizedRatings.listening, lastUpdated: now },
+                trust: { score: normalizedRatings.trust, lastUpdated: now },
+                followUp: { score: normalizedRatings.followUp, lastUpdated: now },
+                closing: { score: normalizedRatings.closing, lastUpdated: now },
+                relationship: { score: normalizedRatings.relationship, lastUpdated: now },
+            };
+            statsResult = {
+                nextStats,
+                before: {
+                    empathy: clampScore(currentStats.empathy?.score ?? BASELINE),
+                    listening: clampScore(currentStats.listening?.score ?? BASELINE),
+                    trust: clampScore(currentStats.trust?.score ?? BASELINE),
+                    followUp: clampScore(currentStats.followUp?.score ?? BASELINE),
+                    closing: clampScore(currentStats.closing?.score ?? BASELINE),
+                    relationship: clampScore(currentStats.relationship?.score ?? BASELINE),
+                },
+                after: {
+                    empathy: normalizedRatings.empathy,
+                    listening: normalizedRatings.listening,
+                    trust: normalizedRatings.trust,
+                    followUp: normalizedRatings.followUp,
+                    closing: normalizedRatings.closing,
+                    relationship: normalizedRatings.relationship,
+                },
+            };
+            user.stats = nextStats;
+        } else {
+            const existingStatScores = getExistingRollingStatScores(user);
+            const shouldSeedStatsFromLegacyScores = !!data.scores && (
+                !existingStatScores || looksLikeLegacyBootstrapStats(existingStatScores)
+            );
+            const seededStats = shouldSeedStatsFromLegacyScores && data.scores
+                ? buildStatsSeedFromLegacyScores(data.scores, Timestamp.fromDate(now))
+                : user.stats;
 
-        const statsResult = applyTourRollingStatsUpdate(seededStats, normalizedRatings, now);
-        user.stats = statsResult.nextStats;
+            statsResult = applyTourRollingStatsUpdate(seededStats, normalizedRatings, now);
+            user.stats = statsResult.nextStats;
+        }
         user.xp = computeNextXp(user.xp, xpDelta, severity);
 
         const scoreDelta = {
@@ -1099,7 +1156,7 @@ export async function logLessonCompletion(data: {
     const batch = writeBatch(db);
     const logRef = doc(collection(db, `users/${data.userId}/lessonLogs`));
     
-    const newLogData = {
+    const newLogData: Record<string, unknown> = {
         logId: logRef.id,
         timestamp: Timestamp.fromDate(new Date()),
         userId: data.userId,
@@ -1111,10 +1168,16 @@ export async function logLessonCompletion(data: {
         ratings: normalizedRatings,
         severity,
         flags,
-        trainedTrait: data.trainedTrait,
-        coachSummary: data.coachSummary,
-        recommendedNextFocus: data.recommendedNextFocus,
     };
+    if (typeof data.trainedTrait === 'string' && data.trainedTrait.trim().length > 0) {
+        newLogData.trainedTrait = data.trainedTrait;
+    }
+    if (typeof data.coachSummary === 'string' && data.coachSummary.trim().length > 0) {
+        newLogData.coachSummary = data.coachSummary;
+    }
+    if (typeof data.recommendedNextFocus === 'string' && data.recommendedNextFocus.trim().length > 0) {
+        newLogData.recommendedNextFocus = data.recommendedNextFocus;
+    }
 
     const userLogs = await getConsultantActivity(data.userId);
     const userBadgeDocs = await getDocs(collection(db, `users/${data.userId}/earnedBadges`));
@@ -1164,15 +1227,15 @@ export async function logLessonCompletion(data: {
     }
 
     const existingStatScores = getExistingRollingStatScores(user);
-    const shouldSeedStatsFromLegacyScores = !!data.scores && (
+    const shouldSeedStatsFromLegacyScores = isBaselineAssessment || (!!data.scores && (
         !existingStatScores || looksLikeLegacyBootstrapStats(existingStatScores)
-    );
+    ));
     const seedTimestamp = Timestamp.fromDate(new Date());
 
-    if (shouldSeedStatsFromLegacyScores && data.scores) {
+    if (shouldSeedStatsFromLegacyScores) {
         batch.set(
             doc(db, 'users', data.userId),
-            { stats: buildStatsSeedFromLegacyScores(data.scores, seedTimestamp) },
+            { stats: buildStatsSeedFromLegacyScores(normalizedScores, seedTimestamp) },
             { merge: true }
         );
     }
@@ -1194,56 +1257,108 @@ export async function logLessonCompletion(data: {
     let statChanges: LessonCompletionDetails['statChanges'];
 
     try {
-        const rollingResult = await updateRollingStats(data.userId, normalizedRatings);
-        statChanges = {
-            empathy: {
-                before: rollingResult.before.empathy,
-                after: rollingResult.after.empathy,
-                delta: rollingResult.after.empathy - rollingResult.before.empathy,
-                rating: normalizedRatings.empathy,
-            },
-            listening: {
-                before: rollingResult.before.listening,
-                after: rollingResult.after.listening,
-                delta: rollingResult.after.listening - rollingResult.before.listening,
-                rating: normalizedRatings.listening,
-            },
-            trust: {
-                before: rollingResult.before.trust,
-                after: rollingResult.after.trust,
-                delta: rollingResult.after.trust - rollingResult.before.trust,
-                rating: normalizedRatings.trust,
-            },
-            followUp: {
-                before: rollingResult.before.followUp,
-                after: rollingResult.after.followUp,
-                delta: rollingResult.after.followUp - rollingResult.before.followUp,
-                rating: normalizedRatings.followUp,
-            },
-            closing: {
-                before: rollingResult.before.closing,
-                after: rollingResult.after.closing,
-                delta: rollingResult.after.closing - rollingResult.before.closing,
-                rating: normalizedRatings.closing,
-            },
-            relationshipBuilding: {
-                before: rollingResult.before.relationship,
-                after: rollingResult.after.relationship,
-                delta: rollingResult.after.relationship - rollingResult.before.relationship,
-                rating: normalizedRatings.relationship,
-            },
-        };
+        if (isBaselineAssessment) {
+            const beforeScores = {
+                empathy: clampScore(user.stats?.empathy?.score ?? BASELINE),
+                listening: clampScore(user.stats?.listening?.score ?? BASELINE),
+                trust: clampScore(user.stats?.trust?.score ?? BASELINE),
+                followUp: clampScore(user.stats?.followUp?.score ?? BASELINE),
+                closing: clampScore(user.stats?.closing?.score ?? BASELINE),
+                relationship: clampScore(user.stats?.relationship?.score ?? BASELINE),
+            };
 
-        await updateDoc(logRef, {
-            scoreDelta: {
-                empathy: statChanges.empathy.delta,
-                listening: statChanges.listening.delta,
-                trust: statChanges.trust.delta,
-                followUp: statChanges.followUp.delta,
-                closing: statChanges.closing.delta,
-                relationshipBuilding: statChanges.relationshipBuilding.delta,
-            },
-        });
+            statChanges = {
+                empathy: {
+                    before: beforeScores.empathy,
+                    after: normalizedRatings.empathy,
+                    delta: normalizedRatings.empathy - beforeScores.empathy,
+                    rating: normalizedRatings.empathy,
+                },
+                listening: {
+                    before: beforeScores.listening,
+                    after: normalizedRatings.listening,
+                    delta: normalizedRatings.listening - beforeScores.listening,
+                    rating: normalizedRatings.listening,
+                },
+                trust: {
+                    before: beforeScores.trust,
+                    after: normalizedRatings.trust,
+                    delta: normalizedRatings.trust - beforeScores.trust,
+                    rating: normalizedRatings.trust,
+                },
+                followUp: {
+                    before: beforeScores.followUp,
+                    after: normalizedRatings.followUp,
+                    delta: normalizedRatings.followUp - beforeScores.followUp,
+                    rating: normalizedRatings.followUp,
+                },
+                closing: {
+                    before: beforeScores.closing,
+                    after: normalizedRatings.closing,
+                    delta: normalizedRatings.closing - beforeScores.closing,
+                    rating: normalizedRatings.closing,
+                },
+                relationshipBuilding: {
+                    before: beforeScores.relationship,
+                    after: normalizedRatings.relationship,
+                    delta: normalizedRatings.relationship - beforeScores.relationship,
+                    rating: normalizedRatings.relationship,
+                },
+            };
+        } else {
+            const rollingResult = await updateRollingStats(data.userId, normalizedRatings);
+            statChanges = {
+                empathy: {
+                    before: rollingResult.before.empathy,
+                    after: rollingResult.after.empathy,
+                    delta: rollingResult.after.empathy - rollingResult.before.empathy,
+                    rating: normalizedRatings.empathy,
+                },
+                listening: {
+                    before: rollingResult.before.listening,
+                    after: rollingResult.after.listening,
+                    delta: rollingResult.after.listening - rollingResult.before.listening,
+                    rating: normalizedRatings.listening,
+                },
+                trust: {
+                    before: rollingResult.before.trust,
+                    after: rollingResult.after.trust,
+                    delta: rollingResult.after.trust - rollingResult.before.trust,
+                    rating: normalizedRatings.trust,
+                },
+                followUp: {
+                    before: rollingResult.before.followUp,
+                    after: rollingResult.after.followUp,
+                    delta: rollingResult.after.followUp - rollingResult.before.followUp,
+                    rating: normalizedRatings.followUp,
+                },
+                closing: {
+                    before: rollingResult.before.closing,
+                    after: rollingResult.after.closing,
+                    delta: rollingResult.after.closing - rollingResult.before.closing,
+                    rating: normalizedRatings.closing,
+                },
+                relationshipBuilding: {
+                    before: rollingResult.before.relationship,
+                    after: rollingResult.after.relationship,
+                    delta: rollingResult.after.relationship - rollingResult.before.relationship,
+                    rating: normalizedRatings.relationship,
+                },
+            };
+        }
+
+        if (statChanges) {
+            await updateDoc(logRef, {
+                scoreDelta: {
+                    empathy: statChanges.empathy.delta,
+                    listening: statChanges.listening.delta,
+                    trust: statChanges.trust.delta,
+                    followUp: statChanges.followUp.delta,
+                    closing: statChanges.closing.delta,
+                    relationshipBuilding: statChanges.relationshipBuilding.delta,
+                },
+            });
+        }
     } catch (error) {
         console.error('[logLessonCompletion] Failed to update rolling stats', {
             userId: data.userId,

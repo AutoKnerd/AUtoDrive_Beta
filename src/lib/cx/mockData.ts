@@ -6,26 +6,35 @@ export interface CxDataPoint {
   scores: Record<CxSkillId, number>;
 }
 
+function clampScore(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
+
 /**
  * Generates a random trend that is anchored to a specific target value at the end.
  */
 function generateTrend(base: number, volatility: number, length: number, target?: number): number[] {
-  const points = [base];
+  const points = [clampScore(base)];
   for (let i = 1; i < length; i++) {
     const prev = points[i - 1];
     const change = (Math.random() - 0.5) * volatility;
-    points.push(Math.max(10, Math.min(100, prev + change)));
+    points.push(clampScore(prev + change));
   }
 
   // If a target is provided, adjust the series so it ends exactly at the target
-  if (target !== undefined && length > 1) {
+  if (target !== undefined) {
+    if (length <= 1) {
+      return [clampScore(target)];
+    }
+
     const currentEnd = points[points.length - 1];
     const diff = target - currentEnd;
     // Distribute the difference linearly across the points
-    return points.map((p, i) => Math.max(0, Math.min(100, p + (diff * (i / (length - 1))))));
+    return points.map((p, i) => clampScore(p + (diff * (i / (length - 1)))));
   }
 
-  return points;
+  return points.map(clampScore);
 }
 
 const MOCK_CACHE: Record<string, CxDataPoint[]> = {};
@@ -44,8 +53,8 @@ export function getMockCxTrend(id: string, days: number = 90, anchorScores?: Par
     
     // Spread the base scores out significantly more vertically to fill the chart area
     const base = target !== undefined 
-      ? Math.max(10, Math.min(100, target + (Math.random() - 0.5) * 50))
-      : 15 + idx * 18 + (Math.random() * 20);
+      ? clampScore(target + (Math.random() - 0.5) * 50)
+      : clampScore(15 + idx * 18 + (Math.random() * 20));
       
     // Higher volatility (22) ensures the lines "spread out" and fill the empty space with energy
     skillTrends[skill.id] = generateTrend(base, 22, days, target);

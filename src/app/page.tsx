@@ -8,6 +8,7 @@ import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { Spinner } from '@/components/ui/spinner';
 import { managerialRoles } from '@/lib/definitions';
 import { BottomNav } from '@/components/layout/bottom-nav';
+import { requiresIndividualCheckout } from '@/lib/billing/access';
 
 export default function Home() {
   const { user, loading, isTouring } = useAuth();
@@ -18,10 +19,18 @@ export default function Home() {
       router.push('/login');
     } else if (!loading && (user?.role === 'Developer' || user?.role === 'Admin')) {
       router.push('/developer');
+    } else if (!loading && user && requiresIndividualCheckout(user)) {
+      router.push('/subscribe');
     }
   }, [user, loading, router]);
 
-  if (loading || !user || user.role === 'Developer' || user.role === 'Admin') {
+  if (
+    loading ||
+    !user ||
+    user.role === 'Developer' ||
+    user.role === 'Admin' ||
+    requiresIndividualCheckout(user)
+  ) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-transparent">
         <Spinner size="lg" />

@@ -9,6 +9,17 @@ export type BillingAccessResult = {
   dealershipId?: string;
 };
 
+export function requiresIndividualCheckout(user: User): boolean {
+  const hasDealership = Array.isArray(user.dealershipIds) && user.dealershipIds.length > 0;
+  if (hasDealership) return false;
+
+  // Internal roles are not blocked by individual checkout.
+  if (user.role === 'Admin' || user.role === 'Developer') return false;
+
+  const status = normalizeStatus(user.subscriptionStatus);
+  return status === 'inactive';
+}
+
 function normalizeStatus(status?: BillingSubscriptionStatus | null): BillingSubscriptionStatus {
   if (!status) return 'inactive';
   return status;
