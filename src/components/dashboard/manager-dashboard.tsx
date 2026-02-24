@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
-import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport } from '@/lib/data.client';
+import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
 import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ListChecks, ChevronRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +40,8 @@ import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { CreatedLessonsView } from '../lessons/created-lessons-view';
 import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
+import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
+import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 
 interface ManagerDashboardProps {
   user: User;
@@ -116,6 +118,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [lessonLimits, setLessonLimits] = useState({ recommendedTaken: false, otherTaken: false });
   const [showTourWelcome, setShowTourWelcome] = useState(false);
+  const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
+  const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
 
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
   const [manageableUsers, setManageableUsers] = useState<User[]>([]);
@@ -147,7 +151,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       setLoading(true);
       try {
           const combinedDataPromise = getCombinedTeamData(dealershipId, user);
-          const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations] = await Promise.all([
+          const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations, pppAccessEnabled, saasPppAccessEnabled] = await Promise.all([
             combinedDataPromise,
             getManageableUsers(user.userId),
             getLessons(user.role as LessonRole, user.userId),
@@ -157,6 +161,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             getAllAssignedLessonIds(user.userId),
             getDailyLessonLimits(user.userId),
             getPendingInvitations(dealershipId, user),
+            getPppAccessForUser(user, dealershipId).catch(() => false),
+            getSaasPppAccessForUser(user, dealershipId).catch(() => false),
           ]);
           
           setStats(combinedData.managerStats);
@@ -190,6 +196,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           setAssignedLessons(fetchedAssignedLessons);
           setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
           setLessonLimits(limits);
+          setPppFeatureEnabled(pppAccessEnabled === true);
+          setSaasPppFeatureEnabled(saasPppAccessEnabled === true);
           const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
           const hasBaselineLog = fetchedManagerActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
           const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
@@ -197,6 +205,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           setShowBaselineAssessment(baselineRequired);
       } catch (error) {
           console.warn("Dashboard partially failed to load team data:", error);
+          setPppFeatureEnabled(false);
+          setSaasPppFeatureEnabled(false);
           toast({
               variant: 'destructive',
               title: 'Loading Warning',
@@ -447,6 +457,19 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           hideInternalToggle 
         />
       </section>
+
+      {(pppFeatureEnabled || saasPppFeatureEnabled) && (
+          <section>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {pppFeatureEnabled && (
+                    <PppDashboardCard user={user} featureEnabled={pppFeatureEnabled} className={dashboardFeatureCardClass} />
+                  )}
+                  {saasPppFeatureEnabled && (
+                    <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
+                  )}
+              </div>
+          </section>
+      )}
 
       {viewMode === 'team' ? (
           <>

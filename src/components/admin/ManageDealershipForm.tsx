@@ -1,12 +1,14 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Dealership } from '@/lib/definitions';
 import {
   updateDealershipStatus,
   updateDealershipRetakeTestingAccess,
   updateDealershipNewRecommendedTestingAccess,
+  updateDealershipPppAccess,
+  updateDealershipSaasPppAccess,
 } from '@/lib/data.client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -40,17 +42,17 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [confirmationInput, setConfirmationInput] = useState('');
   const [retakeTestingEnabled, setRetakeTestingEnabled] = useState(false);
   const [newRecommendedTestingEnabled, setNewRecommendedTestingEnabled] = useState(false);
+  const [pppProtocolEnabled, setPppProtocolEnabled] = useState(false);
+  const [saasPppTrainingEnabled, setSaasPppTrainingEnabled] = useState(false);
   const { toast } = useToast();
   
-  const activeDealerships = useMemo(() => {
-    return dealerships.filter(d => d.status !== 'deactivated');
-  }, [dealerships]);
-
   const handleSelectDealership = (dealershipId: string) => {
     const dealership = dealerships.find(d => d.id === dealershipId);
     setSelectedDealership(dealership || null);
     setRetakeTestingEnabled(dealership?.enableRetakeRecommendedTesting === true);
     setNewRecommendedTestingEnabled(dealership?.enableNewRecommendedTesting === true);
+    setPppProtocolEnabled(dealership?.enablePppProtocol === true);
+    setSaasPppTrainingEnabled(dealership?.enableSaasPppTraining === true);
   }
 
   async function handleUpdateStatus(newStatus: 'active' | 'paused' | 'deactivated') {
@@ -112,6 +114,54 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       toast({
         title: 'Testing Access Updated',
         description: `${selectedDealership.name} ${newRecommendedTestingEnabled ? 'can now' : 'can no longer'} use the New Recommended (Testing) button.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleUpdatePppAccess() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      await updateDealershipPppAccess(selectedDealership.id, pppProtocolEnabled);
+      setSelectedDealership((prev) => (
+        prev ? { ...prev, enablePppProtocol: pppProtocolEnabled } : prev
+      ));
+      toast({
+        title: 'PPP Access Updated',
+        description: `${selectedDealership.name} ${pppProtocolEnabled ? 'now has' : 'no longer has'} Profit Protection Protocol enabled.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleUpdateSaasPppAccess() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      await updateDealershipSaasPppAccess(selectedDealership.id, saasPppTrainingEnabled);
+      setSelectedDealership((prev) => (
+        prev ? { ...prev, enableSaasPppTraining: saasPppTrainingEnabled } : prev
+      ));
+      toast({
+        title: 'SaaS PPP Access Updated',
+        description: `${selectedDealership.name} ${saasPppTrainingEnabled ? 'now has' : 'no longer has'} SaaS PPP Training enabled.`,
       });
       onDealershipManaged?.();
     } catch (e) {
@@ -217,6 +267,56 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                   className="w-full md:w-auto"
                 >
                   {isLoading ? <Spinner size="sm" /> : 'Save New Lesson Access'}
+                </Button>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-medium">Profit Protection Protocol (PPP)</p>
+                        <p className="text-xs text-muted-foreground">
+                            Enable or disable PPP for users assigned to this dealership.
+                        </p>
+                    </div>
+                    <Switch
+                      checked={pppProtocolEnabled}
+                      onCheckedChange={setPppProtocolEnabled}
+                      disabled={isLoading}
+                      aria-label="Enable Profit Protection Protocol"
+                    />
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={isLoading || pppProtocolEnabled === (selectedDealership.enablePppProtocol === true)}
+                  onClick={handleUpdatePppAccess}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save PPP Access'}
+                </Button>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-medium">Enable SaaS PPP Training (Internal Sales Track)</p>
+                        <p className="text-xs text-muted-foreground">
+                            Controls the SaaS-only PPP module for this dealership. This is independent of dealership-facing PPP.
+                        </p>
+                    </div>
+                    <Switch
+                      checked={saasPppTrainingEnabled}
+                      onCheckedChange={setSaasPppTrainingEnabled}
+                      disabled={isLoading}
+                      aria-label="Enable SaaS PPP Training"
+                    />
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={isLoading || saasPppTrainingEnabled === (selectedDealership.enableSaasPppTraining === true)}
+                  onClick={handleUpdateSaasPppAccess}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save SaaS PPP Access'}
                 </Button>
             </div>
 

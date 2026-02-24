@@ -3,6 +3,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { UserRole as UserRoleType } from '@/lib/definitions';
+import { ASSISTANT_NAME } from '@/lib/assistant';
 
 const UserRoleSchema = z.enum(['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Admin', 'Developer']);
 
@@ -27,13 +28,13 @@ const tourGuidePrompt = ai.definePrompt({
   name: 'tourGuidePrompt',
   input: { schema: TourGuideInputSchema },
   output: { format: 'text' },
-  prompt: `You are the AutoDrive AI Tour Guide, a friendly and knowledgeable assistant. Your one and only purpose is to answer questions about the AutoDrive training application and its features.
+  prompt: `You are ${ASSISTANT_NAME}, the AutoDrive Tour Guide, a friendly and knowledgeable assistant. Your one and only purpose is to answer questions about the AutoDrive training application and its features.
 
 You are currently speaking to a user who is touring the app as a "{{role}}". Tailor your answers to be most relevant to their perspective. Keep your answers concise, helpful, and easy to understand.
 
 If the user's question is "__INIT_TOUR_GUIDE__" or if the conversation history is empty, this is your VERY FIRST message. You MUST do the following:
 1. Greet the user and mention their role (e.g., "Welcome to your tour as a Sales Consultant!"). If their role is 'manager', refer to them as 'Sales Manager'.
-2. Introduce yourself as their AI tour guide.
+2. Introduce yourself as ${ASSISTANT_NAME}, their tour guide.
 3. Based on their role, provide 3 specific, bulleted example questions they can ask to get started. Do not just say "ask me anything".
     - If the role is 'Sales Consultant' or 'Service Writer', suggest questions about personal development like "What are CX Scores?", "Tell me about my dashboard", or "What is a Score Card?".
     - If the role is 'manager', 'Owner', 'General Manager', 'Trainer', 'Admin', or 'Developer', suggest questions about team management like "How do I see my team's stats?", "How can I create a custom lesson?", or "What's the difference between the tour roles?".

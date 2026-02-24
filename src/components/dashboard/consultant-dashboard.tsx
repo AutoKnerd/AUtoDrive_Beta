@@ -14,6 +14,8 @@ import {
   getDealershipById,
   createUniqueRecommendedTestingLesson,
   ensureDailyRecommendedLesson,
+  getPppAccessForUser,
+  getSaasPppAccessForUser,
 } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
@@ -41,6 +43,8 @@ import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
+import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
+import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -290,6 +294,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('personal');
   const [range, setRange] = useState<CxRange>('today');
+  const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
+  const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -310,13 +316,15 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       setLoading(true);
       try {
         const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
-        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges] = await Promise.all([
+        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges, pppAccessEnabled, saasPppAccessEnabled] = await Promise.all([
           getLessons(lessonRole, user.userId),
           getConsultantActivity(user.userId),
           getDailyLessonLimits(user.userId),
           getAssignedLessons(user.userId),
           getAllAssignedLessonIds(user.userId),
           getEarnedBadgesByUserId(user.userId),
+          getPppAccessForUser(user).catch(() => false),
+          getSaasPppAccessForUser(user).catch(() => false),
         ]);
         const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
 
@@ -339,6 +347,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         setAssignedLessons(fetchedAssignedLessons);
         setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
         setBadges(fetchedBadges);
+        setPppFeatureEnabled(pppAccessEnabled === true);
+        setSaasPppFeatureEnabled(saasPppAccessEnabled === true);
         const hasBaselineLog = fetchedActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
         const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
         setNeedsBaselineAssessment(baselineRequired);
@@ -370,6 +380,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         setCanRetakeRecommendedTesting(false);
         setCanUseNewRecommendedTesting(false);
         setIsPaused(false);
+        setPppFeatureEnabled(false);
+        setSaasPppFeatureEnabled(false);
         toast({
           variant: 'destructive',
           title: 'Dashboard data unavailable',
@@ -649,6 +661,20 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             hideInternalToggle
           />
         </section>
+
+        {(pppFeatureEnabled || saasPppFeatureEnabled) && (
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-foreground">Certification</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {pppFeatureEnabled && (
+                <PppDashboardCard user={user} featureEnabled={pppFeatureEnabled} className={dashboardFeatureCardClass} />
+              )}
+              {saasPppFeatureEnabled && (
+                <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
+              )}
+            </div>
+          </section>
+        )}
         
         <section id="lessons" className="space-y-4">
             <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>

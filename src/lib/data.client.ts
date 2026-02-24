@@ -5,13 +5,29 @@ import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCate
 import { lessonCategoriesByRole, noPersonalDevelopmentRoles, allRoles } from './definitions';
 import { allBadges } from './badges';
 import { calculateLevel } from './xp';
-import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp, Firestore, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp, Firestore, orderBy, limit, runTransaction } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { generateTourData } from './tour-data';
 import { initializeFirebase } from '@/firebase/init';
 import { ALPHA, BASELINE, LAMBDA, clampRatings, updateRollingStats } from '@/lib/stats/updateRollingStats';
 import { buildAutoRecommendedLesson, buildUniqueRecommendedTestingLesson } from '@/lib/lessons/auto-recommended';
+import { clampPppLevel, getPppLessonsForLevel, getPppLevelBadge, getPppLevelXp } from '@/lib/ppp/definitions';
+import { buildDefaultPppState, getNextPppLevel, getPppLevelKey, normalizePppUserState } from '@/lib/ppp/state';
+import {
+  clampSaasPppLevel,
+  getSaasPppLessonsForLevel,
+  getSaasPppLessonXp,
+  sanitizeSaasLeadChannel,
+  type SaasLeadChannel,
+  type SaasPppPhase,
+} from '@/lib/saas-ppp/definitions';
+import {
+  buildDefaultSaasPppState,
+  getNextSaasPppLevel,
+  getSaasPppLevelKey,
+  normalizeSaasPppUserState,
+} from '@/lib/saas-ppp/state';
 
 // Initialize SDKs lazily or inside functions to ensure stability
 const getFirebase = () => initializeFirebase();
@@ -42,6 +58,57 @@ const getTourIdFromEmail = (email?: string | null): string | null => {
     return tourUserEmails[email.toLowerCase()] || null;
 };
 
+function getScopedDealershipIds(user: User, dealershipId?: string | null): string[] {
+    if (dealershipId && dealershipId !== 'all') {
+        return [dealershipId];
+    }
+
+    const combined = [...(user.dealershipIds || [])];
+    if (user.selfDeclaredDealershipId) {
+        combined.push(user.selfDeclaredDealershipId);
+    }
+
+    return Array.from(new Set(combined));
+}
+
+function isDealershipPppEnabled(dealership: Partial<Dealership> | null | undefined): boolean {
+    return dealership?.status === 'active' && dealership?.enablePppProtocol === true;
+}
+
+function isDealershipSaasPppEnabled(dealership: Partial<Dealership> | null | undefined): boolean {
+    return dealership?.status === 'active' && dealership?.enableSaasPppTraining === true;
+}
+
+export async function getPppAccessForUser(user: User, dealershipId?: string | null): Promise<boolean> {
+    const scopedDealershipIds = getScopedDealershipIds(user, dealershipId);
+    if (!scopedDealershipIds.length) return false;
+
+    if (isTouringUser(user.userId)) {
+        const { dealerships } = await getTourData();
+        const dealershipMap = new Map(dealerships.map((dealership) => [dealership.id, dealership]));
+        return scopedDealershipIds.some((id) => isDealershipPppEnabled(dealershipMap.get(id)));
+    }
+
+    const { firestore: db } = getFirebase();
+    const snapshots = await Promise.all(scopedDealershipIds.map((id) => getDoc(doc(db, 'dealerships', id)).catch(() => null)));
+    return snapshots.some((snap) => snap?.exists() && isDealershipPppEnabled(snap.data() as Partial<Dealership>));
+}
+
+export async function getSaasPppAccessForUser(user: User, dealershipId?: string | null): Promise<boolean> {
+    const scopedDealershipIds = getScopedDealershipIds(user, dealershipId);
+    if (!scopedDealershipIds.length) return false;
+
+    if (isTouringUser(user.userId)) {
+        const { dealerships } = await getTourData();
+        const dealershipMap = new Map(dealerships.map((dealership) => [dealership.id, dealership]));
+        return scopedDealershipIds.some((id) => isDealershipSaasPppEnabled(dealershipMap.get(id)));
+    }
+
+    const { firestore: db } = getFirebase();
+    const snapshots = await Promise.all(scopedDealershipIds.map((id) => getDoc(doc(db, 'dealerships', id)).catch(() => null)));
+    return snapshots.some((snap) => snap?.exists() && isDealershipSaasPppEnabled(snap.data() as Partial<Dealership>));
+}
+
 function cloneUserStats(stats?: Partial<User['stats']>): Partial<User['stats']> | undefined {
     if (!stats) return undefined;
     return {
@@ -55,10 +122,29 @@ function cloneUserStats(stats?: Partial<User['stats']>): Partial<User['stats']> 
 }
 
 function cloneTourUser(user: User): User {
+    const clonedPppLessonsPassed = user.ppp_lessons_passed
+        ? Object.fromEntries(
+            Object.entries(user.ppp_lessons_passed).map(([level, passed]) => [
+                level,
+                Array.isArray(passed) ? [...passed] : [],
+            ])
+        )
+        : undefined;
+    const clonedSaasPppLessonsPassed = user.saas_ppp_lessons_passed
+        ? Object.fromEntries(
+            Object.entries(user.saas_ppp_lessons_passed).map(([level, passed]) => [
+                level,
+                Array.isArray(passed) ? [...passed] : [],
+            ])
+        )
+        : undefined;
+
     return {
         ...user,
         dealershipIds: [...(user.dealershipIds ?? [])],
         stats: cloneUserStats(user.stats),
+        ppp_lessons_passed: clonedPppLessonsPassed,
+        saas_ppp_lessons_passed: clonedSaasPppLessonsPassed,
     };
 }
 
@@ -352,6 +438,20 @@ export async function createUserProfile(userId: string, name: string, email: str
         dealershipIds.push(hqDealershipId);
     }
 
+    let pppEnabled = false;
+    let saasPppEnabled = false;
+    if (dealershipIds.length > 0) {
+        const dealershipSnapshots = await Promise.all(
+            Array.from(new Set(dealershipIds)).map((id) => getDoc(doc(db, 'dealerships', id)).catch(() => null))
+        );
+        pppEnabled = dealershipSnapshots.some((snap) => (
+            snap?.exists() && isDealershipPppEnabled(snap.data() as Partial<Dealership>)
+        ));
+        saasPppEnabled = dealershipSnapshots.some((snap) => (
+            snap?.exists() && isDealershipSaasPppEnabled(snap.data() as Partial<Dealership>)
+        ));
+    }
+
     const newUser: User = {
         userId: userId,
         name: name,
@@ -366,6 +466,8 @@ export async function createUserProfile(userId: string, name: string, email: str
         memberSince: now.toISOString(),
         subscriptionStatus: ['Admin', 'Developer', 'Owner', 'Trainer', 'General Manager'].includes(role) ? 'active' : 'inactive',
         stats: buildDefaultUserStats(now),
+        ...buildDefaultPppState(pppEnabled),
+        ...buildDefaultSaasPppState(saasPppEnabled),
     };
 
     const userDocRef = doc(db, 'users', userId);
@@ -492,6 +594,8 @@ export async function createDealership(dealershipData: {
             address: dealershipData.address as Address,
             enableRetakeRecommendedTesting: false,
             enableNewRecommendedTesting: false,
+            enablePppProtocol: false,
+            enableSaasPppTraining: false,
         };
         (await getTourData()).dealerships.push(newDealership);
         return newDealership;
@@ -1461,6 +1565,844 @@ export async function updateDealershipNewRecommendedTestingAccess(
 
     const updatedDealership = await getDoc(dealershipRef);
     return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+export async function updateDealershipPppAccess(
+    dealershipId: string,
+    enabled: boolean
+): Promise<Dealership> {
+    const { firestore: db } = getFirebase();
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.enablePppProtocol = enabled;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    const dealershipsCollection = collection(db, 'dealerships');
+    const dealershipRef = doc(dealershipsCollection, dealershipId);
+
+    try {
+        await updateDoc(dealershipRef, { enablePppProtocol: enabled });
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: { enablePppProtocol: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+export async function updateDealershipSaasPppAccess(
+    dealershipId: string,
+    enabled: boolean
+): Promise<Dealership> {
+    const { firestore: db } = getFirebase();
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.enableSaasPppTraining = enabled;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    const dealershipsCollection = collection(db, 'dealerships');
+    const dealershipRef = doc(dealershipsCollection, dealershipId);
+
+    try {
+        await updateDoc(dealershipRef, { enableSaasPppTraining: enabled });
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: { enableSaasPppTraining: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+type PppSystemConfig = {
+  enabled: boolean;
+  updatedUsers?: number;
+};
+
+export async function getPppSystemConfig(): Promise<PppSystemConfig> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error('Authentication required.');
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/admin/pppConfig', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${idToken}` },
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to load PPP settings.');
+    }
+
+    return {
+        enabled: payload?.enabled === true,
+        updatedUsers: typeof payload?.updatedUsers === 'number' ? payload.updatedUsers : undefined,
+    };
+}
+
+export async function updatePppSystemConfig(enabled: boolean): Promise<PppSystemConfig> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error('Authentication required.');
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/admin/pppConfig', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ enabled }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to update PPP settings.');
+    }
+
+    return {
+        enabled: payload?.enabled === true,
+        updatedUsers: typeof payload?.updatedUsers === 'number' ? payload.updatedUsers : undefined,
+    };
+}
+
+export type PppLessonPassResult = {
+    updatedUser: User;
+    xpAwarded: number;
+    alreadyPassed: boolean;
+    levelAdvanced: boolean;
+    certified: boolean;
+};
+
+export async function completePppLessonPass(
+    userId: string,
+    level: number,
+    lessonId: string
+): Promise<PppLessonPassResult> {
+    const { firestore: db } = getFirebase();
+    const safeLevel = clampPppLevel(level);
+
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const user = tour.users.find((entry) => entry.userId === userId);
+        if (!user) throw new Error('Tour user not found');
+
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        const dealershipMap = new Map(tour.dealerships.map((dealership) => [dealership.id, dealership]));
+        const hasPppAccess = scopedDealershipIds.some((id) => isDealershipPppEnabled(dealershipMap.get(id)));
+        if (!hasPppAccess) throw new Error('PPP is not enabled for this dealership.');
+
+        user.ppp_enabled = hasPppAccess;
+
+        const normalized = normalizePppUserState(user);
+        if (normalized.level !== safeLevel) {
+            throw new Error('Complete all lessons in your current PPP level before advancing.');
+        }
+
+        const levelKey = getPppLevelKey(normalized.level);
+        const lessonsPassed = { ...normalized.lessonsPassed };
+        const passedSet = new Set(lessonsPassed[levelKey] || []);
+        if (passedSet.has(lessonId)) {
+            return {
+                updatedUser: cloneTourUser(user),
+                xpAwarded: 0,
+                alreadyPassed: true,
+                levelAdvanced: false,
+                certified: normalized.certified,
+            };
+        }
+
+        const lessonsForLevel = getPppLessonsForLevel(normalized.level, user.role);
+        const lessonIds = new Set(lessonsForLevel.map((entry) => entry.lessonId));
+        if (!lessonIds.has(lessonId)) {
+            throw new Error('Invalid PPP lesson for this level.');
+        }
+
+        passedSet.add(lessonId);
+        lessonsPassed[levelKey] = Array.from(passedSet);
+
+        const allPassed = lessonsForLevel.every((entry) => passedSet.has(entry.lessonId));
+        const levelAdvanced = allPassed && normalized.level < 10;
+        const certified = normalized.certified || (allPassed && normalized.level === 10);
+        const nextLevel = levelAdvanced ? getNextPppLevel(normalized.level) : normalized.level;
+        const nextProgress = allPassed ? (certified ? 100 : 0) : Math.round((passedSet.size / lessonsForLevel.length) * 100);
+        const xpAwarded = getPppLevelXp(normalized.level);
+
+        user.xp = (user.xp || 0) + xpAwarded;
+        user.ppp_level = nextLevel;
+        user.ppp_lessons_passed = lessonsPassed;
+        user.ppp_progress_percentage = nextProgress;
+        user.ppp_badge = getPppLevelBadge(nextLevel, certified);
+        user.ppp_certified = certified;
+
+        return {
+            updatedUser: cloneTourUser(user),
+            xpAwarded,
+            alreadyPassed: false,
+            levelAdvanced,
+            certified,
+        };
+    }
+
+    const userRef = doc(db, 'users', userId);
+    let transactionResult: Omit<PppLessonPassResult, 'updatedUser'> = {
+        xpAwarded: 0,
+        alreadyPassed: false,
+        levelAdvanced: false,
+        certified: false,
+    };
+
+    await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) {
+            throw new Error('User not found.');
+        }
+
+        const user = ({ ...(userSnap.data() as User), userId: userSnap.id } as User);
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        if (!scopedDealershipIds.length) {
+            throw new Error('PPP is not enabled for this dealership.');
+        }
+
+        const dealershipRefs = scopedDealershipIds.map((id) => doc(db, 'dealerships', id));
+        const dealershipSnaps = await Promise.all(dealershipRefs.map((ref) => transaction.get(ref)));
+        const hasPppAccess = dealershipSnaps.some((snap) => (
+            snap.exists() && isDealershipPppEnabled(snap.data() as Partial<Dealership>)
+        ));
+        if (!hasPppAccess) {
+            throw new Error('PPP is not enabled for this dealership.');
+        }
+
+        const normalized = normalizePppUserState(user);
+        if (normalized.level !== safeLevel) {
+            throw new Error('Complete all lessons in your current PPP level before advancing.');
+        }
+
+        const levelKey = getPppLevelKey(normalized.level);
+        const lessonsPassed = { ...normalized.lessonsPassed };
+        const passedSet = new Set(lessonsPassed[levelKey] || []);
+        if (passedSet.has(lessonId)) {
+            transaction.update(userRef, { ppp_enabled: hasPppAccess });
+            transactionResult = {
+                xpAwarded: 0,
+                alreadyPassed: true,
+                levelAdvanced: false,
+                certified: normalized.certified,
+            };
+            return;
+        }
+
+        const lessonsForLevel = getPppLessonsForLevel(normalized.level, user.role);
+        const lessonIds = new Set(lessonsForLevel.map((entry) => entry.lessonId));
+        if (!lessonIds.has(lessonId)) {
+            throw new Error('Invalid PPP lesson for this level.');
+        }
+
+        passedSet.add(lessonId);
+        lessonsPassed[levelKey] = Array.from(passedSet);
+
+        const allPassed = lessonsForLevel.every((entry) => passedSet.has(entry.lessonId));
+        const levelAdvanced = allPassed && normalized.level < 10;
+        const certified = normalized.certified || (allPassed && normalized.level === 10);
+        const nextLevel = levelAdvanced ? getNextPppLevel(normalized.level) : normalized.level;
+        const nextProgress = allPassed ? (certified ? 100 : 0) : Math.round((passedSet.size / lessonsForLevel.length) * 100);
+        const xpAwarded = getPppLevelXp(normalized.level);
+        const nextXp = (typeof user.xp === 'number' ? user.xp : 0) + xpAwarded;
+
+        transaction.update(userRef, {
+            xp: nextXp,
+            ppp_enabled: hasPppAccess,
+            ppp_level: nextLevel,
+            ppp_lessons_passed: lessonsPassed,
+            ppp_progress_percentage: nextProgress,
+            ppp_badge: getPppLevelBadge(nextLevel, certified),
+            ppp_certified: certified,
+        });
+
+        transactionResult = {
+            xpAwarded,
+            alreadyPassed: false,
+            levelAdvanced,
+            certified,
+        };
+    });
+
+    const updatedUserSnap = await getDoc(userRef);
+    if (!updatedUserSnap.exists()) {
+        throw new Error('User not found after PPP update.');
+    }
+
+    return {
+        updatedUser: { ...(updatedUserSnap.data() as User), userId: updatedUserSnap.id },
+        ...transactionResult,
+    };
+}
+
+export async function incrementPppAbandonmentCounter(userId: string): Promise<number> {
+    const { firestore: db } = getFirebase();
+
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const user = tour.users.find((entry) => entry.userId === userId);
+        if (!user) throw new Error('Tour user not found');
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        const dealershipMap = new Map(tour.dealerships.map((dealership) => [dealership.id, dealership]));
+        const hasPppAccess = scopedDealershipIds.some((id) => isDealershipPppEnabled(dealershipMap.get(id)));
+        if (!hasPppAccess) throw new Error('PPP is not enabled for this dealership.');
+
+        user.ppp_enabled = hasPppAccess;
+        const current = Math.max(0, Math.round(Number(user.ppp_abandonment_counter || 0)));
+        const next = current + 1;
+        user.ppp_abandonment_counter = next;
+        return next;
+    }
+
+    const userRef = doc(db, 'users', userId);
+    let nextValue = 0;
+
+    await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error('User not found.');
+        const data = userSnap.data() as User;
+
+        const scopedDealershipIds = getScopedDealershipIds(data as User);
+        if (!scopedDealershipIds.length) {
+            throw new Error('PPP is not enabled for this dealership.');
+        }
+
+        const dealershipRefs = scopedDealershipIds.map((id) => doc(db, 'dealerships', id));
+        const dealershipSnaps = await Promise.all(dealershipRefs.map((ref) => transaction.get(ref)));
+        const hasPppAccess = dealershipSnaps.some((snap) => (
+            snap.exists() && isDealershipPppEnabled(snap.data() as Partial<Dealership>)
+        ));
+        if (!hasPppAccess) {
+            throw new Error('PPP is not enabled for this dealership.');
+        }
+
+        const current = Math.max(0, Math.round(Number(data.ppp_abandonment_counter || 0)));
+        nextValue = current + 1;
+        transaction.update(userRef, { ppp_enabled: hasPppAccess, ppp_abandonment_counter: nextValue });
+    });
+
+    return nextValue;
+}
+
+type SaasPppLessonContext = {
+    phase: SaasPppPhase;
+    lessons: ReturnType<typeof getSaasPppLessonsForLevel>;
+    levelKey: string;
+};
+
+function getSaasPppLessonContext(user: User, level: number): SaasPppLessonContext {
+    const normalized = normalizeSaasPppUserState(user);
+    const safeLevel = clampSaasPppLevel(level);
+    const phase: SaasPppPhase = safeLevel === 2 ? normalized.l2Phase : 'primary';
+
+    if (safeLevel === 2) {
+        if (!normalized.primaryChannel) {
+            throw new Error('Select your primary lead channel to start LVL 2.');
+        }
+        if (phase === 'secondary' && !normalized.secondaryChannel) {
+            throw new Error('Select your secondary lead channel to continue LVL 2.');
+        }
+    }
+
+    const lessons = getSaasPppLessonsForLevel(safeLevel, {
+        primaryChannel: normalized.primaryChannel,
+        secondaryChannel: normalized.secondaryChannel,
+        phase,
+    });
+    if (!lessons.length) {
+        throw new Error('No SaaS PPP lessons are available for your current level.');
+    }
+
+    const levelKey = getSaasPppLevelKey(safeLevel, phase);
+    return { phase, lessons, levelKey };
+}
+
+type SaasPppPatchResult = {
+    patch: Partial<User>;
+    xpAwarded: number;
+    alreadyPassed: boolean;
+    levelAdvanced: boolean;
+    certified: boolean;
+    phaseCompleted: boolean;
+    currentLevel: number;
+    currentPhase: SaasPppPhase;
+};
+
+function computeSaasPppPassPatch(user: User, level: number, lessonId: string, nowIso: string): SaasPppPatchResult {
+    const normalized = normalizeSaasPppUserState(user);
+    const safeLevel = clampSaasPppLevel(level);
+
+    if (normalized.currentLevel !== safeLevel) {
+        throw new Error('Complete all lessons in your current SaaS PPP level before advancing.');
+    }
+
+    const { phase, lessons, levelKey } = getSaasPppLessonContext(user, safeLevel);
+    const lessonIds = new Set(lessons.map((entry) => entry.lessonId));
+    if (!lessonIds.has(lessonId)) {
+        throw new Error('Invalid SaaS PPP lesson for this level.');
+    }
+
+    const lessonsPassed = { ...normalized.lessonsPassed };
+    const passedSet = new Set(lessonsPassed[levelKey] || []);
+    if (passedSet.has(lessonId)) {
+        return {
+            patch: { saas_ppp_enabled: true },
+            xpAwarded: 0,
+            alreadyPassed: true,
+            levelAdvanced: false,
+            certified: !!normalized.certifiedTimestamp,
+            phaseCompleted: false,
+            currentLevel: normalized.currentLevel,
+            currentPhase: phase,
+        };
+    }
+
+    passedSet.add(lessonId);
+    lessonsPassed[levelKey] = Array.from(passedSet);
+
+    const currentXp = typeof user.xp === 'number' ? user.xp : 0;
+    const allPassedInPhase = lessons.every((entry) => passedSet.has(entry.lessonId));
+    const xpAwarded = getSaasPppLessonXp(safeLevel, lessons.length, safeLevel === 2 ? phase : undefined);
+
+    let nextLevelCompleted = normalized.levelCompleted;
+    let nextCurrentLevel = normalized.currentLevel;
+    let nextProgress = allPassedInPhase ? 0 : Math.round((passedSet.size / lessons.length) * 100);
+    let nextPhase: SaasPppPhase = phase;
+    let nextCertifiedTimestamp = normalized.certifiedTimestamp;
+    let levelAdvanced = false;
+    let phaseCompleted = allPassedInPhase;
+
+    if (safeLevel === 2) {
+        if (phase === 'primary' && allPassedInPhase) {
+            nextPhase = 'secondary';
+            nextProgress = 0;
+            const secondaryKey = getSaasPppLevelKey(2, 'secondary');
+            lessonsPassed[secondaryKey] = Array.from(new Set(lessonsPassed[secondaryKey] || []));
+        } else if (phase === 'secondary' && allPassedInPhase) {
+            nextLevelCompleted = Math.max(nextLevelCompleted, 2);
+            nextCurrentLevel = getNextSaasPppLevel(2);
+            nextPhase = 'primary';
+            nextProgress = 0;
+            levelAdvanced = true;
+        }
+    } else if (allPassedInPhase) {
+        nextLevelCompleted = Math.max(nextLevelCompleted, safeLevel);
+        if (safeLevel >= 5) {
+            nextCurrentLevel = 5;
+            nextCertifiedTimestamp = nextCertifiedTimestamp || nowIso;
+            nextProgress = 100;
+        } else {
+            nextCurrentLevel = getNextSaasPppLevel(safeLevel);
+            nextProgress = 0;
+            levelAdvanced = true;
+        }
+    }
+
+    const patch: Partial<User> = {
+        xp: currentXp + xpAwarded,
+        saas_ppp_enabled: true,
+        saas_ppp_level_completed: nextLevelCompleted,
+        saas_ppp_current_level: nextCurrentLevel,
+        saas_ppp_current_level_progress: nextProgress,
+        saas_ppp_primary_channel: normalized.primaryChannel || '',
+        saas_ppp_secondary_channel: normalized.secondaryChannel ?? null,
+        saas_ppp_certified_timestamp: nextCertifiedTimestamp,
+        saas_ppp_l2_phase: nextPhase,
+        saas_ppp_lessons_passed: lessonsPassed,
+    };
+
+    return {
+        patch,
+        xpAwarded,
+        alreadyPassed: false,
+        levelAdvanced,
+        certified: !!nextCertifiedTimestamp,
+        phaseCompleted,
+        currentLevel: nextCurrentLevel,
+        currentPhase: nextPhase,
+    };
+}
+
+function computeSaasLevelProgress(
+    level: number,
+    phase: SaasPppPhase,
+    lessonsPassed: Record<string, string[]>,
+    primaryChannel: SaasLeadChannel | null,
+    secondaryChannel: SaasLeadChannel | null
+): number {
+    const lessons = getSaasPppLessonsForLevel(level, {
+        primaryChannel,
+        secondaryChannel,
+        phase,
+    });
+    if (!lessons.length) return 0;
+    const levelKey = getSaasPppLevelKey(level, phase);
+    const passedSet = new Set(lessonsPassed[levelKey] || []);
+    const passedCount = lessons.reduce((count, lesson) => (passedSet.has(lesson.lessonId) ? count + 1 : count), 0);
+    return Math.round((passedCount / lessons.length) * 100);
+}
+
+export type SaasPppLessonPassResult = {
+    updatedUser: User;
+    xpAwarded: number;
+    alreadyPassed: boolean;
+    levelAdvanced: boolean;
+    certified: boolean;
+    phaseCompleted: boolean;
+    currentLevel: number;
+    currentPhase: SaasPppPhase;
+};
+
+export async function completeSaasPppLessonPass(
+    userId: string,
+    level: number,
+    lessonId: string
+): Promise<SaasPppLessonPassResult> {
+    const { firestore: db } = getFirebase();
+    const safeLevel = clampSaasPppLevel(level);
+    const nowIso = new Date().toISOString();
+
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const user = tour.users.find((entry) => entry.userId === userId);
+        if (!user) throw new Error('Tour user not found');
+
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        const dealershipMap = new Map(tour.dealerships.map((dealership) => [dealership.id, dealership]));
+        const hasAccess = scopedDealershipIds.some((id) => isDealershipSaasPppEnabled(dealershipMap.get(id)));
+        if (!hasAccess) throw new Error('SaaS PPP is not enabled for this dealership.');
+
+        user.saas_ppp_enabled = hasAccess;
+        const result = computeSaasPppPassPatch(user, safeLevel, lessonId, nowIso);
+        Object.assign(user, result.patch);
+
+        return {
+            updatedUser: cloneTourUser(user),
+            xpAwarded: result.xpAwarded,
+            alreadyPassed: result.alreadyPassed,
+            levelAdvanced: result.levelAdvanced,
+            certified: result.certified,
+            phaseCompleted: result.phaseCompleted,
+            currentLevel: result.currentLevel,
+            currentPhase: result.currentPhase,
+        };
+    }
+
+    const userRef = doc(db, 'users', userId);
+    let transactionResult: Omit<SaasPppLessonPassResult, 'updatedUser'> = {
+        xpAwarded: 0,
+        alreadyPassed: false,
+        levelAdvanced: false,
+        certified: false,
+        phaseCompleted: false,
+        currentLevel: safeLevel,
+        currentPhase: 'primary',
+    };
+
+    await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error('User not found.');
+        const user = ({ ...(userSnap.data() as User), userId: userSnap.id } as User);
+
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        if (!scopedDealershipIds.length) {
+            throw new Error('SaaS PPP is not enabled for this dealership.');
+        }
+
+        const dealershipRefs = scopedDealershipIds.map((id) => doc(db, 'dealerships', id));
+        const dealershipSnaps = await Promise.all(dealershipRefs.map((ref) => transaction.get(ref)));
+        const hasAccess = dealershipSnaps.some((snap) => (
+            snap.exists() && isDealershipSaasPppEnabled(snap.data() as Partial<Dealership>)
+        ));
+        if (!hasAccess) {
+            throw new Error('SaaS PPP is not enabled for this dealership.');
+        }
+
+        const result = computeSaasPppPassPatch(user, safeLevel, lessonId, nowIso);
+        transaction.update(userRef, {
+            ...result.patch,
+            saas_ppp_enabled: hasAccess,
+        });
+
+        transactionResult = {
+            xpAwarded: result.xpAwarded,
+            alreadyPassed: result.alreadyPassed,
+            levelAdvanced: result.levelAdvanced,
+            certified: result.certified,
+            phaseCompleted: result.phaseCompleted,
+            currentLevel: result.currentLevel,
+            currentPhase: result.currentPhase,
+        };
+    });
+
+    const updatedUserSnap = await getDoc(userRef);
+    if (!updatedUserSnap.exists()) {
+        throw new Error('User not found after SaaS PPP update.');
+    }
+
+    return {
+        updatedUser: { ...(updatedUserSnap.data() as User), userId: updatedUserSnap.id },
+        ...transactionResult,
+    };
+}
+
+export async function setSaasPppPrimaryChannel(userId: string, channel: SaasLeadChannel): Promise<User> {
+    const sanitized = sanitizeSaasLeadChannel(channel);
+    if (!sanitized) {
+        throw new Error('Invalid primary channel.');
+    }
+
+    const { firestore: db } = getFirebase();
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const user = tour.users.find((entry) => entry.userId === userId);
+        if (!user) throw new Error('Tour user not found');
+
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        const dealershipMap = new Map(tour.dealerships.map((dealership) => [dealership.id, dealership]));
+        const hasAccess = scopedDealershipIds.some((id) => isDealershipSaasPppEnabled(dealershipMap.get(id)));
+        if (!hasAccess) throw new Error('SaaS PPP is not enabled for this dealership.');
+
+        const normalized = normalizeSaasPppUserState(user);
+        if (normalized.currentLevel !== 2) {
+            throw new Error('Primary channel selection is available when you reach LVL 2.');
+        }
+        const primaryKey = getSaasPppLevelKey(2, 'primary');
+        const existingPassed = new Set(normalized.lessonsPassed[primaryKey] || []);
+        if (existingPassed.size > 0 && normalized.primaryChannel && normalized.primaryChannel !== sanitized) {
+            throw new Error('Primary channel is locked after passing LVL 2 primary lessons.');
+        }
+
+        const nextLessonsPassed = { ...normalized.lessonsPassed };
+        nextLessonsPassed[primaryKey] = Array.from(existingPassed);
+        const phase = normalized.l2Phase;
+        const progress = computeSaasLevelProgress(2, phase, nextLessonsPassed, sanitized, normalized.secondaryChannel);
+
+        Object.assign(user, {
+            saas_ppp_enabled: hasAccess,
+            saas_ppp_primary_channel: sanitized,
+            saas_ppp_l2_phase: phase,
+            saas_ppp_lessons_passed: nextLessonsPassed,
+            saas_ppp_current_level_progress: progress,
+        });
+        return cloneTourUser(user);
+    }
+
+    const userRef = doc(db, 'users', userId);
+    await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error('User not found.');
+        const user = ({ ...(userSnap.data() as User), userId: userSnap.id } as User);
+
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        if (!scopedDealershipIds.length) throw new Error('SaaS PPP is not enabled for this dealership.');
+        const dealershipRefs = scopedDealershipIds.map((id) => doc(db, 'dealerships', id));
+        const dealershipSnaps = await Promise.all(dealershipRefs.map((ref) => transaction.get(ref)));
+        const hasAccess = dealershipSnaps.some((snap) => (
+            snap.exists() && isDealershipSaasPppEnabled(snap.data() as Partial<Dealership>)
+        ));
+        if (!hasAccess) throw new Error('SaaS PPP is not enabled for this dealership.');
+
+        const normalized = normalizeSaasPppUserState(user);
+        if (normalized.currentLevel !== 2) {
+            throw new Error('Primary channel selection is available when you reach LVL 2.');
+        }
+        const primaryKey = getSaasPppLevelKey(2, 'primary');
+        const existingPassed = new Set(normalized.lessonsPassed[primaryKey] || []);
+        if (existingPassed.size > 0 && normalized.primaryChannel && normalized.primaryChannel !== sanitized) {
+            throw new Error('Primary channel is locked after passing LVL 2 primary lessons.');
+        }
+
+        const nextLessonsPassed = { ...normalized.lessonsPassed };
+        nextLessonsPassed[primaryKey] = Array.from(existingPassed);
+        const phase = normalized.l2Phase;
+        const progress = computeSaasLevelProgress(2, phase, nextLessonsPassed, sanitized, normalized.secondaryChannel);
+
+        transaction.update(userRef, {
+            saas_ppp_enabled: hasAccess,
+            saas_ppp_primary_channel: sanitized,
+            saas_ppp_l2_phase: phase,
+            saas_ppp_lessons_passed: nextLessonsPassed,
+            saas_ppp_current_level_progress: progress,
+        });
+    });
+
+    const updatedUserSnap = await getDoc(userRef);
+    if (!updatedUserSnap.exists()) throw new Error('User not found after SaaS PPP update.');
+    return { ...(updatedUserSnap.data() as User), userId: updatedUserSnap.id };
+}
+
+export async function setSaasPppSecondaryChannel(userId: string, channel: SaasLeadChannel): Promise<User> {
+    const sanitized = sanitizeSaasLeadChannel(channel);
+    if (!sanitized) {
+        throw new Error('Invalid secondary channel.');
+    }
+
+    const { firestore: db } = getFirebase();
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const user = tour.users.find((entry) => entry.userId === userId);
+        if (!user) throw new Error('Tour user not found');
+
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        const dealershipMap = new Map(tour.dealerships.map((dealership) => [dealership.id, dealership]));
+        const hasAccess = scopedDealershipIds.some((id) => isDealershipSaasPppEnabled(dealershipMap.get(id)));
+        if (!hasAccess) throw new Error('SaaS PPP is not enabled for this dealership.');
+
+        const normalized = normalizeSaasPppUserState(user);
+        if (normalized.currentLevel !== 2 || normalized.l2Phase !== 'secondary') {
+            throw new Error('Secondary channel selection unlocks after LVL 2 primary mastery.');
+        }
+        if (!normalized.primaryChannel) {
+            throw new Error('Select your primary channel first.');
+        }
+        if (normalized.primaryChannel === sanitized) {
+            throw new Error('Secondary channel must be different from your primary channel.');
+        }
+        const secondaryKey = getSaasPppLevelKey(2, 'secondary');
+        const existingPassed = new Set(normalized.lessonsPassed[secondaryKey] || []);
+        if (existingPassed.size > 0 && normalized.secondaryChannel && normalized.secondaryChannel !== sanitized) {
+            throw new Error('Secondary channel is locked after passing LVL 2 secondary lessons.');
+        }
+
+        const nextLessonsPassed = { ...normalized.lessonsPassed };
+        nextLessonsPassed[secondaryKey] = Array.from(existingPassed);
+        const progress = computeSaasLevelProgress(2, 'secondary', nextLessonsPassed, normalized.primaryChannel, sanitized);
+
+        Object.assign(user, {
+            saas_ppp_enabled: hasAccess,
+            saas_ppp_secondary_channel: sanitized,
+            saas_ppp_l2_phase: 'secondary',
+            saas_ppp_lessons_passed: nextLessonsPassed,
+            saas_ppp_current_level_progress: progress,
+        });
+        return cloneTourUser(user);
+    }
+
+    const userRef = doc(db, 'users', userId);
+    await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error('User not found.');
+        const user = ({ ...(userSnap.data() as User), userId: userSnap.id } as User);
+
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        if (!scopedDealershipIds.length) throw new Error('SaaS PPP is not enabled for this dealership.');
+        const dealershipRefs = scopedDealershipIds.map((id) => doc(db, 'dealerships', id));
+        const dealershipSnaps = await Promise.all(dealershipRefs.map((ref) => transaction.get(ref)));
+        const hasAccess = dealershipSnaps.some((snap) => (
+            snap.exists() && isDealershipSaasPppEnabled(snap.data() as Partial<Dealership>)
+        ));
+        if (!hasAccess) throw new Error('SaaS PPP is not enabled for this dealership.');
+
+        const normalized = normalizeSaasPppUserState(user);
+        if (normalized.currentLevel !== 2 || normalized.l2Phase !== 'secondary') {
+            throw new Error('Secondary channel selection unlocks after LVL 2 primary mastery.');
+        }
+        if (!normalized.primaryChannel) {
+            throw new Error('Select your primary channel first.');
+        }
+        if (normalized.primaryChannel === sanitized) {
+            throw new Error('Secondary channel must be different from your primary channel.');
+        }
+
+        const secondaryKey = getSaasPppLevelKey(2, 'secondary');
+        const existingPassed = new Set(normalized.lessonsPassed[secondaryKey] || []);
+        if (existingPassed.size > 0 && normalized.secondaryChannel && normalized.secondaryChannel !== sanitized) {
+            throw new Error('Secondary channel is locked after passing LVL 2 secondary lessons.');
+        }
+
+        const nextLessonsPassed = { ...normalized.lessonsPassed };
+        nextLessonsPassed[secondaryKey] = Array.from(existingPassed);
+        const progress = computeSaasLevelProgress(2, 'secondary', nextLessonsPassed, normalized.primaryChannel, sanitized);
+
+        transaction.update(userRef, {
+            saas_ppp_enabled: hasAccess,
+            saas_ppp_secondary_channel: sanitized,
+            saas_ppp_l2_phase: 'secondary',
+            saas_ppp_lessons_passed: nextLessonsPassed,
+            saas_ppp_current_level_progress: progress,
+        });
+    });
+
+    const updatedUserSnap = await getDoc(userRef);
+    if (!updatedUserSnap.exists()) throw new Error('User not found after SaaS PPP update.');
+    return { ...(updatedUserSnap.data() as User), userId: updatedUserSnap.id };
+}
+
+export async function incrementSaasPppAbandonmentCounter(userId: string): Promise<number> {
+    const { firestore: db } = getFirebase();
+
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const user = tour.users.find((entry) => entry.userId === userId);
+        if (!user) throw new Error('Tour user not found');
+        const scopedDealershipIds = getScopedDealershipIds(user);
+        const dealershipMap = new Map(tour.dealerships.map((dealership) => [dealership.id, dealership]));
+        const hasAccess = scopedDealershipIds.some((id) => isDealershipSaasPppEnabled(dealershipMap.get(id)));
+        if (!hasAccess) throw new Error('SaaS PPP is not enabled for this dealership.');
+
+        user.saas_ppp_enabled = hasAccess;
+        const current = Math.max(0, Math.round(Number(user.saas_ppp_abandonment_counter || 0)));
+        const next = current + 1;
+        user.saas_ppp_abandonment_counter = next;
+        return next;
+    }
+
+    const userRef = doc(db, 'users', userId);
+    let nextValue = 0;
+
+    await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error('User not found.');
+        const data = userSnap.data() as User;
+
+        const scopedDealershipIds = getScopedDealershipIds(data as User);
+        if (!scopedDealershipIds.length) {
+            throw new Error('SaaS PPP is not enabled for this dealership.');
+        }
+
+        const dealershipRefs = scopedDealershipIds.map((id) => doc(db, 'dealerships', id));
+        const dealershipSnaps = await Promise.all(dealershipRefs.map((ref) => transaction.get(ref)));
+        const hasAccess = dealershipSnaps.some((snap) => (
+            snap.exists() && isDealershipSaasPppEnabled(snap.data() as Partial<Dealership>)
+        ));
+        if (!hasAccess) {
+            throw new Error('SaaS PPP is not enabled for this dealership.');
+        }
+
+        const current = Math.max(0, Math.round(Number(data.saas_ppp_abandonment_counter || 0)));
+        nextValue = current + 1;
+        transaction.update(userRef, { saas_ppp_enabled: hasAccess, saas_ppp_abandonment_counter: nextValue });
+    });
+
+    return nextValue;
 }
 
 export async function sendMessage(
