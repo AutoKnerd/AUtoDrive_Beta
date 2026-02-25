@@ -695,6 +695,69 @@ export async function createInvitationLink(dealershipId: string, email: string, 
     return { url: responseData.inviteUrl };
 }
 
+export type EnrollmentLinkPreview = {
+    token: string;
+    dealershipId: string;
+    dealershipName: string;
+    allowedRoles: UserRole[];
+};
+
+export async function createDealershipEnrollmentLink(dealershipId: string, inviterId: string): Promise<{ url: string; allowedRoles: UserRole[] }> {
+    const { auth } = getFirebase();
+    if (isTouringUser(inviterId)) {
+        return { url: `http://localhost:9002/enroll?token=tour-enroll-${Math.random()}`, allowedRoles: ['Sales Consultant'] };
+    }
+
+    const idToken = await auth.currentUser?.getIdToken(true);
+    const response = await fetch('/api/admin/createEnrollmentLink', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ dealershipId }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'API Error while creating enrollment link.');
+    }
+
+    const responseData = await response.json();
+    return { url: responseData.inviteUrl, allowedRoles: responseData.allowedRoles || [] };
+}
+
+export async function getEnrollmentLinkByToken(token: string): Promise<EnrollmentLinkPreview> {
+    const response = await fetch(`/api/enrollment/${encodeURIComponent(token)}`, {
+        cache: 'no-store',
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload?.message || 'Enrollment link is invalid or expired.');
+    }
+
+    return payload as EnrollmentLinkPreview;
+}
+
+export async function claimDealershipEnrollment(token: string, role: UserRole): Promise<void> {
+    const { auth } = getFirebase();
+    const idToken = await auth.currentUser?.getIdToken(true);
+    const response = await fetch(`/api/enrollment/${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ token, role }),
+    });
+
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.message || 'Failed to claim enrollment link.');
+    }
+}
+
 export async function getPendingInvitations(dealershipId: string, user: User): Promise<PendingInvitation[]> {
     const { auth } = getFirebase();
     if (isTouringUser(user.userId)) return [];

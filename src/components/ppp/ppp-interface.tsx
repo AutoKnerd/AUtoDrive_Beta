@@ -389,9 +389,9 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
+    <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr] lg:[--ppp-panel-height:calc(100svh-15rem)]">
       {activeLesson && (
-        <Card className="order-1 flex min-h-[620px] flex-col lg:order-2">
+        <Card className="order-1 flex min-h-[620px] flex-col lg:order-2 lg:h-[var(--ppp-panel-height)] lg:max-h-[var(--ppp-panel-height)] lg:min-h-0 lg:overflow-hidden">
           <CardHeader className="border-b">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -415,8 +415,8 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
               </div>
             )}
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col gap-3 p-4">
-            <ScrollArea className="flex-1 rounded-md border p-3">
+          <CardContent className="flex flex-1 min-h-0 flex-col gap-3 p-4">
+            <ScrollArea className="min-h-0 flex-1 rounded-md border p-3">
               <div className="space-y-3">
                 {messages.map((message, index) => (
                   <div
@@ -476,7 +476,11 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
         </Card>
       )}
 
-      <Card className={activeLesson ? 'order-2 lg:order-1' : undefined}>
+      <Card
+        className={activeLesson
+          ? 'order-2 flex flex-col lg:order-1 lg:h-[var(--ppp-panel-height)] lg:max-h-[var(--ppp-panel-height)] lg:min-h-0 lg:overflow-hidden'
+          : undefined}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <Shield className="h-5 w-5 text-primary" />
@@ -486,7 +490,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
             Complete every lesson in sequence. Unlimited retries. XP only on pass.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={activeLesson ? 'space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto' : 'space-y-4'}>
           <div>
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>Current level completion</span>
