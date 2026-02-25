@@ -599,7 +599,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         {/* Header */}
         <header className="flex items-center justify-between">
             <Logo variant="full" width={183} height={61} />
-            <UserNav user={user} avatarClassName="h-14 w-14 border-2 border-primary/50" withBlur />
+            <UserNav user={user} avatarClassName="h-14 w-14" />
         </header>
 
         {isPaused && (

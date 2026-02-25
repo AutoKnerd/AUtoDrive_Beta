@@ -3,18 +3,20 @@
 import React from 'react';
 import { getTraitColor } from '@/lib/cx/skills';
 import type { ThemePreference } from '@/lib/definitions';
+import { cn } from '@/lib/utils';
 
 interface AvatarSoundRingProps {
   scores?: Record<string, number>;
   hasActivity?: boolean;
   themePreference?: ThemePreference;
+  className?: string;
 }
 
 /**
  * A circular soundwave frame for avatars that reacts to CX scores.
  * Colors and lengths are driven by the user's proficiency traits.
  */
-export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 'vibrant' }: AvatarSoundRingProps) {
+export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 'vibrant', className }: AvatarSoundRingProps) {
   // Mapping traits to the standard AutoDrive CX color grade
   const traits = [
     { id: 'empathy' }, 
@@ -29,7 +31,7 @@ export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 
   const barsPerTrait = barCount / traits.length;
   
   return (
-    <div className="absolute inset-[-25%] w-[150%] h-[150%] pointer-events-none select-none">
+    <div className={cn("absolute inset-[-25%] w-[150%] h-[150%] pointer-events-none select-none", className)}>
       <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
         <defs>
           <filter id="sound-glow" x="-50%" y="-50%" width="200%" height="200%">
