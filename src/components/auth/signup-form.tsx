@@ -64,39 +64,31 @@ export function SignupForm() {
         description: 'Your 30-day trial is active. Opening Stripe Checkout…',
       });
 
-      // This is a Server Action that will redirect the browser to Stripe.
-      await createIndividualCheckoutSession(idToken);
+      try {
+        // This is a Server Action that will redirect the browser to Stripe.
+        await createIndividualCheckoutSession(idToken);
+        // Fallback (should rarely happen because the Server Action redirects)
+        router.push('/');
+      } catch (error: any) {
+        // Next.js redirect() in server actions throws a control-flow error.
+        if (error?.message === 'NEXT_REDIRECT' || String(error?.digest || '').includes('NEXT_REDIRECT')) {
+          return;
+        }
 
-      // Fallback (should rarely happen because the Server Action redirects)
-      router.push('/');
-    } catch (error: any) {
-      // Next.js redirect() in server actions throws a control-flow error.
-      // Do not treat it as a registration failure toast in the client.
-      if (error?.message === 'NEXT_REDIRECT' || String(error?.digest || '').includes('NEXT_REDIRECT')) {
-        return;
-      }
-
-      // The account may already be created while billing setup is still being configured.
-      // Keep the user moving with trial access.
-      if (typeof error?.message === 'string' && (
-        error.message.includes('Missing Stripe price ID') ||
-        error.message.includes('Missing APP_URL') ||
-        error.message.includes('Billing is not fully configured')
-      )) {
+        console.error('[Signup] Checkout session bootstrap failed after account creation:', error);
         toast({
           title: 'Account Created',
-          description: 'Your account is created. Complete billing setup to start your trial.',
+          description: 'Your account is ready. Continue billing setup from the next screen.',
         });
-        setIsSubmitting(false);
         router.push('/subscribe');
-        return;
       }
-
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Registration Failed',
         description: error.message || 'An unexpected error occurred.',
       });
+    } finally {
       setIsSubmitting(false);
     }
   }
