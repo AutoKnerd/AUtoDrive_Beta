@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Message } from '@/lib/definitions';
 import { useAuth } from '@/hooks/use-auth';
@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, User as UserIcon, MessageSquare, CreditCard, Undo2, Home } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AvatarSoundRing } from '@/components/profile/avatar-sound-ring';
+import { cn } from '@/lib/utils';
 
 function MessageItem({ message }: { message: Message }) {
     const [relativeTime, setRelativeTime] = useState('');
@@ -70,6 +72,12 @@ interface UserNavProps {
   withBlur?: boolean;
 }
 
+function normalizeAvatarScore(value: unknown): number {
+    const numeric = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(numeric)) return 60;
+    return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
 export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProps) {
     const { logout, originalUser, setUser } = useAuth();
     const router = useRouter();
@@ -119,16 +127,37 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
     };
 
     const isViewingAsDifferentRole = originalUser && user.role !== originalUser.role;
+    const avatarThemePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
+
+    const avatarScores = useMemo(() => {
+        if (!user.stats) return undefined;
+        return {
+            empathy: normalizeAvatarScore(user.stats.empathy?.score),
+            listening: normalizeAvatarScore(user.stats.listening?.score),
+            trust: normalizeAvatarScore(user.stats.trust?.score),
+            followUp: normalizeAvatarScore(user.stats.followUp?.score),
+            closing: normalizeAvatarScore(user.stats.closing?.score),
+            relationshipBuilding: normalizeAvatarScore(user.stats.relationship?.score),
+        };
+    }, [user.stats]);
+
+    const hasAvatarActivity = useMemo(() => {
+        if (!avatarScores) return false;
+        return Object.values(avatarScores).some((value) => value > 0);
+    }, [avatarScores]);
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleMessagesDialogOpen}>
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-auto w-auto rounded-full focus-visible:ring-0 focus-visible:ring-offset-0 p-0">
-                <Avatar className={avatarClassName}>
-                    <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="person portrait" />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                    <AvatarSoundRing scores={avatarScores} hasActivity={hasAvatarActivity} themePreference={avatarThemePreference} />
+                    <Avatar className={cn("relative z-10 border border-primary/70", avatarClassName)}>
+                        <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="person portrait" />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                </div>
                 {withBlur && <div className="absolute inset-0 rounded-full border-2 border-primary blur-md dark:border-cyan-400" />}
                 {isClient && unreadCount > 0 && (
                 <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-background" />
