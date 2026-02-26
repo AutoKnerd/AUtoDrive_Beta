@@ -11,6 +11,10 @@ import { DEFAULT_TRIAL_DAYS } from '@/lib/billing/trial';
 
 type BillingCycle = 'monthly' | 'annual';
 
+type CheckoutSessionResult =
+  | { ok: true; url: string }
+  | { ok: false; message: string };
+
 async function getAppUrl(): Promise<string> {
   const requestHeaders = await headers();
   const host = requestHeaders.get('x-forwarded-host') || requestHeaders.get('host');
@@ -143,7 +147,7 @@ async function ensureDealershipCustomer(dealershipId: string, dealershipData: Pa
   return customer.id;
 }
 
-async function createIndividualSession(userId: string, billingCycle: BillingCycle) {
+async function createIndividualSessionUrl(userId: string, billingCycle: BillingCycle): Promise<string> {
   const adminDb = getAdminDb();
   const stripe = getStripe();
   const appUrl = await getAppUrl();
@@ -188,7 +192,12 @@ async function createIndividualSession(userId: string, billingCycle: BillingCycl
     throw new Error('Stripe did not return a checkout URL.');
   }
 
-  redirect(session.url);
+  return session.url;
+}
+
+async function createIndividualSession(userId: string, billingCycle: BillingCycle) {
+  const sessionUrl = await createIndividualSessionUrl(userId, billingCycle);
+  redirect(sessionUrl);
 }
 
 export async function createCheckoutSession(userId: string, billingCycle: BillingCycle = 'monthly') {
@@ -199,6 +208,25 @@ export async function createIndividualCheckoutSession(idToken: string, billingCy
   const adminAuth = getAdminAuth();
   const decoded = await adminAuth.verifyIdToken(idToken);
   await createIndividualSession(decoded.uid, billingCycle);
+}
+
+export async function createIndividualCheckoutSessionUrl(
+  idToken: string,
+  billingCycle: BillingCycle = 'monthly'
+): Promise<CheckoutSessionResult> {
+  try {
+    const adminAuth = getAdminAuth();
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    const url = await createIndividualSessionUrl(decoded.uid, billingCycle);
+    return { ok: true, url };
+  } catch (error: any) {
+    const message = typeof error?.message === 'string'
+      ? error.message
+      : 'Could not start Stripe checkout. Please verify billing environment variables.';
+
+    console.error('[Stripe] createIndividualCheckoutSessionUrl failed:', error);
+    return { ok: false, message };
+  }
 }
 
 export async function createDealershipCheckoutSession(input: {

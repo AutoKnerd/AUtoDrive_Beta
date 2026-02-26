@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
-import { createIndividualCheckoutSession } from '@/app/actions/stripe';
+import { createIndividualCheckoutSessionUrl } from '@/app/actions/stripe';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,20 +65,17 @@ export function SignupForm() {
       });
 
       try {
-        // This is a Server Action that will redirect the browser to Stripe.
-        await createIndividualCheckoutSession(idToken);
-        // Fallback (should rarely happen because the Server Action redirects)
-        router.push('/');
-      } catch (error: any) {
-        // Next.js redirect() in server actions throws a control-flow error.
-        if (error?.message === 'NEXT_REDIRECT' || String(error?.digest || '').includes('NEXT_REDIRECT')) {
-          return;
+        const checkout = await createIndividualCheckoutSessionUrl(idToken);
+        if (!checkout.ok) {
+          throw new Error(checkout.message);
         }
 
+        window.location.assign(checkout.url);
+      } catch (error: any) {
         console.error('[Signup] Checkout session bootstrap failed after account creation:', error);
         toast({
           title: 'Account Created',
-          description: 'Your account is ready. Continue billing setup from the next screen.',
+          description: error?.message || 'Your account is ready. Continue billing setup from the next screen.',
         });
         router.push('/subscribe');
       }
