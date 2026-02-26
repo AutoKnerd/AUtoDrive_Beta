@@ -19,13 +19,50 @@ const allowedInviterRoles = new Set<UserRole>([
 
 const globalRoles = new Set<UserRole>(['Admin', 'Developer', 'Trainer']);
 
-function getPublicOrigin(req: Request): string {
-  const explicit = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
-  if (explicit) return explicit.replace(/\/$/, '');
+function normalizeOrigin(raw?: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return null;
+  }
+}
 
-  const proto = req.headers.get('x-forwarded-proto') || 'http';
-  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-  if (host) return `${proto}://${host}`;
+function hostFromOrigin(raw?: string | null): string | null {
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalHost(host?: string | null): boolean {
+  if (!host) return false;
+  const normalized = host.toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1';
+}
+
+function getPublicOrigin(req: Request): string {
+  const explicit = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL);
+  const explicitHost = hostFromOrigin(explicit);
+
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  const forwardedHostRaw = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const forwardedHost = forwardedHostRaw?.split(',')[0]?.trim() || null;
+  const forwardedOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : null;
+  const forwardedHostName = forwardedHost?.split(':')[0] || null;
+
+  // If explicit URL is non-local, trust it.
+  if (explicit && !isLocalHost(explicitHost)) return explicit;
+
+  // If explicit is local but current request is non-local, prefer request host.
+  if (forwardedOrigin && !isLocalHost(forwardedHostName)) return forwardedOrigin;
+
+  // Fallback to explicit/local and then request host.
+  if (explicit) return explicit;
+  if (forwardedOrigin) return forwardedOrigin;
 
   return 'http://localhost:3000';
 }

@@ -104,7 +104,11 @@ export function CxSoundwaveCard({
     else if (range === '7d') days = 7;
     else if (range === '90d') days = 90;
 
-    const shouldAnchor = (viewMode === 'personal' && personalScope) || (viewMode === 'team');
+    const shouldAnchor = Boolean(
+      anchoredScores &&
+      Object.values(anchoredScores).some((score) => typeof score === 'number' && Number.isFinite(score))
+    );
+
     return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince, themePreference);
   }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince, themePreference]);
 

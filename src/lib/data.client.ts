@@ -59,6 +59,17 @@ const getTourIdFromEmail = (email?: string | null): string | null => {
     return tourUserEmails[email.toLowerCase()] || null;
 };
 
+function getClientOrigin(): string {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        return window.location.origin.replace(/\/$/, '');
+    }
+
+    const configured = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+    if (configured) return configured.replace(/\/$/, '');
+
+    return 'http://localhost:3000';
+}
+
 function getScopedDealershipIds(user: User, dealershipId?: string | null): string[] {
     if (dealershipId && dealershipId !== 'all') {
         return [dealershipId];
@@ -670,7 +681,7 @@ export async function claimInvitation(token: string): Promise<void> {
 
 export async function createInvitationLink(dealershipId: string, email: string, role: UserRole, inviterId: string): Promise<{ url: string }> {
     const { auth } = getFirebase();
-    if (isTouringUser(inviterId)) return { url: `http://localhost:9002/register?token=tour-fake-token-${Math.random()}` };
+    if (isTouringUser(inviterId)) return { url: `${getClientOrigin()}/register?token=tour-fake-token-${Math.random()}` };
 
     const inviter = await getUserById(inviterId);
     if (!inviter) throw new Error("Inviter not found.");
@@ -704,7 +715,7 @@ export type EnrollmentLinkPreview = {
 export async function createDealershipEnrollmentLink(dealershipId: string, inviterId: string): Promise<{ url: string; allowedRoles: UserRole[] }> {
     const { auth } = getFirebase();
     if (isTouringUser(inviterId)) {
-        return { url: `http://localhost:9002/enroll?token=tour-enroll-${Math.random()}`, allowedRoles: ['Sales Consultant'] };
+        return { url: `${getClientOrigin()}/enroll?token=tour-enroll-${Math.random()}`, allowedRoles: ['Sales Consultant'] };
     }
 
     const idToken = await auth.currentUser?.getIdToken(true);
@@ -1486,10 +1497,99 @@ function hasUsableStats(user: User): boolean {
     });
 }
 
+function extractStatScore(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return clampScore(value);
+    }
+
+    if (value && typeof value === 'object' && 'score' in (value as Record<string, unknown>)) {
+        const nested = (value as Record<string, unknown>).score;
+        if (typeof nested === 'number' && Number.isFinite(nested)) {
+            return clampScore(nested);
+        }
+    }
+
+    return null;
+}
+
+function getTraitScoresFromUserStats(user: User): Record<CxTrait, number> | null {
+    const stats = user.stats;
+    if (!stats) return null;
+
+    const empathy = extractStatScore(stats.empathy);
+    const listening = extractStatScore(stats.listening);
+    const trust = extractStatScore(stats.trust);
+    const followUp = extractStatScore(stats.followUp);
+    const closing = extractStatScore(stats.closing);
+    const relationship = extractStatScore(
+        (stats as Record<string, unknown>).relationship
+        ?? (stats as Record<string, unknown>).relationshipBuilding
+    );
+
+    if (
+        empathy === null
+        && listening === null
+        && trust === null
+        && followUp === null
+        && closing === null
+        && relationship === null
+    ) {
+        return null;
+    }
+
+    return {
+        empathy: empathy ?? BASELINE,
+        listening: listening ?? BASELINE,
+        trust: trust ?? BASELINE,
+        followUp: followUp ?? BASELINE,
+        closing: closing ?? BASELINE,
+        relationshipBuilding: relationship ?? BASELINE,
+    };
+}
+
+function buildStatsFromTraitScores(scores: Record<CxTrait, number>, timestamp: Date): User['stats'] {
+    return {
+        empathy: { score: clampScore(scores.empathy), lastUpdated: timestamp },
+        listening: { score: clampScore(scores.listening), lastUpdated: timestamp },
+        trust: { score: clampScore(scores.trust), lastUpdated: timestamp },
+        followUp: { score: clampScore(scores.followUp), lastUpdated: timestamp },
+        closing: { score: clampScore(scores.closing), lastUpdated: timestamp },
+        relationship: { score: clampScore(scores.relationshipBuilding), lastUpdated: timestamp },
+    };
+}
+
 function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivityRow {
     const consultantSnapshot = cloneTourUser(consultant);
+    const traits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
 
     if (!logs.length) {
+        const traitScores = getTraitScoresFromUserStats(consultantSnapshot);
+        if (traitScores) {
+            if (!hasUsableStats(consultantSnapshot)) {
+                consultantSnapshot.stats = buildStatsFromTraitScores(traitScores, new Date());
+            }
+
+            const topStrength = traits.reduce((best, trait) => (
+                traitScores[trait] > traitScores[best] ? trait : best
+            ), traits[0]);
+            const weakestSkill = traits.reduce((weakest, trait) => (
+                traitScores[trait] < traitScores[weakest] ? trait : weakest
+            ), traits[0]);
+            const avgScore = Math.round(
+                traits.reduce((sum, trait) => sum + traitScores[trait], 0) / traits.length
+            );
+
+            return {
+                consultant: consultantSnapshot,
+                lessonsCompleted: 0,
+                totalXp: consultant.xp,
+                avgScore,
+                topStrength,
+                weakestSkill,
+                lastInteraction: null,
+            };
+        }
+
         return {
             consultant: consultantSnapshot,
             lessonsCompleted: 0,
@@ -1501,7 +1601,6 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
         };
     }
 
-    const traits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
     const totals = logs.reduce((acc, log) => {
         acc.empathy += log.empathy || 0;
         acc.listening += log.listening || 0;
@@ -1559,6 +1658,35 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
 }
 
 function buildManagerStatsFromRows(rows: TeamActivityRow[], logsByUserId: Map<string, LessonLog[]>): ManagerStats {
+    const snapshotScores = rows
+        .map((row) => getTraitScoresFromUserStats(row.consultant))
+        .filter((scores): scores is Record<CxTrait, number> => scores !== null);
+
+    if (snapshotScores.length) {
+        const totals = snapshotScores.reduce((acc, score) => {
+            acc.empathy += score.empathy;
+            acc.listening += score.listening;
+            acc.trust += score.trust;
+            acc.followUp += score.followUp;
+            acc.closing += score.closing;
+            acc.relationshipBuilding += score.relationshipBuilding;
+            return acc;
+        }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
+
+        const memberCount = snapshotScores.length;
+        return {
+            totalLessons: rows.reduce((sum, row) => sum + row.lessonsCompleted, 0),
+            avgScores: {
+                empathy: Math.round(totals.empathy / memberCount),
+                listening: Math.round(totals.listening / memberCount),
+                trust: Math.round(totals.trust / memberCount),
+                followUp: Math.round(totals.followUp / memberCount),
+                closing: Math.round(totals.closing / memberCount),
+                relationshipBuilding: Math.round(totals.relationshipBuilding / memberCount),
+            },
+        };
+    }
+
     const memberLogs = rows.flatMap(row => logsByUserId.get(row.consultant.userId) || []);
     if (!memberLogs.length) {
         return { totalLessons: 0, avgScores: null };

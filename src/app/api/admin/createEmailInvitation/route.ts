@@ -5,17 +5,45 @@ import { UserRole, Dealership, User } from '@/lib/definitions';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+function normalizeOrigin(raw?: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return null;
+  }
+}
+
+function hostFromOrigin(raw?: string | null): string | null {
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalHost(host?: string | null): boolean {
+  if (!host) return false;
+  const normalized = host.toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1';
+}
+
 function getPublicOrigin(req: Request) {
-  // Prefer an explicit public URL in production.
-  const explicit = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
-  if (explicit) return explicit.replace(/\/$/, '');
+  const explicit = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL);
+  const explicitHost = hostFromOrigin(explicit);
 
-  // Otherwise, attempt to derive from forwarded headers (Firebase/App Hosting, proxies, etc.).
-  const proto = req.headers.get('x-forwarded-proto') || 'http';
-  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-  if (host) return `${proto}://${host}`;
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  const forwardedHostRaw = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const forwardedHost = forwardedHostRaw?.split(',')[0]?.trim() || null;
+  const forwardedOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : null;
+  const forwardedHostName = forwardedHost?.split(':')[0] || null;
 
-  // Local dev fallback.
+  if (explicit && !isLocalHost(explicitHost)) return explicit;
+  if (forwardedOrigin && !isLocalHost(forwardedHostName)) return forwardedOrigin;
+  if (explicit) return explicit;
+  if (forwardedOrigin) return forwardedOrigin;
   return 'http://localhost:3000';
 }
 
