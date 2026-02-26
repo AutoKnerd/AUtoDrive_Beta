@@ -24,17 +24,11 @@ interface InviteUserFormProps {
 }
 
 const directInviteSchema = z.object({
-  dealershipId: z.string().min(1, 'A dealership must be selected.'),
   userEmail: z.string().email('Please enter a valid email address.'),
   role: z.string().min(1, "A role must be selected."),
 });
 
-const dealershipLinkSchema = z.object({
-  dealershipId: z.string().min(1, 'A dealership must be selected.'),
-});
-
 type DirectInviteFormValues = z.infer<typeof directInviteSchema>;
-type DealershipLinkFormValues = z.infer<typeof dealershipLinkSchema>;
 
 type InviteMode = 'direct' | 'dealership-link';
 
@@ -48,6 +42,7 @@ type GeneratedLink = {
 
 export function RegisterDealershipForm({ user, dealerships, onUserInvited }: InviteUserFormProps) {
   const [mode, setMode] = useState<InviteMode>('direct');
+  const [selectedDealershipId, setSelectedDealershipId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedLink, setGeneratedLink] = useState<GeneratedLink | null>(null);
   const [isNativeShareSupported, setIsNativeShareSupported] = useState(false);
@@ -67,26 +62,28 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
   const directInviteForm = useForm<DirectInviteFormValues>({
     resolver: zodResolver(directInviteSchema),
     defaultValues: {
-      dealershipId: '',
       userEmail: '',
       role: '',
-    },
-  });
-
-  const dealershipLinkForm = useForm<DealershipLinkFormValues>({
-    resolver: zodResolver(dealershipLinkSchema),
-    defaultValues: {
-      dealershipId: '',
     },
   });
   
   useEffect(() => {
     // Pre-select dealership if user only belongs to one
     if (managedDealerships.length === 1 && !isAdmin) {
-      directInviteForm.setValue('dealershipId', managedDealerships[0].id);
-      dealershipLinkForm.setValue('dealershipId', managedDealerships[0].id);
+      setSelectedDealershipId(managedDealerships[0].id);
+      return;
     }
-  }, [managedDealerships, isAdmin, directInviteForm, dealershipLinkForm]);
+    if (managedDealerships.length === 0) {
+      setSelectedDealershipId('');
+      return;
+    }
+    if (
+      selectedDealershipId.length > 0 &&
+      !managedDealerships.some((dealership) => dealership.id === selectedDealershipId)
+    ) {
+      setSelectedDealershipId('');
+    }
+  }, [managedDealerships, isAdmin, selectedDealershipId]);
 
   useEffect(() => {
     if (generatedLink && inputRef.current) {
@@ -100,16 +97,25 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
 
 
   async function onSubmitDirect(data: DirectInviteFormValues) {
+    if (!selectedDealershipId) {
+      toast({
+        variant: 'destructive',
+        title: 'Dealership required',
+        description: 'Please select a dealership before creating an invitation.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setGeneratedLink(null);
 
     try {
-      const { url } = await createInvitationLink(data.dealershipId, data.userEmail, data.role as UserRole, user.userId);
+      const { url } = await createInvitationLink(selectedDealershipId, data.userEmail, data.role as UserRole, user.userId);
       setGeneratedLink({
         mode: 'direct',
         url,
         userEmail: data.userEmail,
-        dealershipName: managedDealerships.find((dealership) => dealership.id === data.dealershipId)?.name,
+        dealershipName: managedDealerships.find((dealership) => dealership.id === selectedDealershipId)?.name,
       });
 
       toast({
@@ -133,13 +139,22 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
     }
   }
 
-  async function onSubmitDealershipLink(data: DealershipLinkFormValues) {
+  async function onSubmitDealershipLink() {
+    if (!selectedDealershipId) {
+      toast({
+        variant: 'destructive',
+        title: 'Dealership required',
+        description: 'Please select a dealership before generating the enrollment link.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setGeneratedLink(null);
 
     try {
-      const { url, allowedRoles } = await createDealershipEnrollmentLink(data.dealershipId, user.userId);
-      const dealershipName = managedDealerships.find((dealership) => dealership.id === data.dealershipId)?.name;
+      const { url, allowedRoles } = await createDealershipEnrollmentLink(selectedDealershipId, user.userId);
+      const dealershipName = managedDealerships.find((dealership) => dealership.id === selectedDealershipId)?.name;
 
       setGeneratedLink({
         mode: 'dealership-link',
@@ -270,8 +285,8 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
     );
   }
 
-  const renderDealershipSelect = (field: { value: string; onChange: (value: string) => void }) => (
-    <Select onValueChange={field.onChange} value={field.value}>
+  const renderDealershipSelect = () => (
+    <Select onValueChange={setSelectedDealershipId} value={selectedDealershipId}>
       <FormControl>
         <SelectTrigger>
           <SelectValue placeholder="Select a dealership..." />
@@ -300,17 +315,10 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
       {mode === 'direct' ? (
         <Form {...directInviteForm}>
           <form onSubmit={directInviteForm.handleSubmit(onSubmitDirect)} className="grid gap-4 py-2">
-            <FormField
-              control={directInviteForm.control}
-              name="dealershipId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Dealership</FormLabel>
-                  {renderDealershipSelect(field)}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormItem>
+              <FormLabel>Dealership</FormLabel>
+              {renderDealershipSelect()}
+            </FormItem>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField
                 control={directInviteForm.control}
@@ -351,33 +359,24 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
                 )}
               />
             </div>
-            <Button type="submit" disabled={isSubmitting || registrationRoles.length === 0 || dealerships.length === 0}>
+            <Button type="submit" disabled={isSubmitting || registrationRoles.length === 0 || dealerships.length === 0 || !selectedDealershipId}>
               {isSubmitting ? <Spinner size="sm" /> : 'Create Invitation Link'}
             </Button>
           </form>
         </Form>
       ) : (
-        <Form {...dealershipLinkForm}>
-          <form onSubmit={dealershipLinkForm.handleSubmit(onSubmitDealershipLink)} className="grid gap-4 py-2">
-            <FormField
-              control={dealershipLinkForm.control}
-              name="dealershipId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Dealership</FormLabel>
-                  {renderDealershipSelect(field)}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div className="grid gap-4 py-2">
+            <FormItem>
+              <FormLabel>Dealership</FormLabel>
+              {renderDealershipSelect()}
+            </FormItem>
             <p className="text-xs text-muted-foreground">
               Generates a reusable QR/link that pre-assigns users to this dealership and lets them choose an allowed role during enrollment.
             </p>
-            <Button type="submit" disabled={isSubmitting || dealerships.length === 0}>
+            <Button type="button" onClick={onSubmitDealershipLink} disabled={isSubmitting || dealerships.length === 0 || !selectedDealershipId}>
               {isSubmitting ? <Spinner size="sm" /> : 'Create Dealership Enrollment Link'}
             </Button>
-          </form>
-        </Form>
+          </div>
       )}
     </div>
   );
