@@ -52,18 +52,35 @@ export async function GET(req: Request) {
     }
 
     const isGlobalRole = globalRoles.has(user.role);
-    const hasDealershipAccess = Array.isArray(user.dealershipIds) && user.dealershipIds.includes(dealershipId);
-    if (!isGlobalRole && !hasDealershipAccess) {
-      return NextResponse.json({ message: 'Forbidden: No access to this dealership.' }, { status: 403 });
-    }
+    let snapshot;
+    let scopedDealershipIds: string[] | null = null;
 
-    const snapshot = await adminDb
-      .collection('emailInvitations')
-      .where('dealershipId', '==', dealershipId)
-      .get();
+    if (dealershipId === 'all') {
+      if (isGlobalRole) {
+        snapshot = await adminDb.collection('emailInvitations').where('claimed', '==', false).get();
+      } else {
+        scopedDealershipIds = Array.isArray(user.dealershipIds) ? user.dealershipIds : [];
+        if (scopedDealershipIds.length === 0) {
+          return NextResponse.json({ pendingInvitations: [] }, { status: 200 });
+        }
+        snapshot = await adminDb.collection('emailInvitations').where('claimed', '==', false).get();
+      }
+    } else {
+      const hasDealershipAccess = Array.isArray(user.dealershipIds) && user.dealershipIds.includes(dealershipId);
+      if (!isGlobalRole && !hasDealershipAccess) {
+        return NextResponse.json({ message: 'Forbidden: No access to this dealership.' }, { status: 403 });
+      }
+      snapshot = await adminDb
+        .collection('emailInvitations')
+        .where('dealershipId', '==', dealershipId)
+        .get();
+    }
 
     const pendingInvitations = snapshot.docs
       .map((doc) => ({ token: doc.id, ...doc.data() }))
+      .filter((invite: any) => (
+        !scopedDealershipIds || scopedDealershipIds.includes(invite.dealershipId)
+      ))
       .filter((invite: any) => !invite.claimed)
       .sort((a: any, b: any) => {
         const aMs = a.createdAt?.toDate?.()?.getTime?.() ?? 0;

@@ -9,6 +9,7 @@ import { createDealershipEnrollmentLink, createInvitationLink, getTeamMemberRole
 import { User, UserRole, Dealership, allRoles } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -287,11 +288,9 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
 
   const renderDealershipSelect = () => (
     <Select onValueChange={setSelectedDealershipId} value={selectedDealershipId}>
-      <FormControl>
-        <SelectTrigger>
-          <SelectValue placeholder="Select a dealership..." />
-        </SelectTrigger>
-      </FormControl>
+      <SelectTrigger>
+        <SelectValue placeholder="Select a dealership..." />
+      </SelectTrigger>
       <SelectContent>
         {managedDealerships.map((dealership) => (
           <SelectItem key={dealership.id} value={dealership.id}>{dealership.name}</SelectItem>
@@ -315,10 +314,10 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
       {mode === 'direct' ? (
         <Form {...directInviteForm}>
           <form onSubmit={directInviteForm.handleSubmit(onSubmitDirect)} className="grid gap-4 py-2">
-            <FormItem>
-              <FormLabel>Dealership</FormLabel>
+            <div className="space-y-2">
+              <Label>Dealership</Label>
               {renderDealershipSelect()}
-            </FormItem>
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField
                 control={directInviteForm.control}
@@ -366,10 +365,10 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
         </Form>
       ) : (
         <div className="grid gap-4 py-2">
-            <FormItem>
-              <FormLabel>Dealership</FormLabel>
+            <div className="space-y-2">
+              <Label>Dealership</Label>
               {renderDealershipSelect()}
-            </FormItem>
+            </div>
             <p className="text-xs text-muted-foreground">
               Generates a reusable QR/link that pre-assigns users to this dealership and lets them choose an allowed role during enrollment.
             </p>
