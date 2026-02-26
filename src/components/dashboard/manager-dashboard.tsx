@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { calculateLevel } from '@/lib/xp';
 import { Logo } from '@/components/layout/logo';
 import { BadgeShowcase } from '../profile/badge-showcase';
+import { AvatarSoundRing } from '../profile/avatar-sound-ring';
 import { ManageDealershipForm } from '../admin/ManageDealershipForm';
 import { SendMessageForm } from '../messenger/send-message-form';
 import { UserNav } from '../layout/user-nav';
@@ -68,6 +69,67 @@ const dashboardFeatureCardClass =
   'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
 const dashboardDisabledButtonClass =
   'w-full border-border bg-muted/70 text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50';
+
+function resolveThemePreference(value: unknown, useProfessionalTheme?: boolean): ThemePreference {
+  const raw = String(value || '').trim().toLowerCase();
+
+  if (raw === 'vibrant' || raw.includes('vibrant neon')) return 'vibrant';
+  if (raw === 'executive' || raw.includes('elite executive')) return 'executive';
+  if (raw === 'steel' || raw.includes('professional steel')) return 'steel';
+
+  return useProfessionalTheme ? 'executive' : 'vibrant';
+}
+
+function normalizeAvatarScore(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 60;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+function extractStatScore(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (raw && typeof raw === 'object' && 'score' in (raw as Record<string, unknown>)) {
+    const nested = (raw as Record<string, unknown>).score;
+    const numeric = typeof nested === 'number' ? nested : Number(nested);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric)) return numeric;
+  return null;
+}
+
+function getUserAvatarScores(member: User) {
+  const stats = member.stats as Record<string, unknown> | undefined;
+  if (!stats) return undefined;
+
+  // Support both current nested shape ({ score, lastUpdated }) and legacy numeric shape.
+  const empathy = extractStatScore(stats.empathy);
+  const listening = extractStatScore(stats.listening);
+  const trust = extractStatScore(stats.trust);
+  const followUp = extractStatScore(stats.followUp);
+  const closing = extractStatScore(stats.closing);
+  const relationship = extractStatScore(stats.relationship ?? stats.relationshipBuilding);
+
+  if (
+    empathy === null &&
+    listening === null &&
+    trust === null &&
+    followUp === null &&
+    closing === null &&
+    relationship === null
+  ) {
+    return undefined;
+  }
+
+  return {
+    empathy: normalizeAvatarScore(empathy ?? 60),
+    listening: normalizeAvatarScore(listening ?? 60),
+    trust: normalizeAvatarScore(trust ?? 60),
+    followUp: normalizeAvatarScore(followUp ?? 60),
+    closing: normalizeAvatarScore(closing ?? 60),
+    relationshipBuilding: normalizeAvatarScore(relationship ?? 60),
+  };
+}
 
 function LevelDisplay({ user }: { user: User }) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
@@ -164,10 +226,29 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             getPppAccessForUser(user, dealershipId).catch(() => false),
             getSaasPppAccessForUser(user, dealershipId).catch(() => false),
           ]);
+
+          const manageableById = new Map<string, User>(
+            usersToManage.map((manageableUser) => [manageableUser.userId, manageableUser])
+          );
+
+          const hydratedTeamRows: TeamMemberStats[] = combinedData.teamActivity.map((row: TeamMemberStats) => {
+            const freshUser = manageableById.get(row.consultant.userId);
+            if (!freshUser) return row;
+
+            return {
+              ...row,
+              consultant: {
+                ...row.consultant,
+                ...freshUser,
+                stats: freshUser.stats ?? row.consultant.stats,
+                avatarUrl: freshUser.avatarUrl || row.consultant.avatarUrl,
+              },
+            };
+          });
           
           setStats(combinedData.managerStats);
           const teamActivityByUserId = new Map<string, TeamMemberStats>(
-            combinedData.teamActivity.map((row: TeamMemberStats) => [row.consultant.userId, row])
+            hydratedTeamRows.map((row: TeamMemberStats) => [row.consultant.userId, row])
           );
 
           const visibleActiveUsers = usersToManage.filter((u) => {
@@ -544,7 +625,80 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                             <TableBody>
                                 {sortedTeamActivity.length > 0 ? sortedTeamActivity.map(member => (
                                     <Dialog key={member.consultant.userId}>
-                                        <DialogTrigger asChild><TableRow className="cursor-pointer"><TableCell><div className="flex items-center gap-3"><Avatar><AvatarImage src={member.consultant.avatarUrl} /><AvatarFallback>{formatUserDisplayName(member.consultant.name, member.consultant.email).charAt(0)}</AvatarFallback></Avatar><div><p className="font-medium">{formatUserDisplayName(member.consultant.name, member.consultant.email)}</p><p className="text-sm text-muted-foreground">{!!member.pendingInvite ? 'Pending invitation' : `Level ${calculateLevel(member.consultant.xp).level}`}</p></div></div></TableCell><TableCell><div className="flex items-center gap-2"><UiBadge variant="outline">{member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}</UiBadge>{!!member.pendingInvite && <UiBadge variant="secondary">Invited</UiBadge>}</div></TableCell><TableCell className="text-center font-medium">{!!member.pendingInvite ? '-' : isMetricsHiddenForViewer(member.consultant) ? 'Private' : member.lastInteraction ? new Date(member.lastInteraction).toLocaleDateString() : 'New'}</TableCell><TableCell className="text-center font-medium">{!!member.pendingInvite ? '-' : isMetricsHiddenForViewer(member.consultant) ? 'Private' : formatTrait(member.topStrength)}</TableCell><TableCell className="text-center font-medium">{!!member.pendingInvite ? '-' : isMetricsHiddenForViewer(member.consultant) ? 'Private' : formatTrait(member.weakestSkill)}</TableCell></TableRow></DialogTrigger>
+                                        <DialogTrigger asChild>
+                                          <TableRow className="cursor-pointer">
+                                            <TableCell>
+                                              <div className="flex items-center gap-3">
+                                                {(() => {
+                                                  const memberName = formatUserDisplayName(member.consultant.name, member.consultant.email);
+                                                  const avatarScores = getUserAvatarScores(member.consultant);
+                                                  const hasAvatarActivity =
+                                                    !member.pendingInvite
+                                                    && !!avatarScores
+                                                    && Object.values(avatarScores).some((value) => value > 0);
+                                                  const avatarThemePreference = resolveThemePreference(
+                                                    member.consultant.themePreference,
+                                                    member.consultant.useProfessionalTheme
+                                                  );
+
+                                                  return (
+                                                    <>
+                                                      <div className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                                                        <AvatarSoundRing
+                                                          scores={avatarScores}
+                                                          hasActivity={hasAvatarActivity}
+                                                          themePreference={avatarThemePreference}
+                                                          className="inset-[-33%] h-[166%] w-[166%]"
+                                                        />
+                                                        <Avatar className="relative z-10 h-full w-full border-2 border-slate-700">
+                                                          <AvatarImage src={member.consultant.avatarUrl} />
+                                                          <AvatarFallback>{memberName.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                      </div>
+                                                      <div>
+                                                        <p className="font-medium">{memberName}</p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                          {!!member.pendingInvite ? 'Pending invitation' : `Level ${calculateLevel(member.consultant.xp).level}`}
+                                                        </p>
+                                                      </div>
+                                                    </>
+                                                  );
+                                                })()}
+                                              </div>
+                                            </TableCell>
+                                            <TableCell>
+                                              <div className="flex items-center gap-2">
+                                                <UiBadge variant="outline">
+                                                  {member.consultant.role === 'manager' ? 'Sales Manager' : member.consultant.role}
+                                                </UiBadge>
+                                                {!!member.pendingInvite && <UiBadge variant="secondary">Invited</UiBadge>}
+                                              </div>
+                                            </TableCell>
+                                            <TableCell className="text-center font-medium">
+                                              {!!member.pendingInvite
+                                                ? '-'
+                                                : isMetricsHiddenForViewer(member.consultant)
+                                                  ? 'Private'
+                                                  : member.lastInteraction
+                                                    ? new Date(member.lastInteraction).toLocaleDateString()
+                                                    : 'New'}
+                                            </TableCell>
+                                            <TableCell className="text-center font-medium">
+                                              {!!member.pendingInvite
+                                                ? '-'
+                                                : isMetricsHiddenForViewer(member.consultant)
+                                                  ? 'Private'
+                                                  : formatTrait(member.topStrength)}
+                                            </TableCell>
+                                            <TableCell className="text-center font-medium">
+                                              {!!member.pendingInvite
+                                                ? '-'
+                                                : isMetricsHiddenForViewer(member.consultant)
+                                                  ? 'Private'
+                                                  : formatTrait(member.weakestSkill)}
+                                            </TableCell>
+                                          </TableRow>
+                                        </DialogTrigger>
                                         <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Performance Snapshot</DialogTitle></DialogHeader><ScrollArea className="max-h-[70vh]"><div className="pr-6"><TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={() => fetchData(selectedDealershipId)} /></div></ScrollArea></DialogContent>
                                     </Dialog>
                                 )) : <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No team activity found.</TableCell></TableRow>}

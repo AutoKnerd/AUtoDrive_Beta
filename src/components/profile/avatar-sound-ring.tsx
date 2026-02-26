@@ -17,6 +17,10 @@ interface AvatarSoundRingProps {
  * Colors and lengths are driven by the user's proficiency traits.
  */
 export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 'vibrant', className }: AvatarSoundRingProps) {
+  const svgId = React.useId().replace(/:/g, '');
+  const glowFilterId = `sound-glow-${svgId}`;
+  const centerGlowId = `center-soft-glow-${svgId}`;
+
   // Mapping traits to the standard AutoDrive CX color grade
   const traits = [
     { id: 'empathy' }, 
@@ -34,12 +38,12 @@ export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 
     <div className={cn("absolute inset-[-25%] w-[150%] h-[150%] pointer-events-none select-none", className)}>
       <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
         <defs>
-          <filter id="sound-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <filter id={glowFilterId} x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="1.5" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
           {/* Subtle central glow to provide depth behind the avatar */}
-          <radialGradient id="center-soft-glow">
+          <radialGradient id={centerGlowId}>
             <stop offset="0%" stopColor="#8DC63F" stopOpacity="0.15" />
             <stop offset="70%" stopColor="#8DC63F" stopOpacity="0.05" />
             <stop offset="100%" stopColor="#8DC63F" stopOpacity="0" />
@@ -47,9 +51,9 @@ export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 
         </defs>
         
         {/* Soft background glow circle */}
-        <circle cx="50" cy="50" r="35" fill="url(#center-soft-glow)" />
+        <circle cx="50" cy="50" r="35" fill={`url(#${centerGlowId})`} />
 
-        <g filter="url(#sound-glow)">
+        <g filter={`url(#${glowFilterId})`}>
           {Array.from({ length: barCount }).map((_, i) => {
             const traitIndex = Math.floor(i / barsPerTrait);
             const traitId = traits[traitIndex].id;
@@ -65,13 +69,12 @@ export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 
             const angle = (i / barCount) * Math.PI * 2 - Math.PI / 2;
             const innerRadius = 36; // Just outside the avatar border
             
-            // Stylized soundwave length logic
-            const normalizedScore = score / 100;
-            const scoreInfluence = 2 + (normalizedScore * 8);
-            const visualNoise = Math.sin(i * 0.8) * 2 + Math.cos(i * 0.3) * 1.5;
-            const rhythmicSpike = (i % 4 === 0) ? 3 : 0;
-            
-            const length = Math.max(1.2, scoreInfluence + visualNoise + rhythmicSpike);
+            // Emphasize per-trait score differences so rings remain readable at small sizes.
+            const normalizedScore = Math.max(0, Math.min(1, score / 100));
+            const scoreInfluence = 1.5 + (normalizedScore * 13);
+            const segmentProgress = (i % barsPerTrait) / barsPerTrait;
+            const contour = Math.sin(segmentProgress * Math.PI * 2) * 1.2 + Math.cos(segmentProgress * Math.PI * 4) * 0.6;
+            const length = Math.max(0.9, scoreInfluence + contour);
             
             const x1 = 50 + Math.cos(angle) * innerRadius;
             const y1 = 50 + Math.sin(angle) * innerRadius;
@@ -86,13 +89,13 @@ export function AvatarSoundRing({ scores, hasActivity = true, themePreference = 
                 x2={x2}
                 y2={y2}
                 stroke={traitColor}
-                strokeWidth="1.2"
+                strokeWidth={hasActivity ? (1 + normalizedScore * 0.5) : 1}
                 strokeLinecap="round"
                 className="animate-pulse"
                 style={{ 
                   animationDelay: `${i * 12}ms`, 
                   animationDuration: `${1.5 + (i % 5) * 0.2}s`,
-                  opacity: 0.5 + (Math.sin(i * 0.25) * 0.4)
+                  opacity: hasActivity ? (0.45 + normalizedScore * 0.5) : 0.35
                 }}
               />
             );

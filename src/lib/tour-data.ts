@@ -1,5 +1,5 @@
 
-import { User, Dealership, LessonLog, UserRole, Badge, EarnedBadge, Lesson, LessonAssignment, CxTrait } from './definitions';
+import { User, Dealership, LessonLog, UserRole, Badge, EarnedBadge, Lesson, LessonAssignment, CxTrait, ThemePreference } from './definitions';
 import { calculateLevel } from './xp';
 import { allBadges }from './badges';
 
@@ -16,6 +16,7 @@ const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "
 const generateRandomName = () => `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
 
 const generateRandomEmail = (name: string) => `${name.toLowerCase().replace(/ /g, '.').substring(0,15)}${Math.floor(Math.random() * 100)}@autodrive-demo.com`;
+const themeRotation: ThemePreference[] = ['vibrant', 'executive', 'steel'];
 
 type DealershipPersonality = {
     strongSuit: CxTrait;
@@ -289,6 +290,12 @@ const generateTourDataInternal = (): Promise<TourData> => {
             }
         ];
 
+        specificTourUsers.forEach((entry, index) => {
+            const themePreference = themeRotation[index % themeRotation.length];
+            entry.themePreference = themePreference;
+            entry.useProfessionalTheme = themePreference !== 'vibrant';
+        });
+
         users.push(...specificTourUsers);
 
         // Generate random users for team views
@@ -298,6 +305,7 @@ const generateTourDataInternal = (): Promise<TourData> => {
             for (let i = 0; i < 5; i++) {
                 const role: UserRole = i < 3 ? 'Sales Consultant' : 'Service Writer';
                 const name = generateRandomName();
+                const themePreference = themeRotation[(i + dealerships.indexOf(dealership)) % themeRotation.length];
                 const user: User = {
                     userId: `tour-user-${dealership.id}-${i}`,
                     name: name,
@@ -309,6 +317,8 @@ const generateTourDataInternal = (): Promise<TourData> => {
                     isPrivate: Math.random() > 0.8,
                     isPrivateFromOwner: Math.random() > 0.9,
                     showDealerCriticalOnly: Math.random() > 0.75,
+                    themePreference,
+                    useProfessionalTheme: themePreference !== 'vibrant',
                     memberSince: new Date(new Date().getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
                     subscriptionStatus: 'active'
                 };

@@ -28,6 +28,7 @@ export type PppLessonTemplate = {
 
 export const PPP_LEVEL_MIN: PppLevel = 1;
 export const PPP_LEVEL_MAX: PppLevel = 10;
+export const PPP_TOUR_UNLOCKED_LESSON_COUNT = 2;
 
 export const PPP_LEVELS: Array<{ level: PppLevel; title: string }> = [
   { level: 1, title: 'Regulation Foundations' },

@@ -12,7 +12,7 @@ import { generateTourData } from './tour-data';
 import { initializeFirebase } from '@/firebase/init';
 import { ALPHA, BASELINE, LAMBDA, clampRatings, updateRollingStats } from '@/lib/stats/updateRollingStats';
 import { buildAutoRecommendedLesson, buildUniqueRecommendedTestingLesson } from '@/lib/lessons/auto-recommended';
-import { clampPppLevel, getPppLessonsForLevel, getPppLevelBadge, getPppLevelXp } from '@/lib/ppp/definitions';
+import { clampPppLevel, getPppLessonsForLevel, getPppLevelBadge, getPppLevelXp, PPP_TOUR_UNLOCKED_LESSON_COUNT } from '@/lib/ppp/definitions';
 import { buildDefaultPppState, getNextPppLevel, getPppLevelKey, normalizePppUserState } from '@/lib/ppp/state';
 import { buildTrialWindow } from '@/lib/billing/trial';
 import {
@@ -81,14 +81,13 @@ function isDealershipSaasPppEnabled(dealership: Partial<Dealership> | null | und
 }
 
 export async function getPppAccessForUser(user: User, dealershipId?: string | null): Promise<boolean> {
+    if (isTouringUser(user.userId)) {
+        // Tour mode always has PPP enabled for guided testing.
+        return true;
+    }
+
     const scopedDealershipIds = getScopedDealershipIds(user, dealershipId);
     if (!scopedDealershipIds.length) return false;
-
-    if (isTouringUser(user.userId)) {
-        const { dealerships } = await getTourData();
-        const dealershipMap = new Map(dealerships.map((dealership) => [dealership.id, dealership]));
-        return scopedDealershipIds.some((id) => isDealershipPppEnabled(dealershipMap.get(id)));
-    }
 
     const { firestore: db } = getFirebase();
     const snapshots = await Promise.all(scopedDealershipIds.map((id) => getDoc(doc(db, 'dealerships', id)).catch(() => null)));
@@ -1473,10 +1472,26 @@ type ManagerStats = {
     avgScores: Record<CxTrait, number> | null;
 };
 
+function hasUsableStats(user: User): boolean {
+    if (!user.stats) return false;
+    const stats = user.stats as Record<string, any>;
+    const keys = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationship'];
+    return keys.some((key) => {
+        const value = stats[key];
+        if (typeof value === 'number') return Number.isFinite(value);
+        if (value && typeof value === 'object' && typeof value.score === 'number') {
+            return Number.isFinite(value.score);
+        }
+        return false;
+    });
+}
+
 function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivityRow {
+    const consultantSnapshot = cloneTourUser(consultant);
+
     if (!logs.length) {
         return {
-            consultant: cloneTourUser(consultant),
+            consultant: consultantSnapshot,
             lessonsCompleted: 0,
             totalXp: consultant.xp,
             avgScore: 0,
@@ -1520,8 +1535,20 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
         return latest;
     }, null);
 
+    if (!hasUsableStats(consultantSnapshot)) {
+        const statsTimestamp = lastInteraction || new Date();
+        consultantSnapshot.stats = {
+            empathy: { score: avgByTrait.empathy, lastUpdated: statsTimestamp },
+            listening: { score: avgByTrait.listening, lastUpdated: statsTimestamp },
+            trust: { score: avgByTrait.trust, lastUpdated: statsTimestamp },
+            followUp: { score: avgByTrait.followUp, lastUpdated: statsTimestamp },
+            closing: { score: avgByTrait.closing, lastUpdated: statsTimestamp },
+            relationship: { score: avgByTrait.relationshipBuilding, lastUpdated: statsTimestamp },
+        };
+    }
+
     return {
-        consultant: cloneTourUser(consultant),
+        consultant: consultantSnapshot,
         lessonsCompleted: count,
         totalXp: consultant.xp,
         avgScore: Math.round((Object.values(avgByTrait).reduce((sum, value) => sum + value, 0) / traits.length)),
@@ -1624,7 +1651,7 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
     const filtered = dealershipId === 'all' ? members : members.filter(m => m.dealershipIds.includes(dealershipId));
     
     return {
-        teamActivity: filtered.map(m => ({ consultant: m, lessonsCompleted: 0, totalXp: m.xp, avgScore: 0, lastInteraction: null })),
+        teamActivity: filtered.map((member) => buildTeamActivityRow(member, [])),
         managerStats: { totalLessons: 0, avgScores: null }
     };
 }
@@ -1958,13 +1985,7 @@ export async function completePppLessonPass(
         const tour = await getTourData();
         const user = tour.users.find((entry) => entry.userId === userId);
         if (!user) throw new Error('Tour user not found');
-
-        const scopedDealershipIds = getScopedDealershipIds(user);
-        const dealershipMap = new Map(tour.dealerships.map((dealership) => [dealership.id, dealership]));
-        const hasPppAccess = scopedDealershipIds.some((id) => isDealershipPppEnabled(dealershipMap.get(id)));
-        if (!hasPppAccess) throw new Error('PPP is not enabled for this dealership.');
-
-        user.ppp_enabled = hasPppAccess;
+        user.ppp_enabled = true;
 
         const normalized = normalizePppUserState(user);
         if (normalized.level !== safeLevel) {
@@ -1985,6 +2006,10 @@ export async function completePppLessonPass(
         }
 
         const lessonsForLevel = getPppLessonsForLevel(normalized.level, user.role);
+        const lessonIndex = lessonsForLevel.findIndex((entry) => entry.lessonId === lessonId);
+        if (lessonIndex >= PPP_TOUR_UNLOCKED_LESSON_COUNT) {
+            throw new Error('Tour PPP unlocks only the first two lessons.');
+        }
         const lessonIds = new Set(lessonsForLevel.map((entry) => entry.lessonId));
         if (!lessonIds.has(lessonId)) {
             throw new Error('Invalid PPP lesson for this level.');

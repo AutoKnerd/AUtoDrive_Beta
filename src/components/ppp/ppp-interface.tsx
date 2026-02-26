@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { conductPppLesson } from '@/ai/flows/ppp-lesson-flow';
 import { completePppLessonPass, incrementPppAbandonmentCounter } from '@/lib/data.client';
-import { getPppLessonsForLevel, getPppLevelTitle } from '@/lib/ppp/definitions';
+import { getPppLessonsForLevel, getPppLevelTitle, PPP_TOUR_UNLOCKED_LESSON_COUNT } from '@/lib/ppp/definitions';
 import { getPppLevelKey, normalizePppUserState } from '@/lib/ppp/state';
 import { ASSISTANT_AVATAR_SRC, ASSISTANT_NAME } from '@/lib/assistant';
 
@@ -101,7 +101,7 @@ interface PppInterfaceProps {
 }
 
 export function PppInterface({ featureEnabled }: PppInterfaceProps) {
-  const { user, setUser } = useAuth();
+  const { user, setUser, isTouring } = useAuth();
   const { toast } = useToast();
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -185,11 +185,15 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
     if (!lesson) return;
 
     const lessonIndex = currentLessons.findIndex((entry) => entry.lessonId === lessonId);
-    const unlocked = passedLessons.has(lessonId) || lessonIndex === firstUnpassedIndex;
+    const unlocked = isTouring
+      ? lessonIndex < PPP_TOUR_UNLOCKED_LESSON_COUNT
+      : (passedLessons.has(lessonId) || lessonIndex === firstUnpassedIndex);
     if (!unlocked) {
       toast({
         title: 'Lesson locked',
-        description: 'Complete lessons in order. No skipping levels or lessons.',
+        description: isTouring
+          ? `Tour mode unlocks only the first ${PPP_TOUR_UNLOCKED_LESSON_COUNT} PPP lessons.`
+          : 'Complete lessons in order. No skipping levels or lessons.',
       });
       return;
     }
@@ -502,7 +506,12 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
           <div className="space-y-2">
             {currentLessons.map((lesson, index) => {
               const passed = passedLessons.has(lesson.lessonId);
-              const unlocked = passed || index === firstUnpassedIndex;
+              const isTourLocked = isTouring && index >= PPP_TOUR_UNLOCKED_LESSON_COUNT;
+              const unlocked = isTourLocked
+                ? false
+                : (isTouring
+                  ? index < PPP_TOUR_UNLOCKED_LESSON_COUNT
+                  : (passed || index === firstUnpassedIndex));
               const selected = activeLesson?.lessonId === lesson.lessonId;
 
               return (
@@ -521,7 +530,9 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
                       <p className="text-sm font-semibold text-foreground">{index + 1}. {lesson.stageShortTitle}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{lesson.skill}</p>
                     </div>
-                    {passed ? (
+                    {isTourLocked ? (
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    ) : passed ? (
                       <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                     ) : unlocked ? (
                       <Target className="h-4 w-4 text-primary" />
