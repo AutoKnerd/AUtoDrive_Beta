@@ -331,7 +331,12 @@ export default function DeveloperPage() {
                                     </Select>
                                 </div>
                                 <div className="mt-4">
-                                    {activeTool === 'create_user' && <CreateUserForm onUserCreated={refreshData} />}
+                                    {activeTool === 'create_user' && (
+                                      <CreateUserForm
+                                        onUserCreated={refreshData}
+                                        dealerships={allDealerships}
+                                      />
+                                    )}
                                     {activeTool === 'edit_user' && <EditUserForm manageableUsers={manageableUsers} dealerships={allDealerships} onUserUpdated={refreshData} />}
                                     {activeTool === 'assign_dealerships' && <AssignDealershipsForm manageableUsers={manageableUsers} dealerships={allDealerships} currentUser={originalUser!} onDealershipsAssigned={refreshData} />}
                                     {activeTool === 'invite' && <RegisterDealershipForm user={originalUser!} dealerships={allDealerships} onUserInvited={refreshData} />}

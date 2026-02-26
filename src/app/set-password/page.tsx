@@ -29,6 +29,7 @@ function SetPasswordContent() {
 
   const oobCode = useMemo(() => searchParams.get('oobCode') || '', [searchParams]);
   const initialEmail = useMemo(() => searchParams.get('email') || '', [searchParams]);
+  const setupToken = useMemo(() => searchParams.get('setupToken') || '', [searchParams]);
 
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
@@ -85,6 +86,22 @@ function SetPasswordContent() {
 
     try {
       await confirmPasswordReset(firebaseAuth, oobCode, password);
+
+      if (email && setupToken) {
+        try {
+          await fetch('/api/auth/mark-password-setup-used', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              setupToken,
+            }),
+          });
+        } catch (markError) {
+          console.warn('[set-password] Could not mark setup link as used:', markError);
+        }
+      }
+
       setStatus('success');
       setMessage('Password set. Redirecting to login...');
       window.setTimeout(() => {

@@ -76,7 +76,12 @@ function getPublicOrigin(req: Request): string {
   return 'http://localhost:3000';
 }
 
-function toCustomPasswordSetupLink(generatedLink: string, req: Request, email: string): string | null {
+function toCustomPasswordSetupLinkWithToken(
+  generatedLink: string,
+  req: Request,
+  email: string,
+  setupToken: string
+): string | null {
   try {
     const parsed = new URL(generatedLink);
     const oobCode = parsed.searchParams.get('oobCode');
@@ -85,6 +90,7 @@ function toCustomPasswordSetupLink(generatedLink: string, req: Request, email: s
     const custom = new URL('/set-password', getPublicOrigin(req));
     custom.searchParams.set('oobCode', oobCode);
     custom.searchParams.set('email', email);
+    custom.searchParams.set('setupToken', setupToken);
     return custom.toString();
   } catch {
     return null;
@@ -189,11 +195,43 @@ export async function POST(req: Request) {
       }
     }
 
-    const { name, email, phone, role } = await req.json();
+    const payload = await req.json();
+    const {
+      name,
+      email,
+      phone,
+      role,
+      dealershipId,
+      newDealership,
+    } = payload as {
+      name?: string;
+      email?: string;
+      phone?: string;
+      role?: string;
+      dealershipId?: string;
+      newDealership?: {
+        name?: string;
+        street?: string;
+        city?: string;
+        state?: string;
+        zip?: string;
+      };
+    };
 
     const normalizedEmail = String(email || '').toLowerCase().trim();
     const normalizedPhone = normalizeOptionalString(phone);
     const requestedRole = role;
+    const requestedDealershipId = normalizeOptionalString(dealershipId);
+    const requestedNewDealershipName = normalizeOptionalString(newDealership?.name);
+    const requestedNewDealershipAddress: Record<string, string> = {};
+    const street = normalizeOptionalString(newDealership?.street);
+    const city = normalizeOptionalString(newDealership?.city);
+    const state = normalizeOptionalString(newDealership?.state);
+    const zip = normalizeOptionalString(newDealership?.zip);
+    if (street) requestedNewDealershipAddress.street = street;
+    if (city) requestedNewDealershipAddress.city = city;
+    if (state) requestedNewDealershipAddress.state = state;
+    if (zip) requestedNewDealershipAddress.zip = zip;
 
     // Validate required fields
     if (!name || !normalizedEmail || !requestedRole) {
@@ -204,6 +242,39 @@ export async function POST(req: Request) {
         },
         { status: 400 }
       );
+    }
+
+    if (requestedDealershipId && requestedNewDealershipName) {
+      return NextResponse.json(
+        {
+          message: 'Bad Request: Choose an existing dealership or create a new one, not both.',
+          code: 'INVALID_DEALERSHIP_INPUT',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (requestedNewDealershipName && !isPrivilegedCreator) {
+      return NextResponse.json(
+        {
+          message: 'Forbidden: Only Admin or Developer can create a dealership from this flow.',
+          code: 'FORBIDDEN_NEW_DEALERSHIP',
+        },
+        { status: 403 }
+      );
+    }
+
+    if (requestedDealershipId) {
+      const dealershipSnap = await adminDb.collection('dealerships').doc(requestedDealershipId).get();
+      if (!dealershipSnap.exists) {
+        return NextResponse.json(
+          {
+            message: 'Bad Request: Selected dealership does not exist.',
+            code: 'INVALID_DEALERSHIP_ID',
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Role rules:
@@ -368,6 +439,48 @@ export async function POST(req: Request) {
       );
     }
 
+    let resolvedDealershipId: string | null = requestedDealershipId;
+    let createdDealership: { id: string; name: string } | null = null;
+
+    if (!resolvedDealershipId && requestedNewDealershipName) {
+      const dealershipRef = adminDb.collection('dealerships').doc();
+      const trialWindow = buildTrialWindow(new Date());
+      const nextDealershipData: Record<string, unknown> = {
+        id: dealershipRef.id,
+        name: requestedNewDealershipName,
+        status: 'active',
+        enableRetakeRecommendedTesting: false,
+        enableNewRecommendedTesting: false,
+        enablePppProtocol: false,
+        enableSaasPppTraining: false,
+        billingTier: 'sales_fi',
+        billingSubscriptionStatus: 'trialing',
+        billingTrialStartedAt: trialWindow.trialStartedAt,
+        billingTrialEndsAt: trialWindow.trialEndsAt,
+        billingUserCount: 0,
+        billingOwnerAccountCount: 0,
+        billingStoreCount: 1,
+      };
+
+      if (Object.keys(requestedNewDealershipAddress).length > 0) {
+        nextDealershipData.address = requestedNewDealershipAddress;
+      }
+
+      await dealershipRef.set(nextDealershipData);
+      resolvedDealershipId = dealershipRef.id;
+      createdDealership = { id: dealershipRef.id, name: requestedNewDealershipName };
+    }
+
+    if (resolvedDealershipId) {
+      await newUserRef.set(
+        {
+          dealershipIds: [resolvedDealershipId],
+        },
+        { merge: true }
+      );
+      newUserData.dealershipIds = [resolvedDealershipId];
+    }
+
     let setupLink: string | null = null;
     let setupLinkError: string | null = null;
     let setupLinkMode: 'redirect' | 'default' | null = null;
@@ -403,15 +516,53 @@ export async function POST(req: Request) {
 
     console.log(`[API CreateUser] User created successfully: ${newUserId} (${normalizedEmail}, role: ${finalRole})`);
 
+    let setupToken: string | null = null;
     if (setupLink) {
-      const customSetupLink = toCustomPasswordSetupLink(setupLink, req, normalizedEmail);
+      setupToken = `${crypto.randomUUID()}${crypto.randomUUID()}`;
+      const customSetupLink = toCustomPasswordSetupLinkWithToken(setupLink, req, normalizedEmail, setupToken);
       if (customSetupLink) {
         setupLink = customSetupLink;
       } else {
+        setupToken = null;
+        setupLink = null;
         setupLinkError = setupLinkError
           ? `${setupLinkError} Could not convert generated link to custom setup URL.`
           : 'Could not convert generated link to custom setup URL.';
       }
+    }
+
+    if (setupLink && setupToken) {
+      await newUserRef.set(
+        {
+          passwordSetup: {
+            status: 'pending',
+            link: setupLink,
+            setupToken,
+            createdAt: new Date().toISOString(),
+            usedAt: null,
+            createdByUserId: decoded?.uid ?? null,
+            mode: setupLinkMode,
+            error: null,
+          },
+        },
+        { merge: true }
+      );
+    } else {
+      await newUserRef.set(
+        {
+          passwordSetup: {
+            status: 'failed',
+            link: null,
+            setupToken: null,
+            createdAt: new Date().toISOString(),
+            usedAt: null,
+            createdByUserId: decoded?.uid ?? null,
+            mode: setupLinkMode,
+            error: setupLinkError ?? 'Password setup link generation failed.',
+          },
+        },
+        { merge: true }
+      );
     }
 
     return NextResponse.json(
@@ -420,6 +571,8 @@ export async function POST(req: Request) {
         setupLink,
         setupLinkError,
         setupLinkMode,
+        setupToken,
+        createdDealership,
         authExisted,
         message: setupLink
           ? 'User created successfully. Share the setup link so they can create their password.'

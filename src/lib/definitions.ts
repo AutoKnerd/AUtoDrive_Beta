@@ -108,6 +108,16 @@ export type User = {
   saas_ppp_l2_phase?: 'primary' | 'secondary';
   saas_ppp_lessons_passed?: Record<string, string[]>;
   saas_ppp_abandonment_counter?: number;
+  passwordSetup?: {
+    status?: 'pending' | 'used' | 'failed';
+    link?: string;
+    setupToken?: string;
+    createdAt?: string;
+    usedAt?: string | null;
+    createdByUserId?: string | null;
+    mode?: 'redirect' | 'default' | null;
+    error?: string | null;
+  };
 };
 
 export type LessonRole = Exclude<UserRole, 'Owner' | 'Admin'> | 'global';

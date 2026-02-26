@@ -5,7 +5,7 @@ import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership, Badge } 
 import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles, getEarnedBadgesByUserId } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, PlusCircle, ShieldOff } from 'lucide-react';
+import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, ShieldOff, Copy, KeyRound } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -285,6 +285,14 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     return getDefaultScope(user);
   }, [user]);
 
+  const pendingPasswordSetupLink = useMemo(() => {
+    if (!['Admin', 'Developer'].includes(currentUser.role)) return null;
+    const setup = user.passwordSetup;
+    if (!setup || setup.status !== 'pending') return null;
+    if (typeof setup.link !== 'string' || setup.link.length === 0) return null;
+    return setup.link;
+  }, [currentUser.role, user.passwordSetup]);
+
   return (
     <div className="space-y-4">
         <Card>
@@ -315,6 +323,46 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                 </div>
             </CardHeader>
         </Card>
+
+        {pendingPasswordSetupLink && (
+            <Card className="border-cyan-800/40">
+                <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <KeyRound className="h-4 w-4 text-cyan-400" />
+                        First Login Password Setup Link
+                    </CardTitle>
+                    <CardDescription>
+                        Visible until this user completes password setup.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex gap-2">
+                        <Input value={pendingPasswordSetupLink} readOnly />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={async () => {
+                                try {
+                                    await navigator.clipboard.writeText(pendingPasswordSetupLink);
+                                    toast({
+                                        title: 'Copied',
+                                        description: 'Password setup link copied.',
+                                    });
+                                } catch {
+                                    toast({
+                                        variant: 'destructive',
+                                        title: 'Copy Failed',
+                                        description: 'Could not copy password setup link.',
+                                    });
+                                }
+                            }}
+                        >
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        )}
 
         {hideMetrics ? (
             <Card>

@@ -11,12 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { CheckCircle, Copy } from 'lucide-react';
+import { CheckCircle, Copy, Plus, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Label } from '@/components/ui/label';
+import type { Dealership } from '@/lib/definitions';
 
 interface CreateUserFormProps {
   onUserCreated?: () => void;
+  dealerships: Dealership[];
 }
 
 const createUserSchema = z.object({
@@ -24,17 +26,25 @@ const createUserSchema = z.object({
   email: z.string().email('Invalid email address.'),
   phone: z.string().optional(),
   role: z.enum(['Owner', 'General Manager', 'manager']),
+  dealershipId: z.string().optional(),
+  newDealershipName: z.string().optional(),
+  newDealershipStreet: z.string().optional(),
+  newDealershipCity: z.string().optional(),
+  newDealershipState: z.string().optional(),
+  newDealershipZip: z.string().optional(),
 });
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
-export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
+export function CreateUserForm({ onUserCreated, dealerships }: CreateUserFormProps) {
   const RESULT_STORAGE_KEY = 'autodrive:create-user:last-result';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userCreated, setUserCreated] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
+  const [createdDealershipName, setCreatedDealershipName] = useState('');
   const [setupLink, setSetupLink] = useState('');
   const [setupLinkError, setSetupLinkError] = useState('');
+  const [createNewDealership, setCreateNewDealership] = useState(false);
   const { toast } = useToast();
   const { firebaseUser } = useAuth();
 
@@ -45,10 +55,21 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
       email: '',
       phone: '',
       role: 'Owner',
+      dealershipId: '__none__',
+      newDealershipName: '',
+      newDealershipStreet: '',
+      newDealershipCity: '',
+      newDealershipState: '',
+      newDealershipZip: '',
     },
   });
 
-  function persistLatestResult(result: { email: string; setupLink: string; setupLinkError: string }) {
+  function persistLatestResult(result: {
+    email: string;
+    setupLink: string;
+    setupLinkError: string;
+    createdDealershipName?: string;
+  }) {
     if (typeof window === 'undefined') return;
     try {
       window.sessionStorage.setItem(
@@ -81,6 +102,7 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
         email?: string;
         setupLink?: string;
         setupLinkError?: string;
+        createdDealershipName?: string;
         createdAt?: number;
       };
       if (!parsed || typeof parsed !== 'object') return;
@@ -101,6 +123,9 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
         setSetupLinkError(parsed.setupLinkError);
       }
       setUserCreated(true);
+      if (typeof parsed.createdDealershipName === 'string') {
+        setCreatedDealershipName(parsed.createdDealershipName);
+      }
     } catch {
       // Ignore malformed cache.
     }
@@ -109,9 +134,20 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
   async function onSubmit(data: CreateUserFormValues) {
     setIsSubmitting(true);
     setUserCreated(false);
+    setCreatedDealershipName('');
     setSetupLink('');
     setSetupLinkError('');
     clearPersistedResult();
+
+    if (createNewDealership && !String(data.newDealershipName || '').trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Dealership Required',
+        description: 'Enter a dealership name or switch back to selecting an existing dealership.',
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       // Prepare headers - only include token if user exists
@@ -138,6 +174,18 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
           email: data.email,
           phone: data.phone,
           role: data.role,
+          dealershipId: !createNewDealership && data.dealershipId && data.dealershipId !== '__none__'
+            ? data.dealershipId
+            : undefined,
+          newDealership: createNewDealership
+            ? {
+                name: data.newDealershipName,
+                street: data.newDealershipStreet,
+                city: data.newDealershipCity,
+                state: data.newDealershipState,
+                zip: data.newDealershipZip,
+              }
+            : undefined,
         }),
       });
 
@@ -158,8 +206,12 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
       const newUser = await response.json();
       const resolvedSetupLink = typeof newUser?.setupLink === 'string' ? newUser.setupLink : '';
       const resolvedSetupLinkError = typeof newUser?.setupLinkError === 'string' ? newUser.setupLinkError : '';
+      const resolvedCreatedDealershipName = typeof newUser?.createdDealership?.name === 'string'
+        ? newUser.createdDealership.name
+        : '';
 
       setCreatedUserEmail(data.email);
+      setCreatedDealershipName(resolvedCreatedDealershipName);
       setSetupLink(resolvedSetupLink);
       setSetupLinkError(resolvedSetupLinkError);
       setUserCreated(true);
@@ -167,13 +219,15 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
         email: data.email,
         setupLink: resolvedSetupLink,
         setupLinkError: resolvedSetupLinkError,
+        ...(resolvedCreatedDealershipName ? { createdDealershipName: resolvedCreatedDealershipName } : {}),
       });
       form.reset();
+      setCreateNewDealership(false);
 
       toast({
         title: 'User Created!',
         description: typeof newUser?.setupLink === 'string' && newUser.setupLink.length > 0
-          ? `${data.name} has been added. Share the setup link so they can create their password.`
+          ? `${data.name} has been added${resolvedCreatedDealershipName ? ` in ${resolvedCreatedDealershipName}` : ''}. Share the setup link so they can create their password.`
           : `${data.name} has been added, but no setup link was generated.`,
       });
 
@@ -197,6 +251,7 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
           <AlertTitle className="text-green-900">Success!</AlertTitle>
           <AlertDescription className="text-green-800">
             User {createdUserEmail} has been created.
+            {createdDealershipName ? ` Dealership ${createdDealershipName} was created and assigned.` : ''}
             {setupLink
               ? ' Share the setup link below so they can set their password and log in for the first time.'
               : ' Setup link generation failed, so they cannot set a password yet.'}
@@ -326,9 +381,133 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
             />
           </div>
 
+          <div className="space-y-2 rounded-md border border-cyan-900/40 bg-cyan-950/10 p-3">
+            <div className="flex items-center justify-between">
+              <FormLabel className="m-0">Dealership Assignment</FormLabel>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateNewDealership((prev) => !prev)}
+                disabled={isSubmitting}
+              >
+                {createNewDealership ? (
+                  <>Use Existing</>
+                ) : (
+                  <>
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Create Dealership
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {!createNewDealership ? (
+              <FormField
+                control={form.control}
+                name="dealershipId"
+                render={({ field }) => (
+                  <FormItem>
+                    <Select value={field.value || '__none__'} onValueChange={field.onChange} disabled={isSubmitting}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select dealership (optional)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__none__">Unassigned</SelectItem>
+                        {dealerships.map((dealership) => (
+                          <SelectItem key={dealership.id} value={dealership.id}>
+                            {dealership.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <div className="space-y-3">
+                <FormField
+                  control={form.control}
+                  name="newDealershipName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input
+                          placeholder="New dealership name"
+                          {...field}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="newDealershipCity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input placeholder="City (optional)" {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="newDealershipState"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input placeholder="State (optional)" {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="newDealershipStreet"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input placeholder="Street (optional)" {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="newDealershipZip"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input placeholder="ZIP (optional)" {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This creates the dealership and assigns the user in one action.
+                </p>
+              </div>
+            )}
+          </div>
+
           <Button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
+                <Building2 className="mr-2 h-4 w-4" />
                 <Spinner className="mr-2 h-4 w-4" />
                 Creating User...
               </>
