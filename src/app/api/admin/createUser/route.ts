@@ -43,6 +43,8 @@ async function systemHasUsers(adminDb: any): Promise<boolean> {
 export async function POST(req: Request) {
   const authorization = req.headers.get('authorization') ?? req.headers.get('Authorization');
   let decoded: Decoded | null = null;
+  let isPrivilegedCreator = false;
+  let isBootstrapMode = false;
 
   try {
     const adminDb = getAdminDb();
@@ -50,6 +52,7 @@ export async function POST(req: Request) {
 
     // Check if this is a bootstrap scenario (no users exist in the system yet)
     const systemEmpty = !(await systemHasUsers(adminDb));
+    isBootstrapMode = systemEmpty;
 
     // If system has users, require authentication
     if (!systemEmpty) {
@@ -84,20 +87,21 @@ export async function POST(req: Request) {
       const userDoc = await adminDb.collection('users').doc(userId).get();
 
       if (!userDoc.exists) {
-        // Special case: If token is valid but user doesn't exist in Firestore,
-        // this might be a developer setting up the system. Log and continue.
-        // The token verification succeeded, so the user is authenticated in Firebase.
-        console.log('[API CreateUser] User verified in Firebase Auth but no Firestore record found. Allowing creation for bootstrapping.');
-      } else {
-        // User exists in Firestore, verify they have proper role
-        const userRole = userDoc.data()?.role;
-        if (!['Admin', 'Developer'].includes(userRole)) {
-          return NextResponse.json(
-            { message: 'Forbidden: Only Admin or Developer roles can create users.' },
-            { status: 403 }
-          );
-        }
+        return NextResponse.json(
+          { message: 'Forbidden: User profile not found.' },
+          { status: 403 }
+        );
       }
+
+      // User exists in Firestore, verify they have proper role
+      const userRole = userDoc.data()?.role;
+      if (!['Admin', 'Developer'].includes(userRole)) {
+        return NextResponse.json(
+          { message: 'Forbidden: Only Admin or Developer roles can create users.' },
+          { status: 403 }
+        );
+      }
+      isPrivilegedCreator = true;
     } else {
       // Bootstrap mode: system has no users yet. Auth is not required, but if provided we will verify it.
       if (authorization) {
@@ -133,20 +137,38 @@ export async function POST(req: Request) {
     }
 
     // Role rules:
-    // - If the request is authenticated (decoded != null), allow self-signup roles (defaulting to Sales Consultant)
-    // - If unauthenticated (bootstrap without auth), only allow bootstrap roles
+    // - Privileged Admin/Developer creators can provision any supported app role.
+    // - Bootstrap mode allows only initial managerial roles.
     const allowedBootstrapRoles = ['Owner', 'General Manager', 'manager'];
-    const allowedSelfSignupRoles = ['Sales Consultant', 'Service Writer', 'manager', 'Owner', 'General Manager'];
+    const allowedPrivilegedRoles = [
+      'Sales Consultant',
+      'Service Writer',
+      'manager',
+      'Service Manager',
+      'Finance Manager',
+      'Parts Consultant',
+      'Parts Manager',
+      'General Manager',
+      'Owner',
+      'Trainer',
+      'Admin',
+      'Developer',
+    ];
 
     let finalRole = requestedRole;
 
-    if (decoded) {
-      // Self-signup path: only allow roles we support.
-      if (!allowedSelfSignupRoles.includes(finalRole)) {
-        finalRole = 'Sales Consultant';
+    if (isPrivilegedCreator) {
+      if (!allowedPrivilegedRoles.includes(finalRole)) {
+        return NextResponse.json(
+          {
+            message: `Bad Request: Unsupported role "${finalRole}".`,
+            code: 'INVALID_ROLE',
+          },
+          { status: 400 }
+        );
       }
     } else {
-      // Unauthenticated bootstrap path
+      // Bootstrap path (system has no users yet)
       if (!allowedBootstrapRoles.includes(finalRole)) {
         return NextResponse.json(
           {
@@ -156,13 +178,6 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-    }
-
-    if (decoded?.email && decoded.email.toLowerCase() !== normalizedEmail) {
-      return NextResponse.json(
-        { message: 'Forbidden: Email does not match authenticated user.', code: 'EMAIL_MISMATCH' },
-        { status: 403 }
-      );
     }
 
     // Check if user already exists by email
@@ -182,8 +197,14 @@ export async function POST(req: Request) {
     }
 
     // Create the new user in Firestore.
-    // If authenticated, the Firestore doc id MUST be the Firebase Auth uid.
-    const newUserId = decoded?.uid ?? adminDb.collection('users').doc().id;
+    // In bootstrap mode, if caller is creating their own profile, bind Firestore doc to Auth uid.
+    const shouldBindToAuthUid = Boolean(
+      isBootstrapMode &&
+      decoded?.uid &&
+      decoded?.email &&
+      decoded.email.toLowerCase() === normalizedEmail
+    );
+    const newUserId = shouldBindToAuthUid ? decoded!.uid : adminDb.collection('users').doc().id;
     const newUserRef = adminDb.collection('users').doc(newUserId);
 
     const now = new Date();
