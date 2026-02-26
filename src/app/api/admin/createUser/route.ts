@@ -22,6 +22,12 @@ function buildDefaultStats(now: Date) {
   };
 }
 
+function normalizeOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 // Lazy-load Timestamp to avoid firebase-admin being imported at build-time
 const getTimestamp = async () => {
   const { Timestamp } = await import('firebase-admin/firestore');
@@ -171,6 +177,7 @@ export async function POST(req: Request) {
     const { name, email, phone, role } = await req.json();
 
     const normalizedEmail = String(email || '').toLowerCase().trim();
+    const normalizedPhone = normalizeOptionalString(phone);
     const requestedRole = role;
 
     // Validate required fields
@@ -285,7 +292,7 @@ export async function POST(req: Request) {
       isPrivateFromOwner: false,
       showDealerCriticalOnly: false,
       memberSince: now.toISOString(),
-      phone: phone || undefined,
+      ...(normalizedPhone ? { phone: normalizedPhone } : {}),
       subscriptionStatus: isPrivilegedRole ? 'active' : 'trialing',
       trialStartedAt: isPrivilegedRole ? null : trialWindow.trialStartedAt,
       trialEndsAt: isPrivilegedRole ? null : trialWindow.trialEndsAt,
@@ -304,7 +311,7 @@ export async function POST(req: Request) {
           name,
           email: normalizedEmail,
           role: finalRole,
-          phone: phone || undefined,
+          ...(normalizedPhone ? { phone: normalizedPhone } : {}),
         },
         { merge: true }
       );
