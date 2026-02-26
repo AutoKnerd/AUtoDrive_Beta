@@ -22,6 +22,54 @@ function buildDefaultStats(now: Date) {
   };
 }
 
+// Lazy-load Timestamp to avoid firebase-admin being imported at build-time
+const getTimestamp = async () => {
+  const { Timestamp } = await import('firebase-admin/firestore');
+  return Timestamp;
+};
+
+function normalizeOrigin(raw?: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return null;
+  }
+}
+
+function hostFromOrigin(raw?: string | null): string | null {
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalHost(host?: string | null): boolean {
+  if (!host) return false;
+  const normalized = host.toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1';
+}
+
+function getPublicOrigin(req: Request): string {
+  const explicit = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL);
+  const explicitHost = hostFromOrigin(explicit);
+
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  const forwardedHostRaw = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const forwardedHost = forwardedHostRaw?.split(',')[0]?.trim() || null;
+  const forwardedOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : null;
+  const forwardedHostName = forwardedHost?.split(':')[0] || null;
+
+  if (explicit && !isLocalHost(explicitHost)) return explicit;
+  if (forwardedOrigin && !isLocalHost(forwardedHostName)) return forwardedOrigin;
+  if (explicit) return explicit;
+  if (forwardedOrigin) return forwardedOrigin;
+  return 'http://localhost:3000';
+}
+
 /**
  * Check if any users exist in the system.
  * Used to determine if bootstrap mode is enabled.
@@ -180,32 +228,46 @@ export async function POST(req: Request) {
       }
     }
 
-    // Check if user already exists by email
+    // Check if a Firestore profile already exists for this email.
     const existingUserQuery = await adminDb
       .collection('users')
       .where('email', '==', normalizedEmail)
+      .limit(1)
       .get();
+    const existingFirestoreProfile = existingUserQuery.empty ? null : existingUserQuery.docs[0];
 
-    if (!existingUserQuery.empty) {
-      return NextResponse.json(
-        {
-          message: 'Bad Request: A user with this email already exists.',
-          code: 'USER_EXISTS',
-        },
-        { status: 400 }
-      );
+    // Ensure a Firebase Auth account exists for the email so the user can actually sign in.
+    let authUser: { uid: string } | null = null;
+    let authExisted = false;
+    try {
+      const existingAuthUser = await adminAuth.getUserByEmail(normalizedEmail);
+      authUser = { uid: existingAuthUser.uid };
+      authExisted = true;
+    } catch (authLookupError: any) {
+      if (authLookupError?.code !== 'auth/user-not-found') {
+        throw authLookupError;
+      }
     }
 
-    // Create the new user in Firestore.
-    // In bootstrap mode, if caller is creating their own profile, bind Firestore doc to Auth uid.
-    const shouldBindToAuthUid = Boolean(
-      isBootstrapMode &&
-      decoded?.uid &&
-      decoded?.email &&
-      decoded.email.toLowerCase() === normalizedEmail
-    );
-    const newUserId = shouldBindToAuthUid ? decoded!.uid : adminDb.collection('users').doc().id;
+    if (!authUser) {
+      const createPayload: Record<string, string> = {
+        email: normalizedEmail,
+        displayName: String(name || '').trim(),
+      };
+
+      // If a legacy Firestore profile already exists, bind Auth UID to that doc ID.
+      if (existingFirestoreProfile?.id) {
+        createPayload.uid = existingFirestoreProfile.id;
+      }
+
+      const createdAuthUser = await adminAuth.createUser(createPayload as any);
+      authUser = { uid: createdAuthUser.uid };
+      authExisted = false;
+    }
+
+    const newUserId = authUser.uid;
     const newUserRef = adminDb.collection('users').doc(newUserId);
+    const existingUidProfileSnap = await newUserRef.get();
 
     const now = new Date();
     const trialWindow = buildTrialWindow(now);
@@ -232,16 +294,81 @@ export async function POST(req: Request) {
       ...buildDefaultSaasPppState(false),
     };
 
-    // Save the user document to Firestore
-    // Note: This creates a Firestore record. The user will sign up in Firebase Auth separately.
-    await newUserRef.set(newUserData, { merge: true });
+    if (!existingUidProfileSnap.exists) {
+      await newUserRef.set(newUserData, { merge: true });
+    } else {
+      // Keep historical data, but align primary profile identity fields.
+      await newUserRef.set(
+        {
+          userId: newUserId,
+          name,
+          email: normalizedEmail,
+          role: finalRole,
+          phone: phone || undefined,
+        },
+        { merge: true }
+      );
+    }
+
+    // Legacy recovery: if there is an old Firestore profile on a different doc ID with same email,
+    // carry over key fields and mark it as migrated so admins can audit duplicates.
+    if (existingFirestoreProfile && existingFirestoreProfile.id !== newUserId) {
+      const legacyData = existingFirestoreProfile.data() as Record<string, any>;
+      const legacyPatch: Record<string, unknown> = {};
+
+      if (Array.isArray(legacyData.dealershipIds) && legacyData.dealershipIds.length > 0) {
+        legacyPatch.dealershipIds = legacyData.dealershipIds;
+      }
+      if (legacyData.stats && typeof legacyData.stats === 'object') {
+        legacyPatch.stats = legacyData.stats;
+      }
+      if (typeof legacyData.subscriptionStatus === 'string') {
+        legacyPatch.subscriptionStatus = legacyData.subscriptionStatus;
+      }
+      if (typeof legacyData.trialStartedAt === 'string' || legacyData.trialStartedAt === null) {
+        legacyPatch.trialStartedAt = legacyData.trialStartedAt;
+      }
+      if (typeof legacyData.trialEndsAt === 'string' || legacyData.trialEndsAt === null) {
+        legacyPatch.trialEndsAt = legacyData.trialEndsAt;
+      }
+
+      if (Object.keys(legacyPatch).length > 0) {
+        await newUserRef.set(legacyPatch, { merge: true });
+      }
+
+      const Timestamp = await getTimestamp();
+      await existingFirestoreProfile.ref.set(
+        {
+          mergedIntoUserId: newUserId,
+          mergedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
+    }
+
+    let setupLink: string | null = null;
+    let setupLinkError: string | null = null;
+    try {
+      const continueUrl = `${getPublicOrigin(req)}/login`;
+      setupLink = await adminAuth.generatePasswordResetLink(normalizedEmail, {
+        url: continueUrl,
+      });
+    } catch (linkError: any) {
+      setupLinkError = linkError?.message || 'Could not generate password setup link.';
+      console.error('[API CreateUser] Failed to generate password setup link:', linkError);
+    }
 
     console.log(`[API CreateUser] User created successfully: ${newUserId} (${normalizedEmail}, role: ${finalRole})`);
 
     return NextResponse.json(
       {
         ...newUserData,
-        message: 'User created successfully. They can now sign up to access the system.',
+        setupLink,
+        setupLinkError,
+        authExisted,
+        message: setupLink
+          ? 'User created successfully. Share the setup link so they can create their password.'
+          : 'User created successfully, but setup link generation failed. Check server config and try again.',
       },
       { status: 201 }
     );

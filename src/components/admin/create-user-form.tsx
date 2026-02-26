@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Copy } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 interface CreateUserFormProps {
@@ -31,6 +31,7 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userCreated, setUserCreated] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
+  const [setupLink, setSetupLink] = useState('');
   const { toast } = useToast();
   const { firebaseUser } = useAuth();
 
@@ -92,12 +93,15 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
 
       const newUser = await response.json();
       setCreatedUserEmail(data.email);
+      setSetupLink(typeof newUser?.setupLink === 'string' ? newUser.setupLink : '');
       setUserCreated(true);
       form.reset();
 
       toast({
         title: 'User Created!',
-        description: `${data.name} has been added to the system.`,
+        description: typeof newUser?.setupLink === 'string' && newUser.setupLink.length > 0
+          ? `${data.name} has been added. Share the setup link so they can create their password.`
+          : `${data.name} has been added, but no setup link was generated.`,
       });
 
       onUserCreated?.();
@@ -119,9 +123,38 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertTitle className="text-green-900">Success!</AlertTitle>
           <AlertDescription className="text-green-800">
-            User {createdUserEmail} has been created. You can now assign dealerships to them.
+            User {createdUserEmail} has been created.
+            {setupLink
+              ? ' Share the setup link below so they can set their password and log in for the first time.'
+              : ' Setup link generation failed, so they cannot set a password yet.'}
           </AlertDescription>
         </Alert>
+      )}
+
+      {userCreated && setupLink && (
+        <div className="grid gap-2 rounded-md border border-cyan-700/40 bg-cyan-950/20 p-3">
+          <Label className="text-xs uppercase tracking-wide text-cyan-300">First Login Setup Link</Label>
+          <div className="flex gap-2">
+            <Input value={setupLink} readOnly />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(setupLink);
+                  toast({ title: 'Copied', description: 'Setup link copied to clipboard.' });
+                } catch {
+                  toast({ variant: 'destructive', title: 'Copy Failed', description: 'Could not copy setup link.' });
+                }
+              }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This link lets the user set their password on first login.
+          </p>
+        </div>
       )}
 
       <Form {...form}>
