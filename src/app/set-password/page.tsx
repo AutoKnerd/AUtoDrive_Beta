@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import Link from 'next/link';
@@ -22,7 +22,7 @@ function formatResetError(error: any): string {
   return error?.message || 'Unable to set password. Please request a new setup link.';
 }
 
-export default function SetPasswordPage() {
+function SetPasswordContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const firebaseAuth = useFirebaseAuth();
@@ -180,3 +180,28 @@ export default function SetPasswordPage() {
   );
 }
 
+export default function SetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen flex-col items-center justify-center p-4">
+          <div className="w-full max-w-sm space-y-8">
+            <div className="flex flex-col items-center">
+              <Logo variant="full" width={610} height={203} />
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-center text-xl font-semibold tracking-tight">Set Your Password</CardTitle>
+              </CardHeader>
+              <CardContent className="flex items-center justify-center py-6">
+                <Spinner size="md" />
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      }
+    >
+      <SetPasswordContent />
+    </Suspense>
+  );
+}
