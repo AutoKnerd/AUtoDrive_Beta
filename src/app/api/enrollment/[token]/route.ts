@@ -20,6 +20,14 @@ type EnrollmentDoc = {
   expiresAt?: { toDate?: () => Date } | Date;
 };
 
+const SELF_ENROLLMENT_RESTRICTED_ROLES = new Set<UserRole>([
+  'Owner',
+  'General Manager',
+  'Admin',
+  'Developer',
+  'Trainer',
+]);
+
 function buildDefaultStats(now: Date) {
   return {
     empathy: { score: BASELINE, lastUpdated: now },
@@ -70,6 +78,10 @@ function isEnrollmentLinkValid(enrollment: EnrollmentDoc): { ok: boolean; messag
   return { ok: true };
 }
 
+function sanitizeAllowedRoles(roles: UserRole[]): UserRole[] {
+  return roles.filter((role) => !SELF_ENROLLMENT_RESTRICTED_ROLES.has(role));
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ token: string }> }
@@ -94,11 +106,19 @@ export async function GET(
       return NextResponse.json({ message: validity.message }, { status: 410 });
     }
 
+    const filteredRoles = sanitizeAllowedRoles(enrollment.allowedRoles || []);
+    if (!filteredRoles.length) {
+      return NextResponse.json(
+        { message: 'This enrollment link cannot assign any self-enrollment roles. Ask an administrator for a new link.' },
+        { status: 410 }
+      );
+    }
+
     return NextResponse.json({
       token: enrollmentSnap.id,
       dealershipId: enrollment.dealershipId,
       dealershipName: enrollment.dealershipName,
-      allowedRoles: enrollment.allowedRoles,
+      allowedRoles: filteredRoles,
     });
   } catch (error: any) {
     console.error('[API Enrollment GET] Error:', error);
@@ -143,6 +163,13 @@ export async function POST(
       return NextResponse.json({ message: 'Selected role is required.' }, { status: 400 });
     }
 
+    if (SELF_ENROLLMENT_RESTRICTED_ROLES.has(submittedRole)) {
+      return NextResponse.json(
+        { message: 'Selected role cannot be assigned through self-enrollment. Contact an administrator.' },
+        { status: 403 }
+      );
+    }
+
     const adminAuth = getAdminAuth();
     const adminDb = getAdminDb();
     const decoded = await adminAuth.verifyIdToken(match[1].trim());
@@ -163,7 +190,12 @@ export async function POST(
       const validity = isEnrollmentLinkValid(enrollment);
       if (!validity.ok) throw new Error(validity.message || 'Invalid enrollment link.');
 
-      if (!enrollment.allowedRoles.includes(submittedRole)) {
+      const allowedRoles = sanitizeAllowedRoles(enrollment.allowedRoles || []);
+      if (!allowedRoles.length) {
+        throw new Error('This enrollment link has no assignable self-enrollment roles.');
+      }
+
+      if (!allowedRoles.includes(submittedRole)) {
         throw new Error('Selected role is not allowed for this enrollment link.');
       }
 

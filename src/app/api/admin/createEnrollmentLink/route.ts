@@ -77,13 +77,31 @@ function getAllowedEnrollmentRoles(inviterRole: UserRole): UserRole[] {
       return ['Parts Consultant'];
     case 'Finance Manager':
       return ['Finance Manager'];
-    case 'General Manager':
     case 'Owner':
+      return [
+        'General Manager',
+        'manager',
+        'Service Manager',
+        'Parts Manager',
+        'Finance Manager',
+        'Sales Consultant',
+        'Service Writer',
+        'Parts Consultant',
+      ];
+    case 'General Manager':
+      return [
+        'manager',
+        'Service Manager',
+        'Parts Manager',
+        'Finance Manager',
+        'Sales Consultant',
+        'Service Writer',
+        'Parts Consultant',
+      ];
     case 'Trainer':
     case 'Admin':
     case 'Developer':
       return [
-        'Owner',
         'General Manager',
         'manager',
         'Service Manager',
