@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { CheckCircle, Copy } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { Label } from '@/components/ui/label';
 
 interface CreateUserFormProps {
   onUserCreated?: () => void;
@@ -28,6 +29,7 @@ const createUserSchema = z.object({
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
 export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
+  const RESULT_STORAGE_KEY = 'autodrive:create-user:last-result';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userCreated, setUserCreated] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
@@ -46,11 +48,70 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
     },
   });
 
+  function persistLatestResult(result: { email: string; setupLink: string; setupLinkError: string }) {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.setItem(
+        RESULT_STORAGE_KEY,
+        JSON.stringify({
+          ...result,
+          createdAt: Date.now(),
+        })
+      );
+    } catch {
+      // Ignore storage failures (private mode / quota).
+    }
+  }
+
+  function clearPersistedResult() {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.removeItem(RESULT_STORAGE_KEY);
+    } catch {
+      // Ignore storage failures.
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.sessionStorage.getItem(RESULT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        email?: string;
+        setupLink?: string;
+        setupLinkError?: string;
+        createdAt?: number;
+      };
+      if (!parsed || typeof parsed !== 'object') return;
+
+      // Expire stale result after 1 day.
+      if (typeof parsed.createdAt === 'number' && Date.now() - parsed.createdAt > 24 * 60 * 60 * 1000) {
+        clearPersistedResult();
+        return;
+      }
+
+      if (typeof parsed.email === 'string') {
+        setCreatedUserEmail(parsed.email);
+      }
+      if (typeof parsed.setupLink === 'string') {
+        setSetupLink(parsed.setupLink);
+      }
+      if (typeof parsed.setupLinkError === 'string') {
+        setSetupLinkError(parsed.setupLinkError);
+      }
+      setUserCreated(true);
+    } catch {
+      // Ignore malformed cache.
+    }
+  }, []);
+
   async function onSubmit(data: CreateUserFormValues) {
     setIsSubmitting(true);
     setUserCreated(false);
     setSetupLink('');
     setSetupLinkError('');
+    clearPersistedResult();
 
     try {
       // Prepare headers - only include token if user exists
@@ -95,10 +156,18 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
       }
 
       const newUser = await response.json();
+      const resolvedSetupLink = typeof newUser?.setupLink === 'string' ? newUser.setupLink : '';
+      const resolvedSetupLinkError = typeof newUser?.setupLinkError === 'string' ? newUser.setupLinkError : '';
+
       setCreatedUserEmail(data.email);
-      setSetupLink(typeof newUser?.setupLink === 'string' ? newUser.setupLink : '');
-      setSetupLinkError(typeof newUser?.setupLinkError === 'string' ? newUser.setupLinkError : '');
+      setSetupLink(resolvedSetupLink);
+      setSetupLinkError(resolvedSetupLinkError);
       setUserCreated(true);
+      persistLatestResult({
+        email: data.email,
+        setupLink: resolvedSetupLink,
+        setupLinkError: resolvedSetupLinkError,
+      });
       form.reset();
 
       toast({
