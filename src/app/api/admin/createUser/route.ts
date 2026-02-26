@@ -76,6 +76,21 @@ function getPublicOrigin(req: Request): string {
   return 'http://localhost:3000';
 }
 
+function toCustomPasswordSetupLink(generatedLink: string, req: Request, email: string): string | null {
+  try {
+    const parsed = new URL(generatedLink);
+    const oobCode = parsed.searchParams.get('oobCode');
+    if (!oobCode) return null;
+
+    const custom = new URL('/set-password', getPublicOrigin(req));
+    custom.searchParams.set('oobCode', oobCode);
+    custom.searchParams.set('email', email);
+    return custom.toString();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Check if any users exist in the system.
  * Used to determine if bootstrap mode is enabled.
@@ -387,6 +402,17 @@ export async function POST(req: Request) {
     }
 
     console.log(`[API CreateUser] User created successfully: ${newUserId} (${normalizedEmail}, role: ${finalRole})`);
+
+    if (setupLink) {
+      const customSetupLink = toCustomPasswordSetupLink(setupLink, req, normalizedEmail);
+      if (customSetupLink) {
+        setupLink = customSetupLink;
+      } else {
+        setupLinkError = setupLinkError
+          ? `${setupLinkError} Could not convert generated link to custom setup URL.`
+          : 'Could not convert generated link to custom setup URL.';
+      }
+    }
 
     return NextResponse.json(
       {
