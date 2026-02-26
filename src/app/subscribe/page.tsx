@@ -9,7 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { createIndividualCheckoutSession } from '@/app/actions/stripe';
+import { createIndividualCheckoutSessionUrl } from '@/app/actions/stripe';
 import { requiresIndividualCheckout } from '@/lib/billing/access';
 import { CreditCard } from 'lucide-react';
 
@@ -38,12 +38,13 @@ export default function SubscribePage() {
       }
 
       const idToken = await fbUser.getIdToken(true);
-      await createIndividualCheckoutSession(idToken);
-    } catch (error: any) {
-      if (error?.message === 'NEXT_REDIRECT' || String(error?.digest || '').includes('NEXT_REDIRECT')) {
-        return;
+      const checkout = await createIndividualCheckoutSessionUrl(idToken);
+      if (!checkout.ok) {
+        throw new Error(checkout.message);
       }
 
+      window.location.assign(checkout.url);
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Checkout Error',
