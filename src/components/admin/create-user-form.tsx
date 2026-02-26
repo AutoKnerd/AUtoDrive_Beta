@@ -32,6 +32,7 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
   const [userCreated, setUserCreated] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
   const [setupLink, setSetupLink] = useState('');
+  const [setupLinkError, setSetupLinkError] = useState('');
   const { toast } = useToast();
   const { firebaseUser } = useAuth();
 
@@ -48,6 +49,8 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
   async function onSubmit(data: CreateUserFormValues) {
     setIsSubmitting(true);
     setUserCreated(false);
+    setSetupLink('');
+    setSetupLinkError('');
 
     try {
       // Prepare headers - only include token if user exists
@@ -94,6 +97,7 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
       const newUser = await response.json();
       setCreatedUserEmail(data.email);
       setSetupLink(typeof newUser?.setupLink === 'string' ? newUser.setupLink : '');
+      setSetupLinkError(typeof newUser?.setupLinkError === 'string' ? newUser.setupLinkError : '');
       setUserCreated(true);
       form.reset();
 
@@ -128,6 +132,13 @@ export function CreateUserForm({ onUserCreated }: CreateUserFormProps) {
               ? ' Share the setup link below so they can set their password and log in for the first time.'
               : ' Setup link generation failed, so they cannot set a password yet.'}
           </AlertDescription>
+        </Alert>
+      )}
+
+      {userCreated && !setupLink && setupLinkError && (
+        <Alert variant="destructive">
+          <AlertTitle>Setup Link Error</AlertTitle>
+          <AlertDescription>{setupLinkError}</AlertDescription>
         </Alert>
       )}
 

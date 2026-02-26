@@ -355,14 +355,35 @@ export async function POST(req: Request) {
 
     let setupLink: string | null = null;
     let setupLinkError: string | null = null;
+    let setupLinkMode: 'redirect' | 'default' | null = null;
+    const continueUrl = `${getPublicOrigin(req)}/login`;
     try {
-      const continueUrl = `${getPublicOrigin(req)}/login`;
       setupLink = await adminAuth.generatePasswordResetLink(normalizedEmail, {
         url: continueUrl,
       });
-    } catch (linkError: any) {
-      setupLinkError = linkError?.message || 'Could not generate password setup link.';
-      console.error('[API CreateUser] Failed to generate password setup link:', linkError);
+      setupLinkMode = 'redirect';
+    } catch (redirectLinkError: any) {
+      const redirectReason = redirectLinkError?.message || 'Unknown error while generating redirected setup link.';
+      console.warn('[API CreateUser] Redirect setup link failed, retrying default mode:', {
+        email: normalizedEmail,
+        continueUrl,
+        error: redirectReason,
+      });
+
+      try {
+        // Fallback: generate default Firebase-hosted action link if redirect URL config is not ready.
+        setupLink = await adminAuth.generatePasswordResetLink(normalizedEmail);
+        setupLinkMode = 'default';
+      } catch (fallbackLinkError: any) {
+        const fallbackReason = fallbackLinkError?.message || 'Could not generate password setup link.';
+        setupLinkError = `Redirect link failed (${redirectReason}). Default link failed (${fallbackReason}).`;
+        console.error('[API CreateUser] Failed to generate password setup link in all modes:', {
+          email: normalizedEmail,
+          continueUrl,
+          redirectReason,
+          fallbackReason,
+        });
+      }
     }
 
     console.log(`[API CreateUser] User created successfully: ${newUserId} (${normalizedEmail}, role: ${finalRole})`);
@@ -372,6 +393,7 @@ export async function POST(req: Request) {
         ...newUserData,
         setupLink,
         setupLinkError,
+        setupLinkMode,
         authExisted,
         message: setupLink
           ? 'User created successfully. Share the setup link so they can create their password.'
