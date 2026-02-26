@@ -21,7 +21,7 @@ interface AuthContextType {
   loading: boolean;
   isTouring: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (redirectTo?: string) => Promise<void>;
   register: (name: string, password: string, invitation: EmailInvitation) => Promise<void>;
   publicSignup: (name: string, email: string, password: string) => Promise<void>;
   setUser: (user: User | null) => void;
@@ -289,13 +289,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [auth]);
 
-  const logout = async () => {
-    await auth.signOut();
-    setUser(null);
-    setOriginalUser(null);
-    setIsTouring(false);
-    router.push('/login');
-  };
+  const logout = useCallback(async (redirectTo: string = '/login') => {
+    try {
+      await auth.signOut();
+    } catch (error) {
+      console.error('[AuthProvider] Logout failed:', error);
+    } finally {
+      setUser(null);
+      setOriginalUser(null);
+      setIsTouring(false);
+    }
+
+    if (redirectTo) {
+      router.replace(redirectTo);
+    }
+  }, [auth, router]);
 
   const switchTourRole = useCallback(async (role: UserRole) => {
       let email = '';

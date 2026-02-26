@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { UserRole } from '@/lib/definitions';
-import { useRouter } from 'next/navigation';
 import { Bot, LogOut, Users, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { TourGuideChat } from '@/components/tour/tour-guide-chat';
@@ -25,11 +24,9 @@ const tourRoles: { label: string; value: UserRole }[] = [
 
 export function TourFooter() {
   const { user, switchTourRole, logout } = useAuth();
-  const router = useRouter();
 
-  const handleEndTour = () => {
-    logout();
-    router.push('/about');
+  const handleEndTour = async () => {
+    await logout('/about');
   };
   
   const handleRestartTour = () => {

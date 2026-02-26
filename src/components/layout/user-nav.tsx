@@ -213,7 +213,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                 </DropdownMenuItem>
             </DialogTrigger>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => logout()}>
+            <DropdownMenuItem onSelect={() => { void logout('/login'); }}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
             </DropdownMenuItem>
