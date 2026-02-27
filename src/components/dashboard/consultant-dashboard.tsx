@@ -292,6 +292,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [creatingUniqueTestingLesson, setCreatingUniqueTestingLesson] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('personal');
+  const [viewModeInitialized, setViewModeInitialized] = useState(false);
   const [range, setRange] = useState<CxRange>('today');
   const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
   const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
@@ -410,10 +411,15 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   }, [isTouring, user.role]);
 
   useEffect(() => {
+    if (!viewModeInitialized) {
+      setViewMode(hasDealershipContext ? 'team' : 'personal');
+      setViewModeInitialized(true);
+      return;
+    }
     if (!hasDealershipContext && viewMode !== 'personal') {
       setViewMode('personal');
     }
-  }, [hasDealershipContext, viewMode]);
+  }, [hasDealershipContext, viewMode, viewModeInitialized]);
   
   const handleWelcomeDialogChange = (open: boolean) => {
     if (!open) {
