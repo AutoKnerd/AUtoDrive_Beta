@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
-import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser } from '@/lib/data.client';
+import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
 import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ListChecks, ChevronRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -131,6 +131,78 @@ function getUserAvatarScores(member: User) {
   };
 }
 
+type CxScoreSnapshot = Record<CxTrait, number>;
+
+function scoreSnapshotFromUserStats(user: User): CxScoreSnapshot | null {
+  const stats = user.stats as Record<string, unknown> | undefined;
+  if (!stats) return null;
+
+  const empathy = extractStatScore(stats.empathy);
+  const listening = extractStatScore(stats.listening);
+  const trust = extractStatScore(stats.trust);
+  const followUp = extractStatScore(stats.followUp);
+  const closing = extractStatScore(stats.closing);
+  const relationshipBuilding = extractStatScore(stats.relationship ?? stats.relationshipBuilding);
+
+  if (
+    empathy === null ||
+    listening === null ||
+    trust === null ||
+    followUp === null ||
+    closing === null ||
+    relationshipBuilding === null
+  ) {
+    return null;
+  }
+
+  return {
+    empathy: normalizeAvatarScore(empathy),
+    listening: normalizeAvatarScore(listening),
+    trust: normalizeAvatarScore(trust),
+    followUp: normalizeAvatarScore(followUp),
+    closing: normalizeAvatarScore(closing),
+    relationshipBuilding: normalizeAvatarScore(relationshipBuilding),
+  };
+}
+
+function scoreSnapshotFromActivity(logs: LessonLog[]): CxScoreSnapshot {
+  if (!logs.length) {
+    return {
+      empathy: 60,
+      listening: 60,
+      trust: 60,
+      followUp: 60,
+      closing: 60,
+      relationshipBuilding: 60,
+    };
+  }
+
+  const totals = logs.reduce((acc, log) => {
+    acc.empathy += log.empathy || 0;
+    acc.listening += log.listening || 0;
+    acc.trust += log.trust || 0;
+    acc.followUp += log.followUp || 0;
+    acc.closing += log.closing || 0;
+    acc.relationshipBuilding += log.relationshipBuilding || 0;
+    return acc;
+  }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 });
+
+  const count = logs.length;
+  return {
+    empathy: normalizeAvatarScore(totals.empathy / count),
+    listening: normalizeAvatarScore(totals.listening / count),
+    trust: normalizeAvatarScore(totals.trust / count),
+    followUp: normalizeAvatarScore(totals.followUp / count),
+    closing: normalizeAvatarScore(totals.closing / count),
+    relationshipBuilding: normalizeAvatarScore(totals.relationshipBuilding / count),
+  };
+}
+
+function lowestTraitFromSnapshot(scores: CxScoreSnapshot): CxTrait {
+  return (Object.entries(scores) as [CxTrait, number][])
+    .reduce((lowest, current) => (current[1] < lowest[1] ? current : lowest), ['empathy', Number.POSITIVE_INFINITY])[0];
+}
+
 function LevelDisplay({ user }: { user: User }) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
 
@@ -191,6 +263,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [teamSortDirection, setTeamSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
   const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
+  const [dailyRecommendedLessonId, setDailyRecommendedLessonId] = useState<string | null>(null);
   const [systemReport, setSystemReport] = useState<SystemReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
@@ -271,7 +344,25 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
           setTeamActivity([...Array.from(teamActivityByUserId.values()), ...pendingRows]);
           setManageableUsers(usersToManage);
-          setLessons(fetchedLessons);
+          const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
+          let lessonsForSelection = fetchedLessons;
+          let resolvedDailyRecommendedLessonId: string | null = null;
+
+          if (baselineEligible && user.role !== 'Owner' && user.role !== 'Admin' && user.role !== 'Trainer' && user.role !== 'Developer') {
+            const scoreSnapshot = scoreSnapshotFromUserStats(user) ?? scoreSnapshotFromActivity(fetchedManagerActivity);
+            const lowestTrait = lowestTraitFromSnapshot(scoreSnapshot);
+            const autoLesson = await ensureDailyRecommendedLesson(user.role as LessonRole, lowestTrait, user.userId);
+            if (autoLesson) {
+              resolvedDailyRecommendedLessonId = autoLesson.lessonId;
+              lessonsForSelection = [
+                autoLesson,
+                ...fetchedLessons.filter((lesson) => lesson.lessonId !== autoLesson.lessonId),
+              ];
+            }
+          }
+
+          setLessons(lessonsForSelection);
+          setDailyRecommendedLessonId(resolvedDailyRecommendedLessonId);
           setManagerActivity(fetchedManagerActivity);
           setManagerBadges(fetchedBadges);
           setAssignedLessons(fetchedAssignedLessons);
@@ -279,7 +370,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           setLessonLimits(limits);
           setPppFeatureEnabled(pppAccessEnabled === true);
           setSaasPppFeatureEnabled(saasPppAccessEnabled === true);
-          const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
           const hasBaselineLog = fetchedManagerActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
           const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
           setNeedsBaselineAssessment(baselineRequired);
@@ -414,10 +504,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     const lowestScoringTrait = Object.entries(managerAverageScores).reduce((lowest, [trait, score]) => (score as number) < lowest.score ? { trait: trait as CxTrait, score: score as number } : lowest, { trait: 'empathy' as CxTrait, score: 101 });
     const assignedLessonIds = new Set(assignedLessonHistoryIds);
     const candidateLessons = lessons.filter(l => !assignedLessonIds.has(l.lessonId));
+    if (dailyRecommendedLessonId) {
+      const dailyLesson = candidateLessons.find((lesson) => lesson.lessonId === dailyRecommendedLessonId);
+      if (dailyLesson) return dailyLesson;
+    }
     const roleSpecificLessons = candidateLessons.filter(l => l.role === user.role);
     const globalLessons = candidateLessons.filter(l => l.role === 'global');
     return roleSpecificLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) || roleSpecificLessons[0] || globalLessons.find(l => l.associatedTrait === lowestScoringTrait.trait) || globalLessons[0] || candidateLessons[0] || null;
-  }, [loading, lessons, assignedLessonHistoryIds, managerAverageScores, user.role]);
+  }, [loading, lessons, assignedLessonHistoryIds, managerAverageScores, user.role, dailyRecommendedLessonId]);
 
   const hasAvailableLessons = useMemo(() => {
     return !loading && ((recommendedLesson && !lessonLimits.recommendedTaken) || assignedLessons.length > 0);

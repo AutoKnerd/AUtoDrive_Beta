@@ -43,6 +43,70 @@ const SCENARIO_TEMPLATES: Record<CxTrait, string[]> = {
   ],
 };
 
+const DAILY_TITLE_VARIANTS: Record<CxTrait, string[]> = {
+  empathy: ['Empathy Reset Drill', 'Empathy Under Pressure', 'Emotion-First Coaching'],
+  listening: ['Listening Precision Drill', 'Active Listening Sprint', 'Clarify and Confirm'],
+  trust: ['Trust Builder Drill', 'Transparent Value Coaching', 'Trust Through Clarity'],
+  followUp: ['Follow-Up Momentum Drill', 'Next-Step Follow-Up', 'Value-First Reconnect'],
+  closing: ['Closing Confidence Drill', 'Decision-Ready Close', 'Commitment Clarity'],
+  relationshipBuilding: ['Relationship Builder Drill', 'Loyalty Growth Coaching', 'Long-Term Trust Builder'],
+};
+
+const CUSTOMER_PROFILES = [
+  'The customer is detail-oriented and asks for exact next steps.',
+  'The customer is skeptical from a previous poor dealership experience.',
+  'The customer is short on time and wants a concise, confident conversation.',
+  'The customer is price-sensitive but open to value if it is clearly explained.',
+  'The customer is comparing your recommendation with two outside options.',
+  'The customer is emotionally tired and needs calm structure before deciding.',
+  'The customer is practical and asks for proof before commitment.',
+  'The customer is friendly but non-committal and avoids direct decisions.',
+];
+
+const CHANNEL_CONSTRAINTS = [
+  'You must complete this interaction in under 8 minutes.',
+  'A second stakeholder joins halfway through and asks a different question.',
+  'You have to summarize the plan in one clear sentence before moving on.',
+  'The customer asks you to explain your recommendation without jargon.',
+  'The customer asks for a side-by-side option comparison before deciding.',
+  'The customer asks for one concrete reason to act today.',
+  'The conversation starts positive, then shifts after a surprise objection.',
+  'You must confirm understanding before each transition in the conversation.',
+];
+
+const SUCCESS_METRICS: Record<CxTrait, string[]> = {
+  empathy: [
+    'Customer explicitly feels heard before solutioning.',
+    'Emotional acknowledgment is clear and timely.',
+    'Tone remains steady under customer frustration.',
+  ],
+  listening: [
+    'You restate priorities accurately before recommending next steps.',
+    'You confirm understanding after each key customer statement.',
+    'You reduce ambiguity by summarizing decisions clearly.',
+  ],
+  trust: [
+    'Recommendation is framed with transparent rationale and evidence.',
+    'No hidden assumptions or vague language in your explanation.',
+    'Customer confidence improves after your response to skepticism.',
+  ],
+  followUp: [
+    'Follow-up cadence is clear, respectful, and value-based.',
+    'Next contact step is specific, personalized, and time-bound.',
+    'Message keeps momentum without creating pressure.',
+  ],
+  closing: [
+    'You ask for commitment with confidence and customer comfort.',
+    'You resolve final hesitation without high-pressure language.',
+    'You secure a clear next decision step before ending.',
+  ],
+  relationshipBuilding: [
+    'You create a concrete post-interaction loyalty touchpoint.',
+    'You reinforce trust with a personalized long-term follow-up plan.',
+    'You leave the customer with clarity, confidence, and continuity.',
+  ],
+};
+
 function toRoleSlug(role: LessonRole): string {
   return role.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
@@ -57,6 +121,11 @@ function hashSeed(input: string): number {
     hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
   }
   return hash;
+}
+
+function userHash(userId: string): string {
+  const hashed = hashSeed(userId).toString(36);
+  return hashed.slice(0, 8) || 'user';
 }
 
 function dateKey(date: Date): string {
@@ -87,7 +156,18 @@ function pickCategory(role: LessonRole, trait: CxTrait, key: string): LessonCate
 function pickScenario(role: LessonRole, trait: CxTrait, key: string): string {
   const templates = SCENARIO_TEMPLATES[trait];
   const index = hashSeed(`${role}:${trait}:${key}:scenario`) % templates.length;
-  return `${templates[index]} Context: ${role} role, customer-first standards, and ethical communication.`;
+  const customerProfile = CUSTOMER_PROFILES[hashSeed(`${role}:${trait}:${key}:profile`) % CUSTOMER_PROFILES.length];
+  const channelConstraint = CHANNEL_CONSTRAINTS[hashSeed(`${role}:${trait}:${key}:constraint`) % CHANNEL_CONSTRAINTS.length];
+  const metrics = SUCCESS_METRICS[trait];
+  const successMetric = metrics[hashSeed(`${role}:${trait}:${key}:success`) % metrics.length];
+
+  return `${templates[index]} ${customerProfile} ${channelConstraint} Success target: ${successMetric} Context: ${role} role, customer-first standards, and ethical communication.`;
+}
+
+function pickDailyTitle(role: LessonRole, trait: CxTrait, key: string): string {
+  const variants = DAILY_TITLE_VARIANTS[trait];
+  const index = hashSeed(`${role}:${trait}:${key}:title`) % variants.length;
+  return variants[index];
 }
 
 function pickTestingTwist(role: LessonRole, trait: CxTrait, key: string): string {
@@ -106,19 +186,24 @@ function randomSuffix(size: number = 6): string {
   return Math.random().toString(36).slice(2, 2 + size);
 }
 
-export function buildAutoRecommendedLessonId(role: LessonRole, trait: CxTrait, now: Date = new Date()): string {
-  return `auto-${toRoleSlug(role)}-${trait}-${dateKey(now)}`;
+export function buildAutoRecommendedLessonId(
+  role: LessonRole,
+  trait: CxTrait,
+  userId: string,
+  now: Date = new Date()
+): string {
+  return `auto-${toRoleSlug(role)}-${trait}-${userHash(userId)}-${dateKey(now)}`;
 }
 
 export function buildAutoRecommendedLesson(
   role: LessonRole,
   trait: CxTrait,
+  userId: string,
   now: Date = new Date()
 ): Lesson {
-  const key = dateKey(now);
-  const lessonId = buildAutoRecommendedLessonId(role, trait, now);
-  // Removed date label from the title per user request to reduce crowding on buttons
-  const title = `${role} ${traitLabel(trait)} Daily Drill`;
+  const key = `${dateKey(now)}-${userHash(userId)}`;
+  const lessonId = buildAutoRecommendedLessonId(role, trait, userId, now);
+  const title = `${role} ${pickDailyTitle(role, trait, key)}`;
 
   return {
     lessonId,

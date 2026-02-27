@@ -855,7 +855,7 @@ export async function ensureDailyRecommendedLesson(
 
     if (isTouringUser(userId)) {
         const tour = await getTourData();
-        const lesson = buildAutoRecommendedLesson(role, trait);
+        const lesson = buildAutoRecommendedLesson(role, trait, userId);
         const existing = tour.lessons.find(l => l.lessonId === lesson.lessonId);
         if (existing) return existing;
         tour.lessons.push(lesson);

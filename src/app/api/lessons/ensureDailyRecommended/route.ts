@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Forbidden: Role mismatch.' }, { status: 403 });
     }
 
-    const lesson = buildAutoRecommendedLesson(role, trait);
+    const lesson = buildAutoRecommendedLesson(role, trait, decoded.uid);
     const lessonRef = adminDb.collection('lessons').doc(lesson.lessonId);
     const existing = await lessonRef.get();
     if (!existing.exists) {

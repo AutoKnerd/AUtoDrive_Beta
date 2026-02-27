@@ -291,6 +291,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
   const [creatingUniqueTestingLesson, setCreatingUniqueTestingLesson] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dailyRecommendedLessonId, setDailyRecommendedLessonId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('personal');
   const [viewModeInitialized, setViewModeInitialized] = useState(false);
   const [range, setRange] = useState<CxRange>('today');
@@ -334,15 +335,21 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         );
 
         let lessonsForSelection = fetchedLessons;
+        let resolvedDailyRecommendedLessonId: string | null = null;
         if (baselineEligible && lessonRole !== 'global') {
           const autoLesson = await ensureDailyRecommendedLesson(lessonRole, lowestTrait, user.userId);
-          if (autoLesson && !lessonsForSelection.some(l => l.lessonId === autoLesson.lessonId)) {
-            lessonsForSelection = [autoLesson, ...lessonsForSelection];
+          if (autoLesson) {
+            resolvedDailyRecommendedLessonId = autoLesson.lessonId;
+            lessonsForSelection = [
+              autoLesson,
+              ...lessonsForSelection.filter((lesson) => lesson.lessonId !== autoLesson.lessonId),
+            ];
           }
         }
 
         if (!active) return;
         setLessons(lessonsForSelection);
+        setDailyRecommendedLessonId(resolvedDailyRecommendedLessonId);
         setActivity(fetchedActivity);
         setLessonLimits(limits);
         setAssignedLessons(fetchedAssignedLessons);
@@ -478,7 +485,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     );
     const candidateLessons = lessons.filter((lesson) => (
       !assignedLessonIds.has(lesson.lessonId) &&
-      lesson.associatedTrait === lowestScoringTrait.trait
+      (lesson.associatedTrait === lowestScoringTrait.trait || lesson.lessonId === dailyRecommendedLessonId)
     ));
     const roleSpecificLessons = candidateLessons.filter(l => l.role === user.role);
     const globalLessons = candidateLessons.filter(l => l.role === 'global');
@@ -496,8 +503,13 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       all.findIndex(other => other.lessonId === lesson.lessonId) === index
     ));
 
-    return dedupedById;
-  }, [lessons, assignedLessonHistoryIds, averageScores, user.role, activity]);
+    if (!dailyRecommendedLessonId) return dedupedById;
+
+    const dailyLesson = dedupedById.find((lesson) => lesson.lessonId === dailyRecommendedLessonId);
+    if (!dailyLesson) return dedupedById;
+
+    return [dailyLesson, ...dedupedById.filter((lesson) => lesson.lessonId !== dailyRecommendedLessonId)];
+  }, [lessons, assignedLessonHistoryIds, averageScores, user.role, activity, dailyRecommendedLessonId]);
 
   const availableRecommendedLesson = recommendedLessonQueue?.[0] ?? null;
   
