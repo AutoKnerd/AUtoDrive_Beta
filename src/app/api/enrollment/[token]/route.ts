@@ -20,13 +20,7 @@ type EnrollmentDoc = {
   expiresAt?: { toDate?: () => Date } | Date;
 };
 
-const SELF_ENROLLMENT_RESTRICTED_ROLES = new Set<UserRole>([
-  'Owner',
-  'General Manager',
-  'Admin',
-  'Developer',
-  'Trainer',
-]);
+const SELF_ENROLLMENT_RESTRICTED_ROLES = new Set<UserRole>(['Admin', 'Developer', 'Trainer']);
 
 function buildDefaultStats(now: Date) {
   return {

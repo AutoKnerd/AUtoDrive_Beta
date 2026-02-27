@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { Dealership, User, UserRole } from '@/lib/definitions';
+import {
+  canUseEnrollmentScope,
+  getAllowedEnrollmentRolesForScope,
+  getMaxEnrollmentScopeForInviter,
+  isEnrollmentScope,
+  type EnrollmentScope,
+} from '@/lib/enrollment/role-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const allowedInviterRoles = new Set<UserRole>([
-  'Admin',
-  'Developer',
-  'Owner',
-  'Trainer',
-  'General Manager',
-  'manager',
-  'Service Manager',
-  'Parts Manager',
-  'Finance Manager',
-]);
 
 const globalRoles = new Set<UserRole>(['Admin', 'Developer', 'Trainer']);
 
@@ -67,55 +62,6 @@ function getPublicOrigin(req: Request): string {
   return 'http://localhost:3000';
 }
 
-function getAllowedEnrollmentRoles(inviterRole: UserRole): UserRole[] {
-  switch (inviterRole) {
-    case 'manager':
-      return ['Sales Consultant'];
-    case 'Service Manager':
-      return ['Service Writer'];
-    case 'Parts Manager':
-      return ['Parts Consultant'];
-    case 'Finance Manager':
-      return ['Finance Manager'];
-    case 'Owner':
-      return [
-        'General Manager',
-        'manager',
-        'Service Manager',
-        'Parts Manager',
-        'Finance Manager',
-        'Sales Consultant',
-        'Service Writer',
-        'Parts Consultant',
-      ];
-    case 'General Manager':
-      return [
-        'manager',
-        'Service Manager',
-        'Parts Manager',
-        'Finance Manager',
-        'Sales Consultant',
-        'Service Writer',
-        'Parts Consultant',
-      ];
-    case 'Trainer':
-    case 'Admin':
-    case 'Developer':
-      return [
-        'General Manager',
-        'manager',
-        'Service Manager',
-        'Parts Manager',
-        'Finance Manager',
-        'Sales Consultant',
-        'Service Writer',
-        'Parts Consultant',
-      ];
-    default:
-      return [];
-  }
-}
-
 export async function POST(req: Request) {
   const authorization = req.headers.get('authorization') ?? req.headers.get('Authorization');
   if (!authorization) {
@@ -139,13 +85,19 @@ export async function POST(req: Request) {
     }
 
     const inviter = inviterSnap.data() as User;
-    if (!allowedInviterRoles.has(inviter.role)) {
+    const maxScope = getMaxEnrollmentScopeForInviter(inviter.role);
+    if (!maxScope) {
       return NextResponse.json({ message: 'Forbidden: Insufficient permissions.' }, { status: 403 });
     }
 
-    const { dealershipId } = await req.json();
+    const payload = await req.json().catch(() => ({}));
+    const dealershipId = payload?.dealershipId;
+    const requestedScope = payload?.enrollmentScope as EnrollmentScope | undefined;
     if (!dealershipId || typeof dealershipId !== 'string') {
       return NextResponse.json({ message: 'Bad Request: dealershipId is required.' }, { status: 400 });
+    }
+    if (requestedScope !== undefined && !isEnrollmentScope(requestedScope)) {
+      return NextResponse.json({ message: 'Bad Request: enrollmentScope is invalid.' }, { status: 400 });
     }
 
     const isGlobalRole = globalRoles.has(inviter.role);
@@ -160,7 +112,15 @@ export async function POST(req: Request) {
     }
 
     const dealership = dealershipSnap.data() as Dealership;
-    const allowedRoles = getAllowedEnrollmentRoles(inviter.role);
+    const selectedScope = requestedScope ?? maxScope;
+    if (!canUseEnrollmentScope(inviter.role, selectedScope)) {
+      return NextResponse.json(
+        { message: 'Forbidden: The selected enrollment scope exceeds your role permissions.' },
+        { status: 403 }
+      );
+    }
+
+    const allowedRoles = getAllowedEnrollmentRolesForScope(selectedScope);
     if (!allowedRoles.length) {
       return NextResponse.json({ message: 'No enrollable roles available for your account.' }, { status: 400 });
     }
@@ -176,6 +136,7 @@ export async function POST(req: Request) {
       dealershipId,
       dealershipName: dealership.name,
       allowedRoles,
+      enrollmentScope: selectedScope,
       inviterId,
       active: true,
       createdAt: Timestamp.now(),
@@ -194,6 +155,7 @@ export async function POST(req: Request) {
         dealershipId,
         dealershipName: dealership.name,
         allowedRoles,
+        enrollmentScope: selectedScope,
       },
       { status: 201 }
     );

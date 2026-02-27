@@ -29,6 +29,7 @@ import {
   getSaasPppLevelKey,
   normalizeSaasPppUserState,
 } from '@/lib/saas-ppp/state';
+import type { EnrollmentScope } from '@/lib/enrollment/role-scope';
 
 // Initialize SDKs lazily or inside functions to ensure stability
 const getFirebase = () => initializeFirebase();
@@ -712,10 +713,18 @@ export type EnrollmentLinkPreview = {
     allowedRoles: UserRole[];
 };
 
-export async function createDealershipEnrollmentLink(dealershipId: string, inviterId: string): Promise<{ url: string; allowedRoles: UserRole[] }> {
+export async function createDealershipEnrollmentLink(
+    dealershipId: string,
+    inviterId: string,
+    enrollmentScope?: EnrollmentScope
+): Promise<{ url: string; allowedRoles: UserRole[]; enrollmentScope?: EnrollmentScope }> {
     const { auth } = getFirebase();
     if (isTouringUser(inviterId)) {
-        return { url: `${getClientOrigin()}/enroll?token=tour-enroll-${Math.random()}`, allowedRoles: ['Sales Consultant'] };
+        return {
+            url: `${getClientOrigin()}/enroll?token=tour-enroll-${Math.random()}`,
+            allowedRoles: ['Sales Consultant'],
+            enrollmentScope: 'manager_and_under',
+        };
     }
 
     const idToken = await auth.currentUser?.getIdToken(true);
@@ -725,7 +734,7 @@ export async function createDealershipEnrollmentLink(dealershipId: string, invit
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ dealershipId }),
+        body: JSON.stringify({ dealershipId, enrollmentScope }),
     });
 
     if (!response.ok) {
@@ -734,7 +743,11 @@ export async function createDealershipEnrollmentLink(dealershipId: string, invit
     }
 
     const responseData = await response.json();
-    return { url: responseData.inviteUrl, allowedRoles: responseData.allowedRoles || [] };
+    return {
+        url: responseData.inviteUrl,
+        allowedRoles: responseData.allowedRoles || [],
+        enrollmentScope: responseData.enrollmentScope,
+    };
 }
 
 export async function getEnrollmentLinkByToken(token: string): Promise<EnrollmentLinkPreview> {

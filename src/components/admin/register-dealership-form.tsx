@@ -7,11 +7,18 @@ import { User, UserRole, Dealership } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Copy, Link as LinkIcon, Mail, MessageSquare, Share2 } from 'lucide-react';
 import { Input } from '../ui/input';
+import {
+  getAvailableEnrollmentScopesForInviter,
+  getEnrollmentScopeDescription,
+  getEnrollmentScopeLabel,
+  type EnrollmentScope,
+} from '@/lib/enrollment/role-scope';
 
 interface InviteUserFormProps {
   user: User;
@@ -23,10 +30,12 @@ type GeneratedLink = {
   url: string;
   dealershipName?: string;
   allowedRoles?: UserRole[];
+  enrollmentScope?: EnrollmentScope;
 };
 
 export function RegisterDealershipForm({ user, dealerships, onUserInvited }: InviteUserFormProps) {
   const [selectedDealershipId, setSelectedDealershipId] = useState('');
+  const [selectedEnrollmentScope, setSelectedEnrollmentScope] = useState<EnrollmentScope | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedLink, setGeneratedLink] = useState<GeneratedLink | null>(null);
   const [isNativeShareSupported, setIsNativeShareSupported] = useState(false);
@@ -41,6 +50,7 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
   const managedDealerships = isOwner 
     ? dealerships.filter(d => user.dealershipIds?.includes(d.id))
     : dealerships;
+  const availableEnrollmentScopes = getAvailableEnrollmentScopesForInviter(user.role);
   
   useEffect(() => {
     // Pre-select dealership if user only belongs to one
@@ -67,6 +77,17 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
   }, [generatedLink]);
 
   useEffect(() => {
+    if (availableEnrollmentScopes.length === 0) {
+      setSelectedEnrollmentScope('');
+      return;
+    }
+
+    if (!selectedEnrollmentScope || !availableEnrollmentScopes.includes(selectedEnrollmentScope)) {
+      setSelectedEnrollmentScope(availableEnrollmentScopes[0]);
+    }
+  }, [availableEnrollmentScopes, selectedEnrollmentScope]);
+
+  useEffect(() => {
     setIsNativeShareSupported(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
   }, []);
 
@@ -84,13 +105,18 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
     setGeneratedLink(null);
 
     try {
-      const { url, allowedRoles } = await createDealershipEnrollmentLink(selectedDealershipId, user.userId);
+      const { url, allowedRoles, enrollmentScope } = await createDealershipEnrollmentLink(
+        selectedDealershipId,
+        user.userId,
+        selectedEnrollmentScope || undefined
+      );
       const dealershipName = managedDealerships.find((dealership) => dealership.id === selectedDealershipId)?.name;
 
       setGeneratedLink({
         url,
         dealershipName,
         allowedRoles,
+        enrollmentScope,
       });
 
       toast({
@@ -164,6 +190,11 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
                   Users will pick from: {generatedLink.allowedRoles.map((role) => (role === 'manager' ? 'Sales Manager' : role)).join(', ')}.
                 </span>
               )}
+              {generatedLink.enrollmentScope && (
+                <span className="block mt-1 text-xs text-muted-foreground">
+                  Access level: {getEnrollmentScopeLabel(generatedLink.enrollmentScope)}.
+                </span>
+              )}
             </>
           </AlertDescription>
         </Alert>
@@ -229,7 +260,39 @@ export function RegisterDealershipForm({ user, dealerships, onUserInvited }: Inv
         <p className="text-xs text-muted-foreground">
           Generates a reusable QR/link that pre-assigns users to this dealership and lets them choose an allowed role during enrollment.
         </p>
-        <Button type="button" onClick={onSubmitDealershipLink} disabled={isSubmitting || dealerships.length === 0 || !selectedDealershipId}>
+        {availableEnrollmentScopes.length > 0 && (
+          <div className="space-y-2">
+            <Label>Enrollment Access Level</Label>
+            <RadioGroup
+              value={selectedEnrollmentScope}
+              onValueChange={(value) => setSelectedEnrollmentScope(value as EnrollmentScope)}
+              className="space-y-2"
+            >
+              {availableEnrollmentScopes.map((scope) => {
+                const optionId = `enrollment-scope-${scope}`;
+                return (
+                  <div key={scope} className="flex items-start gap-3 rounded-md border border-border/60 bg-card/40 p-3">
+                    <RadioGroupItem value={scope} id={optionId} className="mt-1" />
+                    <Label htmlFor={optionId} className="space-y-1 cursor-pointer">
+                      <span className="text-sm font-medium">{getEnrollmentScopeLabel(scope)}</span>
+                      <span className="block text-xs text-muted-foreground">{getEnrollmentScopeDescription(scope)}</span>
+                    </Label>
+                  </div>
+                );
+              })}
+            </RadioGroup>
+          </div>
+        )}
+        {availableEnrollmentScopes.length === 0 && (
+          <p className="text-xs text-destructive">
+            Your role cannot generate enrollment links.
+          </p>
+        )}
+        <Button
+          type="button"
+          onClick={onSubmitDealershipLink}
+          disabled={isSubmitting || dealerships.length === 0 || !selectedDealershipId || !selectedEnrollmentScope}
+        >
           {isSubmitting ? <Spinner size="sm" /> : 'Create Dealership Enrollment Link'}
         </Button>
       </div>
