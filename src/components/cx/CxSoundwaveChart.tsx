@@ -91,19 +91,17 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
     <div className="relative w-full aspect-[16/9] md:aspect-[2.4/1]">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-full overflow-visible"
+        className="w-full h-full overflow-visible [shape-rendering:geometricPrecision]"
         preserveAspectRatio="none"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoveredPoint(null)}
       >
         <defs>
-          <filter id="neon-glow" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="7" result="outerGlow" />
-            <feGaussianBlur stdDeviation="3.5" in="SourceGraphic" result="midGlow" />
-            <feGaussianBlur stdDeviation="1.4" in="SourceGraphic" result="innerGlow" />
+          <filter id="neon-glow" x="-35%" y="-35%" width="170%" height="170%">
+            <feGaussianBlur stdDeviation="2.2" result="outerGlow" />
+            <feGaussianBlur stdDeviation="1.1" in="SourceGraphic" result="innerGlow" />
             <feMerge>
               <feMergeNode in="outerGlow" />
-              <feMergeNode in="midGlow" />
               <feMergeNode in="innerGlow" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
@@ -214,9 +212,11 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
                 d={getPath(fgPoints)}
                 fill="none"
                 stroke={s.color}
-                strokeWidth={isActive ? 14 : 11}
-                strokeOpacity={isActive ? 0.24 : 0.16}
+                strokeWidth={isActive ? 6 : 4.6}
+                strokeOpacity={isActive ? 0.42 : 0.34}
                 filter="url(#neon-glow)"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 className="pointer-events-none"
               />
 
@@ -224,18 +224,10 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
                 d={getPath(fgPoints)}
                 fill="none"
                 stroke={s.color}
-                strokeWidth={isActive ? 8 : 6}
-                strokeOpacity={isActive ? 0.38 : 0.28}
-                filter="url(#neon-glow)"
-                className="pointer-events-none"
-              />
-
-              <path
-                d={getPath(fgPoints)}
-                fill="none"
-                stroke={s.color}
-                strokeWidth={isActive ? 5 : 3.5}
-                filter="url(#neon-glow)"
+                strokeWidth={isActive ? 2.8 : 2.2}
+                strokeOpacity={1}
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 className="pointer-events-none"
               />
 
