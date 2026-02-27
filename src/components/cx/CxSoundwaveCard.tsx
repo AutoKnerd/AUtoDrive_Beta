@@ -96,7 +96,6 @@ export function CxSoundwaveCard({
   const activeScope = viewMode === 'personal' && personalScope ? personalScope : scope;
   const comparisonScope = useMemo(() => getComparisonScope(activeScope), [activeScope]);
   const anchoredScores = useMemo(() => normalizeScores(data), [data]);
-  const waveThemePreference = themePreference === 'steel' ? 'vibrant' : themePreference;
 
   const series = useMemo(() => {
     if (!mounted) return [];
@@ -110,8 +109,8 @@ export function CxSoundwaveCard({
       Object.values(anchoredScores).some((score) => typeof score === 'number' && Number.isFinite(score))
     );
 
-    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince, waveThemePreference);
-  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince, waveThemePreference]);
+    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince, themePreference);
+  }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince, themePreference]);
 
   const mode = comparisonScope ? 'compare' : 'groupOnly';
 
