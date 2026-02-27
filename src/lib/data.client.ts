@@ -1742,6 +1742,9 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
 
 export async function getCombinedTeamData(dealershipId: string, user: User): Promise<any> {
     const { firestore: db } = getFirebase();
+    const isPrivilegedViewer = ['Admin', 'Developer', 'Trainer'].includes(user.role);
+    const scopedDealershipIds = Array.isArray(user.dealershipIds) ? user.dealershipIds : [];
+
     if (isTouringUser(user.userId)) {
         const tour = await getTourData();
         const roles = getTeamMemberRoles(user.role);
@@ -1756,7 +1759,9 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
             roles.includes(member.role)
         ));
         const filtered = dealershipId === 'all'
-            ? members
+            ? (isPrivilegedViewer
+                ? members
+                : members.filter((member) => member.dealershipIds.some((id) => scopedDealershipIds.includes(id))))
             : members.filter((member) => member.dealershipIds.includes(dealershipId));
 
         const logsByUserId = new Map<string, LessonLog[]>();
@@ -1789,7 +1794,11 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
 
     const usersSnap = await getDocs(query(collection(db, 'users'), where("role", "in", roles)));
     const members = usersSnap.docs.map(d => ({ ...d.data(), userId: d.id } as User));
-    const filtered = dealershipId === 'all' ? members : members.filter(m => m.dealershipIds.includes(dealershipId));
+    const filtered = dealershipId === 'all'
+        ? (isPrivilegedViewer
+            ? members
+            : members.filter((member) => member.dealershipIds.some((id) => scopedDealershipIds.includes(id))))
+        : members.filter((member) => member.dealershipIds.includes(dealershipId));
     
     return {
         teamActivity: filtered.map((member) => buildTeamActivityRow(member, [])),

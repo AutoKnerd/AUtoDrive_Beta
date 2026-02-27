@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { CheckCircle, Copy, Plus, Building2 } from 'lucide-react';
+import { CheckCircle, Copy, Plus, Building2, Mail, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Label } from '@/components/ui/label';
 import type { Dealership } from '@/lib/definitions';
@@ -284,6 +284,24 @@ export function CreateUserForm({ onUserCreated, dealerships }: CreateUserFormPro
               }}
             >
               <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button asChild type="button" variant="outline" className="w-full">
+              <a
+                href={`mailto:${encodeURIComponent(createdUserEmail || '')}?subject=${encodeURIComponent('AutoDrive First Login Setup')}&body=${encodeURIComponent(
+                  `Use this secure link to set your AutoDrive password and complete first login:\n\n${setupLink}`
+                )}`}
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Send Email
+              </a>
+            </Button>
+            <Button asChild type="button" variant="outline" className="w-full">
+              <a href={`sms:?&body=${encodeURIComponent(`AutoDrive first login setup link: ${setupLink}`)}`}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Send Text
+              </a>
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
