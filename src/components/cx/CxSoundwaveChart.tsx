@@ -45,6 +45,36 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
     return d;
   };
 
+  const smoothPointsForRange = (points: number[]) => {
+    if (points.length < 30) return points;
+
+    const window = points.length >= 90 ? 7 : 5;
+    const radius = Math.floor(window / 2);
+    const pass = (input: number[]) => {
+      const output = input.map((_, idx) => {
+        let weightedSum = 0;
+        let weightSum = 0;
+
+        for (let offset = -radius; offset <= radius; offset++) {
+          const sampleIdx = Math.min(input.length - 1, Math.max(0, idx + offset));
+          const weight = radius + 1 - Math.abs(offset);
+          weightedSum += input[sampleIdx] * weight;
+          weightSum += weight;
+        }
+
+        return weightSum > 0 ? weightedSum / weightSum : input[idx];
+      });
+
+      // Keep exact start/end anchors so range edges remain accurate.
+      output[0] = input[0];
+      output[output.length - 1] = input[input.length - 1];
+      return output;
+    };
+
+    const once = pass(points);
+    return points.length >= 90 ? pass(once) : once;
+  };
+
   const getValleyPath = (fg: number[], bg: number[]) => {
     if (fg.length < 2) return '';
     const fgPath = getPath(fg);
@@ -144,8 +174,10 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
         {series.map((s, sIdx) => {
           const isActive = activeSkillId === s.skillId;
           const isDimmed = activeSkillId !== null && !isActive;
-          const fgPoints = s.points.map(p => p.foreground);
-          const bgPoints = s.points.map(p => p.baseline);
+          const fgRaw = s.points.map(p => p.foreground);
+          const bgRaw = s.points.map(p => p.baseline);
+          const fgPoints = smoothPointsForRange(fgRaw);
+          const bgPoints = smoothPointsForRange(bgRaw);
 
           if (isPointGraph) {
             const x = padding.left + (sIdx + 0.5) * xScale;
