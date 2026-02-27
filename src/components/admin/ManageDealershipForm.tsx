@@ -152,7 +152,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       ));
       toast({
         title: 'PPP Access Updated',
-        description: `${selectedDealership.name} ${pppProtocolEnabled ? 'now has' : 'no longer has'} Profit Protection Protocol enabled.`,
+        description: `${selectedDealership.name} ${pppProtocolEnabled ? 'now has' : 'no longer has'} AutoKnerd: The Next Gear enabled.`,
       });
       onDealershipManaged?.();
     } catch (e) {
@@ -327,7 +327,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
             <div className="rounded-md border p-3 space-y-3">
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <p className="text-sm font-medium">Profit Protection Protocol (PPP)</p>
+                        <p className="text-sm font-medium">AutoKnerd: The Next Gear (PPP)</p>
                         <p className="text-xs text-muted-foreground">
                             Enable or disable PPP for users assigned to this dealership.
                         </p>
@@ -336,7 +336,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                       checked={pppProtocolEnabled}
                       onCheckedChange={setPppProtocolEnabled}
                       disabled={isLoading}
-                      aria-label="Enable Profit Protection Protocol"
+                      aria-label="Enable AutoKnerd: The Next Gear"
                     />
                 </div>
                 <Button

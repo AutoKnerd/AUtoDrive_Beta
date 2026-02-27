@@ -118,6 +118,8 @@ export async function POST(req: Request) {
           patch.ppp_abandonment_counter = defaults.ppp_abandonment_counter;
         }
         if (typeof userData.ppp_certified !== 'boolean') patch.ppp_certified = defaults.ppp_certified;
+        if (typeof userData.ppp_daily_pass_date !== 'string') patch.ppp_daily_pass_date = defaults.ppp_daily_pass_date;
+        if (typeof userData.ppp_daily_pass_count !== 'number') patch.ppp_daily_pass_count = defaults.ppp_daily_pass_count;
       }
 
       batch.set(userDoc.ref, patch, { merge: true });

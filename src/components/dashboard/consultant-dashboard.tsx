@@ -708,20 +708,6 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
           />
         </section>
 
-        {(pppFeatureEnabled || saasPppFeatureEnabled) && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-foreground">Certification</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {pppFeatureEnabled && (
-                <PppDashboardCard user={user} featureEnabled={pppFeatureEnabled} className={dashboardFeatureCardClass} />
-              )}
-              {saasPppFeatureEnabled && (
-                <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
-              )}
-            </div>
-          </section>
-        )}
-        
         <section id="lessons" className="space-y-4">
             <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -845,6 +831,28 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                 )}
             </div>
         </section>
+
+        {(pppFeatureEnabled || saasPppFeatureEnabled) && (
+          <section className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-foreground">AutoKnerd: The Next Gear</h2>
+              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground/95">
+                Your mission to sell smarter, build deeper trust, and protect margin.
+              </p>
+              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground/95">
+                Every session sharpens your skill, boosts your XP, and moves you to the next level.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {pppFeatureEnabled && (
+                <PppDashboardCard user={user} featureEnabled={pppFeatureEnabled} className={dashboardFeatureCardClass} />
+              )}
+              {saasPppFeatureEnabled && (
+                <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
+              )}
+            </div>
+          </section>
+        )}
 
         <section>
              {loading ? (

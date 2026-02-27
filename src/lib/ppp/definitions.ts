@@ -29,6 +29,9 @@ export type PppLessonTemplate = {
 export const PPP_LEVEL_MIN: PppLevel = 1;
 export const PPP_LEVEL_MAX: PppLevel = 10;
 export const PPP_TOUR_UNLOCKED_LESSON_COUNT = 2;
+export const PPP_DAILY_PASS_LIMIT = 5;
+export const PPP_BASE_XP = 100;
+export const PPP_TIER_INCREMENT_XP = 15;
 
 export const PPP_LEVELS: Array<{ level: PppLevel; title: string }> = [
   { level: 1, title: 'Regulation Foundations' },
@@ -42,19 +45,6 @@ export const PPP_LEVELS: Array<{ level: PppLevel; title: string }> = [
   { level: 9, title: 'Strategic Profit Protection' },
   { level: 10, title: 'Institutional Mastery' },
 ];
-
-export const PPP_XP_BY_LEVEL: Record<PppLevel, number> = {
-  1: 100,
-  2: 150,
-  3: 225,
-  4: 325,
-  5: 450,
-  6: 600,
-  7: 800,
-  8: 1050,
-  9: 1350,
-  10: 1750,
-};
 
 type StageTemplate = {
   id: PppStageId;
@@ -237,7 +227,8 @@ export function clampPppLevel(level: number): PppLevel {
 }
 
 export function getPppLevelXp(level: number): number {
-  return PPP_XP_BY_LEVEL[clampPppLevel(level)];
+  const safeLevel = clampPppLevel(level);
+  return PPP_BASE_XP + (safeLevel - 1) * PPP_TIER_INCREMENT_XP;
 }
 
 export function getPppLessonsForLevel(level: number, role: UserRole): PppLessonTemplate[] {

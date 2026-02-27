@@ -12,8 +12,8 @@ import { generateTourData } from './tour-data';
 import { initializeFirebase } from '@/firebase/init';
 import { ALPHA, BASELINE, LAMBDA, clampRatings, updateRollingStats } from '@/lib/stats/updateRollingStats';
 import { buildAutoRecommendedLesson, buildUniqueRecommendedTestingLesson } from '@/lib/lessons/auto-recommended';
-import { clampPppLevel, getPppLessonsForLevel, getPppLevelBadge, getPppLevelXp, PPP_TOUR_UNLOCKED_LESSON_COUNT } from '@/lib/ppp/definitions';
-import { buildDefaultPppState, getNextPppLevel, getPppLevelKey, normalizePppUserState } from '@/lib/ppp/state';
+import { clampPppLevel, getPppLessonsForLevel, getPppLevelBadge, getPppLevelXp, PPP_DAILY_PASS_LIMIT, PPP_TOUR_UNLOCKED_LESSON_COUNT } from '@/lib/ppp/definitions';
+import { buildDefaultPppState, getNextPppLevel, getPppLevelKey, getPppUtcDateKey, normalizePppUserState } from '@/lib/ppp/state';
 import { buildTrialWindow } from '@/lib/billing/trial';
 import {
   clampSaasPppLevel,
@@ -393,6 +393,123 @@ export type LessonCompletionDetails = {
         relationshipBuilding: LessonStatChange;
     };
 };
+
+export type CxRatingsUpdateDetails = {
+    updatedUser: User;
+    ratingsUsed: Ratings;
+    statChanges: NonNullable<LessonCompletionDetails['statChanges']>;
+};
+
+export async function applyCxRatingsToUser(
+    userId: string,
+    ratings?: Partial<Ratings>
+): Promise<CxRatingsUpdateDetails> {
+    const normalizedRatings = normalizeRatings(ratings);
+
+    if (isTouringUser(userId)) {
+        const tour = await getTourData();
+        const user = tour.users.find((entry) => entry.userId === userId);
+        if (!user) throw new Error('Tour user not found');
+
+        const now = new Date();
+        const statsResult = applyTourRollingStatsUpdate(user.stats, normalizedRatings, now);
+        user.stats = statsResult.nextStats;
+
+        return {
+            updatedUser: cloneTourUser(user),
+            ratingsUsed: normalizedRatings,
+            statChanges: {
+                empathy: {
+                    before: statsResult.before.empathy,
+                    after: statsResult.after.empathy,
+                    delta: statsResult.after.empathy - statsResult.before.empathy,
+                    rating: normalizedRatings.empathy,
+                },
+                listening: {
+                    before: statsResult.before.listening,
+                    after: statsResult.after.listening,
+                    delta: statsResult.after.listening - statsResult.before.listening,
+                    rating: normalizedRatings.listening,
+                },
+                trust: {
+                    before: statsResult.before.trust,
+                    after: statsResult.after.trust,
+                    delta: statsResult.after.trust - statsResult.before.trust,
+                    rating: normalizedRatings.trust,
+                },
+                followUp: {
+                    before: statsResult.before.followUp,
+                    after: statsResult.after.followUp,
+                    delta: statsResult.after.followUp - statsResult.before.followUp,
+                    rating: normalizedRatings.followUp,
+                },
+                closing: {
+                    before: statsResult.before.closing,
+                    after: statsResult.after.closing,
+                    delta: statsResult.after.closing - statsResult.before.closing,
+                    rating: normalizedRatings.closing,
+                },
+                relationshipBuilding: {
+                    before: statsResult.before.relationship,
+                    after: statsResult.after.relationship,
+                    delta: statsResult.after.relationship - statsResult.before.relationship,
+                    rating: normalizedRatings.relationship,
+                },
+            },
+        };
+    }
+
+    const { firestore: db } = getFirebase();
+    const userRef = doc(db, 'users', userId);
+    const rollingResult = await updateRollingStats(userId, normalizedRatings);
+    const updatedUserSnap = await getDoc(userRef);
+    if (!updatedUserSnap.exists()) {
+        throw new Error('User not found after CX ratings update.');
+    }
+
+    return {
+        updatedUser: { ...(updatedUserSnap.data() as User), userId: updatedUserSnap.id },
+        ratingsUsed: normalizedRatings,
+        statChanges: {
+            empathy: {
+                before: rollingResult.before.empathy,
+                after: rollingResult.after.empathy,
+                delta: rollingResult.after.empathy - rollingResult.before.empathy,
+                rating: normalizedRatings.empathy,
+            },
+            listening: {
+                before: rollingResult.before.listening,
+                after: rollingResult.after.listening,
+                delta: rollingResult.after.listening - rollingResult.before.listening,
+                rating: normalizedRatings.listening,
+            },
+            trust: {
+                before: rollingResult.before.trust,
+                after: rollingResult.after.trust,
+                delta: rollingResult.after.trust - rollingResult.before.trust,
+                rating: normalizedRatings.trust,
+            },
+            followUp: {
+                before: rollingResult.before.followUp,
+                after: rollingResult.after.followUp,
+                delta: rollingResult.after.followUp - rollingResult.before.followUp,
+                rating: normalizedRatings.followUp,
+            },
+            closing: {
+                before: rollingResult.before.closing,
+                after: rollingResult.after.closing,
+                delta: rollingResult.after.closing - rollingResult.before.closing,
+                rating: normalizedRatings.closing,
+            },
+            relationshipBuilding: {
+                before: rollingResult.before.relationship,
+                after: rollingResult.after.relationship,
+                delta: rollingResult.after.relationship - rollingResult.before.relationship,
+                rating: normalizedRatings.relationship,
+            },
+        },
+    };
+}
 
 const getDataById = async <T>(db: Firestore, collectionName: string, id: string): Promise<T | null> => {
     const docRef = doc(db, collectionName, id);
@@ -2165,6 +2282,14 @@ export async function completePppLessonPass(
             throw new Error('Invalid PPP lesson for this level.');
         }
 
+        const todayKey = getPppUtcDateKey();
+        const dailyPassDate = typeof user.ppp_daily_pass_date === 'string' ? user.ppp_daily_pass_date : '';
+        const rawDailyPassCount = Math.max(0, Math.round(Number(user.ppp_daily_pass_count || 0)));
+        const dailyPassCount = dailyPassDate === todayKey ? rawDailyPassCount : 0;
+        if (dailyPassCount >= PPP_DAILY_PASS_LIMIT) {
+            throw new Error(`Daily PPP limit reached (${PPP_DAILY_PASS_LIMIT} lessons). Come back tomorrow.`);
+        }
+
         passedSet.add(lessonId);
         lessonsPassed[levelKey] = Array.from(passedSet);
 
@@ -2181,6 +2306,8 @@ export async function completePppLessonPass(
         user.ppp_progress_percentage = nextProgress;
         user.ppp_badge = getPppLevelBadge(nextLevel, certified);
         user.ppp_certified = certified;
+        user.ppp_daily_pass_date = todayKey;
+        user.ppp_daily_pass_count = dailyPassCount + 1;
 
         return {
             updatedUser: cloneTourUser(user),
@@ -2245,6 +2372,14 @@ export async function completePppLessonPass(
             throw new Error('Invalid PPP lesson for this level.');
         }
 
+        const todayKey = getPppUtcDateKey();
+        const dailyPassDate = typeof user.ppp_daily_pass_date === 'string' ? user.ppp_daily_pass_date : '';
+        const rawDailyPassCount = Math.max(0, Math.round(Number(user.ppp_daily_pass_count || 0)));
+        const dailyPassCount = dailyPassDate === todayKey ? rawDailyPassCount : 0;
+        if (dailyPassCount >= PPP_DAILY_PASS_LIMIT) {
+            throw new Error(`Daily PPP limit reached (${PPP_DAILY_PASS_LIMIT} lessons). Come back tomorrow.`);
+        }
+
         passedSet.add(lessonId);
         lessonsPassed[levelKey] = Array.from(passedSet);
 
@@ -2264,6 +2399,8 @@ export async function completePppLessonPass(
             ppp_progress_percentage: nextProgress,
             ppp_badge: getPppLevelBadge(nextLevel, certified),
             ppp_certified: certified,
+            ppp_daily_pass_date: todayKey,
+            ppp_daily_pass_count: dailyPassCount + 1,
         });
 
         transactionResult = {

@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { conductSaasPppLesson } from '@/ai/flows/saas-ppp-lesson-flow';
 import {
+  applyCxRatingsToUser,
   completeSaasPppLessonPass,
   incrementSaasPppAbandonmentCounter,
   setSaasPppPrimaryChannel,
@@ -32,6 +33,7 @@ import {
 } from '@/lib/saas-ppp/definitions';
 import { getSaasPppLevelKey, normalizeSaasPppUserState } from '@/lib/saas-ppp/state';
 import { ASSISTANT_AVATAR_SRC, ASSISTANT_NAME } from '@/lib/assistant';
+import type { Ratings } from '@/lib/definitions';
 
 type ChatMessage = {
   sender: 'user' | 'ai';
@@ -43,9 +45,43 @@ type SaasPppEvaluation = {
   coachFeedback: string;
   nextStep: string;
   adaptationHint: string;
+  ratings: Ratings;
 };
 
 function parseSaasPppEvaluation(responseText: string): SaasPppEvaluation | null {
+  const clamp = (value: unknown, fallback: number): number => {
+    if (value === null || value === undefined) return fallback;
+    const numeric = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(0, Math.min(100, Math.round(numeric)));
+  };
+
+  const fallbackRatingsForOutcome = (outcome: 'pass' | 'not_yet'): Ratings => {
+    const fallback = outcome === 'pass' ? 78 : 45;
+    return {
+      empathy: fallback,
+      listening: fallback,
+      trust: fallback,
+      followUp: fallback,
+      closing: fallback,
+      relationship: fallback,
+    };
+  };
+
+  const parseRatings = (raw: unknown, outcome: 'pass' | 'not_yet'): Ratings => {
+    const fallback = fallbackRatingsForOutcome(outcome);
+    if (!raw || typeof raw !== 'object') return fallback;
+    const source = raw as Partial<Record<keyof Ratings, unknown>>;
+    return {
+      empathy: clamp(source.empathy, fallback.empathy),
+      listening: clamp(source.listening, fallback.listening),
+      trust: clamp(source.trust, fallback.trust),
+      followUp: clamp(source.followUp, fallback.followUp),
+      closing: clamp(source.closing, fallback.closing),
+      relationship: clamp(source.relationship, fallback.relationship),
+    };
+  };
+
   const parseOutcome = (text: string): 'pass' | 'not_yet' | null => {
     const match = text.match(/["']?outcome["']?\s*[:=]\s*["']?(pass|not_yet)["']?/i);
     if (!match?.[1]) return null;
@@ -59,6 +95,13 @@ function parseSaasPppEvaluation(responseText: string): SaasPppEvaluation | null 
     const loose = text.match(new RegExp(`["']?${field}["']?\\s*:\\s*([^\\n\\r}]+)`, 'i'));
     if (!loose?.[1]) return null;
     return loose[1].trim().replace(/^["']/, '').replace(/["'],?$/, '').trim();
+  };
+
+  const extractNumericField = (text: string, field: string): number | null => {
+    const match = text.match(new RegExp(`["']?${field}["']?\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`, 'i'));
+    if (!match?.[1]) return null;
+    const numeric = Number(match[1]);
+    return Number.isFinite(numeric) ? numeric : null;
   };
 
   const candidates: string[] = [];
@@ -93,16 +136,27 @@ function parseSaasPppEvaluation(responseText: string): SaasPppEvaluation | null 
         coachFeedback: typeof parsed.coachFeedback === 'string' ? parsed.coachFeedback : 'Refine your structure and retry.',
         nextStep: typeof parsed.nextStep === 'string' ? parsed.nextStep : 'Retry with clear authority and pacing.',
         adaptationHint: typeof parsed.adaptationHint === 'string' ? parsed.adaptationHint : 'Next attempt will be adapted for clarity.',
+        ratings: parseRatings(parsed.ratings, outcome),
       };
     } catch {
       const outcome = parseOutcome(normalized);
       if (!outcome) continue;
+
+      const extractedRatings = {
+        empathy: extractNumericField(normalized, 'empathy'),
+        listening: extractNumericField(normalized, 'listening'),
+        trust: extractNumericField(normalized, 'trust'),
+        followUp: extractNumericField(normalized, 'followUp'),
+        closing: extractNumericField(normalized, 'closing'),
+        relationship: extractNumericField(normalized, 'relationship'),
+      };
 
       return {
         outcome,
         coachFeedback: extractField(normalized, 'coachFeedback') || 'Refine your structure and retry.',
         nextStep: extractField(normalized, 'nextStep') || 'Retry with clear authority and pacing.',
         adaptationHint: extractField(normalized, 'adaptationHint') || 'Next attempt will be adapted for clarity.',
+        ratings: parseRatings(extractedRatings, outcome),
       };
     }
   }
@@ -121,12 +175,12 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isEvaluating, setIsEvaluating] = useState(false);
   const [failureCounts, setFailureCounts] = useState<Record<string, number>>({});
   const [attemptOutcome, setAttemptOutcome] = useState<'pass' | 'not_yet' | null>(null);
   const [channelDraft, setChannelDraft] = useState<SaasLeadChannel | ''>('');
   const [isSavingChannel, setIsSavingChannel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
   const activeLessonIdRef = useRef<string | null>(null);
   const attemptOutcomeRef = useRef<'pass' | 'not_yet' | null>(null);
   const userIdRef = useRef<string | null>(null);
@@ -173,6 +227,11 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
 
   const ensureScrollToBottom = () => {
     setTimeout(() => {
+      const viewport = chatScrollAreaRef.current?.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+        return;
+      }
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 10);
   };
@@ -275,7 +334,7 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
 
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!activeLesson || !input.trim() || isLoading || isEvaluating) return;
+    if (!activeLesson || !input.trim() || isLoading) return;
 
     const text = input.trim();
     const userMessage: ChatMessage = { sender: 'user', text };
@@ -323,7 +382,8 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
 
     if (evaluation.outcome === 'pass') {
       const result = await completeSaasPppLessonPass(user.userId, activeLesson.level, activeLesson.lessonId);
-      setUser(result.updatedUser);
+      const cxUpdate = await applyCxRatingsToUser(user.userId, evaluation.ratings);
+      setUser(cxUpdate.updatedUser);
       setAttemptOutcome('pass');
 
       const contextLabel = result.currentLevel === 2 && result.currentPhase === 'secondary'
@@ -337,12 +397,14 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
       toast({
         title: result.alreadyPassed ? 'Already Passed' : 'Lesson Passed',
         description: result.alreadyPassed
-          ? 'This lesson was already completed. Progress remains unchanged.'
-          : `+${result.xpAwarded} XP awarded. ${contextLabel}`,
+          ? 'This lesson was already completed. CX scores still updated from this attempt.'
+          : `+${result.xpAwarded} XP awarded. ${contextLabel} CX scores updated.`,
       });
       return;
     }
 
+    const cxUpdate = await applyCxRatingsToUser(user.userId, evaluation.ratings);
+    setUser(cxUpdate.updatedUser);
     setAttemptOutcome('not_yet');
     setFailureCounts((prev) => ({
       ...prev,
@@ -350,34 +412,8 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
     }));
     toast({
       title: 'Not Yet',
-      description: `No XP awarded. Retry now and ${ASSISTANT_NAME} will adapt coaching support.`,
+      description: `No XP awarded. CX scores were updated from this attempt. Retry now and ${ASSISTANT_NAME} will adapt coaching support.`,
     });
-  }
-
-  async function handleEvaluateAttempt() {
-    if (!activeLesson || !user) return;
-
-    setIsEvaluating(true);
-    try {
-      const flowInput = buildFlowInput('@evaluate_saas_ppp', messages);
-      if (!flowInput) return;
-
-      const response = await conductSaasPppLesson(flowInput);
-      const evaluation = parseSaasPppEvaluation(response);
-      if (!evaluation) {
-        throw new Error('SaaS PPP evaluator did not return a valid Pass/Not Yet result.');
-      }
-
-      await applySaasPppEvaluation(evaluation);
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Evaluation failed',
-        description: error?.message || 'Could not evaluate this attempt.',
-      });
-    } finally {
-      setIsEvaluating(false);
-    }
   }
 
   async function handleSaveChannelSelection() {
@@ -498,7 +534,7 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
             )}
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-3 p-4">
-            <ScrollArea className="flex-1 rounded-md border p-3">
+            <ScrollArea ref={chatScrollAreaRef} className="flex-1 rounded-md border p-3">
               <div className="space-y-3">
                 {messages.map((message, index) => (
                   <div
@@ -525,7 +561,7 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
                     )}
                   </div>
                 ))}
-                {(isLoading || isEvaluating) && (
+                {isLoading && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Spinner size="sm" /> {ASSISTANT_NAME} is thinking...
                   </div>
@@ -539,21 +575,12 @@ export function SaasPppInterface({ featureEnabled }: SaasPppInterfaceProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={`Respond to ${ASSISTANT_NAME}...`}
-                disabled={isLoading || isEvaluating || attemptOutcome === 'pass'}
+                disabled={isLoading || attemptOutcome === 'pass'}
               />
-              <Button type="submit" disabled={isLoading || isEvaluating || attemptOutcome === 'pass' || input.trim().length === 0}>
+              <Button type="submit" disabled={isLoading || attemptOutcome === 'pass' || input.trim().length === 0}>
                 Send
               </Button>
             </form>
-
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleEvaluateAttempt}
-              disabled={isLoading || isEvaluating || messages.length === 0 || attemptOutcome === 'pass'}
-            >
-              Evaluate Attempt (Pass / Not Yet)
-            </Button>
           </CardContent>
         </Card>
       )}

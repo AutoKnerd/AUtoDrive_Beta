@@ -69,8 +69,8 @@ export function PppProtocolSettings() {
       toast({
         title: `PPP ${result.enabled ? 'Enabled' : 'Disabled'}`,
         description: result.enabled
-          ? `Profit Protection Protocol is now active. ${result.updatedUsers ?? 0} user profiles were updated.`
-          : `Profit Protection Protocol is now hidden. ${result.updatedUsers ?? 0} user profiles were updated.`,
+          ? `AutoKnerd: The Next Gear is now active. ${result.updatedUsers ?? 0} user profiles were updated.`
+          : `AutoKnerd: The Next Gear is now hidden. ${result.updatedUsers ?? 0} user profiles were updated.`,
       });
     } catch (error: any) {
       toast({
@@ -88,7 +88,7 @@ export function PppProtocolSettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          Profit Protection Protocol (PPP)
+          AutoKnerd: The Next Gear (PPP)
         </CardTitle>
         <CardDescription>
           Mastery certification system toggle. When disabled, PPP is hidden from all dashboards and PPP XP logic is paused.
@@ -103,7 +103,7 @@ export function PppProtocolSettings() {
           <>
             <div className="flex items-start justify-between gap-4 rounded-md border p-4">
               <div>
-                <p className="text-sm font-medium">Enable Profit Protection Protocol</p>
+                <p className="text-sm font-medium">Enable AutoKnerd: The Next Gear</p>
                 <p className="text-xs text-muted-foreground">
                   Controls PPP visibility and certification progression for all users.
                 </p>
@@ -112,7 +112,7 @@ export function PppProtocolSettings() {
                 checked={draftEnabled}
                 onCheckedChange={setDraftEnabled}
                 disabled={saving}
-                aria-label="Enable Profit Protection Protocol"
+                aria-label="Enable AutoKnerd: The Next Gear"
               />
             </div>
 

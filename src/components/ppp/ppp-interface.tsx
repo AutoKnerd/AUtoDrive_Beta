@@ -14,10 +14,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { conductPppLesson } from '@/ai/flows/ppp-lesson-flow';
-import { completePppLessonPass, incrementPppAbandonmentCounter } from '@/lib/data.client';
-import { getPppLessonsForLevel, getPppLevelTitle, PPP_TOUR_UNLOCKED_LESSON_COUNT } from '@/lib/ppp/definitions';
+import { applyCxRatingsToUser, completePppLessonPass, incrementPppAbandonmentCounter } from '@/lib/data.client';
+import { getPppLessonsForLevel, getPppLevelTitle, PPP_DAILY_PASS_LIMIT, PPP_TOUR_UNLOCKED_LESSON_COUNT } from '@/lib/ppp/definitions';
 import { getPppLevelKey, normalizePppUserState } from '@/lib/ppp/state';
 import { ASSISTANT_AVATAR_SRC, ASSISTANT_NAME } from '@/lib/assistant';
+import type { Ratings } from '@/lib/definitions';
 
 type ChatMessage = {
   sender: 'user' | 'ai';
@@ -29,9 +30,43 @@ type PppEvaluation = {
   coachFeedback: string;
   nextStep: string;
   adaptationHint: string;
+  ratings: Ratings;
 };
 
 function parsePppEvaluation(responseText: string): PppEvaluation | null {
+  const clamp = (value: unknown, fallback: number): number => {
+    if (value === null || value === undefined) return fallback;
+    const numeric = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(0, Math.min(100, Math.round(numeric)));
+  };
+
+  const fallbackRatingsForOutcome = (outcome: 'pass' | 'not_yet'): Ratings => {
+    const fallback = outcome === 'pass' ? 78 : 45;
+    return {
+      empathy: fallback,
+      listening: fallback,
+      trust: fallback,
+      followUp: fallback,
+      closing: fallback,
+      relationship: fallback,
+    };
+  };
+
+  const parseRatings = (raw: unknown, outcome: 'pass' | 'not_yet'): Ratings => {
+    const fallback = fallbackRatingsForOutcome(outcome);
+    if (!raw || typeof raw !== 'object') return fallback;
+    const source = raw as Partial<Record<keyof Ratings, unknown>>;
+    return {
+      empathy: clamp(source.empathy, fallback.empathy),
+      listening: clamp(source.listening, fallback.listening),
+      trust: clamp(source.trust, fallback.trust),
+      followUp: clamp(source.followUp, fallback.followUp),
+      closing: clamp(source.closing, fallback.closing),
+      relationship: clamp(source.relationship, fallback.relationship),
+    };
+  };
+
   const parseOutcome = (text: string): 'pass' | 'not_yet' | null => {
     const match = text.match(/["']?outcome["']?\s*[:=]\s*["']?(pass|not_yet)["']?/i);
     if (!match?.[1]) return null;
@@ -45,6 +80,13 @@ function parsePppEvaluation(responseText: string): PppEvaluation | null {
     const loose = text.match(new RegExp(`["']?${field}["']?\\s*:\\s*([^\\n\\r}]+)`, 'i'));
     if (!loose?.[1]) return null;
     return loose[1].trim().replace(/^["']/, '').replace(/["'],?$/, '').trim();
+  };
+
+  const extractNumericField = (text: string, field: string): number | null => {
+    const match = text.match(new RegExp(`["']?${field}["']?\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`, 'i'));
+    if (!match?.[1]) return null;
+    const numeric = Number(match[1]);
+    return Number.isFinite(numeric) ? numeric : null;
   };
 
   const candidates: string[] = [];
@@ -79,16 +121,27 @@ function parsePppEvaluation(responseText: string): PppEvaluation | null {
         coachFeedback: typeof parsed.coachFeedback === 'string' ? parsed.coachFeedback : 'Keep practicing this behavior.',
         nextStep: typeof parsed.nextStep === 'string' ? parsed.nextStep : 'Retry with a more structured response.',
         adaptationHint: typeof parsed.adaptationHint === 'string' ? parsed.adaptationHint : 'Difficulty will adapt to support your next attempt.',
+        ratings: parseRatings(parsed.ratings, outcome),
       };
     } catch {
       const outcome = parseOutcome(normalized);
       if (!outcome) continue;
+
+      const extractedRatings = {
+        empathy: extractNumericField(normalized, 'empathy'),
+        listening: extractNumericField(normalized, 'listening'),
+        trust: extractNumericField(normalized, 'trust'),
+        followUp: extractNumericField(normalized, 'followUp'),
+        closing: extractNumericField(normalized, 'closing'),
+        relationship: extractNumericField(normalized, 'relationship'),
+      };
 
       return {
         outcome,
         coachFeedback: extractField(normalized, 'coachFeedback') || 'Keep practicing this behavior.',
         nextStep: extractField(normalized, 'nextStep') || 'Retry with a more structured response.',
         adaptationHint: extractField(normalized, 'adaptationHint') || 'Difficulty will adapt to support your next attempt.',
+        ratings: parseRatings(extractedRatings, outcome),
       };
     }
   }
@@ -107,10 +160,10 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isEvaluating, setIsEvaluating] = useState(false);
   const [failureCounts, setFailureCounts] = useState<Record<string, number>>({});
   const [attemptOutcome, setAttemptOutcome] = useState<'pass' | 'not_yet' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
   const activeLessonIdRef = useRef<string | null>(null);
   const attemptOutcomeRef = useRef<'pass' | 'not_yet' | null>(null);
   const userIdRef = useRef<string | null>(null);
@@ -140,6 +193,11 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
 
   const ensureScrollToBottom = () => {
     setTimeout(() => {
+      const viewport = chatScrollAreaRef.current?.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+        return;
+      }
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 10);
   };
@@ -198,6 +256,15 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
       return;
     }
 
+    if (!passedLessons.has(lessonId) && ppp.dailyLimitReached) {
+      toast({
+        variant: 'destructive',
+        title: 'Daily PPP limit reached',
+        description: `You can pass up to ${PPP_DAILY_PASS_LIMIT} PPP lessons per day. Come back tomorrow.`,
+      });
+      return;
+    }
+
     setActiveLessonId(lessonId);
     setMessages([]);
     setInput('');
@@ -234,7 +301,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
 
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!activeLesson || !input.trim() || isLoading || isEvaluating) return;
+    if (!activeLesson || !input.trim() || isLoading) return;
 
     const text = input.trim();
     const userMessage: ChatMessage = { sender: 'user', text };
@@ -282,17 +349,20 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
 
     if (evaluation.outcome === 'pass') {
       const result = await completePppLessonPass(user.userId, activeLesson.level, activeLesson.lessonId);
-      setUser(result.updatedUser);
+      const cxUpdate = await applyCxRatingsToUser(user.userId, evaluation.ratings);
+      setUser(cxUpdate.updatedUser);
       setAttemptOutcome('pass');
       toast({
         title: result.alreadyPassed ? 'Already Passed' : 'PPP Lesson Passed',
         description: result.alreadyPassed
-          ? 'This lesson was already completed. Progress remains unchanged.'
-          : `+${result.xpAwarded} XP awarded. ${result.levelAdvanced ? 'Next level unlocked.' : 'Next lesson unlocked.'}`,
+          ? 'This lesson was already completed. CX scores still updated from this attempt.'
+          : `+${result.xpAwarded} XP awarded. ${result.levelAdvanced ? 'Next level unlocked.' : 'Next lesson unlocked.'} CX scores updated.`,
       });
       return;
     }
 
+    const cxUpdate = await applyCxRatingsToUser(user.userId, evaluation.ratings);
+    setUser(cxUpdate.updatedUser);
     setAttemptOutcome('not_yet');
     setFailureCounts((prev) => ({
       ...prev,
@@ -300,34 +370,8 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
     }));
     toast({
       title: 'Not Yet',
-      description: `No XP awarded. Retry this lesson and ${ASSISTANT_NAME} will adapt support.`,
+      description: `No XP awarded. CX scores were updated from this attempt. Retry and ${ASSISTANT_NAME} will adapt support.`,
     });
-  }
-
-  async function handleEvaluateAttempt() {
-    if (!activeLesson || !user) return;
-
-    setIsEvaluating(true);
-    try {
-      const flowInput = buildFlowInput('@evaluate_ppp', messages);
-      if (!flowInput) return;
-
-      const response = await conductPppLesson(flowInput);
-      const evaluation = parsePppEvaluation(response);
-      if (!evaluation) {
-        throw new Error('PPP evaluator did not return a valid Pass/Not Yet result.');
-      }
-
-      await applyPppEvaluation(evaluation);
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Evaluation failed',
-        description: error?.message || 'Could not evaluate this attempt.',
-      });
-    } finally {
-      setIsEvaluating(false);
-    }
   }
 
   async function handleExitAttempt() {
@@ -363,7 +407,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
         <Lock className="h-4 w-4" />
         <AlertTitle>PPP is currently disabled</AlertTitle>
         <AlertDescription>
-          Profit Protection Protocol is not active for your account right now.
+          AutoKnerd: The Next Gear is not active for your account right now.
         </AlertDescription>
       </Alert>
     );
@@ -378,7 +422,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
             PPP LVL 10 Certified
           </CardTitle>
           <CardDescription className="text-amber-200/90">
-            Institutional Mastery complete. You have finished all Profit Protection Protocol levels.
+            Institutional Mastery complete. You have finished all AutoKnerd: The Next Gear levels.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -420,7 +464,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
             )}
           </CardHeader>
           <CardContent className="flex flex-1 min-h-0 flex-col gap-3 p-4">
-            <ScrollArea className="min-h-0 flex-1 rounded-md border p-3">
+            <ScrollArea ref={chatScrollAreaRef} className="min-h-0 flex-1 rounded-md border p-3">
               <div className="space-y-3">
                 {messages.map((message, index) => (
                   <div
@@ -434,7 +478,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
                     )}
                     <div
                       className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                        message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                        message.sender === 'user' ? 'bg-[#7CC242] text-slate-950' : 'bg-muted'
                       }`}
                     >
                       {message.text}
@@ -447,7 +491,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
                     )}
                   </div>
                 ))}
-                {(isLoading || isEvaluating) && (
+                {isLoading && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Spinner size="sm" /> {ASSISTANT_NAME} is thinking...
                   </div>
@@ -461,21 +505,16 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={`Respond to ${ASSISTANT_NAME}...`}
-                disabled={isLoading || isEvaluating || attemptOutcome === 'pass'}
+                disabled={isLoading || attemptOutcome === 'pass'}
               />
-              <Button type="submit" disabled={isLoading || isEvaluating || attemptOutcome === 'pass' || input.trim().length === 0}>
+              <Button
+                type="submit"
+                className="bg-[#7CC242] text-slate-950 hover:bg-[#8ED24F]"
+                disabled={isLoading || attemptOutcome === 'pass' || input.trim().length === 0}
+              >
                 Send
               </Button>
             </form>
-
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleEvaluateAttempt}
-              disabled={isLoading || isEvaluating || messages.length === 0 || attemptOutcome === 'pass'}
-            >
-              Evaluate Attempt (Pass / Not Yet)
-            </Button>
           </CardContent>
         </Card>
       )}
@@ -487,7 +526,7 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
       >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
-            <Shield className="h-5 w-5 text-primary" />
+            <Shield className="h-5 w-5 text-[#9BD85B]" />
             LVL {ppp.level} - {getPppLevelTitle(ppp.level)}
           </CardTitle>
           <CardDescription>
@@ -500,12 +539,22 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
               <span>Current level completion</span>
               <span>{ppp.progressPercentage}%</span>
             </div>
-            <Progress value={ppp.progressPercentage} className="h-3" />
+            <Progress value={ppp.progressPercentage} className="h-3 [&>div]:bg-gradient-to-r [&>div]:from-[#7CC242] [&>div]:to-[#5EA93D]" />
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Today&apos;s passes</span>
+              <span>{ppp.dailyPassCount}/{PPP_DAILY_PASS_LIMIT}</span>
+            </div>
+            {ppp.dailyLimitReached && (
+              <p className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
+                Daily PPP limit reached. New lessons unlock tomorrow.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
             {currentLessons.map((lesson, index) => {
               const passed = passedLessons.has(lesson.lessonId);
+              const isDailyLocked = !passed && ppp.dailyLimitReached;
               const isTourLocked = isTouring && index >= PPP_TOUR_UNLOCKED_LESSON_COUNT;
               const unlocked = isTourLocked
                 ? false
@@ -518,11 +567,12 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
                 <button
                   key={lesson.lessonId}
                   type="button"
+                  disabled={!unlocked || isDailyLocked}
                   onClick={() => startLesson(lesson.lessonId)}
                   className={[
                     'w-full rounded-lg border p-3 text-left transition',
-                    selected ? 'border-primary bg-primary/10' : 'border-border bg-card',
-                    !unlocked ? 'opacity-60' : '',
+                    selected ? 'border-[#7CC242]/70 bg-[#7CC242]/12' : 'border-border bg-card',
+                    (!unlocked || isDailyLocked) ? 'opacity-60' : '',
                   ].join(' ')}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -532,10 +582,12 @@ export function PppInterface({ featureEnabled }: PppInterfaceProps) {
                     </div>
                     {isTourLocked ? (
                       <Lock className="h-4 w-4 text-muted-foreground" />
+                    ) : isDailyLocked ? (
+                      <Lock className="h-4 w-4 text-amber-300" />
                     ) : passed ? (
                       <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                     ) : unlocked ? (
-                      <Target className="h-4 w-4 text-primary" />
+                      <Target className="h-4 w-4 text-[#9BD85B]" />
                     ) : (
                       <Lock className="h-4 w-4 text-muted-foreground" />
                     )}

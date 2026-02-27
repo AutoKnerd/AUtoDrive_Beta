@@ -98,6 +98,8 @@ export type User = {
   ppp_badge?: string;
   ppp_abandonment_counter?: number;
   ppp_certified?: boolean;
+  ppp_daily_pass_date?: string;
+  ppp_daily_pass_count?: number;
   saas_ppp_enabled?: boolean;
   saas_ppp_level_completed?: number;
   saas_ppp_current_level?: number;

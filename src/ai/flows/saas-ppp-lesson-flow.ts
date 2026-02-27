@@ -90,8 +90,21 @@ Return raw JSON ONLY (no markdown) in this exact shape:
   "outcome": "pass" | "not_yet",
   "coachFeedback": "1-3 concise sentences about what worked and what to improve.",
   "nextStep": "One actionable behavior for immediate retry or reinforcement.",
-  "adaptationHint": "How the next attempt will adapt if needed."
+  "adaptationHint": "How the next attempt will adapt if needed.",
+  "ratings": {
+    "empathy": 0-100,
+    "listening": 0-100,
+    "trust": 0-100,
+    "followUp": 0-100,
+    "closing": 0-100,
+    "relationship": 0-100
+  }
 }
+
+Rating guidance:
+- Use the same meaning as AutoDrive CX traits.
+- PASS should generally map to stronger ratings; NOT_YET should generally map lower.
+- Ratings must reflect this specific attempt (not historical performance).
 
 Pass / Not Yet decision guidance:
 - PASS only when the learner demonstrates stable execution of this lesson objective.

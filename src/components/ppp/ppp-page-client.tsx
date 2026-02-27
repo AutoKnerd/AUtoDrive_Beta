@@ -76,7 +76,7 @@ export function PppPageClient() {
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 pb-24 md:p-8 md:pb-8">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Profit Protection Protocol</h1>
+            <h1 className="text-2xl font-bold text-foreground">AutoKnerd: The Next Gear</h1>
             <p className="text-sm text-muted-foreground">
               Mastery-based certification with role-adaptive coaching and pass-first progression.
             </p>

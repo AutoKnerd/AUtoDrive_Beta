@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { User } from '@/lib/definitions';
 import { normalizePppUserState } from '@/lib/ppp/state';
-import { getPppLevelTitle } from '@/lib/ppp/definitions';
 
 interface PppDashboardCardProps {
   user: User;
@@ -27,14 +26,14 @@ function LevelBadge({ level, certified }: { level: number; certified: boolean })
 
   if (level >= 8) {
     return (
-      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/50 bg-primary/10 text-primary">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#7CC242]/60 bg-[#7CC242]/15 text-[#9BD85B]">
         <ShieldCheck className="h-6 w-6" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/40 bg-primary/5 text-primary">
+    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#7CC242]/50 bg-[#7CC242]/10 text-[#9BD85B]">
       <Shield className="h-6 w-6" />
     </div>
   );
@@ -45,35 +44,29 @@ export function PppDashboardCard({ user, className, featureEnabled }: PppDashboa
   const enabled = featureEnabled ?? ppp.enabled;
   if (!enabled) return null;
 
-  const levelLabel = ppp.certified ? 'LVL 10 Certified' : `LVL ${ppp.level}`;
-  const subtitle = ppp.certified
-    ? 'Institutional Mastery complete.'
-    : `${getPppLevelTitle(ppp.level)}`;
-
   return (
-    <Card className={cn('flex flex-col justify-between border border-border bg-card/95 p-6', className)}>
+    <Card className={cn('flex flex-col justify-between border border-border bg-card/95 p-6 !dark:border-[#7CC242]/40 !dark:shadow-[0_0_24px_rgba(124,194,66,0.14)]', className)}>
       <CardHeader className="p-0 pb-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-2xl text-foreground">Profit Protection Protocol</CardTitle>
-            <CardDescription className="mt-1 text-sm text-muted-foreground">{subtitle}</CardDescription>
+            <CardTitle className="text-2xl text-foreground">AutoDrive: Press Start</CardTitle>
+            <CardDescription className="mt-1 text-sm text-muted-foreground">Level Up The CX Game</CardDescription>
           </div>
           <LevelBadge level={ppp.level} certified={ppp.certified} />
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3 p-0">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-foreground">{levelLabel}</p>
+        <div className="flex items-center justify-end">
           <p className="text-xs text-muted-foreground">{ppp.progressPercentage}% complete</p>
         </div>
         <Progress
           value={ppp.progressPercentage}
-          className="h-3 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-blue-500"
+          className="h-3 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-[#7CC242] [&>div]:to-[#5EA93D]"
         />
-        <Button asChild className="w-full font-semibold">
+        <Button asChild className="w-full bg-[#7CC242] font-semibold text-slate-950 hover:bg-[#8ED24F]">
           <Link href="/ppp">
-            Enter PPP
+            Press Start
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>

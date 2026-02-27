@@ -1,5 +1,6 @@
 import type { User } from '@/lib/definitions';
 import {
+  PPP_DAILY_PASS_LIMIT,
   PPP_LEVEL_MIN,
   PPP_LEVEL_MAX,
   clampPppLevel,
@@ -18,6 +19,8 @@ export type PppDefaultFields = Pick<
   | 'ppp_badge'
   | 'ppp_abandonment_counter'
   | 'ppp_certified'
+  | 'ppp_daily_pass_date'
+  | 'ppp_daily_pass_count'
 >;
 
 export type NormalizedPppState = {
@@ -28,9 +31,17 @@ export type NormalizedPppState = {
   badge: string;
   abandonmentCounter: number;
   certified: boolean;
+  dailyPassDate: string;
+  dailyPassCount: number;
+  dailyPassRemaining: number;
+  dailyLimitReached: boolean;
   currentLevelLessonCount: number;
   currentLevelPassedCount: number;
 };
+
+export function getPppUtcDateKey(date: Date = new Date()): string {
+  return date.toISOString().slice(0, 10);
+}
 
 export function getPppLevelKey(level: number): string {
   return `lvl${clampPppLevel(level)}`;
@@ -45,6 +56,8 @@ export function buildDefaultPppState(enabled: boolean = false): PppDefaultFields
     ppp_badge: `ppp-lvl-${PPP_LEVEL_MIN}`,
     ppp_abandonment_counter: 0,
     ppp_certified: false,
+    ppp_daily_pass_date: '',
+    ppp_daily_pass_count: 0,
   };
 }
 
@@ -87,6 +100,11 @@ export function normalizePppUserState(user: User): NormalizedPppState {
     : 0;
 
   const certified = user.ppp_certified === true;
+  const dailyPassDate = typeof user.ppp_daily_pass_date === 'string' ? user.ppp_daily_pass_date : '';
+  const rawDailyPassCount = Math.max(0, Math.round(Number(user.ppp_daily_pass_count || 0)));
+  const todayKey = getPppUtcDateKey();
+  const dailyPassCount = dailyPassDate === todayKey ? rawDailyPassCount : 0;
+  const dailyPassRemaining = Math.max(0, PPP_DAILY_PASS_LIMIT - dailyPassCount);
 
   return {
     enabled: user.ppp_enabled === true,
@@ -98,6 +116,10 @@ export function normalizePppUserState(user: User): NormalizedPppState {
       : getPppLevelBadge(level, certified),
     abandonmentCounter: Math.max(0, Math.round(Number(user.ppp_abandonment_counter || 0))),
     certified,
+    dailyPassDate,
+    dailyPassCount,
+    dailyPassRemaining,
+    dailyLimitReached: dailyPassRemaining === 0,
     currentLevelLessonCount: currentLevelLessons.length,
     currentLevelPassedCount,
   };
