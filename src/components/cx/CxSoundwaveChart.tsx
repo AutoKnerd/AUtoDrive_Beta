@@ -274,7 +274,7 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
             </div>
             {mode === 'compare' && (
               <div>
-                <p className="text-muted-foreground">Benchmark</p>
+                <p className="text-muted-foreground">Dealer Average</p>
                 <p className="text-lg font-bold text-muted-foreground/60">{hoveredPoint.point.baseline.toFixed(1)}%</p>
               </div>
             )}

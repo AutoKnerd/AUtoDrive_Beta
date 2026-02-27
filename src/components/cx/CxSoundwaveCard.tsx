@@ -265,7 +265,7 @@ export function CxSoundwaveCard({
                   <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Team Benchmark</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Dealer Average</span>
                   <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">Mean Average</span>
                 </div>
               </div>
