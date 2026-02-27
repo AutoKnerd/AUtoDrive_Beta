@@ -42,7 +42,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
-import { getDefaultScope } from '@/lib/cx/scope';
 import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 
@@ -512,6 +511,25 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
     ), { trait: 'empathy' as CxTrait, score: Number.POSITIVE_INFINITY }).trait;
   }, [averageScores]);
 
+  const personalScope = useMemo(
+    () => ({
+      role: 'consultant' as const,
+      orgId: 'autodrive-org',
+      storeId: scopedDealershipIds[0],
+      userId: user.userId,
+    }),
+    [scopedDealershipIds, user.userId]
+  );
+
+  const dealershipScope = useMemo(
+    () => ({
+      role: 'manager' as const,
+      orgId: 'autodrive-org',
+      storeId: scopedDealershipIds[0],
+    }),
+    [scopedDealershipIds]
+  );
+
   const handleCreateUniqueRecommendedTestingLesson = async () => {
     if (creatingUniqueTestingLesson) return;
     const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
@@ -659,8 +677,9 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
         <section>
           <CxSoundwaveCard 
-            scope={getDefaultScope(user)} 
-            data={averageScores}
+            scope={hasDealershipContext ? dealershipScope : personalScope}
+            personalScope={hasDealershipContext ? personalScope : undefined}
+            data={viewMode === 'personal' || !hasDealershipContext ? averageScores : undefined}
             memberSince={user.memberSince}
             themePreference={themePreference}
             viewMode={hasDealershipContext ? viewMode : 'personal'}

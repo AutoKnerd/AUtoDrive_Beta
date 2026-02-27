@@ -13,12 +13,12 @@ function clampScore(value: number): number {
 
 const MOCK_CACHE: Record<string, CxDataPoint[]> = {};
 const DEFAULT_FALLBACK_SCORE = 60;
-const MAX_ANCHORED_DEVIATION = 12;
+const MAX_ANCHORED_DEVIATION = 22;
 
-function resolveAnchoredScore(anchorScores: Partial<Record<CxSkillId, number>> | undefined, skillId: CxSkillId): number {
+function resolveAnchoredScore(anchorScores: Partial<Record<CxSkillId, number>> | undefined, skillId: CxSkillId): number | null {
   const raw = anchorScores?.[skillId];
   const numeric = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isFinite(numeric)) return DEFAULT_FALLBACK_SCORE;
+  if (!Number.isFinite(numeric)) return null;
   return clampScore(numeric);
 }
 
@@ -45,11 +45,11 @@ function generateAnchoredTrend(target: number, length: number, seedKey: string):
   if (length <= 1) return [clampScore(target)];
 
   const rand = seededRandom(hashSeed(seedKey));
-  const windowFactor = Math.min(1.8, Math.max(0.8, length / 30));
-  const startOffset = (rand() - 0.5) * (10 * windowFactor);
-  const midOffset = (rand() - 0.5) * (7 * windowFactor);
-  const waveAmplitude = (1.4 + rand() * 2.4) * windowFactor;
-  const waveFrequency = 0.8 + rand() * 1.2;
+  const windowFactor = Math.min(2.4, Math.max(1, length / 21));
+  const startOffset = (rand() - 0.5) * (22 * windowFactor);
+  const midOffset = (rand() - 0.5) * (15 * windowFactor);
+  const waveAmplitude = (3.6 + rand() * 6.2) * windowFactor;
+  const waveFrequency = 1 + rand() * 1.9;
   const phase = rand() * Math.PI * 2;
 
   const start = target + startOffset;
@@ -64,7 +64,7 @@ function generateAnchoredTrend(target: number, length: number, seedKey: string):
       t * t * target
     );
     const wave = Math.sin(phase + t * Math.PI * 2 * waveFrequency) * waveAmplitude * (1 - t * 0.8);
-    const noise = (rand() - 0.5) * 0.8 * (1 - t);
+    const noise = (rand() - 0.5) * 2.2 * (1 - t * 0.4);
     const raw = curve + wave + noise;
     const bounded = Math.max(target - MAX_ANCHORED_DEVIATION, Math.min(target + MAX_ANCHORED_DEVIATION, raw));
     series.push(clampScore(bounded));
@@ -75,6 +75,26 @@ function generateAnchoredTrend(target: number, length: number, seedKey: string):
   return series;
 }
 
+function generateUnanchoredTrend(length: number, seedKey: string, skillIndex: number): number[] {
+  if (length <= 1) return [clampScore(DEFAULT_FALLBACK_SCORE)];
+
+  const rand = seededRandom(hashSeed(seedKey));
+  const windowFactor = Math.min(2.3, Math.max(1, length / 24));
+  const base = clampScore(16 + skillIndex * 14 + (rand() - 0.5) * 18);
+  const volatility = 14 + rand() * 12;
+  const points = [base];
+
+  for (let i = 1; i < length; i++) {
+    const prev = points[i - 1];
+    const wave = Math.sin((i / length) * Math.PI * 3 + rand() * Math.PI) * (2 + rand() * 3) * windowFactor;
+    const drift = (rand() - 0.5) * volatility * 0.4 * windowFactor;
+    const next = clampScore(prev + drift + wave);
+    points.push(next);
+  }
+
+  return points;
+}
+
 export function getMockCxTrend(id: string, days: number = 90, anchorScores?: Partial<Record<CxSkillId, number>>): CxDataPoint[] {
   const anchorKey = anchorScores ? JSON.stringify(anchorScores) : 'no-anchor';
   const cacheKey = `${id}-${days}-${anchorKey}`;
@@ -82,9 +102,11 @@ export function getMockCxTrend(id: string, days: number = 90, anchorScores?: Par
   if (MOCK_CACHE[cacheKey]) return MOCK_CACHE[cacheKey];
 
   const data: CxDataPoint[] = [];
-  const skillTrends = CX_SKILLS.reduce((acc, skill) => {
+  const skillTrends = CX_SKILLS.reduce((acc, skill, index) => {
     const target = resolveAnchoredScore(anchorScores, skill.id);
-    acc[skill.id] = generateAnchoredTrend(target, days, `${id}-${skill.id}-${anchorKey}-${days}`);
+    acc[skill.id] = target === null
+      ? generateUnanchoredTrend(days, `${id}-${skill.id}-${anchorKey}-${days}`, index)
+      : generateAnchoredTrend(target, days, `${id}-${skill.id}-${anchorKey}-${days}`);
     return acc;
   }, {} as Record<CxSkillId, number[]>);
 

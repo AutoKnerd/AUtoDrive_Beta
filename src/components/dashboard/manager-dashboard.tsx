@@ -450,7 +450,12 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const personalScope = useMemo(() => {
     if (noPersonalDevelopmentRoles.includes(user.role)) return undefined;
-    return { role: 'consultant' as const, orgId: 'autodrive-org', storeId: user.dealershipIds?.[0], userId: user.userId };
+    return {
+      role: 'consultant' as const,
+      orgId: 'autodrive-org',
+      storeId: user.dealershipIds?.[0] || user.selfDeclaredDealershipId,
+      userId: user.userId,
+    };
   }, [user]);
 
   const isSuperAdmin = ['Admin', 'Developer'].includes(user.role);

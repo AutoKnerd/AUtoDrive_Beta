@@ -97,9 +97,16 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
         onMouseLeave={() => setHoveredPoint(null)}
       >
         <defs>
-          <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          <filter id="neon-glow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="7" result="outerGlow" />
+            <feGaussianBlur stdDeviation="3.5" in="SourceGraphic" result="midGlow" />
+            <feGaussianBlur stdDeviation="1.4" in="SourceGraphic" result="innerGlow" />
+            <feMerge>
+              <feMergeNode in="outerGlow" />
+              <feMergeNode in="midGlow" />
+              <feMergeNode in="innerGlow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
           {series.map(s => (
             <linearGradient key={`grad-${s.skillId}`} id={`grad-${s.skillId}`} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -203,7 +210,34 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
                 <path d={getPath(bgPoints)} fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="1" strokeDasharray="2 2" className="pointer-events-none" />
               )}
 
-              <path d={getPath(fgPoints)} fill="none" stroke={s.color} strokeWidth={isActive ? 5 : 3} filter="url(#neon-glow)" className="pointer-events-none" />
+              <path
+                d={getPath(fgPoints)}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={isActive ? 14 : 11}
+                strokeOpacity={isActive ? 0.24 : 0.16}
+                filter="url(#neon-glow)"
+                className="pointer-events-none"
+              />
+
+              <path
+                d={getPath(fgPoints)}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={isActive ? 8 : 6}
+                strokeOpacity={isActive ? 0.38 : 0.28}
+                filter="url(#neon-glow)"
+                className="pointer-events-none"
+              />
+
+              <path
+                d={getPath(fgPoints)}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={isActive ? 5 : 3.5}
+                filter="url(#neon-glow)"
+                className="pointer-events-none"
+              />
 
               {/* Invisible wide line for easier clicking/hovering */}
               <path

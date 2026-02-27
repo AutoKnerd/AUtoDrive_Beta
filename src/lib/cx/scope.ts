@@ -15,10 +15,10 @@ export function mapUserRoleToCxRole(role: UserRole): CxScopeRole {
   return 'consultant';
 }
 
-export function getDefaultScope(user: { role: UserRole; userId: string; dealershipIds?: string[] }): CxScope {
+export function getDefaultScope(user: { role: UserRole; userId: string; dealershipIds?: string[]; selfDeclaredDealershipId?: string }): CxScope {
   const role = mapUserRoleToCxRole(user.role);
   const orgId = 'autodrive-org';
-  const storeId = user.dealershipIds?.[0];
+  const storeId = user.dealershipIds?.[0] || user.selfDeclaredDealershipId;
 
   return {
     role,
