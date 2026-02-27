@@ -48,8 +48,10 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
   const smoothPointsForRange = (points: number[]) => {
     if (points.length < 30) return points;
 
-    const window = points.length >= 90 ? 7 : 5;
-    const radius = Math.floor(window / 2);
+    const config = points.length >= 90
+      ? { window: 13, passes: 4, neighborBlend: 0.28 }
+      : { window: 9, passes: 3, neighborBlend: 0.18 };
+    const radius = Math.floor(config.window / 2);
     const pass = (input: number[]) => {
       const output = input.map((_, idx) => {
         let weightedSum = 0;
@@ -65,14 +67,26 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
         return weightSum > 0 ? weightedSum / weightSum : input[idx];
       });
 
-      // Keep exact start/end anchors so range edges remain accurate.
-      output[0] = input[0];
-      output[output.length - 1] = input[input.length - 1];
       return output;
     };
 
-    const once = pass(points);
-    return points.length >= 90 ? pass(once) : once;
+    let smoothed = [...points];
+    for (let i = 0; i < config.passes; i++) {
+      smoothed = pass(smoothed);
+    }
+
+    if (config.neighborBlend > 0 && smoothed.length > 2) {
+      smoothed = smoothed.map((value, idx) => {
+        if (idx === 0 || idx === smoothed.length - 1) return value;
+        const neighbors = (smoothed[idx - 1] + smoothed[idx + 1]) / 2;
+        return value * (1 - config.neighborBlend) + neighbors * config.neighborBlend;
+      });
+    }
+
+    // Keep exact start/end anchors so range edges remain accurate.
+    smoothed[0] = points[0];
+    smoothed[smoothed.length - 1] = points[points.length - 1];
+    return smoothed;
   };
 
   const getValleyPath = (fg: number[], bg: number[]) => {
