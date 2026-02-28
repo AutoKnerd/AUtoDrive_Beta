@@ -577,7 +577,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                       <SelectItem value="vibrant">Vibrant Neon (High Energy)</SelectItem>
                       <SelectItem value="executive">Elite Executive (Purple, Green, Gold)</SelectItem>
                       <SelectItem value="steel">Professional Steel (Cyan, Sky, Slate)</SelectItem>
-                      <SelectItem value="patriot">Patriot (Red, White, Blue)</SelectItem>
+                      <SelectItem value="patriot">Tricolor (Red, White, Blue)</SelectItem>
                       <SelectItem value="velocity">Velocity (Orange, Indigo, Teal)</SelectItem>
                       <SelectItem value="monochrome">Monochrome (Silver, Graphite, Charcoal)</SelectItem>
                       <SelectItem value="forest">Forest (Pine, Mint, Sage)</SelectItem>
