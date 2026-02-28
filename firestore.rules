@@ -1,0 +1,161 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function hasAnyRole(roles) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in roles;
+    }
+
+    function isManager() {
+      return hasAnyRole([
+        'Admin', 'Developer', 'Owner', 'Trainer', 'General Manager',
+        'manager', 'Service Manager', 'Parts Manager', 'Finance Manager'
+      ]);
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function userExists(uid) {
+      return exists(userPath(uid));
+    }
+
+    function userDoc(uid) {
+      return get(userPath(uid)).data;
+    }
+
+    function sharesDealership(aUid, bUid) {
+      return userExists(aUid)
+        && userExists(bUid)
+        && userDoc(aUid).dealershipIds != null
+        && userDoc(bUid).dealershipIds != null
+        && userDoc(aUid).dealershipIds.hasAny(userDoc(bUid).dealershipIds);
+    }
+
+    function isPrivatelyHiddenFrom(uid, viewerRole) {
+      // Default: visible unless explicitly private.
+      // - `isPrivateFromOwner`: hide from Owner only
+      // - `isPrivate`: hide from all manager roles
+      return (
+        (viewerRole == 'Owner' && userDoc(uid).isPrivateFromOwner == true)
+        || (viewerRole != 'Owner' && userDoc(uid).isPrivate == true)
+      );
+    }
+
+    function canViewPerformance(targetUserId) {
+      return isSignedIn()
+        && userExists(request.auth.uid)
+        && userExists(targetUserId)
+        && (
+          // Admin / Developer / Trainer can view everyone (no dealership constraint)
+          (userDoc(request.auth.uid).role in ['Admin', 'Developer', 'Trainer'])
+
+          // Owner can view users in the same dealership unless hidden from owner
+          || (
+            userDoc(request.auth.uid).role == 'Owner'
+            && !isPrivatelyHiddenFrom(targetUserId, 'Owner')
+            && sharesDealership(request.auth.uid, targetUserId)
+          )
+
+          // Other manager roles can view users in the same dealership unless the user is private
+          || (
+            userDoc(request.auth.uid).role in ['General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Finance Manager']
+            && !isPrivatelyHiddenFrom(targetUserId, userDoc(request.auth.uid).role)
+            && sharesDealership(request.auth.uid, targetUserId)
+          )
+        );
+    }
+
+    function isUpdatingOwnUserDocument() {
+      // Prevent a user from changing their own role or userId.
+      let isUserIdImmutable = request.resource.data.userId == resource.data.userId;
+      let isRoleImmutable = request.resource.data.role == resource.data.role;
+      return isUserIdImmutable && isRoleImmutable;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || canViewPerformance(userId);
+      allow list: if hasAnyRole(['Admin', 'Developer', 'Trainer', 'Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Finance Manager']);
+      allow create: if request.auth.uid == userId
+        && request.resource.data.userId == userId
+        && request.resource.data.subscriptionStatus in ['inactive', 'active']
+        && request.resource.data.role in [
+          'Sales Consultant',
+          'Owner',
+          'Developer',
+          'Trainer',
+          'General Manager',
+          'manager',
+          'Service Manager',
+          'Parts Manager',
+          'Finance Manager'
+        ];
+      allow update: if isOwner(userId) && isUpdatingOwnUserDocument();
+      allow delete: if isOwner(userId) || hasAnyRole(['Admin', 'Developer']);
+    }
+
+    match /lessons/{lessonId} {
+      allow read: if isSignedIn();
+      allow create: if isManager();
+      allow update, delete: if false;
+    }
+
+    match /users/{userId}/lessonLogs/{lessonLogId} {
+      allow get, list: if isOwner(userId) || canViewPerformance(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId) || isManager();
+    }
+
+    match /users/{userId}/earnedBadges/{badgeId} {
+      // Badge “trophy case” visibility:
+      // - Users can read their own badges
+      // - Admin/Developer/Trainer can read anyone
+      // - Owner/Manager roles can read badges for users they are allowed to view via canViewPerformance
+      allow get, list: if isOwner(userId) || canViewPerformance(userId);
+
+      // Users can earn/create their own badges (writes from client).
+      allow create: if isOwner(userId);
+
+      // Badges are append-only from the client.
+      allow update: if false;
+
+      // Only Admin/Developer can delete badges.
+      allow delete: if hasAnyRole(['Admin', 'Developer']);
+    }
+
+    match /lessonAssignments/{assignmentId} {
+      allow read: if isOwner(resource.data.userId) || isManager();
+      allow create: if isManager() && request.resource.data.assignerId == request.auth.uid;
+      allow update: if isOwner(resource.data.userId)
+        && request.resource.data.completed == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completed']);
+      allow delete: if isManager();
+    }
+
+    match /emailInvitations/{invitationId} {
+      // Create and read operations are now handled by secure server endpoints.
+      allow create: if isSignedIn()
+        && request.resource.data.inviterId == request.auth.uid
+        && request.resource.data.token == invitationId;
+      allow read, update, delete: if false;
+    }
+
+    match /dealerships/{dealershipId} {
+      allow read: if true;
+      allow create: if false;
+      allow update, delete: if hasAnyRole(['Admin', 'Developer']);
+    }
+  }
+}

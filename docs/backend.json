@@ -1,0 +1,255 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the AutoDrive system.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role within the system.",
+          "enum": [
+            "Sales Consultant",
+            "manager",
+            "Service Writer",
+            "Service Manager",
+            "Finance Manager",
+            "Parts Consultant",
+            "Parts Manager",
+            "General Manager",
+            "Owner",
+            "Trainer",
+            "Admin",
+            "Developer"
+          ]
+        },
+        "dealershipIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reference to the Dealerships where the user works."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "role"
+      ]
+    },
+    "Lesson": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Lesson",
+      "type": "object",
+      "description": "Represents a training lesson available within the AutoDrive system.",
+      "properties": {
+        "lessonId": {
+          "type": "string",
+          "description": "Unique identifier for the lesson."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the lesson."
+        },
+        "role": {
+          "type": "string",
+          "description": "The role for which the lesson is intended (consultant or manager)."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the lesson (e.g., product knowledge, sales techniques)."
+        }
+      },
+      "required": [
+        "lessonId",
+        "title",
+        "role",
+        "category"
+      ]
+    },
+    "LessonLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LessonLog",
+      "type": "object",
+      "description": "Represents a record of a user completing a lesson, including performance metrics.",
+      "properties": {
+        "logId": {
+          "type": "string",
+          "description": "Unique identifier for the lesson log entry."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time when the lesson was completed.",
+          "format": "date-time"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who completed the lesson. (Relationship: User 1:N LessonLog)"
+        },
+        "lessonId": {
+          "type": "string",
+          "description": "Reference to the Lesson that was completed. (Relationship: Lesson 1:N LessonLog)"
+        },
+        "stepResults": {
+          "type": "string",
+          "description": "Results of each step in the lesson (e.g., pass/fail, score)."
+        },
+        "xpGained": {
+          "type": "number",
+          "description": "The amount of experience points gained from completing the lesson."
+        },
+        "empathy": {
+          "type": "number",
+          "description": "Empathy score achieved during the lesson."
+        },
+        "listening": {
+          "type": "number",
+          "description": "Listening score achieved during the lesson."
+        },
+        "trust": {
+          "type": "number",
+          "description": "Trust score achieved during the lesson."
+        },
+        "followUp": {
+          "type": "number",
+          "description": "Follow-up score achieved during the lesson."
+        },
+        "closing": {
+          "type": "number",
+          "description": "Closing score achieved during the lesson."
+        },
+        "relationshipBuilding": {
+          "type": "number",
+          "description": "Relationship building score achieved during the lesson."
+        }
+      },
+      "required": [
+        "logId",
+        "timestamp",
+        "userId",
+        "lessonId",
+        "stepResults",
+        "xpGained",
+        "empathy",
+        "listening",
+        "trust",
+        "followUp",
+        "closing",
+        "relationshipBuilding"
+      ]
+    },
+    "Dealership": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Dealership",
+      "type": "object",
+      "description": "Represents a car dealership.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the dealership."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the dealership."
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the dealership."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "address"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Includes the user's role and dealershipId.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/lessons/{lessonId}",
+        "definition": {
+          "entityName": "Lesson",
+          "schema": {
+            "$ref": "#/backend/entities/Lesson"
+          },
+          "description": "Stores lesson metadata. Lessons are global and not specific to any user.",
+          "params": [
+            {
+              "name": "lessonId",
+              "description": "The unique identifier for the lesson."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/lessonLogs/{lessonLogId}",
+        "definition": {
+          "entityName": "LessonLog",
+          "schema": {
+            "$ref": "#/backend/entities/LessonLog"
+          },
+          "description": "Stores lesson logs for each user. This subcollection ensures that each lesson log is owned by a specific user, enabling secure list operations and straightforward security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "lessonLogId",
+              "description": "The unique identifier for the lesson log entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/dealerships/{dealershipId}",
+        "definition": {
+          "entityName": "Dealership",
+          "schema": {
+            "$ref": "#/backend/entities/Dealership"
+          },
+          "description": "Stores dealership information.",
+          "params": [
+            {
+              "name": "dealershipId",
+              "description": "The unique identifier for the dealership."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, QAPs, and clear ownership. Users and Dealerships are stored in top-level collections. LessonLogs are stored as subcollections under users, ensuring easy retrieval of a user's lesson history and ownership. Lessons are stored in a top-level collection, as they are global and not specific to any user. This structure enables simple security rules based on path ownership and avoids the need for complex `get()` calls, improving performance and security. The structure enables secure `list` operations because each collection is homogeneous."
+  }
+}
