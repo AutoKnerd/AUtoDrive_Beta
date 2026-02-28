@@ -1,9 +1,9 @@
 export const carBrands = [
-  'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'Cadillac', 'Chevrolet', 
-  'Chrysler', 'Dodge', 'Fiat', 'Ford', 'Genesis', 'GMC', 'Honda', 'Hyundai', 
-  'Infiniti', 'Jaguar', 'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Lincoln', 
-  'Maserati', 'Mazda', 'Mercedes-Benz', 'Mini', 'Mitsubishi', 'Nissan', 
-  'Polestar', 'Porsche', 'Ram', 'Rivian', 'Subaru', 'Tesla', 'Toyota', 
+  'Acura', 'Alfa Romeo', 'Audi', 'BMW', 'Buick', 'Cadillac', 'Chevrolet',
+  'Chrysler', 'Dodge', 'Fiat', 'Ford', 'Genesis', 'GMC', 'Honda', 'Hyundai',
+  'Infiniti', 'Jaguar', 'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Lincoln',
+  'Maserati', 'Mazda', 'Mercedes-Benz', 'Mini', 'Mitsubishi', 'Nissan',
+  'Polestar', 'Porsche', 'Ram', 'Rivian', 'Subaru', 'Tesla', 'Toyota',
   'Volkswagen', 'Volvo'
 ];
 
@@ -14,33 +14,33 @@ export type Address = {
   zip: string;
 };
 
-export type UserRole = 
-  | 'Sales Consultant' 
-  | 'manager' 
-  | 'Service Writer' 
-  | 'Service Manager' 
-  | 'Finance Manager' 
-  | 'Parts Consultant' 
+export type UserRole =
+  | 'Sales Consultant'
+  | 'manager'
+  | 'Service Writer'
+  | 'Service Manager'
+  | 'Finance Manager'
+  | 'Parts Consultant'
   | 'Parts Manager'
-  | 'General Manager' 
+  | 'General Manager'
   | 'Owner'
   | 'Trainer'
   | 'Admin'
   | 'Developer';
 
 export const allRoles: UserRole[] = [
-    'Developer',
-    'Admin',
-    'Owner',
-    'Trainer',
-    'General Manager',
-    'manager',
-    'Service Manager',
-    'Parts Manager',
-    'Finance Manager',
-    'Sales Consultant',
-    'Service Writer',
-    'Parts Consultant',
+  'Developer',
+  'Admin',
+  'Owner',
+  'Trainer',
+  'General Manager',
+  'manager',
+  'Service Manager',
+  'Parts Manager',
+  'Finance Manager',
+  'Sales Consultant',
+  'Service Writer',
+  'Parts Consultant',
 ];
 
 export const managerialRoles: UserRole[] = [
@@ -57,7 +57,7 @@ export const managerialRoles: UserRole[] = [
 
 export const noPersonalDevelopmentRoles: UserRole[] = ['Owner', 'Trainer', 'Admin', 'Developer'];
 
-export type ThemePreference = 'vibrant' | 'executive' | 'steel';
+export type ThemePreference = 'vibrant' | 'executive' | 'steel' | 'patriot' | 'velocity' | 'monochrome' | 'forest' | 'sunset' | 'oceanic' | 'cyber';
 
 export type BillingSubscriptionStatus =
   | 'active'
@@ -204,7 +204,7 @@ export const lessonCategoriesByRole: Record<string, LessonCategory[]> = {
     'Management - Coaching',
     'Management - Performance Review',
   ],
-   'General Manager': [
+  'General Manager': [
     'Leadership - Team Motivation',
     'Leadership - Conflict Resolution',
     'Operations - Financial Acumen',
@@ -374,6 +374,6 @@ export type Message = {
   // For 'global', this is 'all'.
   // For 'dealership', this is dealershipId.
   // For 'department', this is dealershipId.
-  targetId: string; 
+  targetId: string;
   targetRole?: UserRole; // For 'department' scope to target specific roles
 };

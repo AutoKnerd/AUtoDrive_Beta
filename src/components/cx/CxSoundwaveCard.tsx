@@ -149,9 +149,13 @@ export function CxSoundwaveCard({
 
   return (
     <Card className={cn(
-      "relative w-full overflow-hidden bg-card border-border shadow-2xl transition-all duration-500 dark:bg-slate-950 dark:border-white/5",
+      "relative w-full overflow-hidden bg-card border-border shadow-xl transition-all duration-500 dark:bg-slate-950/95 dark:border-white/10",
       className
     )}>
+      <div className="pointer-events-none absolute inset-0 opacity-60">
+        <div className="absolute -top-20 left-1/2 h-52 w-[36rem] -translate-x-1/2 rounded-full bg-cyan-400/8 blur-3xl" />
+        <div className="absolute -bottom-28 right-[-10%] h-56 w-96 rounded-full bg-sky-500/8 blur-3xl" />
+      </div>
       <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 space-y-0 pb-2">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -243,8 +247,8 @@ export function CxSoundwaveCard({
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 space-y-4 px-0">
-        <div className="border border-border/60 bg-muted/5 overflow-hidden dark:bg-white/2">
+      <CardContent className="relative pt-0 space-y-4 px-0">
+        <div className="border border-border/50 bg-muted/5 overflow-hidden rounded-xl backdrop-blur-[1px] dark:bg-white/[0.03]">
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-b border-border/50 p-1.5 md:p-3 dark:border-white/5 bg-muted/10">
             <div className="flex items-center gap-2">
               <div className="w-6 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />

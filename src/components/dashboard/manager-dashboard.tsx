@@ -76,6 +76,13 @@ function resolveThemePreference(value: unknown, useProfessionalTheme?: boolean):
   if (raw === 'vibrant' || raw.includes('vibrant neon')) return 'vibrant';
   if (raw === 'executive' || raw.includes('elite executive')) return 'executive';
   if (raw === 'steel' || raw.includes('professional steel')) return 'steel';
+  if (raw === 'patriot' || raw.includes('red, white, blue')) return 'patriot';
+  if (raw === 'velocity' || raw.includes('orange, indigo, teal')) return 'velocity';
+  if (raw === 'monochrome' || raw.includes('silver, graphite, charcoal')) return 'monochrome';
+  if (raw === 'forest' || raw.includes('pine, mint, sage')) return 'forest';
+  if (raw === 'sunset' || raw.includes('crimson, amber, rose')) return 'sunset';
+  if (raw === 'oceanic' || raw.includes('navy, aqua, sand')) return 'oceanic';
+  if (raw === 'cyber' || raw.includes('magenta, cyan, lime')) return 'cyber';
 
   return useProfessionalTheme ? 'executive' : 'vibrant';
 }
