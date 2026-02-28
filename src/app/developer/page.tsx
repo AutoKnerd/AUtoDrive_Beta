@@ -193,12 +193,12 @@ export default function DeveloperPage() {
     <div className="flex min-h-screen w-full flex-col">
        <Header />
       <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-8">
-        <Card className="border-primary/50 bg-primary/5">
+        <Card className="border-[#8DC63F]/60 bg-[#8DC63F]/10 shadow-[0_0_24px_rgba(141,198,63,0.18)]">
           <CardHeader className="flex-row items-center gap-4">
-            <SlidersHorizontal className="h-10 w-10 text-primary" />
+            <SlidersHorizontal className="h-10 w-10 text-[#8DC63F] drop-shadow-[0_0_10px_rgba(141,198,63,0.5)]" />
             <div>
-                <CardTitle className="text-2xl text-primary">God Mode</CardTitle>
-                <CardDescription className="text-primary/80">Manage system-wide data or impersonate roles.</CardDescription>
+                <CardTitle className="text-2xl text-[#8DC63F]">God Mode</CardTitle>
+                <CardDescription className="text-[#8DC63F]/80">Manage system-wide data or impersonate roles.</CardDescription>
             </div>
           </CardHeader>
         </Card>
