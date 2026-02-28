@@ -1,0 +1,40 @@
+{
+  "placeholderImages": [
+    {
+      "id": "auto-icon-1",
+      "description": "A minimalist steering wheel icon.",
+      "imageUrl": "https://images.unsplash.com/photo-1515086828834-023d61380316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzdGVlcmluZyUyMHdoZWVsfGVufDB8fHx8MTc2ODkxMTAyM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "steering wheel"
+    },
+    {
+      "id": "auto-icon-2",
+      "description": "A shiny chrome piston icon.",
+      "imageUrl": "https://images.unsplash.com/photo-1608834951273-eac269926962?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjYXIlMjBwaXN0b258ZW58MHx8fHwxNzY4OTExMDIzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car piston"
+    },
+    {
+      "id": "auto-icon-3",
+      "description": "An interlocking gear icon.",
+      "imageUrl": "https://images.unsplash.com/photo-1707035091770-4c548c02e5c5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxnZWFyJTIwaWNvbnxlbnwwfHx8fDE3Njg5MTEwMjN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "gear icon"
+    },
+    {
+      "id": "auto-icon-4",
+      "description": "A classic speedometer icon.",
+      "imageUrl": "https://images.unsplash.com/photo-1605521607922-5cc483858744?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzcGVlZG9tZXRlciUyMGljb258ZW58MHx8fHwxNzY4OTExMDIzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "speedometer icon"
+    },
+    {
+      "id": "about-hero",
+      "description": "A modern car dashboard at night.",
+      "imageUrl": "https://images.unsplash.com/photo-1762448884906-e27b998e340a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxtb2Rlcm4lMjBkYXNoYm9hcmR8ZW58MHx8fHwxNzY5MjI3MjQxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "modern dashboard"
+    },
+    {
+      "id": "usa-heatmap",
+      "description": "A map of the United States showing user locations",
+      "imageUrl": "https://picsum.photos/seed/usa-heatmap/1200/675",
+      "imageHint": "USA map heatmap"
+    }
+  ]
+}
