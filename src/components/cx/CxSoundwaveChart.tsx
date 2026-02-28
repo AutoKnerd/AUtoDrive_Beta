@@ -14,7 +14,16 @@ interface CxSoundwaveChartProps {
 }
 
 export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, onSkillClick }: CxSoundwaveChartProps) {
-  const [hoveredPoint, setHoveredPoint] = useState<{ skillId: CxSkillId; point: CxPoint; x: number; y: number } | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<{
+    skillId: CxSkillId;
+    point: CxPoint;
+    x: number;
+    y: number;
+    renderX: number;
+    renderY: number;
+    containerWidth: number;
+    containerHeight: number;
+  } | null>(null);
 
   const padding = { top: 10, bottom: 10, left: 0, right: 0 };
   const width = 800;
@@ -122,11 +131,17 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
       const skill = series.find(s => s.skillId === activeSkillId);
       if (skill) {
         const pt = skill.points[idx];
+        const chartX = padding.left + idx * xScale;
+        const chartY = yScale(pt.foreground);
         setHoveredPoint({
           skillId: skill.skillId,
           point: pt,
-          x: padding.left + idx * xScale,
-          y: yScale(pt.foreground)
+          x: chartX,
+          y: chartY,
+          renderX: (chartX / width) * rect.width,
+          renderY: (chartY / height) * rect.height,
+          containerWidth: rect.width,
+          containerHeight: rect.height
         });
       }
     }
@@ -358,33 +373,43 @@ export function CxSoundwaveChart({ series, activeSkillId, mode, onSkillHover, on
         )}
       </svg>
 
-      {hoveredPoint && (
-        <div
-          className="absolute z-50 pointer-events-none bg-card/95 border border-border p-3 rounded-lg backdrop-blur-md shadow-2xl text-[10px] space-y-1 dark:bg-slate-900/90"
-          style={{
-            left: hoveredPoint.x > width / 2 ? hoveredPoint.x - 160 : hoveredPoint.x + 20,
-            top: hoveredPoint.y - 40
-          }}
-        >
-          <p className="text-muted-foreground font-medium">{hoveredPoint.point.date}</p>
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: series.find(s => s.skillId === hoveredPoint.skillId)?.color }} />
-            <p className="text-foreground font-bold text-sm uppercase">{series.find(s => s.skillId === hoveredPoint.skillId)?.label}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 pt-1 border-t border-border">
-            <div>
-              <p className="text-muted-foreground">Proficiency</p>
-              <p className="text-lg font-bold text-foreground">{hoveredPoint.point.foreground.toFixed(1)}%</p>
+      {hoveredPoint && (() => {
+        const tooltipWidth = 168;
+        const tooltipHeight = 116;
+        const edgePadding = 10;
+        const gap = 16;
+        const preferredLeft = hoveredPoint.renderX > hoveredPoint.containerWidth / 2
+          ? hoveredPoint.renderX - tooltipWidth - gap
+          : hoveredPoint.renderX + gap;
+        const preferredTop = hoveredPoint.renderY - 40;
+        const left = Math.max(edgePadding, Math.min(preferredLeft, hoveredPoint.containerWidth - tooltipWidth - edgePadding));
+        const top = Math.max(edgePadding, Math.min(preferredTop, hoveredPoint.containerHeight - tooltipHeight - edgePadding));
+
+        return (
+          <div
+            className="absolute z-50 pointer-events-none bg-card/95 border border-border p-3 rounded-lg backdrop-blur-md shadow-2xl text-[10px] space-y-1 dark:bg-slate-900/90"
+            style={{ left, top }}
+          >
+            <p className="text-muted-foreground font-medium">{hoveredPoint.point.date}</p>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: series.find(s => s.skillId === hoveredPoint.skillId)?.color }} />
+              <p className="text-foreground font-bold text-sm uppercase">{series.find(s => s.skillId === hoveredPoint.skillId)?.label}</p>
             </div>
-            {mode === 'compare' && (
+            <div className="grid grid-cols-2 gap-x-4 pt-1 border-t border-border">
               <div>
-                <p className="text-muted-foreground">Dealer Average</p>
-                <p className="text-lg font-bold text-muted-foreground/60">{hoveredPoint.point.baseline.toFixed(1)}%</p>
+                <p className="text-muted-foreground">Proficiency</p>
+                <p className="text-lg font-bold text-foreground">{hoveredPoint.point.foreground.toFixed(1)}%</p>
               </div>
-            )}
+              {mode === 'compare' && (
+                <div>
+                  <p className="text-muted-foreground">Dealer Average</p>
+                  <p className="text-lg font-bold text-muted-foreground/60">{hoveredPoint.point.baseline.toFixed(1)}%</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
