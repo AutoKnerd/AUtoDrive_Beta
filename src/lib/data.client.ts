@@ -43,6 +43,10 @@ const getTourData = async () => {
 }
 
 const isTouringUser = (userId?: string): boolean => !!userId && userId.startsWith('tour-');
+const hasDealershipAssignments = (user?: Pick<User, 'dealershipIds'> | null): boolean => {
+    if (!user || !Array.isArray(user.dealershipIds)) return false;
+    return user.dealershipIds.length > 0;
+};
 const tourUserEmails: Record<string, string> = {
     'consultant.demo@autodrive.com': 'tour-consultant',
     'service.writer.demo@autodrive.com': 'tour-service-writer',
@@ -901,6 +905,7 @@ export async function claimDealershipEnrollment(token: string, role: UserRole): 
 export async function getPendingInvitations(dealershipId: string, user: User): Promise<PendingInvitation[]> {
     const { auth } = getFirebase();
     if (isTouringUser(user.userId)) return [];
+    if (!hasDealershipAssignments(user)) return [];
 
     try {
         const currentUser = auth.currentUser;
@@ -1849,6 +1854,7 @@ function buildManagerStatsFromRows(rows: TeamActivityRow[], logsByUserId: Map<st
 export async function getDealerships(user?: User): Promise<Dealership[]> {
     const { firestore: db } = getFirebase();
     if (isTouringUser(user?.userId)) return (await getTourData()).dealerships;
+    if (user && !hasDealershipAssignments(user)) return [];
     const snap = await getDocs(collection(db, 'dealerships'));
     const all = snap.docs.map(d => ({ ...d.data(), id: d.id } as Dealership));
     if (user && !['Admin', 'Developer', 'Trainer'].includes(user.role)) {
@@ -1861,6 +1867,12 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
     const { firestore: db } = getFirebase();
     const isPrivilegedViewer = ['Admin', 'Developer', 'Trainer'].includes(user.role);
     const scopedDealershipIds = Array.isArray(user.dealershipIds) ? user.dealershipIds : [];
+    if (!scopedDealershipIds.length) {
+        return {
+            teamActivity: [],
+            managerStats: { totalLessons: 0, avgScores: null },
+        };
+    }
 
     if (isTouringUser(user.userId)) {
         const tour = await getTourData();
@@ -1927,6 +1939,7 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
     const { firestore: db } = getFirebase();
     const manager = await getUserById(managerId);
     if (!manager) return [];
+    if (!hasDealershipAssignments(manager)) return [];
 
     if (isTouringUser(managerId)) {
         const tour = await getTourData();
@@ -3074,7 +3087,9 @@ export async function getCreatedLessonStatuses(creatorId: string): Promise<Creat
 
 export async function getSystemReport(actor: User): Promise<SystemReport> {
   const { firestore: db } = getFirebase();
-  if (!['Admin', 'Developer'].includes(actor.role)) throw new Error('Unauthorized');
+  if (!['Admin', 'Developer'].includes(actor.role) || !hasDealershipAssignments(actor)) {
+    throw new Error('Unauthorized');
+  }
   
   const usersSnap = await getDocs(collection(db, 'users'));
   const dealershipsSnap = await getDocs(collection(db, 'dealerships'));

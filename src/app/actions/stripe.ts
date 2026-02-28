@@ -15,6 +15,8 @@ type CheckoutSessionResult =
   | { ok: true; url: string }
   | { ok: false; message: string };
 
+const BILLING_MANAGER_ROLES = new Set(['Owner', 'General Manager', 'Admin', 'Developer']);
+
 async function getAppUrl(): Promise<string> {
   const requestHeaders = await headers();
   const host = requestHeaders.get('x-forwarded-host') || requestHeaders.get('host');
@@ -250,7 +252,7 @@ export async function createDealershipCheckoutSession(input: {
   }
   const actor = actorSnap.data() as User;
 
-  const isAuthorized = ['Owner', 'General Manager', 'Admin', 'Developer'].includes(actor.role);
+  const isAuthorized = BILLING_MANAGER_ROLES.has(actor.role);
   if (!isAuthorized && !(actor.dealershipIds || []).includes(input.dealershipId)) {
     throw new Error('You do not have permission to manage billing for this dealership.');
   }
@@ -336,12 +338,26 @@ export async function createDealershipCheckoutSession(input: {
   redirect(session.url);
 }
 
-export async function createCustomerPortalSession(stripeCustomerId: string) {
+export async function createCustomerPortalSession(idToken: string) {
+  const adminAuth = getAdminAuth();
+  const adminDb = getAdminDb();
   const appUrl = await getAppUrl();
   const stripe = getStripe();
 
+  if (!idToken) {
+    throw new Error('Missing idToken.');
+  }
+
+  const decoded = await adminAuth.verifyIdToken(idToken);
+  const userSnap = await adminDb.collection('users').doc(decoded.uid).get();
+  if (!userSnap.exists) {
+    throw new Error('User profile not found.');
+  }
+
+  const user = userSnap.data() as User;
+  const stripeCustomerId = user.stripeCustomerId || '';
   if (!stripeCustomerId) {
-    throw new Error('Stripe customer ID is required.');
+    throw new Error('No Stripe customer is configured for this user.');
   }
 
   const session = await stripe.billingPortal.sessions.create({
@@ -418,6 +434,17 @@ export async function finalizeCheckoutSession(idToken: string, sessionId: string
     const dealershipId = session.metadata?.dealershipId;
     if (!dealershipId) {
       throw new Error('Dealership checkout session is missing dealership id.');
+    }
+
+    const actorSnap = await adminDb.collection('users').doc(decoded.uid).get();
+    if (!actorSnap.exists) {
+      throw new Error('Requester profile not found.');
+    }
+    const actor = actorSnap.data() as User;
+    const isAuthorizedRole = BILLING_MANAGER_ROLES.has(actor.role);
+    const isDealershipMember = Array.isArray(actor.dealershipIds) && actor.dealershipIds.includes(dealershipId);
+    if (!isAuthorizedRole && !isDealershipMember) {
+      throw new Error('You do not have permission to finalize this dealership billing checkout.');
     }
 
     const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;

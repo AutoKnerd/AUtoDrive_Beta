@@ -27,6 +27,10 @@ const signupSchema = z.object({
   name: z.string().min(2, { message: 'Please enter your full name.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+  confirmPassword: z.string().min(8, { message: 'Please confirm your password.' }),
+}).refine((values) => values.password === values.confirmPassword, {
+  message: 'Passwords do not match.',
+  path: ['confirmPassword'],
 });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
@@ -44,6 +48,7 @@ export function SignupForm() {
       name: '',
       email: '',
       password: '',
+      confirmPassword: '',
     },
   });
 
@@ -130,6 +135,19 @@ export function SignupForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
                   <FormControl>
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>

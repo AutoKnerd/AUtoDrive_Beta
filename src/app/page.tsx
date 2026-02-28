@@ -8,27 +8,27 @@ import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { Spinner } from '@/components/ui/spinner';
 import { managerialRoles } from '@/lib/definitions';
 import { BottomNav } from '@/components/layout/bottom-nav';
-import { requiresIndividualCheckout } from '@/lib/billing/access';
+import { hasDealershipAssignment, requiresIndividualCheckout } from '@/lib/billing/access';
 
 export default function Home() {
   const { user, loading, isTouring } = useAuth();
   const router = useRouter();
+  const isAssigned = !!user && hasDealershipAssignment(user);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
-    } else if (!loading && (user?.role === 'Developer' || user?.role === 'Admin')) {
-      router.push('/developer');
     } else if (!loading && user && requiresIndividualCheckout(user)) {
       router.push('/subscribe');
+    } else if (!loading && isAssigned && (user?.role === 'Developer' || user?.role === 'Admin')) {
+      router.push('/developer');
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, isAssigned]);
 
   if (
     loading ||
     !user ||
-    user.role === 'Developer' ||
-    user.role === 'Admin' ||
+    (isAssigned && (user.role === 'Developer' || user.role === 'Admin')) ||
     requiresIndividualCheckout(user)
   ) {
     return (
@@ -38,7 +38,7 @@ export default function Home() {
     );
   }
 
-  const isManager = managerialRoles.includes(user.role);
+  const isManager = isAssigned && managerialRoles.includes(user.role);
 
   return (
     <div className="flex min-h-screen w-full flex-col">

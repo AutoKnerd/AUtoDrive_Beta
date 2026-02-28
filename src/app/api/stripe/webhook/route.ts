@@ -89,6 +89,13 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   );
 }
 
+type BillingScope = 'individual' | 'dealership';
+
+function normalizeBillingScope(value?: string): BillingScope | null {
+  if (value === 'individual' || value === 'dealership') return value;
+  return null;
+}
+
 async function handleSubscriptionLifecycleEvent(subscription: Stripe.Subscription, isDeleteEvent = false) {
   const customerId = typeof subscription.customer === 'string' ? subscription.customer : null;
   if (!customerId) return;
@@ -96,6 +103,7 @@ async function handleSubscriptionLifecycleEvent(subscription: Stripe.Subscriptio
   const mappedStatus = isDeleteEvent ? 'canceled' : mapStripeStatus(subscription.status);
   const trialStartIso = toIsoFromUnix(subscription.trial_start);
   const trialEndIso = toIsoFromUnix(subscription.trial_end);
+  const billingScope = normalizeBillingScope(subscription.metadata?.billingScope);
 
   const userPatch: Record<string, unknown> = {
     subscriptionStatus: mappedStatus,
@@ -112,14 +120,49 @@ async function handleSubscriptionLifecycleEvent(subscription: Stripe.Subscriptio
   if (trialStartIso) dealershipPatch.billingTrialStartedAt = trialStartIso;
   if (trialEndIso) dealershipPatch.billingTrialEndsAt = trialEndIso;
 
+  if (billingScope === 'individual') {
+    const updatedUser = await updateUserByCustomerId(customerId, userPatch);
+    if (!updatedUser) {
+      console.warn('[Stripe Webhook] No matching user for individual subscription customer', customerId);
+    }
+    return;
+  }
+
+  if (billingScope === 'dealership') {
+    const updatedDealership = await updateDealershipByCustomerId(customerId, dealershipPatch);
+    if (!updatedDealership) {
+      console.warn('[Stripe Webhook] No matching dealership for dealership subscription customer', customerId);
+    }
+    return;
+  }
+
+  // Backward compatibility for older subscriptions without billingScope metadata.
   const [updatedUser, updatedDealership] = await Promise.all([
     updateUserByCustomerId(customerId, userPatch),
     updateDealershipByCustomerId(customerId, dealershipPatch),
   ]);
-
   if (!updatedUser && !updatedDealership) {
-    console.warn('[Stripe Webhook] No matching user or dealership for customer', customerId);
+    console.warn('[Stripe Webhook] No matching user or dealership for customer (no billingScope metadata)', customerId);
   }
+}
+
+async function markWebhookEventProcessed(event: Stripe.Event): Promise<boolean> {
+  const adminDb = getAdminDb();
+  const eventRef = adminDb.collection('stripeWebhookEvents').doc(event.id);
+
+  return adminDb.runTransaction(async (tx) => {
+    const existing = await tx.get(eventRef);
+    if (existing.exists) {
+      return false;
+    }
+
+    tx.set(eventRef, {
+      id: event.id,
+      type: event.type,
+      createdAt: new Date().toISOString(),
+    });
+    return true;
+  });
 }
 
 async function handleEvent(event: Stripe.Event) {
@@ -177,6 +220,11 @@ export async function POST(req: Request) {
         { ok: false, message: `Webhook signature verification failed: ${err.message}` },
         { status: 400 }
       );
+    }
+
+    const shouldProcess = await markWebhookEventProcessed(event);
+    if (!shouldProcess) {
+      return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
     }
 
     await handleEvent(event);

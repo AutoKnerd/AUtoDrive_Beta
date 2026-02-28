@@ -7,6 +7,7 @@ import { ConsultantDashboard } from '@/components/dashboard/consultant-dashboard
 import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { Spinner } from '@/components/ui/spinner';
 import { allRoles, managerialRoles, UserRole, User, Dealership } from '@/lib/definitions';
+import { hasDealershipAssignment } from '@/lib/billing/access';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Header } from '@/components/layout/header';
@@ -90,6 +91,7 @@ function buildUserStatsFromLiveScores(scores: LiveCxScores): User['stats'] {
 export default function DeveloperPage() {
   const { user, loading, setUser, originalUser } = useAuth();
   const router = useRouter();
+  const originalUserIsAssigned = !!originalUser && hasDealershipAssignment(originalUser);
 
   const [manageableUsers, setManageableUsers] = useState<User[]>([]);
   const [allDealerships, setAllDealerships] = useState<Dealership[]>([]);
@@ -120,8 +122,13 @@ export default function DeveloperPage() {
   useEffect(() => {
     if (!loading && (!user || (originalUser?.role !== 'Developer' && originalUser?.role !== 'Admin'))) {
       router.push('/login');
+      return;
     }
-  }, [user, loading, router, originalUser]);
+
+    if (!loading && originalUser && !originalUserIsAssigned) {
+      router.push('/');
+    }
+  }, [user, loading, router, originalUser, originalUserIsAssigned]);
 
   useEffect(() => {
     if (!originalUser) return;
@@ -129,7 +136,13 @@ export default function DeveloperPage() {
     setSingleUserScores(buildLiveCxScoresFromUser(originalUser));
   }, [dashboardMode, originalUser]);
 
-  if (loading || !user || !originalUser || (originalUser.role !== 'Developer' && originalUser.role !== 'Admin')) {
+  if (
+    loading ||
+    !user ||
+    !originalUser ||
+    !originalUserIsAssigned ||
+    (originalUser.role !== 'Developer' && originalUser.role !== 'Admin')
+  ) {
     return <div className="flex h-screen w-full items-center justify-center bg-background"><Spinner size="lg" /></div>;
   }
   

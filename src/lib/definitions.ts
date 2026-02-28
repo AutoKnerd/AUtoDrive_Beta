@@ -85,6 +85,8 @@ export type User = {
   useProfessionalTheme?: boolean;
   themePreference?: ThemePreference;
   memberSince?: string;
+  privacyPolicyAcceptedAt?: string | null;
+  privacyPolicyVersion?: string | null;
   selfDeclaredDealershipId?: string;
   stripeCustomerId?: string;
   subscriptionStatus?: BillingSubscriptionStatus;

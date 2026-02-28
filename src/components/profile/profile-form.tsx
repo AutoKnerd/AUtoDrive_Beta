@@ -4,9 +4,10 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { User, Dealership, carBrands, type ThemePreference } from '@/lib/definitions';
+import { User, Dealership, UserRole, allRoles, carBrands, type ThemePreference } from '@/lib/definitions';
 import { updateUser, getDealerships, updateUserDealerships } from '@/lib/data.client';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuth as useFirebaseAuth } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,9 +59,13 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+const SELF_SELECTABLE_ROLES: UserRole[] = allRoles.filter((role) => (
+  !['Owner', 'Admin', 'Developer', 'Trainer'].includes(role)
+));
 
 export function ProfileForm({ user }: ProfileFormProps) {
   const { setUser } = useAuth();
+  const firebaseAuth = useFirebaseAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
@@ -71,6 +76,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [confirmationInput, setConfirmationInput] = useState('');
   const [isRemoving, setIsRemoving] = useState(false);
   const [showOwnerPrivacyDialog, setShowOwnerPrivacyDialog] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<UserRole>(
+    SELF_SELECTABLE_ROLES.includes(user.role) ? user.role : 'Sales Consultant'
+  );
+  const [isRoleUpdating, setIsRoleUpdating] = useState(false);
+  const isUnassignedUser = !Array.isArray(user.dealershipIds) || user.dealershipIds.length === 0;
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -96,6 +106,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
   const isPrivateValue = form.watch('isPrivate');
   const criticalOnlyValue = form.watch('showDealerCriticalOnly');
+
+  useEffect(() => {
+    setSelectedRole(SELF_SELECTABLE_ROLES.includes(user.role) ? user.role : 'Sales Consultant');
+  }, [user.role]);
 
   useEffect(() => {
     let active = true;
@@ -173,12 +187,59 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }
     setIsPortalLoading(true);
     try {
-      await createCustomerPortalSession(user.stripeCustomerId);
+      const firebaseUser = firebaseAuth.currentUser;
+      if (!firebaseUser) {
+        throw new Error('Authentication session expired. Please sign in again.');
+      }
+      const idToken = await firebaseUser.getIdToken(true);
+      await createCustomerPortalSession(idToken);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: (e as Error).message });
       setIsPortalLoading(false);
     }
   }
+
+  const handleRoleUpdate = async () => {
+    if (!isUnassignedUser) return;
+    if (selectedRole === user.role) return;
+
+    setIsRoleUpdating(true);
+    try {
+      const firebaseUser = firebaseAuth.currentUser;
+      if (!firebaseUser) {
+        throw new Error('Authentication session expired. Please sign in again.');
+      }
+      const idToken = await firebaseUser.getIdToken(true);
+
+      const response = await fetch('/api/profile/select-role', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ role: selectedRole }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Could not update role.');
+      }
+
+      setUser({ ...user, role: selectedRole });
+      toast({
+        title: 'Role Updated',
+        description: 'Your role access has been updated.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Role Update Failed',
+        description: error?.message || 'Could not update your role.',
+      });
+    } finally {
+      setIsRoleUpdating(false);
+    }
+  };
 
 
   async function onSubmit(data: ProfileFormValues) {
@@ -460,6 +521,44 @@ export function ProfileForm({ user }: ProfileFormProps) {
             )}
           </CardContent>
         </Card>
+
+        {isUnassignedUser ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Role Access</CardTitle>
+              <CardDescription>
+                Choose your role for your individual experience. Once you are assigned to a dealership, role changes are managed by dealership leadership.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <FormLabel>Role</FormLabel>
+              <Select
+                value={selectedRole}
+                onValueChange={(value) => setSelectedRole(value as UserRole)}
+                disabled={isRoleUpdating}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your role..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {SELF_SELECTABLE_ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role === 'manager' ? 'Sales Manager' : role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRoleUpdate}
+                disabled={isRoleUpdating || selectedRole === user.role}
+              >
+                {isRoleUpdating ? <Spinner size="sm" /> : 'Update Role Access'}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader>
