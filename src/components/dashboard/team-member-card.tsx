@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership, Badge } from '@/lib/definitions';
-import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles, getEarnedBadgesByUserId } from '@/lib/data.client';
+import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles, getEarnedBadgesByUserId, convertUserToSingleUser } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, ShieldOff, Copy, KeyRound } from 'lucide-react';
@@ -179,14 +179,14 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     async function handleUnassignUser() {
         setIsUpdating(true);
         try {
-            await updateUserDealerships(user.userId, []);
+            await convertUserToSingleUser(user.userId);
             toast({
-                title: 'User Unassigned',
-                description: `${user.name} has been unassigned from all dealerships.`,
+                title: 'Converted to Single User',
+                description: `${user.name} is now in single-user mode with no dealership assignment.`,
             });
             setIsModifying(false);
             setIsConfirmingRemoval(false);
-            // Force a clean refresh to avoid stale dialog state after the row disappears from the current store roster.
+            // Force a clean refresh after conversion to avoid stale row/dialog state in the current roster.
             if (typeof window !== 'undefined') {
                 window.location.reload();
                 return;
@@ -478,9 +478,9 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                 <CardContent>
                     {isConfirmingRemoval ? (
                          <div className="space-y-4 rounded-lg border border-destructive bg-destructive/10 p-4">
-                            <h4 className="font-semibold text-destructive">Confirm Unassignment</h4>
+                            <h4 className="font-semibold text-destructive">Convert to Single User</h4>
                             <p className="text-sm text-destructive/90">
-                                To unassign {user.name} from all dealerships, type <strong>UNASSIGN</strong> below. This action does not delete the user account.
+                                To remove {user.name} from all dealership rosters and keep them as an individual account, type <strong>UNASSIGN</strong> below.
                             </p>
                             <Input 
                                 value={confirmationInput}
@@ -496,7 +496,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                                     disabled={confirmationInput.toUpperCase() !== 'UNASSIGN' || isUpdating}
                                     variant="destructive"
                                 >
-                                    {isUpdating ? <Spinner size="sm" /> : 'Confirm Unassignment'}
+                                    {isUpdating ? <Spinner size="sm" /> : 'Convert to Single User'}
                                 </Button>
                             </div>
                         </div>
@@ -540,7 +540,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                                 </DropdownMenu>
                             </div>
                              <div className='flex justify-between items-center'>
-                                <Button variant="destructive" onClick={() => setIsConfirmingRemoval(true)} disabled={isUpdating}>Remove User</Button>
+                                <Button variant="destructive" onClick={() => setIsConfirmingRemoval(true)} disabled={isUpdating}>Convert to Single User</Button>
                                 <div className='flex gap-2'>
                                     <Button variant="ghost" onClick={() => { setIsModifying(false); setSelectedDealerships(normalizedUserDealershipIds); }}>Cancel</Button>
                                     <Button onClick={handleUpdateAssignments} disabled={isUpdating || isEqual([...normalizedUserDealershipIds].sort(), [...selectedDealerships].sort())}>

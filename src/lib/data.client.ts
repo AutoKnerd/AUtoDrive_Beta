@@ -731,6 +731,31 @@ export async function updateUserDealerships(userId: string, newDealershipIds: st
     return updatedUser;
 }
 
+export async function convertUserToSingleUser(targetUserId: string): Promise<void> {
+    const { auth } = getFirebase();
+    if (isTouringUser(targetUserId)) return;
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error('You must be signed in to update this user.');
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/admin/convertUserToSingleUser', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ targetUserId }),
+    });
+
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.message || 'Failed to convert user to single-user mode.');
+    }
+}
+
 export async function deleteUser(userId: string): Promise<void> {
     const { firestore: db } = getFirebase();
     if (isTouringUser(userId)) return;
