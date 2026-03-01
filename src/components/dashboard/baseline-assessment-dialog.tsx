@@ -233,7 +233,7 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !privacyAccepted}>
             {isSubmitting ? 'Saving...' : 'Save Baseline'}
           </Button>
         </DialogFooter>
