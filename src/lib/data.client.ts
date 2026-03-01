@@ -3231,7 +3231,8 @@ export async function getCreatedLessonStatuses(creatorId: string, dealershipId?:
     let lastAssigned: Date | null = null;
 
     for (const a of assignments) {
-      if (!lastAssigned || a.timestamp > lastAssigned) lastAssigned = a.timestamp;
+      const assignmentTimestamp = toSafeDate((a as any).timestamp, new Date(0));
+      if (!lastAssigned || assignmentTimestamp > lastAssigned) lastAssigned = assignmentTimestamp;
       
       const user = await getUserById(a.userId);
       if (!user) continue;
@@ -3239,13 +3240,16 @@ export async function getCreatedLessonStatuses(creatorId: string, dealershipId?:
       const logSnap = await getDocs(query(collection(db, `users/${user.userId}/lessonLogs`), where('lessonId', '==', lesson.lessonId), limit(1)));
       const isTaken = !logSnap.empty;
       if (isTaken) takenCount++;
+      const completedAt = isTaken
+        ? toSafeDate((logSnap.docs[0].data() as any).timestamp, new Date(0))
+        : undefined;
 
       assignees.push({
         userId: user.userId,
         name: user.name,
         role: user.role,
         taken: isTaken,
-        completedAt: isTaken ? (logSnap.docs[0].data().timestamp as Timestamp).toDate() : undefined
+        completedAt
       });
     }
 

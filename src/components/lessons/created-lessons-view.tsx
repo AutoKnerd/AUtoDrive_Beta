@@ -36,6 +36,19 @@ const getStatusIcon = (row: CreatedLessonStatus) => {
   return <Clock3 className="h-3.5 w-3.5 text-amber-600" />;
 };
 
+const formatDateLabel = (value: unknown): string => {
+  if (!value) return 'Not sent';
+  try {
+    if (value instanceof Date) return value.toLocaleDateString();
+    if (typeof value === 'object' && value !== null && 'toDate' in (value as Record<string, unknown>) && typeof (value as any).toDate === 'function') {
+      return (value as any).toDate().toLocaleDateString();
+    }
+    const parsed = new Date(value as any);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString();
+  } catch {}
+  return 'Not sent';
+};
+
 export function CreatedLessonsView({ user, dealershipId = null, refreshKey = 0 }: CreatedLessonsViewProps) {
   const [rows, setRows] = useState<CreatedLessonStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +164,7 @@ export function CreatedLessonsView({ user, dealershipId = null, refreshKey = 0 }
                       <span className="hidden sm:inline">{getStatusLabel(row)}</span>
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{row.lastAssignedAt ? row.lastAssignedAt.toLocaleDateString() : 'Not sent'}</TableCell>
+                  <TableCell className="hidden md:table-cell">{formatDateLabel(row.lastAssignedAt)}</TableCell>
                 </TableRow>
               );
             })}
