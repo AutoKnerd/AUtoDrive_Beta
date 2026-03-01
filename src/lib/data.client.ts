@@ -1125,8 +1125,15 @@ export async function getDealershipById(dealershipId: string, userId?: string): 
     return getDataById<Dealership>(db, 'dealerships', dealershipId);
 }
 
-export async function createLesson(lessonData: { title: string; category: LessonCategory; associatedTrait: CxTrait; targetRole: UserRole | 'global'; scenario: string; }, creator: User, options?: { autoAssignByRole?: boolean; }): Promise<{ lesson: Lesson; autoAssignedCount: number; autoAssignFailed: boolean }> {
+export async function createLesson(
+    lessonData: { title: string; category: LessonCategory; associatedTrait: CxTrait; targetRole: UserRole | 'global'; scenario: string; },
+    creator: User,
+    options?: { autoAssignByRole?: boolean; scopedDealershipId?: string | null; }
+): Promise<{ lesson: Lesson; autoAssignedCount: number; autoAssignFailed: boolean }> {
     const { firestore: db } = getFirebase();
+    const scopedLessonDealershipIds = options?.scopedDealershipId && options.scopedDealershipId !== 'all'
+        ? [options.scopedDealershipId]
+        : Array.from(new Set([...(creator.dealershipIds || []), ...(creator.selfDeclaredDealershipId ? [creator.selfDeclaredDealershipId] : [])]));
     if (isTouringUser(creator.userId)) {
         const { lessons } = await getTourData();
         const newLesson: Lesson = {
@@ -1135,6 +1142,7 @@ export async function createLesson(lessonData: { title: string; category: Lesson
             role: lessonData.targetRole as LessonRole,
             customScenario: lessonData.scenario,
             createdByUserId: creator.userId,
+            dealershipIds: scopedLessonDealershipIds,
         };
         lessons.push(newLesson);
         return { lesson: newLesson, autoAssignedCount: 0, autoAssignFailed: false };
@@ -1149,6 +1157,7 @@ export async function createLesson(lessonData: { title: string; category: Lesson
         role: lessonData.targetRole as LessonRole,
         customScenario: lessonData.scenario,
         createdByUserId: creator.userId,
+        dealershipIds: scopedLessonDealershipIds,
     };
     await setDoc(newLessonRef, newLesson);
 
@@ -1156,7 +1165,12 @@ export async function createLesson(lessonData: { title: string; category: Lesson
     if (options?.autoAssignByRole) {
         try {
             const recipients = (await getManageableUsers(creator.userId)).filter(u => 
-                !noPersonalDevelopmentRoles.includes(u.role) && (lessonData.targetRole === 'global' || u.role === lessonData.targetRole)
+                !noPersonalDevelopmentRoles.includes(u.role) &&
+                (lessonData.targetRole === 'global' || u.role === lessonData.targetRole) &&
+                (
+                    scopedLessonDealershipIds.length === 0 ||
+                    (Array.isArray(u.dealershipIds) ? u.dealershipIds : []).some((id) => scopedLessonDealershipIds.includes(id))
+                )
             );
             for (const recipient of recipients) {
                 await assignLesson(recipient.userId, newLesson.lessonId, creator.userId);
@@ -1174,7 +1188,13 @@ export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
     if (isTouringUser(userId)) {
         const { lessonAssignments, lessons } = await getTourData();
         const ids = lessonAssignments.filter(a => a.userId === userId && !a.completed).map(a => a.lessonId);
-        return lessons.filter(l => ids.includes(l.lessonId));
+        const viewer = await getUserById(userId);
+        const viewerDealershipIds = Array.from(new Set([...(viewer?.dealershipIds || []), ...(viewer?.selfDeclaredDealershipId ? [viewer.selfDeclaredDealershipId] : [])]));
+        return lessons.filter((l) => {
+            if (!ids.includes(l.lessonId)) return false;
+            if (!Array.isArray(l.dealershipIds) || l.dealershipIds.length === 0) return true;
+            return l.dealershipIds.some((id) => viewerDealershipIds.includes(id));
+        });
     }
 
     const q = query(collection(db, 'lessonAssignments'), where("userId", "==", userId), where("completed", "==", false));
@@ -1183,7 +1203,14 @@ export async function getAssignedLessons(userId: string): Promise<Lesson[]> {
     if (ids.length === 0) return [];
 
     const lessonsSnap = await getDocs(query(collection(db, 'lessons'), where("lessonId", "in", ids.slice(0, 30))));
-    return lessonsSnap.docs.map(d => ({ ...d.data(), id: d.id } as Lesson));
+    const viewer = await getUserById(userId);
+    const viewerDealershipIds = Array.from(new Set([...(viewer?.dealershipIds || []), ...(viewer?.selfDeclaredDealershipId ? [viewer.selfDeclaredDealershipId] : [])]));
+    return lessonsSnap.docs
+        .map(d => ({ ...d.data(), id: d.id } as Lesson))
+        .filter((lesson) => {
+            if (!Array.isArray(lesson.dealershipIds) || lesson.dealershipIds.length === 0) return true;
+            return lesson.dealershipIds.some((id) => viewerDealershipIds.includes(id));
+        });
 }
 
 export async function getAllAssignedLessonIds(userId: string): Promise<string[]> {
@@ -1204,6 +1231,22 @@ export async function assignLesson(userId: string, lessonId: string, assignerId:
         lessonAssignments.push(newA);
         return newA;
     }
+    const [assignee, lesson] = await Promise.all([
+        getUserById(userId),
+        getLessonById(lessonId, assignerId),
+    ]);
+    if (!assignee) throw new Error('Assignee not found.');
+    if (!lesson) throw new Error('Lesson not found.');
+
+    const lessonDealershipIds = Array.isArray(lesson.dealershipIds) ? lesson.dealershipIds : [];
+    if (lessonDealershipIds.length > 0) {
+        const assigneeDealershipIds = Array.from(new Set([...(assignee.dealershipIds || []), ...(assignee.selfDeclaredDealershipId ? [assignee.selfDeclaredDealershipId] : [])]));
+        const sharesScopedDealership = lessonDealershipIds.some((id) => assigneeDealershipIds.includes(id));
+        if (!sharesScopedDealership) {
+            throw new Error('Cannot assign this lesson outside its dealership scope.');
+        }
+    }
+
     const ref = doc(collection(db, 'lessonAssignments'));
     const newA: LessonAssignment = { assignmentId: ref.id, userId, lessonId, assignerId, timestamp: new Date(), completed: false };
     await setDoc(ref, newA);
@@ -3100,18 +3143,47 @@ export type CreatedLessonStatus = {
   assignees: Array<{ userId: string; name: string; role: string; taken: boolean; completedAt?: Date }>;
 };
 
-export async function getCreatedLessonStatuses(creatorId: string): Promise<CreatedLessonStatus[]> {
+export async function getCreatedLessonStatuses(creatorId: string, dealershipId?: string | null): Promise<CreatedLessonStatus[]> {
   const { firestore: db } = getFirebase();
   const isTour = isTouringUser(creatorId);
   const lessonsRef = collection(db, 'lessons');
-  const q = query(lessonsRef, where('createdByUserId', '==', creatorId));
-  const snap = isTour ? { docs: (await getTourData()).lessons.filter(l => l.createdByUserId === creatorId) } : await getDocs(q);
+  const isDealershipScoped = !!dealershipId && dealershipId !== 'all';
+  const q = isDealershipScoped
+    ? query(lessonsRef, where('dealershipIds', 'array-contains', dealershipId))
+    : query(lessonsRef, where('createdByUserId', '==', creatorId));
+  const snap = isTour
+    ? {
+        docs: (await getTourData()).lessons.filter((l) => {
+          if (isDealershipScoped) {
+            return Array.isArray(l.dealershipIds) && l.dealershipIds.includes(dealershipId as string);
+          }
+          return l.createdByUserId === creatorId;
+        }),
+      }
+    : await getDocs(q);
   
   const results: CreatedLessonStatus[] = [];
   const assignmentsRef = collection(db, 'lessonAssignments');
+  const creatorCache = new Map<string, User | null>();
 
   for (const docSnap of (snap.docs as any[])) {
     const lesson = isTour ? docSnap : { ...docSnap.data(), lessonId: docSnap.id } as Lesson;
+    if (dealershipId && dealershipId !== 'all') {
+      const lessonDealershipIds = Array.isArray(lesson.dealershipIds) ? lesson.dealershipIds : [];
+      if (lessonDealershipIds.length === 0) {
+        const creatorUserId = lesson.createdByUserId;
+        if (!creatorUserId) continue;
+        let creatorProfile = creatorCache.get(creatorUserId);
+        if (creatorProfile === undefined) {
+          creatorProfile = await getUserById(creatorUserId);
+          creatorCache.set(creatorUserId, creatorProfile);
+        }
+        const creatorDealershipIds = Array.isArray(creatorProfile?.dealershipIds) ? creatorProfile.dealershipIds : [];
+        if (!creatorDealershipIds.includes(dealershipId)) continue;
+      } else if (!lessonDealershipIds.includes(dealershipId)) {
+        continue;
+      }
+    }
     
     const aSnap = await getDocs(query(assignmentsRef, where('lessonId', '==', lesson.lessonId)));
     const assignments = aSnap.docs.map(d => d.data() as LessonAssignment);

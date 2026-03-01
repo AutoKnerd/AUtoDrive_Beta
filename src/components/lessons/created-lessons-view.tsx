@@ -14,6 +14,7 @@ import { CheckCircle2, Clock3, FileText, RefreshCw } from 'lucide-react';
 
 interface CreatedLessonsViewProps {
   user: User;
+  dealershipId?: string | null;
   refreshKey?: number;
 }
 
@@ -35,7 +36,7 @@ const getStatusIcon = (row: CreatedLessonStatus) => {
   return <Clock3 className="h-3.5 w-3.5 text-amber-600" />;
 };
 
-export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewProps) {
+export function CreatedLessonsView({ user, dealershipId = null, refreshKey = 0 }: CreatedLessonsViewProps) {
   const [rows, setRows] = useState<CreatedLessonStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
       setLoading(true);
       setError(null);
       try {
-        const data = await getCreatedLessonStatuses(user.userId);
+        const data = await getCreatedLessonStatuses(user.userId, dealershipId);
         if (!active) return;
         setRows(data);
         setSelectedLessonId((current) => {
@@ -70,7 +71,7 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
     };
     fetchCreatedLessons();
     return () => { active = false; };
-  }, [user.userId, refreshKey, internalRefreshKey]);
+  }, [user.userId, dealershipId, refreshKey, internalRefreshKey]);
   
   const handleReassign = async (assigneeId: string, lessonId: string) => {
       setIsReassigning(assigneeId);

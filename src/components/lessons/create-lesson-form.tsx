@@ -24,6 +24,7 @@ interface CreateLessonFormProps {
   onLessonCreated?: (newLesson?: Lesson) => void;
   assignOnCreateToUserId?: string;
   assignerId?: string;
+  scopedDealershipId?: string | null;
 }
 
 const cxTraits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
@@ -54,7 +55,7 @@ const createLessonSchema = z.object({
 
 type CreateLessonFormValues = z.infer<typeof createLessonSchema>;
 
-export function CreateLessonForm({ user, onLessonCreated, assignOnCreateToUserId, assignerId }: CreateLessonFormProps) {
+export function CreateLessonForm({ user, onLessonCreated, assignOnCreateToUserId, assignerId, scopedDealershipId = null }: CreateLessonFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const { toast } = useToast();
@@ -145,7 +146,7 @@ export function CreateLessonForm({ user, onLessonCreated, assignOnCreateToUserId
         associatedTrait: data.associatedTrait,
         targetRole: data.targetRole as UserRole | 'global',
         scenario: data.scenario,
-      }, user, { autoAssignByRole: !assignOnCreateToUserId });
+      }, user, { autoAssignByRole: !assignOnCreateToUserId, scopedDealershipId });
       const newLesson = createLessonResult.lesson;
 
       if (assignOnCreateToUserId && assignerId) {

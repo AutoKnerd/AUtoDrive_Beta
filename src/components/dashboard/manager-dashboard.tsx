@@ -794,14 +794,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 <DialogTrigger asChild><Button variant="outline" size="sm"><ListChecks className="mr-2 h-4 w-4" />Created Lessons</Button></DialogTrigger>
                                 <DialogContent className="sm:max-w-[820px]">
                                     <DialogHeader><DialogTitle>Created Lessons</DialogTitle></DialogHeader>
-                                    <ScrollArea className="max-h-[70vh] pr-6"><CreatedLessonsView user={user} refreshKey={createdLessonsRefreshKey} /></ScrollArea>
+                                    <ScrollArea className="max-h-[70vh] pr-6"><CreatedLessonsView user={user} dealershipId={selectedDealershipId} refreshKey={createdLessonsRefreshKey} /></ScrollArea>
                                 </DialogContent>
                             </Dialog>
                             <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
                                 <DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2 h-4 w-4" />Create Lesson</Button></DialogTrigger>
                                 <DialogContent className="sm:max-w-[625px]">
                                     <DialogHeader><DialogTitle>Create New Lesson</DialogTitle></DialogHeader>
-                                    <CreateLessonForm user={user} onLessonCreated={handleLessonCreated} />
+                                    <CreateLessonForm user={user} onLessonCreated={handleLessonCreated} scopedDealershipId={selectedDealershipId} />
                                 </DialogContent>
                             </Dialog>
                         </div>

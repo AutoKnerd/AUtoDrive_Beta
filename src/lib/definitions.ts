@@ -250,6 +250,7 @@ export type Lesson = {
   associatedTrait: CxTrait;
   customScenario?: string;
   createdByUserId?: string;
+  dealershipIds?: string[];
 };
 
 export type LessonLog = {
