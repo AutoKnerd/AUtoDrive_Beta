@@ -1969,11 +1969,11 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
     const { firestore: db } = getFirebase();
     const manager = await getUserById(managerId);
     if (!manager) return [];
-    if (!hasDealershipAssignments(manager)) return [];
+    const isAdmin = ['Admin', 'Developer'].includes(manager.role);
+    if (!isAdmin && !hasDealershipAssignments(manager)) return [];
 
     if (isTouringUser(managerId)) {
         const tour = await getTourData();
-        const isAdmin = ['Admin', 'Developer'].includes(manager.role);
 
         if (isAdmin) {
             return tour.users
@@ -1993,8 +1993,6 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
             .sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    const isAdmin = ['Admin', 'Developer'].includes(manager.role);
-    
     const snap = await getDocs(collection(db, 'users'));
     const all = snap.docs.map(d => ({ ...d.data(), userId: d.id } as User));
     
