@@ -419,7 +419,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
   useEffect(() => {
     if (!viewModeInitialized) {
-      setViewMode(hasDealershipContext ? 'team' : 'personal');
+      setViewMode('personal');
       setViewModeInitialized(true);
       return;
     }

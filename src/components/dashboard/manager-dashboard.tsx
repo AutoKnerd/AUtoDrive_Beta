@@ -266,7 +266,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [dailyRecommendedLessonId, setDailyRecommendedLessonId] = useState<string | null>(null);
   const [systemReport, setSystemReport] = useState<SystemReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
+  const [viewMode, setViewMode] = useState<'team' | 'personal'>(() => (
+    ['Owner', 'General Manager', 'Admin', 'Developer', 'Trainer'].includes(user.role) ? 'team' : 'personal'
+  ));
   const [range, setRange] = useState<CxRange>('today');
   const router = useRouter();
 
