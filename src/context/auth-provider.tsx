@@ -290,6 +290,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [auth]);
 
   const logout = useCallback(async (redirectTo: string = '/login') => {
+    setLoading(true);
     try {
       await auth.signOut();
     } catch (error) {
@@ -301,7 +302,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (redirectTo) {
-      router.replace(redirectTo);
+      if (typeof window !== 'undefined') {
+        window.location.replace(redirectTo);
+      } else {
+        router.replace(redirectTo);
+      }
     }
   }, [auth, router]);
 
