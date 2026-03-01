@@ -277,6 +277,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [range, setRange] = useState<CxRange>('today');
   const router = useRouter();
   const canViewAllStores = ['Admin', 'Developer'].includes(user.role);
+  const canViewAssignedStoresAggregate = !canViewAllStores && (user.dealershipIds?.length ?? 0) > 1;
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
 
@@ -291,7 +292,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const fetchData = useCallback(async (dealershipId: string | null) => {
       if (!dealershipId) return;
-      const scopedDealershipId = (!canViewAllStores && dealershipId === 'all')
+      const canUseAllSelection = canViewAllStores || canViewAssignedStoresAggregate;
+      const scopedDealershipId = (!canUseAllSelection && dealershipId === 'all')
         ? (user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null)
         : dealershipId;
       if (!scopedDealershipId) {
@@ -343,7 +345,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           );
 
           const visibleActiveUsers = usersToManage.filter((u) => {
-            if (scopedDealershipId === 'all') return canViewAllStores;
+            if (scopedDealershipId === 'all') return canUseAllSelection;
             return u.dealershipIds?.includes(scopedDealershipId);
           });
 
@@ -404,7 +406,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       } finally {
           setLoading(false);
       }
-  }, [user, isTouring, toast, canViewAllStores]);
+  }, [user, isTouring, toast, canViewAllStores, canViewAssignedStoresAggregate]);
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -429,9 +431,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         let currentSelectedId = selectedDealershipId;
         if (currentSelectedId === null) {
             if (canViewAllStores) currentSelectedId = 'all';
+            else if (canViewAssignedStoresAggregate && initialDealerships.length > 1) currentSelectedId = 'all';
             else if (initialDealerships.length > 0) currentSelectedId = initialDealerships[0].id;
         }
-        if (currentSelectedId === 'all' && !canViewAllStores) {
+        if (currentSelectedId === 'all' && !canViewAllStores && !canViewAssignedStoresAggregate) {
             currentSelectedId = initialDealerships[0]?.id || user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null;
         }
         if (currentSelectedId) {
@@ -440,7 +443,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         } else setLoading(false);
     };
     fetchInitialData();
-  }, [user, selectedDealershipId, fetchData, fetchAdminData, canViewAllStores]);
+  }, [user, selectedDealershipId, fetchData, fetchAdminData, canViewAllStores, canViewAssignedStoresAggregate]);
 
   useEffect(() => {
     if (user.memberSince) {
@@ -466,7 +469,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   };
 
   const handleDealershipChange = (dealershipId: string) => {
-    if (dealershipId === 'all' && !canViewAllStores) return;
+    if (dealershipId === 'all' && !canViewAllStores && !canViewAssignedStoresAggregate) return;
     setSelectedDealershipId(dealershipId);
   };
 
@@ -612,7 +615,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                           <SelectValue placeholder="Select a dealership" />
                       </SelectTrigger>
                       <SelectContent>
-                          {canViewAllStores && <SelectItem value="all">All Stores</SelectItem>}
+                          {(canViewAllStores || canViewAssignedStoresAggregate) && (
+                            <SelectItem value="all">{canViewAllStores ? 'All Stores' : 'All Assigned Stores'}</SelectItem>
+                          )}
                           {dealerships.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                       </SelectContent>
                   </Select>
@@ -739,7 +744,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       {viewMode === 'team' ? (
           <>
             <Card>
-              <CardHeader><CardTitle>Team Statistics</CardTitle><CardDescription>{selectedDealershipId === 'all' ? 'Across all dealerships' : `Performance overview`}</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Team Statistics</CardTitle><CardDescription>{selectedDealershipId === 'all' ? (canViewAllStores ? 'Across all dealerships' : 'Across assigned dealerships') : `Performance overview`}</CardDescription></CardHeader>
               <CardContent>
                   {loading ? <Skeleton className="h-24 w-full" /> : showInsufficientDataWarning ? (
                     <div className="flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-6 text-center"><Info className="h-8 w-8 text-muted-foreground" /><h3 className="font-semibold">Insufficient Data</h3><p className="max-w-md text-sm text-muted-foreground">Aggregated stats are only shown for active teams of 3 or more members.</p></div>
