@@ -40,8 +40,14 @@ function isLocalHost(host?: string | null): boolean {
 }
 
 function getPublicOrigin(req: Request): string {
-  const explicit = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL);
+  const explicit = normalizeOrigin(
+    process.env.NEXT_PUBLIC_INVITE_BASE_URL
+    || process.env.INVITE_BASE_URL
+    || process.env.NEXT_PUBLIC_APP_URL
+    || process.env.APP_URL
+  );
   const explicitHost = hostFromOrigin(explicit);
+  const defaultCanonical = normalizeOrigin('https://autodrivecx.com');
 
   const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
   const forwardedHostRaw = req.headers.get('x-forwarded-host') || req.headers.get('host');
@@ -51,6 +57,7 @@ function getPublicOrigin(req: Request): string {
 
   // If explicit URL is non-local, trust it.
   if (explicit && !isLocalHost(explicitHost)) return explicit;
+  if (defaultCanonical) return defaultCanonical;
 
   // If explicit is local but current request is non-local, prefer request host.
   if (forwardedOrigin && !isLocalHost(forwardedHostName)) return forwardedOrigin;
