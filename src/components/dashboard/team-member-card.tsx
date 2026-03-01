@@ -27,7 +27,7 @@ interface TeamMemberCardProps {
   user: User;
   currentUser: User;
   dealerships: Dealership[];
-  onAssignmentUpdated: () => void;
+  onAssignmentUpdated: () => void | Promise<void>;
 }
 
 const metricIcons: Record<CxTrait, LucideIcon> = {
@@ -45,7 +45,9 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const [selectedDealerships, setSelectedDealerships] = useState(user.dealershipIds);
+  const [selectedDealerships, setSelectedDealerships] = useState<string[]>(() => (
+    Array.isArray(user.dealershipIds) ? user.dealershipIds : []
+  ));
   const [isUpdating, setIsUpdating] = useState(false);
   const [isModifying, setIsModifying] = useState(false);
   const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
@@ -55,6 +57,9 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [recentActivityDate, setRecentActivityDate] = useState<string | null>(null);
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
+  const normalizedUserDealershipIds = useMemo(() => (
+    Array.isArray(user.dealershipIds) ? user.dealershipIds : []
+  ), [user.dealershipIds]);
 
 
   const { level } = calculateLevel(user.xp);
@@ -70,6 +75,10 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     (viewerIsOwner && user.isPrivateFromOwner);
   const showCriticalOnly = viewerIsSuperior && !hideMetrics && user.showDealerCriticalOnly === true;
 
+
+  useEffect(() => {
+    setSelectedDealerships(normalizedUserDealershipIds);
+  }, [user.userId, normalizedUserDealershipIds]);
 
   useEffect(() => {
     let active = true;
@@ -155,7 +164,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             description: `${user.name}'s assignments have been updated.`,
         });
         setIsModifying(false);
-        onAssignmentUpdated(); // This will trigger a re-fetch in the parent
+        await Promise.resolve(onAssignmentUpdated()); // trigger parent refresh and catch async failures
     } catch(e) {
         toast({
             variant: 'destructive',
@@ -177,7 +186,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             });
             setIsModifying(false);
             setIsConfirmingRemoval(false);
-            onAssignmentUpdated();
+            await Promise.resolve(onAssignmentUpdated());
         } catch (e) {
             toast({
                 variant: 'destructive',
@@ -192,10 +201,11 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
 
   const handleCheckedChange = (dealershipId: string, checked: boolean) => {
     setSelectedDealerships(prev => {
+        const current = Array.isArray(prev) ? prev : [];
         if (checked) {
-            return [...prev, dealershipId];
+            return [...current, dealershipId];
         } else {
-            return prev.filter(id => id !== dealershipId);
+            return current.filter(id => id !== dealershipId);
         }
     });
   }
@@ -527,8 +537,8 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                              <div className='flex justify-between items-center'>
                                 <Button variant="destructive" onClick={() => setIsConfirmingRemoval(true)} disabled={isUpdating}>Remove User</Button>
                                 <div className='flex gap-2'>
-                                    <Button variant="ghost" onClick={() => { setIsModifying(false); setSelectedDealerships(user.dealershipIds); }}>Cancel</Button>
-                                    <Button onClick={handleUpdateAssignments} disabled={isUpdating || isEqual([...user.dealershipIds].sort(), [...selectedDealerships].sort())}>
+                                    <Button variant="ghost" onClick={() => { setIsModifying(false); setSelectedDealerships(normalizedUserDealershipIds); }}>Cancel</Button>
+                                    <Button onClick={handleUpdateAssignments} disabled={isUpdating || isEqual([...normalizedUserDealershipIds].sort(), [...selectedDealerships].sort())}>
                                         {isUpdating ? <Spinner size="sm" /> : "Update Assignments"}
                                     </Button>
                                 </div>

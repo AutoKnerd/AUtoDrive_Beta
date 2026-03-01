@@ -888,7 +888,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                             </TableCell>
                                           </TableRow>
                                         </DialogTrigger>
-                                        <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Performance Snapshot</DialogTitle></DialogHeader><ScrollArea className="max-h-[70vh]"><div className="pr-6"><TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={() => fetchData(selectedDealershipId)} /></div></ScrollArea></DialogContent>
+                                        <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Performance Snapshot</DialogTitle></DialogHeader><ScrollArea className="max-h-[70vh]"><div className="pr-6"><TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={async () => { await fetchData(selectedDealershipId || user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null); }} /></div></ScrollArea></DialogContent>
                                     </Dialog>
                                 )) : <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No team activity found.</TableCell></TableRow>}
                             </TableBody>
