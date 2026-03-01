@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import type { CxTrait, User } from '@/lib/definitions';
-import { logLessonCompletion } from '@/lib/data.client';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import type { CxTrait, User, UserRole } from '@/lib/definitions';
+import { logLessonCompletion, updateUser } from '@/lib/data.client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface BaselineAssessmentDialogProps {
   user: User;
@@ -37,6 +40,17 @@ const defaultScores: ScoreMap = {
   relationshipBuilding: 75,
 };
 
+const baselineRoleOptions: UserRole[] = [
+  'Sales Consultant',
+  'manager',
+  'Service Writer',
+  'Service Manager',
+  'Finance Manager',
+  'Parts Consultant',
+  'Parts Manager',
+  'General Manager',
+];
+
 function clampScore(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
@@ -45,7 +59,18 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
   const { toast } = useToast();
   const { setUser } = useAuth();
   const [scores, setScores] = useState<ScoreMap>(defaultScores);
+  const rawRole = (user as Partial<User>)?.role;
+  const currentRole = typeof rawRole === 'string' ? rawRole : '';
+  const hasAssignedRole = baselineRoleOptions.includes(currentRole as UserRole);
+  const [selectedRole, setSelectedRole] = useState<UserRole | ''>(hasAssignedRole ? (currentRole as UserRole) : '');
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setPrivacyAcknowledged(false);
+    setSelectedRole(hasAssignedRole ? (currentRole as UserRole) : '');
+  }, [open, hasAssignedRole, currentRole]);
 
   const updateScore = (trait: CxTrait, rawValue: string) => {
     const parsed = Number(rawValue);
@@ -54,8 +79,30 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
   };
 
   const handleSubmit = async () => {
+    if (!privacyAcknowledged) {
+      toast({
+        variant: 'destructive',
+        title: 'Privacy policy required',
+        description: 'Please acknowledge the privacy policy before saving your baseline.',
+      });
+      return;
+    }
+
+    if (!hasAssignedRole && !selectedRole) {
+      toast({
+        variant: 'destructive',
+        title: 'Role required',
+        description: 'Please select your role before saving your baseline.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      if (!hasAssignedRole && selectedRole) {
+        await updateUser(user.userId, { role: selectedRole });
+      }
+
       const baselineId = `baseline-${new Date().toISOString().slice(0, 10)}`;
       const result = await logLessonCompletion({
         userId: user.userId,
@@ -94,6 +141,24 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
+          {!hasAssignedRole && (
+            <div className="grid gap-2">
+              <Label htmlFor="baseline-role">Your Role</Label>
+              <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as UserRole)} disabled={isSubmitting}>
+                <SelectTrigger id="baseline-role">
+                  <SelectValue placeholder="Select your role..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {baselineRoleOptions.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role === 'manager' ? 'Sales Manager' : role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {traitFields.map((trait) => (
             <div key={trait.key} className="grid grid-cols-[1fr_100px] items-center gap-3">
               <Label htmlFor={`baseline-${trait.key}`}>{trait.label}</Label>
@@ -108,13 +173,29 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
               />
             </div>
           ))}
+
+          <div className="flex items-start gap-3 rounded-md border border-border/60 p-3">
+            <Checkbox
+              id="baseline-privacy-policy"
+              checked={privacyAcknowledged}
+              onCheckedChange={(checked) => setPrivacyAcknowledged(checked === true)}
+              disabled={isSubmitting}
+            />
+            <Label htmlFor="baseline-privacy-policy" className="leading-5 text-sm font-normal text-muted-foreground">
+              I acknowledge the{' '}
+              <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4">
+                Privacy Policy
+              </Link>
+              .
+            </Label>
+          </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || (!hasAssignedRole && !selectedRole) || !privacyAcknowledged}>
             {isSubmitting ? 'Saving...' : 'Save Baseline'}
           </Button>
         </DialogFooter>
