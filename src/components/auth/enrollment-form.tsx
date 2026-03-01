@@ -224,6 +224,9 @@ export function EnrollmentForm({ enrollment }: EnrollmentFormProps) {
                 </FormItem>
               )}
             />
+            <p className="text-xs text-muted-foreground">
+              Privacy acknowledgment is required before enrollment.
+            </p>
             <Button type="submit" className="w-full" disabled={isSubmitting || !privacyAccepted}>
               {isSubmitting ? <Spinner size="sm" /> : 'Complete Enrollment'}
             </Button>
