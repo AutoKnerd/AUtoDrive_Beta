@@ -523,6 +523,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const hasAvailableLessons = useMemo(() => {
     return !loading && ((recommendedLesson && !lessonLimits.recommendedTaken) || assignedLessons.length > 0);
   }, [loading, recommendedLesson, lessonLimits.recommendedTaken, assignedLessons.length]);
+  const showTodaysLessonsCard = !noPersonalDevelopmentRoles.includes(user.role);
 
   const dealershipInsights = useMemo(() => {
     if (!stats?.avgScores) return { bestStat: null, watchStat: null };
@@ -644,6 +645,66 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           hideInternalToggle 
         />
       </section>
+
+      {showTodaysLessonsCard && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-foreground">Today&apos;s Lessons</h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
+              <div>
+                <div className="mb-2 flex items-center gap-3">
+                  <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+                  <h3 className="text-2xl font-bold text-foreground">Recommended</h3>
+                </div>
+                <p className="mb-4 text-sm text-muted-foreground">A daily lesson focused on your area for improvement.</p>
+              </div>
+              {loading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : needsBaselineAssessment ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button className="w-full font-bold bg-[#8DC63F] text-black" onClick={() => setShowBaselineAssessment(true)}>
+                    Baseline Assessment
+                  </Button>
+                </div>
+              ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
+                <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
+                  {recommendedLesson.title}
+                </Link>
+              ) : (
+                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
+                  {recommendedLesson ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" /> Complete
+                    </>
+                  ) : (
+                    'No lesson available'
+                  )}
+                </Button>
+              )}
+            </Card>
+            <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
+              <div>
+                <div className="mb-2 flex items-center gap-3">
+                  <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+                  <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
+                </div>
+                <p className="mb-4 text-sm text-muted-foreground">Training assigned specifically to you.</p>
+              </div>
+              {loading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : assignedLessons.length > 0 ? (
+                <Link href={`/lesson/${assignedLessons[0].lessonId}`} className={cn("w-full text-black", buttonVariants({ className: "w-full font-bold bg-[#8DC63F]" }))}>
+                  {assignedLessons[0].title}
+                </Link>
+              ) : (
+                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
+                  No assignments
+                </Button>
+              )}
+            </Card>
+          </div>
+        </section>
+      )}
 
       {(pppFeatureEnabled || saasPppFeatureEnabled) && (
           <section>
@@ -816,25 +877,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           </>
       ) : (
           <div className="space-y-8">
-              <section className="space-y-4">
-                  <h2 className="text-xl font-bold text-foreground">My Development</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
-                          <div><div className="flex items-center gap-3 mb-2"><BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" /><h3 className="text-2xl font-bold text-foreground">Recommended</h3></div><p className="text-sm text-muted-foreground mb-4">A daily lesson focused on your area for improvement.</p></div>
-                          {loading ? <Skeleton className="h-10 w-full" /> : needsBaselineAssessment ? (
-                              <div className="grid grid-cols-2 gap-2"><Button className="w-full font-bold bg-[#8DC63F] text-black" onClick={() => setShowBaselineAssessment(true)}>Baseline Assessment</Button></div>
-                          ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
-                              <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>{recommendedLesson.title}</Link>
-                          ) : <Button variant="outline" disabled className={dashboardDisabledButtonClass}>{recommendedLesson ? <><CheckCircle className="mr-2 h-4 w-4" /> Complete</> : "No lesson available"}</Button>}
-                      </Card>
-                      <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
-                          <div><div className="flex items-center gap-3 mb-2"><BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" /><h3 className="text-2xl font-bold text-foreground">Assigned</h3></div><p className="text-sm text-muted-foreground mb-4">Training assigned specifically to you.</p></div>
-                          {loading ? <Skeleton className="h-10 w-full" /> : assignedLessons.length > 0 ? (
-                              <Link href={`/lesson/${assignedLessons[0].lessonId}`} className={cn("w-full text-black", buttonVariants({ className: "w-full font-bold bg-[#8DC63F]" }))}>{assignedLessons[0].title}</Link>
-                          ) : <Button variant="outline" disabled className={dashboardDisabledButtonClass}>No assignments</Button>}
-                      </Card>
-                  </div>
-              </section>
               <section><BadgeShowcase badges={managerBadges} /></section>
           </div>
       )}
