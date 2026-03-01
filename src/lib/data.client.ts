@@ -1189,6 +1189,7 @@ export async function createLesson(
     let autoAssignedCount = 0;
     if (options?.autoAssignByRole) {
         try {
+            const autoAssignedUserIds = new Set<string>();
             const recipients = (await getManageableUsers(creator.userId)).filter(u => 
                 !noPersonalDevelopmentRoles.includes(u.role) &&
                 (lessonData.targetRole === 'global' || u.role === lessonData.targetRole) &&
@@ -1199,6 +1200,18 @@ export async function createLesson(
             );
             for (const recipient of recipients) {
                 await assignLesson(recipient.userId, newLesson.lessonId, creator.userId);
+                autoAssignedCount++;
+                autoAssignedUserIds.add(recipient.userId);
+            }
+
+            // Also assign to creator so it appears in their "Today's Lessons > Assigned" card.
+            const creatorMatchesTargetRole = lessonData.targetRole === 'global' || creator.role === lessonData.targetRole;
+            if (
+                creatorMatchesTargetRole &&
+                !noPersonalDevelopmentRoles.includes(creator.role) &&
+                !autoAssignedUserIds.has(creator.userId)
+            ) {
+                await assignLesson(creator.userId, newLesson.lessonId, creator.userId);
                 autoAssignedCount++;
             }
         } catch (error) {
