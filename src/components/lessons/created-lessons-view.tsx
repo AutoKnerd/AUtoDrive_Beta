@@ -46,6 +46,10 @@ export function CreatedLessonsView({ user, dealershipId = null, refreshKey = 0 }
   const { toast } = useToast();
   
   const selectedRow = rows.find((row) => row.lesson.lessonId === selectedLessonId) || rows[0];
+  const creatorHasAssignment = !!selectedRow?.assignees.some((assignee) => assignee.userId === user.userId);
+  const canOptIn = !!selectedRow
+    && !creatorHasAssignment
+    && !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
 
   useEffect(() => {
     let active = true;
@@ -84,6 +88,20 @@ export function CreatedLessonsView({ user, dealershipId = null, refreshKey = 0 }
       } finally {
           setIsReassigning(null);
       }
+  };
+
+  const handleOptIn = async () => {
+    if (!selectedRow) return;
+    setIsReassigning(user.userId);
+    try {
+      await assignLesson(user.userId, selectedRow.lesson.lessonId, user.userId);
+      toast({ title: 'Lesson Assigned', description: 'This lesson was added to your Assigned lessons.' });
+      setInternalRefreshKey((prev) => prev + 1);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Opt In Failed', description: e.message || 'Could not assign this lesson.' });
+    } finally {
+      setIsReassigning(null);
+    }
   };
 
   if (loading) {
@@ -144,7 +162,20 @@ export function CreatedLessonsView({ user, dealershipId = null, refreshKey = 0 }
       <div className="space-y-3 rounded-lg border p-4 bg-muted/20">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h4 className="font-semibold">{selectedRow.lesson.title}</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="font-semibold">{selectedRow.lesson.title}</h4>
+              {canOptIn && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOptIn}
+                  disabled={isReassigning === user.userId}
+                  className="h-7 text-xs"
+                >
+                  {isReassigning === user.userId ? <Spinner size="sm" /> : 'Opt In'}
+                </Button>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">{formatRoleLabel(selectedRow.lesson.role)} • {selectedRow.lesson.category}</p>
           </div>
           <Badge variant="secondary">{selectedRow.takenUserCount > 1 ? 'Taken by Multiple' : selectedRow.takenUserCount === 1 ? 'Taken by 1' : 'Not Taken'}</Badge>
