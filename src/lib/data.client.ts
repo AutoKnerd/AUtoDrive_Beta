@@ -3104,7 +3104,7 @@ export async function getCreatedLessonStatuses(creatorId: string): Promise<Creat
   const { firestore: db } = getFirebase();
   const isTour = isTouringUser(creatorId);
   const lessonsRef = collection(db, 'lessons');
-  const q = query(lessonsRef, where('createdByUserId', '==', creatorId), orderBy('title', 'asc'));
+  const q = query(lessonsRef, where('createdByUserId', '==', creatorId));
   const snap = isTour ? { docs: (await getTourData()).lessons.filter(l => l.createdByUserId === creatorId) } : await getDocs(q);
   
   const results: CreatedLessonStatus[] = [];
@@ -3148,7 +3148,7 @@ export async function getCreatedLessonStatuses(creatorId: string): Promise<Creat
     });
   }
 
-  return results;
+  return results.sort((a, b) => a.lesson.title.localeCompare(b.lesson.title));
 }
 
 export async function getSystemReport(actor: User): Promise<SystemReport> {
