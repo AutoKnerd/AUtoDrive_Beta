@@ -8,7 +8,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 
 export const metadata: Metadata = {
-  title: 'AutoDrive powered by AutoKnerd',
+  title: 'AutoDrive CX',
   description: 'AI-powered training and performance for automotive professionals.',
   icons: {
     icon: '/autodrive-ai-icon1.png',
