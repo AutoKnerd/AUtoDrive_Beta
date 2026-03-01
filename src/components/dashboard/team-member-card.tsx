@@ -186,6 +186,11 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             });
             setIsModifying(false);
             setIsConfirmingRemoval(false);
+            // Force a clean refresh to avoid stale dialog state after the row disappears from the current store roster.
+            if (typeof window !== 'undefined') {
+                window.location.reload();
+                return;
+            }
             await Promise.resolve(onAssignmentUpdated());
         } catch (e) {
             toast({

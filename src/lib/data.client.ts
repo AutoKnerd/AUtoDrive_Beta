@@ -1888,7 +1888,8 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
     const snap = await getDocs(collection(db, 'dealerships'));
     const all = snap.docs.map(d => ({ ...d.data(), id: d.id } as Dealership));
     if (user && !['Admin', 'Developer'].includes(user.role)) {
-        return all.filter(d => user.dealershipIds.includes(d.id) && d.status !== 'deactivated');
+        const assignedDealershipIds = Array.isArray(user.dealershipIds) ? user.dealershipIds : [];
+        return all.filter(d => assignedDealershipIds.includes(d.id) && d.status !== 'deactivated');
     }
     return all.filter(d => d.id !== 'autoknerd-hq').sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -1920,8 +1921,14 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
         const filtered = dealershipId === 'all'
             ? (isPrivilegedViewer
                 ? members
-                : members.filter((member) => member.dealershipIds.some((id) => scopedDealershipIds.includes(id))))
-            : members.filter((member) => member.dealershipIds.includes(dealershipId));
+                : members.filter((member) => {
+                    const memberDealershipIds = Array.isArray(member.dealershipIds) ? member.dealershipIds : [];
+                    return memberDealershipIds.some((id) => scopedDealershipIds.includes(id));
+                }))
+            : members.filter((member) => {
+                const memberDealershipIds = Array.isArray(member.dealershipIds) ? member.dealershipIds : [];
+                return memberDealershipIds.includes(dealershipId);
+            });
 
         const logsByUserId = new Map<string, LessonLog[]>();
         for (const log of tour.lessonLogs) {
@@ -1956,8 +1963,14 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
     const filtered = dealershipId === 'all'
         ? (isPrivilegedViewer
             ? members
-            : members.filter((member) => member.dealershipIds.some((id) => scopedDealershipIds.includes(id))))
-        : members.filter((member) => member.dealershipIds.includes(dealershipId));
+            : members.filter((member) => {
+                const memberDealershipIds = Array.isArray(member.dealershipIds) ? member.dealershipIds : [];
+                return memberDealershipIds.some((id) => scopedDealershipIds.includes(id));
+            }))
+        : members.filter((member) => {
+            const memberDealershipIds = Array.isArray(member.dealershipIds) ? member.dealershipIds : [];
+            return memberDealershipIds.includes(dealershipId);
+        });
     
     return {
         teamActivity: filtered.map((member) => buildTeamActivityRow(member, [])),
@@ -1983,11 +1996,12 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
         }
 
         const roles = getTeamMemberRoles(manager.role);
+        const managerDealershipIds = Array.isArray(manager.dealershipIds) ? manager.dealershipIds : [];
         return tour.users
             .filter((user) => (
                 user.userId !== managerId &&
                 roles.includes(user.role) &&
-                user.dealershipIds.some((id) => manager.dealershipIds.includes(id))
+                (Array.isArray(user.dealershipIds) ? user.dealershipIds : []).some((id) => managerDealershipIds.includes(id))
             ))
             .map(cloneTourUser)
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -2001,10 +2015,11 @@ export async function getManageableUsers(managerId: string): Promise<User[]> {
     }
     
     const roles = getTeamMemberRoles(manager.role);
+    const managerDealershipIds = Array.isArray(manager.dealershipIds) ? manager.dealershipIds : [];
     return all.filter(u => 
         u.userId !== managerId && 
         roles.includes(u.role) && 
-        u.dealershipIds.some(id => manager.dealershipIds.includes(id))
+        (Array.isArray(u.dealershipIds) ? u.dealershipIds : []).some(id => managerDealershipIds.includes(id))
     ).sort((a, b) => a.name.localeCompare(b.name));
 }
 
