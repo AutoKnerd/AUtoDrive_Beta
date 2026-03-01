@@ -248,6 +248,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [isCreatedLessonsOpen, setCreatedLessonsOpen] = useState(false);
   const [createdLessonsRefreshKey, setCreatedLessonsRefreshKey] = useState(0);
   const [isManageUsersOpen, setManageUsersOpen] = useState(false);
+  const [isManageDealershipsOpen, setManageDealershipsOpen] = useState(false);
   const [isMessageDialogOpen, setMessageDialogOpen] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [lessonLimits, setLessonLimits] = useState({ recommendedTaken: false, otherTaken: false });
@@ -838,7 +839,31 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           <Card>
               <CardHeader><CardTitle>Admin Operations</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                  <div className="flex gap-2"><Button onClick={handleGenerateSystemReport} disabled={isGeneratingReport}>{isGeneratingReport ? 'Generating...' : 'System Report'}</Button></div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={handleGenerateSystemReport} disabled={isGeneratingReport}>
+                      {isGeneratingReport ? 'Generating...' : 'System Report'}
+                    </Button>
+                    <Dialog open={isManageDealershipsOpen} onOpenChange={setManageDealershipsOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline">Manage Dealerships</Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-3xl">
+                        <DialogHeader>
+                          <DialogTitle>Manage Dealerships</DialogTitle>
+                        </DialogHeader>
+                        <ScrollArea className="max-h-[70vh] pr-3">
+                          <ManageDealershipForm
+                            dealerships={dealerships}
+                            manageableUsers={manageableUsers}
+                            onDealershipManaged={async () => {
+                              await fetchAdminData();
+                              await fetchData(selectedDealershipId);
+                            }}
+                          />
+                        </ScrollArea>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                   {systemReport && <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-md border p-3"><div><p className="text-sm text-muted-foreground">Users</p><p className="font-semibold">Total: {systemReport.users.total}</p></div><div><p className="text-sm text-muted-foreground">Dealerships</p><p className="font-semibold">Active: {systemReport.dealerships.active}</p></div><div><p className="text-sm text-muted-foreground">Performance</p><p className="font-semibold">Avg: {systemReport.performance.averageScore}%</p></div></div>}
               </CardContent>
           </Card>

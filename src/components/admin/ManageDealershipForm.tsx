@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { Dealership, type DealershipBillingTier } from '@/lib/definitions';
+import { useMemo, useState } from 'react';
+import { Dealership, User, type DealershipBillingTier } from '@/lib/definitions';
 import {
   updateDealershipStatus,
   updateDealershipRetakeTestingAccess,
@@ -10,6 +10,8 @@ import {
   updateDealershipPppAccess,
   updateDealershipSaasPppAccess,
   updateDealershipBillingConfig,
+  updateUser,
+  updateUserDealerships,
 } from '@/lib/data.client';
 import { BILLING_PRICING, calculateDealershipMonthlyCents, formatUsdFromCents } from '@/lib/billing/tiers';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -28,15 +30,19 @@ import {
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
-import { Ban, Play, Trash2 } from 'lucide-react';
+import { Ban, Play, Search, Trash2 } from 'lucide-react';
 import { Switch } from '../ui/switch';
+import { ScrollArea } from '../ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 interface ManageDealershipFormProps {
   dealerships: Dealership[];
+  manageableUsers?: User[];
   onDealershipManaged?: () => void;
 }
 
-export function ManageDealershipForm({ dealerships, onDealershipManaged }: ManageDealershipFormProps) {
+export function ManageDealershipForm({ dealerships, manageableUsers = [], onDealershipManaged }: ManageDealershipFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDealership, setSelectedDealership] = useState<Dealership | null>(null);
   const [isConfirming, setIsConfirming] = useState< 'pause' | 'deactivate' | null>(null);
@@ -49,6 +55,12 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [billingUserCount, setBillingUserCount] = useState('0');
   const [billingOwnerAccountCount, setBillingOwnerAccountCount] = useState('0');
   const [billingStoreCount, setBillingStoreCount] = useState('1');
+  const [rosterSearch, setRosterSearch] = useState('');
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingDealershipIds, setEditingDealershipIds] = useState<string[]>([]);
+  const [actionUserId, setActionUserId] = useState<string | null>(null);
+  const [isConfirmingUserDeactivation, setIsConfirmingUserDeactivation] = useState(false);
+  const [deactivationConfirmInput, setDeactivationConfirmInput] = useState('');
   const { toast } = useToast();
   
   const toSafeCount = (value: string, fallback = 0): number => {
@@ -68,6 +80,114 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     setBillingUserCount(String(dealership?.billingUserCount ?? 0));
     setBillingOwnerAccountCount(String(dealership?.billingOwnerAccountCount ?? 0));
     setBillingStoreCount(String(dealership?.billingStoreCount ?? 1));
+    setRosterSearch('');
+    setEditingUserId(null);
+    setEditingDealershipIds([]);
+    setActionUserId(null);
+    setIsConfirmingUserDeactivation(false);
+    setDeactivationConfirmInput('');
+  }
+
+  const dealershipUsers = useMemo(() => {
+    if (!selectedDealership) return [];
+    const assignedUsers = manageableUsers.filter((user) => (user.dealershipIds || []).includes(selectedDealership.id));
+    if (!rosterSearch.trim()) return assignedUsers;
+    const term = rosterSearch.trim().toLowerCase();
+    return assignedUsers.filter((user) => user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term));
+  }, [selectedDealership, manageableUsers, rosterSearch]);
+
+  const actionUser = useMemo(
+    () => manageableUsers.find((user) => user.userId === actionUserId) || null,
+    [manageableUsers, actionUserId]
+  );
+
+  const startEditingAssignments = (user: User) => {
+    setEditingUserId(user.userId);
+    setEditingDealershipIds([...(user.dealershipIds || [])]);
+  };
+
+  const cancelEditingAssignments = () => {
+    setEditingUserId(null);
+    setEditingDealershipIds([]);
+  };
+
+  const toggleEditingDealership = (dealershipId: string, checked: boolean) => {
+    setEditingDealershipIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(dealershipId);
+      else next.delete(dealershipId);
+      return Array.from(next);
+    });
+  };
+
+  async function handleSaveUserAssignments(user: User) {
+    setIsLoading(true);
+    try {
+      await updateUserDealerships(user.userId, editingDealershipIds);
+      toast({
+        title: 'User Updated',
+        description: `${user.name}'s store assignments were updated.`,
+      });
+      cancelEditingAssignments();
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'Could not update store assignments.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleUnassignFromSelectedStore(user: User) {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      const nextAssignments = (user.dealershipIds || []).filter((id) => id !== selectedDealership.id);
+      await updateUserDealerships(user.userId, nextAssignments);
+      toast({
+        title: 'User Unassigned',
+        description: `${user.name} was removed from ${selectedDealership.name}.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Unassign Failed',
+        description: (e as Error).message || 'Could not unassign this user from the store.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleDeactivateUser() {
+    if (!actionUser) return;
+    setIsLoading(true);
+    try {
+      await Promise.all([
+        updateUserDealerships(actionUser.userId, []),
+        updateUser(actionUser.userId, { subscriptionStatus: 'inactive' }),
+      ]);
+      toast({
+        title: 'User Deactivated',
+        description: `${actionUser.name} was deactivated and unassigned from all stores.`,
+      });
+      setActionUserId(null);
+      setDeactivationConfirmInput('');
+      setIsConfirmingUserDeactivation(false);
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Deactivate Failed',
+        description: (e as Error).message || 'Could not deactivate this user.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function handleUpdateStatus(newStatus: 'active' | 'paused' | 'deactivated') {
@@ -448,6 +568,119 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                 </Button>
             </div>
 
+            <div className="rounded-md border p-3 space-y-3">
+                <div>
+                    <p className="text-sm font-medium">Dealership Roster</p>
+                    <p className="text-xs text-muted-foreground">
+                        Select a store above and manage assigned users. You can edit store assignments, unassign users, or deactivate accounts.
+                    </p>
+                </div>
+                <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={rosterSearch}
+                      onChange={(event) => setRosterSearch(event.target.value)}
+                      placeholder="Search roster by name or email..."
+                      className="pl-9"
+                    />
+                </div>
+                <ScrollArea className="h-64 rounded-md border">
+                    <div className="divide-y">
+                        {dealershipUsers.length === 0 ? (
+                            <p className="p-4 text-sm text-muted-foreground">No users found for this dealership.</p>
+                        ) : dealershipUsers.map((rosterUser) => {
+                            const isEditing = editingUserId === rosterUser.userId;
+                            return (
+                                <div key={rosterUser.userId} className="space-y-3 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={rosterUser.avatarUrl} />
+                                                <AvatarFallback>{(rosterUser.name || '?').charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-medium">{rosterUser.name}</p>
+                                                <p className="truncate text-xs text-muted-foreground">{rosterUser.email}</p>
+                                                <p className="truncate text-xs text-muted-foreground">{rosterUser.role === 'manager' ? 'Sales Manager' : rosterUser.role}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="outline"
+                                              disabled={isLoading}
+                                              onClick={() => (isEditing ? cancelEditingAssignments() : startEditingAssignments(rosterUser))}
+                                            >
+                                              {isEditing ? 'Cancel Edit' : 'Edit Stores'}
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="outline"
+                                              disabled={isLoading}
+                                              onClick={() => handleUnassignFromSelectedStore(rosterUser)}
+                                            >
+                                              Unassign
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="destructive"
+                                              disabled={isLoading}
+                                              onClick={() => {
+                                                setActionUserId(rosterUser.userId);
+                                                setDeactivationConfirmInput('');
+                                                setIsConfirmingUserDeactivation(true);
+                                              }}
+                                            >
+                                              Deactivate
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {isEditing && (
+                                        <div className="space-y-2 rounded-md border p-3">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                                                      {editingDealershipIds.length
+                                                        ? dealerships
+                                                            .filter((dealership) => editingDealershipIds.includes(dealership.id))
+                                                            .map((dealership) => dealership.name)
+                                                            .join(', ')
+                                                        : 'Independent (no stores assigned)'}
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent className="w-72">
+                                                    {dealerships.map((dealership) => (
+                                                        <DropdownMenuCheckboxItem
+                                                          key={dealership.id}
+                                                          checked={editingDealershipIds.includes(dealership.id)}
+                                                          onCheckedChange={(checked) => toggleEditingDealership(dealership.id, checked === true)}
+                                                        >
+                                                          {dealership.name}
+                                                        </DropdownMenuCheckboxItem>
+                                                    ))}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              disabled={isLoading}
+                                              onClick={() => handleSaveUserAssignments(rosterUser)}
+                                            >
+                                              Save Store Assignments
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </ScrollArea>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {selectedDealership.status === 'active' && (
                     <Button onClick={() => setIsConfirming('pause')} disabled={isLoading} variant="outline" className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400">
@@ -497,6 +730,43 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                     className={buttonVariants({ variant: "destructive" })}
                 >
                     {isLoading ? <Spinner size="sm" /> : `Confirm ${isConfirming === 'pause' ? 'Pausing' : 'Deactivation'}`}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isConfirmingUserDeactivation} onOpenChange={setIsConfirmingUserDeactivation}>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Deactivate User</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will set the user subscription to inactive and remove all dealership assignments.
+                    To confirm, please type <strong>DEACTIVATE</strong> below for {actionUser?.name || 'this user'}.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input
+                value={deactivationConfirmInput}
+                onChange={(e) => setDeactivationConfirmInput(e.target.value)}
+                placeholder="DEACTIVATE"
+                autoFocus
+                className="border-destructive/50 focus-visible:ring-destructive"
+            />
+            <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={() => {
+                    setActionUserId(null);
+                    setDeactivationConfirmInput('');
+                    setIsConfirmingUserDeactivation(false);
+                  }}
+                >
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeactivateUser}
+                    disabled={deactivationConfirmInput.toUpperCase() !== 'DEACTIVATE' || isLoading}
+                    className={buttonVariants({ variant: "destructive" })}
+                >
+                    {isLoading ? <Spinner size="sm" /> : 'Confirm Deactivation'}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
