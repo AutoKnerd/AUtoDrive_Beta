@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { Logo } from '@/components/layout/logo';
 import { useAuth } from '@/hooks/use-auth';
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import Link from 'next/link';
 
 
 export default function LoginPage() {
@@ -35,14 +35,11 @@ export default function LoginPage() {
         </div>
         <LoginForm />
         <div className="flex flex-col gap-3">
-          <Link
-            href="/signup"
-            className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Sign up for Pro plan
-          </Link>
+          <Button type="button" className="w-full" disabled>
+            Sign up for Pro plan (Coming soon)
+          </Button>
           <p className="px-2 text-center text-xs text-muted-foreground">
-            New here? Create your account and start your subscription.
+            New self-serve subscription is temporarily disabled while checkout is being finalized.
           </p>
         </div>
         <div className="text-center">
