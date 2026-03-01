@@ -79,12 +79,22 @@ function alignInviteUrlToCurrentOrigin(rawUrl?: string): string {
     if (!rawUrl) return '';
 
     const clientOrigin = getClientOrigin();
+    const configuredPublicOrigin = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '');
     try {
         const target = new URL(rawUrl, clientOrigin);
         const client = new URL(clientOrigin);
         const isEnrollmentPath = target.pathname.startsWith('/enroll') || target.pathname.startsWith('/register');
+        const clientHost = client.hostname.toLowerCase();
+        const isPreviewHost = clientHost.includes('projects.vercel.app') || clientHost.startsWith('a-uto-drive-beta-git-');
 
-        if (isEnrollmentPath && target.origin !== client.origin) {
+        if (isEnrollmentPath && configuredPublicOrigin.length > 0 && isPreviewHost) {
+            const configured = new URL(configuredPublicOrigin);
+            target.protocol = configured.protocol;
+            target.host = configured.host;
+            return target.toString();
+        }
+
+        if (isEnrollmentPath && target.origin !== client.origin && !isPreviewHost) {
             target.protocol = client.protocol;
             target.host = client.host;
         }
