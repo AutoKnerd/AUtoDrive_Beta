@@ -6,7 +6,6 @@ import { LoginForm } from '@/components/auth/login-form';
 import { Logo } from '@/components/layout/logo';
 import { useAuth } from '@/hooks/use-auth';
 import { Spinner } from '@/components/ui/spinner';
-import Link from 'next/link';
 
 
 export default function LoginPage() {
@@ -35,12 +34,18 @@ export default function LoginPage() {
         </div>
         <LoginForm />
         <div className="flex flex-col gap-3">
-          <Link
-            href="/signup"
-            className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Sign up for Pro plan
-          </Link>
+          <div className="relative">
+            <span className="absolute -top-2 right-3 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Coming Soon
+            </span>
+            <button
+              type="button"
+              disabled
+              className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-primary/70 px-4 py-2 text-sm font-medium text-primary-foreground opacity-80"
+            >
+              Sign up for Pro plan
+            </button>
+          </div>
           <p className="px-2 text-center text-xs text-muted-foreground">
             New here? Create your account and start your subscription.
           </p>
