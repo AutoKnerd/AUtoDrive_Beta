@@ -276,6 +276,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [range, setRange] = useState<CxRange>('today');
   const router = useRouter();
+  const canViewAllStores = ['Admin', 'Developer'].includes(user.role);
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
 
@@ -290,9 +291,19 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const fetchData = useCallback(async (dealershipId: string | null) => {
       if (!dealershipId) return;
+      const scopedDealershipId = (!canViewAllStores && dealershipId === 'all')
+        ? (user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null)
+        : dealershipId;
+      if (!scopedDealershipId) {
+        setLoading(false);
+        return;
+      }
+      if (scopedDealershipId !== dealershipId) {
+        setSelectedDealershipId(scopedDealershipId);
+      }
       setLoading(true);
       try {
-          const combinedDataPromise = getCombinedTeamData(dealershipId, user);
+          const combinedDataPromise = getCombinedTeamData(scopedDealershipId, user);
           const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations, pppAccessEnabled, saasPppAccessEnabled] = await Promise.all([
             combinedDataPromise,
             getManageableUsers(user.userId),
@@ -302,9 +313,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             getAssignedLessons(user.userId),
             getAllAssignedLessonIds(user.userId),
             getDailyLessonLimits(user.userId),
-            getPendingInvitations(dealershipId, user),
-            getPppAccessForUser(user, dealershipId).catch(() => false),
-            getSaasPppAccessForUser(user, dealershipId).catch(() => false),
+            getPendingInvitations(scopedDealershipId, user),
+            getPppAccessForUser(user, scopedDealershipId).catch(() => false),
+            getSaasPppAccessForUser(user, scopedDealershipId).catch(() => false),
           ]);
 
           const manageableById = new Map<string, User>(
@@ -332,8 +343,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           );
 
           const visibleActiveUsers = usersToManage.filter((u) => {
-            if (dealershipId === 'all') return ['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role);
-            return u.dealershipIds?.includes(dealershipId);
+            if (scopedDealershipId === 'all') return canViewAllStores;
+            return u.dealershipIds?.includes(scopedDealershipId);
           });
 
           visibleActiveUsers.forEach((u) => {
@@ -393,7 +404,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       } finally {
           setLoading(false);
       }
-  }, [user, isTouring, toast]);
+  }, [user, isTouring, toast, canViewAllStores]);
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -417,8 +428,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         
         let currentSelectedId = selectedDealershipId;
         if (currentSelectedId === null) {
-            if (['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role)) currentSelectedId = 'all';
+            if (canViewAllStores) currentSelectedId = 'all';
             else if (initialDealerships.length > 0) currentSelectedId = initialDealerships[0].id;
+        }
+        if (currentSelectedId === 'all' && !canViewAllStores) {
+            currentSelectedId = initialDealerships[0]?.id || user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null;
         }
         if (currentSelectedId) {
             if (selectedDealershipId === null) setSelectedDealershipId(currentSelectedId);
@@ -426,7 +440,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         } else setLoading(false);
     };
     fetchInitialData();
-  }, [user, selectedDealershipId, fetchData, fetchAdminData]);
+  }, [user, selectedDealershipId, fetchData, fetchAdminData, canViewAllStores]);
 
   useEffect(() => {
     if (user.memberSince) {
@@ -451,7 +465,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     setCreatedLessonsRefreshKey((current) => current + 1);
   };
 
-  const handleDealershipChange = (dealershipId: string) => setSelectedDealershipId(dealershipId);
+  const handleDealershipChange = (dealershipId: string) => {
+    if (dealershipId === 'all' && !canViewAllStores) return;
+    setSelectedDealershipId(dealershipId);
+  };
 
   const formatUserDisplayName = useCallback((name?: string, email?: string) => {
     const normalizedName = (name || '').trim();
@@ -587,7 +604,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
       {/* Control Bar - Repositioned below Identity */}
       <div className="flex flex-col md:flex-row items-center justify-center bg-card/50 backdrop-blur-sm border rounded-xl p-3 gap-4">
-          {(['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
+          {(canViewAllStores || (dealerships && dealerships.length > 1)) && (
               <div className="flex items-center gap-2 w-full md:w-auto">
                   <span className="text-xs font-bold uppercase text-muted-foreground whitespace-nowrap">Dealership:</span>
                   <Select value={selectedDealershipId || ''} onValueChange={handleDealershipChange}>
@@ -595,7 +612,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                           <SelectValue placeholder="Select a dealership" />
                       </SelectTrigger>
                       <SelectContent>
-                          {['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) && <SelectItem value="all">All Stores</SelectItem>}
+                          {canViewAllStores && <SelectItem value="all">All Stores</SelectItem>}
                           {dealerships.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                       </SelectContent>
                   </Select>

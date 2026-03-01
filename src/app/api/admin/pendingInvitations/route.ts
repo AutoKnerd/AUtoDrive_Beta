@@ -18,7 +18,7 @@ const allowedRoles = new Set([
   'Finance Manager',
 ]);
 
-const globalRoles = new Set(['Admin', 'Developer', 'Trainer']);
+const globalRoles = new Set(['Admin', 'Developer']);
 
 export async function GET(req: Request) {
   const authorization = req.headers.get('authorization') ?? req.headers.get('Authorization');

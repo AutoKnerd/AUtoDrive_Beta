@@ -1887,7 +1887,7 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
     if (user && !hasDealershipAssignments(user)) return [];
     const snap = await getDocs(collection(db, 'dealerships'));
     const all = snap.docs.map(d => ({ ...d.data(), id: d.id } as Dealership));
-    if (user && !['Admin', 'Developer', 'Trainer'].includes(user.role)) {
+    if (user && !['Admin', 'Developer'].includes(user.role)) {
         return all.filter(d => user.dealershipIds.includes(d.id) && d.status !== 'deactivated');
     }
     return all.filter(d => d.id !== 'autoknerd-hq').sort((a, b) => a.name.localeCompare(b.name));
@@ -1895,7 +1895,7 @@ export async function getDealerships(user?: User): Promise<Dealership[]> {
 
 export async function getCombinedTeamData(dealershipId: string, user: User): Promise<any> {
     const { firestore: db } = getFirebase();
-    const isPrivilegedViewer = ['Admin', 'Developer', 'Trainer'].includes(user.role);
+    const isPrivilegedViewer = ['Admin', 'Developer'].includes(user.role);
     const scopedDealershipIds = Array.isArray(user.dealershipIds) ? user.dealershipIds : [];
     if (!scopedDealershipIds.length) {
         return {
