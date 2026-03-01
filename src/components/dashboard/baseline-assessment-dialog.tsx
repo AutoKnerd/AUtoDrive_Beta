@@ -7,12 +7,10 @@ import { logLessonCompletion } from '@/lib/data.client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface BaselineAssessmentDialogProps {
@@ -59,15 +57,11 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
     SELF_SELECTABLE_ROLES.includes(user.role) ? user.role : 'Sales Consultant'
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(Boolean(user.privacyPolicyAcceptedAt));
   const allowRoleSelection = !Array.isArray(user.dealershipIds) || user.dealershipIds.length === 0;
 
   useEffect(() => {
     setSelectedRole(SELF_SELECTABLE_ROLES.includes(user.role) ? user.role : 'Sales Consultant');
   }, [user.role]);
-  useEffect(() => {
-    setPrivacyAccepted(Boolean(user.privacyPolicyAcceptedAt));
-  }, [user.privacyPolicyAcceptedAt]);
 
   const updateRoleSelection = (value: string) => {
     if (!SELF_SELECTABLE_ROLES.includes(value as UserRole)) return;
@@ -90,7 +84,6 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
       },
       body: JSON.stringify({
         role: selectedRole,
-        acceptPrivacyPolicy: true,
       }),
     });
 
@@ -107,37 +100,9 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
   };
 
   const handleSubmit = async () => {
-    if (!privacyAccepted) {
-      toast({
-        variant: 'destructive',
-        title: 'Privacy Policy Required',
-        description: 'Please accept the Privacy Policy before saving your baseline assessment.',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      if (!allowRoleSelection) {
-        const firebaseUser = firebaseAuth.currentUser;
-        if (!firebaseUser) {
-          throw new Error('Authentication session expired. Please sign in again.');
-        }
-
-        const idToken = await firebaseUser.getIdToken(true);
-        const response = await fetch('/api/profile/select-role', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({ acceptPrivacyPolicy: true }),
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload?.message || 'Could not save privacy policy consent.');
-        }
-      } else {
+      if (allowRoleSelection) {
         await persistRoleSelection();
       }
 
@@ -212,28 +177,13 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
             </div>
           ))}
 
-          <div className="flex items-start gap-3 rounded-lg border p-3">
-            <Checkbox
-              id="baseline-privacy-policy"
-              checked={privacyAccepted}
-              onCheckedChange={(checked) => setPrivacyAccepted(Boolean(checked))}
-              disabled={isSubmitting}
-            />
-            <Label htmlFor="baseline-privacy-policy" className="text-sm leading-5">
-              I agree to the{' '}
-              <Link href="/privacy" className="text-primary underline" target="_blank">
-                Privacy Policy
-              </Link>
-              .
-            </Label>
-          </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !privacyAccepted}>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Saving...' : 'Save Baseline'}
           </Button>
         </DialogFooter>

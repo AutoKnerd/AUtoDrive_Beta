@@ -884,7 +884,7 @@ export async function getEnrollmentLinkByToken(token: string): Promise<Enrollmen
     return payload as EnrollmentLinkPreview;
 }
 
-export async function claimDealershipEnrollment(token: string, role: UserRole): Promise<void> {
+export async function claimDealershipEnrollment(token: string, role: UserRole, acceptPrivacyPolicy: boolean): Promise<void> {
     const { auth } = getFirebase();
     const idToken = await auth.currentUser?.getIdToken(true);
     const response = await fetch(`/api/enrollment/${encodeURIComponent(token)}`, {
@@ -893,7 +893,7 @@ export async function claimDealershipEnrollment(token: string, role: UserRole): 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ token, role }),
+        body: JSON.stringify({ token, role, acceptPrivacyPolicy }),
     });
 
     if (!response.ok) {

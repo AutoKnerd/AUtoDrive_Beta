@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,6 +17,7 @@ import type { UserRole } from '@/lib/definitions';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,6 +30,9 @@ const enrollmentSchema = z.object({
   role: z.string().min(1, { message: 'Please select your role.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
   confirmPassword: z.string().min(8, { message: 'Please confirm your password.' }),
+  acceptPrivacyPolicy: z.boolean().refine((value) => value, {
+    message: 'You must acknowledge the Privacy Policy to continue.',
+  }),
 }).refine((values) => values.password === values.confirmPassword, {
   message: 'Passwords do not match.',
   path: ['confirmPassword'],
@@ -57,8 +62,10 @@ export function EnrollmentForm({ enrollment }: EnrollmentFormProps) {
       role: enrollment.allowedRoles[0] || '',
       password: '',
       confirmPassword: '',
+      acceptPrivacyPolicy: false,
     },
   });
+  const privacyAccepted = form.watch('acceptPrivacyPolicy');
 
   async function onSubmit(values: EnrollmentFormValues) {
     setIsSubmitting(true);
@@ -70,7 +77,7 @@ export function EnrollmentForm({ enrollment }: EnrollmentFormProps) {
     try {
       try {
         const created = await createUserWithEmailAndPassword(auth, normalizedEmail, values.password);
-        await claimDealershipEnrollment(enrollment.token, selectedRole);
+        await claimDealershipEnrollment(enrollment.token, selectedRole, values.acceptPrivacyPolicy);
 
         if (displayName.length > 0) {
           await updateUser(created.user.uid, { name: displayName });
@@ -81,7 +88,7 @@ export function EnrollmentForm({ enrollment }: EnrollmentFormProps) {
         }
 
         const existing = await signInWithEmailAndPassword(auth, normalizedEmail, values.password);
-        await claimDealershipEnrollment(enrollment.token, selectedRole);
+        await claimDealershipEnrollment(enrollment.token, selectedRole, values.acceptPrivacyPolicy);
 
         if (displayName.length > 0) {
           await updateUser(existing.user.uid, { name: displayName });
@@ -189,10 +196,35 @@ export function EnrollmentForm({ enrollment }: EnrollmentFormProps) {
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="acceptPrivacyPolicy"
+              render={({ field }) => (
+                <FormItem className="flex items-start gap-3 rounded-lg border p-3">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) => field.onChange(checked === true)}
+                    />
+                  </FormControl>
+                  <div className="space-y-1">
+                    <FormLabel className="text-sm leading-5 font-normal">
+                      I acknowledge the{' '}
+                      <Link href="/privacy" target="_blank" className="text-primary underline">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </FormLabel>
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
           </CardContent>
 
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || !privacyAccepted}>
               {isSubmitting ? <Spinner size="sm" /> : 'Complete Enrollment'}
             </Button>
           </CardFooter>
