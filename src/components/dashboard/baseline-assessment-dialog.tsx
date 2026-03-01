@@ -1,13 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { CxTrait, User, UserRole } from '@/lib/definitions';
 import { logLessonCompletion, updateUser } from '@/lib/data.client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,12 +61,10 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
   const currentRole = typeof rawRole === 'string' ? rawRole : '';
   const hasAssignedRole = baselineRoleOptions.includes(currentRole as UserRole);
   const [selectedRole, setSelectedRole] = useState<UserRole | ''>(hasAssignedRole ? (currentRole as UserRole) : '');
-  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setPrivacyAcknowledged(false);
     setSelectedRole(hasAssignedRole ? (currentRole as UserRole) : '');
   }, [open, hasAssignedRole, currentRole]);
 
@@ -79,15 +75,6 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
   };
 
   const handleSubmit = async () => {
-    if (!privacyAcknowledged) {
-      toast({
-        variant: 'destructive',
-        title: 'Privacy policy required',
-        description: 'Please acknowledge the privacy policy before saving your baseline.',
-      });
-      return;
-    }
-
     if (!hasAssignedRole && !selectedRole) {
       toast({
         variant: 'destructive',
@@ -99,8 +86,13 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
 
     setIsSubmitting(true);
     try {
+      let roleUpdateFailed = false;
       if (!hasAssignedRole && selectedRole) {
-        await updateUser(user.userId, { role: selectedRole });
+        try {
+          await updateUser(user.userId, { role: selectedRole });
+        } catch {
+          roleUpdateFailed = true;
+        }
       }
 
       const baselineId = `baseline-${new Date().toISOString().slice(0, 10)}`;
@@ -117,6 +109,13 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
         title: 'Baseline saved',
         description: 'Your baseline assessment has been recorded.',
       });
+      if (roleUpdateFailed) {
+        toast({
+          variant: 'destructive',
+          title: 'Role update needed',
+          description: 'Baseline was saved, but your role could not be updated. Please update your role in Profile.',
+        });
+      }
 
       await onCompleted();
     } catch (error: any) {
@@ -174,28 +173,13 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
             </div>
           ))}
 
-          <div className="flex items-start gap-3 rounded-md border border-border/60 p-3">
-            <Checkbox
-              id="baseline-privacy-policy"
-              checked={privacyAcknowledged}
-              onCheckedChange={(checked) => setPrivacyAcknowledged(checked === true)}
-              disabled={isSubmitting}
-            />
-            <Label htmlFor="baseline-privacy-policy" className="leading-5 text-sm font-normal text-muted-foreground">
-              I acknowledge the{' '}
-              <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4">
-                Privacy Policy
-              </Link>
-              .
-            </Label>
-          </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || (!hasAssignedRole && !selectedRole) || !privacyAcknowledged}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || (!hasAssignedRole && !selectedRole)}>
             {isSubmitting ? 'Saving...' : 'Save Baseline'}
           </Button>
         </DialogFooter>
