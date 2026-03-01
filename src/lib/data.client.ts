@@ -75,6 +75,26 @@ function getClientOrigin(): string {
     return 'http://localhost:3000';
 }
 
+function alignInviteUrlToCurrentOrigin(rawUrl?: string): string {
+    if (!rawUrl) return '';
+
+    const clientOrigin = getClientOrigin();
+    try {
+        const target = new URL(rawUrl, clientOrigin);
+        const client = new URL(clientOrigin);
+        const isEnrollmentPath = target.pathname.startsWith('/enroll') || target.pathname.startsWith('/register');
+
+        if (isEnrollmentPath && target.origin !== client.origin) {
+            target.protocol = client.protocol;
+            target.host = client.host;
+        }
+
+        return target.toString();
+    } catch {
+        return rawUrl;
+    }
+}
+
 function getScopedDealershipIds(user: User, dealershipId?: string | null): string[] {
     if (dealershipId && dealershipId !== 'all') {
         return [dealershipId];
@@ -824,7 +844,7 @@ export async function createInvitationLink(dealershipId: string, email: string, 
     }
     
     const responseData = await response.json();
-    return { url: responseData.inviteUrl };
+    return { url: alignInviteUrlToCurrentOrigin(responseData.inviteUrl) };
 }
 
 export type EnrollmentLinkPreview = {
@@ -865,7 +885,7 @@ export async function createDealershipEnrollmentLink(
 
     const responseData = await response.json();
     return {
-        url: responseData.inviteUrl,
+        url: alignInviteUrlToCurrentOrigin(responseData.inviteUrl),
         allowedRoles: responseData.allowedRoles || [],
         enrollmentScope: responseData.enrollmentScope,
     };
