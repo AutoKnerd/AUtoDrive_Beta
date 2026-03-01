@@ -754,6 +754,31 @@ export async function convertUserToSingleUser(targetUserId: string): Promise<voi
     }
 }
 
+export async function clearDealershipAssignedLessons(dealershipId: string): Promise<number> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error('You must be signed in to clear assignments.');
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/admin/clearDealershipAssignments', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ dealershipId }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to clear assigned lessons for this dealership.');
+    }
+
+    return Number(payload?.deletedCount || 0);
+}
+
 export async function deleteUser(userId: string): Promise<void> {
     const { firestore: db } = getFirebase();
     if (isTouringUser(userId)) return;

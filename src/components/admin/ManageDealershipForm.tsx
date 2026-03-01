@@ -10,6 +10,7 @@ import {
   updateDealershipPppAccess,
   updateDealershipSaasPppAccess,
   updateDealershipBillingConfig,
+  clearDealershipAssignedLessons,
 } from '@/lib/data.client';
 import { BILLING_PRICING, calculateDealershipMonthlyCents, formatUsdFromCents } from '@/lib/billing/tiers';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -39,7 +40,7 @@ interface ManageDealershipFormProps {
 export function ManageDealershipForm({ dealerships, onDealershipManaged }: ManageDealershipFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDealership, setSelectedDealership] = useState<Dealership | null>(null);
-  const [isConfirming, setIsConfirming] = useState< 'pause' | 'deactivate' | null>(null);
+  const [isConfirming, setIsConfirming] = useState<'pause' | 'deactivate' | 'clear_assignments' | null>(null);
   const [confirmationInput, setConfirmationInput] = useState('');
   const [retakeTestingEnabled, setRetakeTestingEnabled] = useState(false);
   const [newRecommendedTestingEnabled, setNewRecommendedTestingEnabled] = useState(false);
@@ -91,6 +92,29 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
         setIsLoading(false);
         setIsConfirming(null);
         setConfirmationInput('');
+    }
+  }
+
+  async function handleClearAssignedLessons() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      const deletedCount = await clearDealershipAssignedLessons(selectedDealership.id);
+      toast({
+        title: 'Assigned Lessons Cleared',
+        description: `${deletedCount} pending assignment${deletedCount === 1 ? '' : 's'} removed for ${selectedDealership.name}.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Clear Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+      setIsConfirming(null);
+      setConfirmationInput('');
     }
   }
 
@@ -228,7 +252,12 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       }
   }
 
-  const confirmationText = isConfirming === 'pause' ? 'PAUSE' : 'DEACTIVATE';
+  const confirmationText =
+    isConfirming === 'pause'
+      ? 'PAUSE'
+      : isConfirming === 'clear_assignments'
+        ? 'CLEAR'
+        : 'DEACTIVATE';
   const estimatedMonthly = formatUsdFromCents(calculateDealershipMonthlyCents({
     tier: billingTier,
     userCount: toSafeCount(billingUserCount, 0),
@@ -449,6 +478,14 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <Button
+                  onClick={() => setIsConfirming('clear_assignments')}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300"
+                >
+                  Clear Assigned Lessons
+                </Button>
                 {selectedDealership.status === 'active' && (
                     <Button onClick={() => setIsConfirming('pause')} disabled={isLoading} variant="outline" className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400">
                        <Ban className="mr-2 h-4 w-4"/> Pause Activity
@@ -478,6 +515,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                 <AlertDialogDescription>
                     {isConfirming === 'pause' && 'Pausing a dealership will prevent all associated users from taking new lessons. Their metrics will be hidden from reports until reactivated.'}
                     {isConfirming === 'deactivate' && 'Deactivating is permanent and cannot be undone. It will remove the dealership from all associated user profiles. User accounts will be preserved.'}
+                    {isConfirming === 'clear_assignments' && 'This will delete all pending assigned lessons for users currently assigned to this dealership. Completed lessons are not deleted.'}
                     <br /><br />
                     To confirm, please type <strong>{confirmationText}</strong> in the box below.
                 </AlertDialogDescription>
@@ -492,11 +530,23 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => { setIsConfirming(null); setConfirmationInput(''); }}>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
-                    onClick={() => handleUpdateStatus(isConfirming === 'pause' ? 'paused' : 'deactivated')} 
+                    onClick={() => {
+                      if (isConfirming === 'clear_assignments') {
+                        void handleClearAssignedLessons();
+                      } else {
+                        void handleUpdateStatus(isConfirming === 'pause' ? 'paused' : 'deactivated');
+                      }
+                    }} 
                     disabled={confirmationInput.toUpperCase() !== confirmationText || isLoading}
                     className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isLoading ? <Spinner size="sm" /> : `Confirm ${isConfirming === 'pause' ? 'Pausing' : 'Deactivation'}`}
+                    {isLoading ? <Spinner size="sm" /> : `Confirm ${
+                      isConfirming === 'pause'
+                        ? 'Pausing'
+                        : isConfirming === 'clear_assignments'
+                          ? 'Clear'
+                          : 'Deactivation'
+                    }`}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
