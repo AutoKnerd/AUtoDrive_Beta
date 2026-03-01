@@ -197,18 +197,21 @@ export function EnrollmentForm({ enrollment }: EnrollmentFormProps) {
               )}
             />
 
+          </CardContent>
+
+          <CardFooter className="flex-col items-stretch gap-3">
             <FormField
               control={form.control}
               name="acceptPrivacyPolicy"
               render={({ field }) => (
-                <FormItem className="flex items-start gap-3 rounded-lg border p-3">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={(checked) => field.onChange(checked === true)}
-                    />
-                  </FormControl>
-                  <div className="space-y-1">
+                <FormItem className="w-full space-y-2 rounded-lg border p-3">
+                  <div className="flex items-start gap-3">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(checked === true)}
+                      />
+                    </FormControl>
                     <FormLabel className="text-sm leading-5 font-normal">
                       I acknowledge the{' '}
                       <Link href="/privacy" target="_blank" className="text-primary underline">
@@ -216,14 +219,11 @@ export function EnrollmentForm({ enrollment }: EnrollmentFormProps) {
                       </Link>
                       .
                     </FormLabel>
-                    <FormMessage />
                   </div>
+                  <FormMessage />
                 </FormItem>
               )}
             />
-          </CardContent>
-
-          <CardFooter>
             <Button type="submit" className="w-full" disabled={isSubmitting || !privacyAccepted}>
               {isSubmitting ? <Spinner size="sm" /> : 'Complete Enrollment'}
             </Button>
