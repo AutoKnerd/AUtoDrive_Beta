@@ -144,6 +144,21 @@ export function CxSoundwaveCard({
     series.some((s) => s.points.some((p) => Math.abs(p.baseline - p.foreground) > 0.1))
   ), [series]);
   const mode = comparisonScope && hasComparisonData ? 'compare' : 'groupOnly';
+  const primaryScopeLabel = useMemo(() => {
+    const raw = getScopeLabel(activeScope);
+    if (raw === 'Individual') return 'You';
+    if (raw === 'Store Average') return 'Store';
+    if (raw === 'Group Average') return 'Group';
+    return raw;
+  }, [activeScope]);
+  const comparisonScopeLabel = useMemo(() => {
+    if (!comparisonScope) return null;
+    const raw = getScopeLabel(comparisonScope);
+    if (raw === 'Individual') return 'You';
+    if (raw === 'Store Average') return 'Store Avg';
+    if (raw === 'Group Average') return 'Group Avg';
+    return raw;
+  }, [comparisonScope]);
 
   const handleViewModeToggle = (mode: 'team' | 'personal') => {
     if (onViewModeChange) {
@@ -313,7 +328,7 @@ export function CxSoundwaveCard({
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-b border-border/50 p-1.5 md:p-3 dark:border-white/5 bg-muted/10">
             <div className="flex items-center gap-2">
               <div className="w-6 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Selected Scope</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{primaryScopeLabel} (Top Bar)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-cyan-400/20 border border-cyan-400/50" />
@@ -330,8 +345,8 @@ export function CxSoundwaveCard({
                   <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Comparison Scope</span>
-                  <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">Mean Average</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">{comparisonScopeLabel} (Bottom Bar)</span>
+                  <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">Benchmark</span>
                 </div>
               </div>
             )}
@@ -353,8 +368,8 @@ export function CxSoundwaveCard({
                     <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">{row.label}</p>
                     <div className="flex items-center gap-2">
                       <p className="text-xs font-bold text-foreground">
-                        {formatPercent(row.foregroundValue)}
-                        {mode === 'compare' ? ` / ${formatPercent(row.baselineValue)}` : ''}
+                        {primaryScopeLabel} {formatPercent(row.foregroundValue)}
+                        {mode === 'compare' ? ` / ${comparisonScopeLabel} ${formatPercent(row.baselineValue)}` : ''}
                       </p>
                       {mode === 'compare' && (
                         <span
@@ -365,6 +380,7 @@ export function CxSoundwaveCard({
                               : "border-rose-400/40 bg-rose-400/10 text-rose-300"
                           )}
                         >
+                          Δ
                           {row.foregroundValue - row.baselineValue >= 0 ? '+' : ''}
                           {(row.foregroundValue - row.baselineValue).toFixed(1)}
                         </span>
