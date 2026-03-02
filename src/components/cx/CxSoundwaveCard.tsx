@@ -177,6 +177,9 @@ export function CxSoundwaveCard({
       };
     });
   }, [series, range]);
+  const formatPercent = (value: number) => (
+    range === 'today' ? `${value.toFixed(0)}%` : `${value.toFixed(1)}%`
+  );
 
   if (!mounted) {
     return (
@@ -348,8 +351,8 @@ export function CxSoundwaveCard({
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">{row.label}</p>
                     <p className="text-xs font-bold text-foreground">
-                      {row.foregroundValue.toFixed(0)}%
-                      {mode === 'compare' ? ` / ${row.baselineValue.toFixed(0)}%` : ''}
+                      {formatPercent(row.foregroundValue)}
+                      {mode === 'compare' ? ` / ${formatPercent(row.baselineValue)}` : ''}
                     </p>
                   </div>
                   <div className="space-y-1.5">

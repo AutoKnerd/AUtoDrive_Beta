@@ -1461,15 +1461,18 @@ export async function getCxTrendForScope(scope: CxScope, days: number = 30): Pro
                 .map(([date, acc]) => ({
                     date,
                     scores: {
-                        empathy: Math.round(acc.empathy / acc.count),
-                        listening: Math.round(acc.listening / acc.count),
-                        trust: Math.round(acc.trust / acc.count),
-                        followUp: Math.round(acc.followUp / acc.count),
-                        closing: Math.round(acc.closing / acc.count),
-                        relationship: Math.round(acc.relationship / acc.count),
+                        empathy: Number((acc.empathy / acc.count).toFixed(1)),
+                        listening: Number((acc.listening / acc.count).toFixed(1)),
+                        trust: Number((acc.trust / acc.count).toFixed(1)),
+                        followUp: Number((acc.followUp / acc.count).toFixed(1)),
+                        closing: Number((acc.closing / acc.count).toFixed(1)),
+                        relationship: Number((acc.relationship / acc.count).toFixed(1)),
                     },
                 }));
         }
+        // In tour mode, avoid falling back to static scorecard snapshots when
+        // the selected range has no activity; surface as "no data" instead.
+        return [];
     }
 
     const users = await getScopeUsers(scope);
@@ -1489,12 +1492,12 @@ export async function getCxTrendForScope(scope: CxScope, days: number = 30): Pro
     }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationship: 0 });
     const count = snapshots.length;
     const averageScores: Record<CxSkillId, number> = {
-        empathy: Math.round(totals.empathy / count),
-        listening: Math.round(totals.listening / count),
-        trust: Math.round(totals.trust / count),
-        followUp: Math.round(totals.followUp / count),
-        closing: Math.round(totals.closing / count),
-        relationship: Math.round(totals.relationship / count),
+        empathy: Number((totals.empathy / count).toFixed(1)),
+        listening: Number((totals.listening / count).toFixed(1)),
+        trust: Number((totals.trust / count).toFixed(1)),
+        followUp: Number((totals.followUp / count).toFixed(1)),
+        closing: Number((totals.closing / count).toFixed(1)),
+        relationship: Number((totals.relationship / count).toFixed(1)),
     };
 
     const today = startOfDay(new Date());
