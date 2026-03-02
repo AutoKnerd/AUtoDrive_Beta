@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
-import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson } from '@/lib/data.client';
+import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
 import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ListChecks, ChevronRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -273,6 +273,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [dailyRecommendedLessonId, setDailyRecommendedLessonId] = useState<string | null>(null);
   const [systemReport, setSystemReport] = useState<SystemReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isRecalculatingDealership, setIsRecalculatingDealership] = useState(false);
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [range, setRange] = useState<CxRange>('today');
   const router = useRouter();
@@ -563,6 +564,26 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     catch (e: any) { toast({ variant: 'destructive', title: 'Report Failed', description: e?.message || 'Could not generate system report.' }); }
     finally { setIsGeneratingReport(false); }
   }, [user, toast]);
+
+  const handleRecalculateDealershipData = useCallback(async () => {
+    if (!selectedDealershipId || selectedDealershipId === 'all') {
+      toast({ variant: 'destructive', title: 'Select a dealership', description: 'Choose a specific dealership before recalculating data.' });
+      return;
+    }
+    const confirmed = window.confirm('Recalculate all assigned users for this dealership from lesson history? This keeps logs but overwrites computed stats.');
+    if (!confirmed) return;
+
+    setIsRecalculatingDealership(true);
+    try {
+      const result = await recalculateDealershipData(selectedDealershipId);
+      await fetchData(selectedDealershipId);
+      toast({ title: 'Dealership recalculated', description: `Updated ${result.updatedUsers} assigned user profiles.` });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Recalculation failed', description: e?.message || 'Could not recalculate dealership data.' });
+    } finally {
+      setIsRecalculatingDealership(false);
+    }
+  }, [selectedDealershipId, toast, fetchData]);
 
   const activeScope = useMemo(() => {
     const baseScope = getDefaultScope(user);
@@ -907,7 +928,18 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           <Card>
               <CardHeader><CardTitle>Admin Operations</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                  <div className="flex gap-2"><Button onClick={handleGenerateSystemReport} disabled={isGeneratingReport}>{isGeneratingReport ? 'Generating...' : 'System Report'}</Button></div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={handleGenerateSystemReport} disabled={isGeneratingReport}>
+                      {isGeneratingReport ? 'Generating...' : 'System Report'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleRecalculateDealershipData}
+                      disabled={isRecalculatingDealership || !selectedDealershipId || selectedDealershipId === 'all'}
+                    >
+                      {isRecalculatingDealership ? 'Recalculating...' : 'Recalculate Store Data'}
+                    </Button>
+                  </div>
                   {systemReport && <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-md border p-3"><div><p className="text-sm text-muted-foreground">Users</p><p className="font-semibold">Total: {systemReport.users.total}</p></div><div><p className="text-sm text-muted-foreground">Dealerships</p><p className="font-semibold">Active: {systemReport.dealerships.active}</p></div><div><p className="text-sm text-muted-foreground">Performance</p><p className="font-semibold">Avg: {systemReport.performance.averageScore}%</p></div></div>}
               </CardContent>
           </Card>

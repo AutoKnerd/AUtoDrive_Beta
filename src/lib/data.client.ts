@@ -779,6 +779,34 @@ export async function clearDealershipAssignedLessons(dealershipId: string): Prom
     return Number(payload?.deletedCount || 0);
 }
 
+export async function recalculateDealershipData(dealershipId: string): Promise<{ updatedUsers: number }> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error('You must be signed in to recalculate dealership data.');
+    }
+    if (!dealershipId || dealershipId === 'all') {
+        throw new Error('Please select a specific dealership.');
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/admin/recalculateDealershipData', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ dealershipId }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to recalculate dealership data.');
+    }
+
+    return { updatedUsers: Number(payload?.updatedUsers || 0) };
+}
+
 export async function deleteUser(userId: string): Promise<void> {
     const { firestore: db } = getFirebase();
     if (isTouringUser(userId)) return;
