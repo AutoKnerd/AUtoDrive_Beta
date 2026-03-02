@@ -1,8 +1,8 @@
-import { getMockCxTrend } from './mockData';
 import { CxScope, getComparisonScope } from './scope';
 import { CX_SKILLS, CxSkillId, getTraitColor } from './skills';
 import { differenceInDays, startOfDay } from 'date-fns';
 import type { ThemePreference } from '@/lib/definitions';
+import { getCxTrendForScope } from '@/lib/data.client';
 
 export interface CxPoint {
   date: string;
@@ -21,21 +21,32 @@ export interface CxSeries {
 /**
  * Rolls up CX trend data, calculating the start date index based on user tenure.
  */
-export function rollupCxTrend(
+export async function rollupCxTrend(
   scope: CxScope, 
   days: number = 30, 
   anchorScores?: Partial<Record<CxSkillId, number>>,
   memberSince?: string | null,
   themePreference: ThemePreference = 'vibrant'
-): CxSeries[] {
-  // Use real data anchoring for the foreground if provided
-  const fgData = getMockCxTrend(scope.userId || scope.storeId || scope.orgId, days, anchorScores);
-  
+): Promise<CxSeries[]> {
+  const fgData = await getCxTrendForScope(scope, days);
   const comparison = getComparisonScope(scope);
-  // For the baseline comparison
-  const bgData = comparison 
-    ? getMockCxTrend(comparison.userId || comparison.storeId || comparison.orgId, days)
-    : null;
+  const bgData = comparison ? await getCxTrendForScope(comparison, days) : null;
+  const backgroundByDate = new Map((bgData || []).map((row) => [row.date, row.scores]));
+
+  if (!fgData.length && anchorScores) {
+    const today = new Date().toISOString().slice(0, 10);
+    fgData.push({
+      date: today,
+      scores: {
+        empathy: Number(anchorScores.empathy ?? 0),
+        listening: Number(anchorScores.listening ?? 0),
+        trust: Number(anchorScores.trust ?? 0),
+        followUp: Number(anchorScores.followUp ?? 0),
+        closing: Number(anchorScores.closing ?? 0),
+        relationship: Number(anchorScores.relationship ?? 0),
+      },
+    });
+  }
 
   // Calculate where the "Start Date Line" should be
   let startDateIndex: number | null = null;
@@ -66,7 +77,7 @@ export function rollupCxTrend(
       return {
         date: d.date,
         foreground: foregroundValue,
-        baseline: bgData ? bgData[i].scores[skill.id] : d.scores[skill.id],
+        baseline: backgroundByDate.get(d.date)?.[skill.id] ?? d.scores[skill.id],
       };
     });
 

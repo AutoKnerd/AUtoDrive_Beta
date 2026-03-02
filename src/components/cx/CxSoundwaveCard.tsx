@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { CxScope, getComparisonScope, getScopeLabel } from '@/lib/cx/scope';
-import { rollupCxTrend } from '@/lib/cx/rollups';
+import { rollupCxTrend, type CxSeries } from '@/lib/cx/rollups';
 import { CX_SKILLS, CxSkillId } from '@/lib/cx/skills';
 import { CxSoundwaveChart } from './CxSoundwaveChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -104,23 +104,50 @@ export function CxSoundwaveCard({
   const activeScope = viewMode === 'personal' && personalScope ? personalScope : scope;
   const comparisonScope = useMemo(() => getComparisonScope(activeScope), [activeScope]);
   const anchoredScores = useMemo(() => normalizeScores(data), [data]);
+  const [series, setSeries] = useState<CxSeries[]>([]);
+  const [seriesLoading, setSeriesLoading] = useState(false);
 
-  const series = useMemo(() => {
-    if (!mounted) return [];
-    let days = 30;
-    if (range === 'today') days = 1;
-    else if (range === '7d') days = 7;
-    else if (range === '90d') days = 90;
+  useEffect(() => {
+    if (!mounted) return;
+    let cancelled = false;
 
-    const shouldAnchor = Boolean(
-      anchoredScores &&
-      Object.values(anchoredScores).some((score) => typeof score === 'number' && Number.isFinite(score))
-    );
+    const loadSeries = async () => {
+      setSeriesLoading(true);
+      try {
+        let days = 30;
+        if (range === 'today') days = 1;
+        else if (range === '7d') days = 7;
+        else if (range === '90d') days = 90;
 
-    return rollupCxTrend(activeScope, days, shouldAnchor ? anchoredScores : undefined, memberSince, themePreference);
+        const shouldAnchor = Boolean(
+          anchoredScores &&
+          Object.values(anchoredScores).some((score) => typeof score === 'number' && Number.isFinite(score))
+        );
+        const next = await rollupCxTrend(
+          activeScope,
+          days,
+          shouldAnchor ? anchoredScores : undefined,
+          memberSince,
+          themePreference
+        );
+        if (!cancelled) setSeries(next);
+      } catch {
+        if (!cancelled) setSeries([]);
+      } finally {
+        if (!cancelled) setSeriesLoading(false);
+      }
+    };
+
+    loadSeries();
+    return () => {
+      cancelled = true;
+    };
   }, [activeScope, range, mounted, viewMode, anchoredScores, personalScope, memberSince, themePreference]);
 
-  const mode = comparisonScope ? 'compare' : 'groupOnly';
+  const hasComparisonData = useMemo(() => (
+    series.some((s) => s.points.some((p) => Math.abs(p.baseline - p.foreground) > 0.1))
+  ), [series]);
+  const mode = comparisonScope && hasComparisonData ? 'compare' : 'groupOnly';
 
   const handleSkillClick = (id: CxSkillId | null) => {
     setSelectedSkillId(prev => prev === id ? null : id);
@@ -296,13 +323,19 @@ export function CxSoundwaveCard({
             )}
           </div>
 
-          <CxSoundwaveChart 
-            series={series} 
-            activeSkillId={activeSkillId} 
-            mode={mode} 
-            onSkillHover={setHoveredSkillId}
-            onSkillClick={handleSkillClick}
-          />
+          {seriesLoading ? (
+            <div className="p-4">
+              <Skeleton className="h-[250px] w-full" />
+            </div>
+          ) : (
+            <CxSoundwaveChart 
+              series={series} 
+              activeSkillId={activeSkillId} 
+              mode={mode} 
+              onSkillHover={setHoveredSkillId}
+              onSkillClick={handleSkillClick}
+            />
+          )}
         </div>
 
         {/* Skill grid with percentages, now moved up and interactive */}
