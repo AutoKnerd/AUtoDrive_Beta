@@ -153,20 +153,6 @@ export function CxSoundwaveCard({
     }
   };
 
-  if (!mounted) {
-    return (
-      <Card className={cn("h-[400px] w-full bg-card border-border", className)}>
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <Skeleton className="h-6 w-[200px]" />
-          <Skeleton className="h-8 w-[150px]" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-[250px] w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
   const rangeOptions = [
     { id: 'today', label: 'Today', min: 0 },
     { id: '7d', label: '7d', min: 7 },
@@ -191,6 +177,20 @@ export function CxSoundwaveCard({
       };
     });
   }, [series, range]);
+
+  if (!mounted) {
+    return (
+      <Card className={cn("h-[400px] w-full bg-card border-border", className)}>
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <Skeleton className="h-6 w-[200px]" />
+          <Skeleton className="h-8 w-[150px]" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[250px] w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={cn(
