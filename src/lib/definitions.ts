@@ -303,6 +303,8 @@ export type Dealership = {
   name: string;
   trainerId?: string;
   status: 'active' | 'paused' | 'deactivated';
+  // Optional logical grouping for cross-store management.
+  groupDealershipIds?: string[];
   address?: Address;
   enableRetakeRecommendedTesting?: boolean;
   enableNewRecommendedTesting?: boolean;

@@ -10,6 +10,7 @@ import {
   updateDealershipPppAccess,
   updateDealershipSaasPppAccess,
   updateDealershipBillingConfig,
+  updateDealershipGroupMembers,
   clearDealershipAssignedLessons,
 } from '@/lib/data.client';
 import { BILLING_PRICING, calculateDealershipMonthlyCents, formatUsdFromCents } from '@/lib/billing/tiers';
@@ -31,6 +32,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/badge';
 import { Ban, Play, Trash2 } from 'lucide-react';
 import { Switch } from '../ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 interface ManageDealershipFormProps {
   dealerships: Dealership[];
@@ -50,6 +53,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [billingUserCount, setBillingUserCount] = useState('0');
   const [billingOwnerAccountCount, setBillingOwnerAccountCount] = useState('0');
   const [billingStoreCount, setBillingStoreCount] = useState('1');
+  const [groupDealershipIds, setGroupDealershipIds] = useState<string[]>([]);
   const { toast } = useToast();
   
   const toSafeCount = (value: string, fallback = 0): number => {
@@ -69,6 +73,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     setBillingUserCount(String(dealership?.billingUserCount ?? 0));
     setBillingOwnerAccountCount(String(dealership?.billingOwnerAccountCount ?? 0));
     setBillingStoreCount(String(dealership?.billingStoreCount ?? 1));
+    setGroupDealershipIds(Array.from(new Set([...(dealership?.groupDealershipIds || []), ...(dealership ? [dealership.id] : [])])));
   }
 
   async function handleUpdateStatus(newStatus: 'active' | 'paused' | 'deactivated') {
@@ -240,6 +245,30 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       setIsLoading(false);
     }
   }
+
+  async function handleUpdateDealershipGroup() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      const deduped = Array.from(new Set([selectedDealership.id, ...groupDealershipIds]));
+      const updated = await updateDealershipGroupMembers(selectedDealership.id, deduped);
+      setSelectedDealership(updated);
+      setGroupDealershipIds(Array.from(new Set([...(updated.groupDealershipIds || []), updated.id])));
+      toast({
+        title: 'Dealership Group Updated',
+        description: `${selectedDealership.name} group now includes ${deduped.length} dealership${deduped.length === 1 ? '' : 's'}.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
   
   const getStatusBadge = (status: Dealership['status']) => {
       switch(status) {
@@ -270,6 +299,23 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     toSafeCount(billingOwnerAccountCount, 0) !== (selectedDealership.billingOwnerAccountCount ?? 0) ||
     Math.max(1, toSafeCount(billingStoreCount, 1)) !== (selectedDealership.billingStoreCount ?? 1)
   );
+  const persistedGroupIds = selectedDealership
+    ? Array.from(new Set([...(selectedDealership.groupDealershipIds || []), selectedDealership.id])).sort()
+    : [];
+  const selectedGroupIdsSorted = Array.from(new Set(groupDealershipIds)).sort();
+  const groupDirty = !!selectedDealership && (
+    persistedGroupIds.length !== selectedGroupIdsSorted.length
+      || persistedGroupIds.some((id, idx) => id !== selectedGroupIdsSorted[idx])
+  );
+  const handleGroupCheckedChange = (dealershipId: string, checked: boolean) => {
+    setGroupDealershipIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(dealershipId);
+      else next.delete(dealershipId);
+      if (selectedDealership) next.add(selectedDealership.id);
+      return Array.from(next);
+    });
+  };
 
   return (
     <div className="grid gap-6">
@@ -474,6 +520,43 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                   className="w-full md:w-auto"
                 >
                   {isLoading ? <Spinner size="sm" /> : 'Save Billing Tier'}
+                </Button>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+                <div>
+                    <p className="text-sm font-medium">Dealership Group Members</p>
+                    <p className="text-xs text-muted-foreground">
+                        Select which dealerships belong to this dealership&apos;s group. The selected dealership is always included.
+                    </p>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                    {dealerships.map((dealership) => {
+                      const isSelf = selectedDealership.id === dealership.id;
+                      const checked = groupDealershipIds.includes(dealership.id) || isSelf;
+                      return (
+                        <div key={dealership.id} className="flex items-center space-x-2 rounded-md border p-2">
+                          <Checkbox
+                            id={`group-${dealership.id}`}
+                            checked={checked}
+                            disabled={isLoading || isSelf}
+                            onCheckedChange={(next) => handleGroupCheckedChange(dealership.id, next === true)}
+                          />
+                          <Label htmlFor={`group-${dealership.id}`} className="text-sm font-medium leading-none">
+                            {dealership.name}
+                            {isSelf ? ' (Selected)' : ''}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={isLoading || !groupDirty}
+                  onClick={handleUpdateDealershipGroup}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save Group Members'}
                 </Button>
             </div>
 

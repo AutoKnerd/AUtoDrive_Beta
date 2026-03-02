@@ -2531,6 +2531,18 @@ export async function updateDealershipBillingConfig(
     return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
 }
 
+export async function updateDealershipGroupMembers(
+    dealershipId: string,
+    groupDealershipIds: string[]
+): Promise<Dealership> {
+    const { firestore: db } = getFirebase();
+    const ref = doc(db, 'dealerships', dealershipId);
+    const deduped = Array.from(new Set(groupDealershipIds.filter(Boolean)));
+    await updateDoc(ref, { groupDealershipIds: deduped });
+    const snap = await getDoc(ref);
+    return { ...snap.data(), id: snap.id } as Dealership;
+}
+
 type PppSystemConfig = {
   enabled: boolean;
   updatedUsers?: number;
