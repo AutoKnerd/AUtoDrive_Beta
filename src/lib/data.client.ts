@@ -1379,6 +1379,10 @@ function getScopeStatsScores(user: User): Record<CxSkillId, number> | null {
     return { empathy, listening, trust, followUp, closing, relationship };
 }
 
+function toDayKey(date: Date): string {
+    return format(startOfDay(date), 'yyyy-MM-dd');
+}
+
 async function getScopeUsers(scope: CxScope): Promise<User[]> {
     if (isTouringUser(scope.userId) || String(scope.storeId || '').startsWith('tour-')) {
         const { users } = await getTourData();
@@ -1406,6 +1410,68 @@ async function getScopeUsers(scope: CxScope): Promise<User[]> {
 
 export async function getCxTrendForScope(scope: CxScope, days: number = 30): Promise<CxTrendSample[]> {
     const safeDays = Math.max(1, Math.min(90, Math.round(days)));
+    const isTourScope = isTouringUser(scope.userId) || String(scope.storeId || '').startsWith('tour-');
+    if (isTourScope) {
+        const today = startOfDay(new Date());
+        const rangeStart = startOfDay(subDays(today, safeDays - 1));
+        const rangeEnd = new Date(today);
+        rangeEnd.setHours(23, 59, 59, 999);
+
+        const users = await getScopeUsers(scope);
+        const allowedUserIds = new Set(users.map((u) => u.userId));
+        if (!allowedUserIds.size) return [];
+
+        const { lessonLogs } = await getTourData();
+        const buckets = new Map<string, {
+            empathy: number;
+            listening: number;
+            trust: number;
+            followUp: number;
+            closing: number;
+            relationship: number;
+            count: number;
+        }>();
+
+        lessonLogs.forEach((log) => {
+            if (!allowedUserIds.has(log.userId)) return;
+            if (log.timestamp < rangeStart || log.timestamp > rangeEnd) return;
+            const key = toDayKey(log.timestamp);
+            const existing = buckets.get(key) || {
+                empathy: 0,
+                listening: 0,
+                trust: 0,
+                followUp: 0,
+                closing: 0,
+                relationship: 0,
+                count: 0,
+            };
+            existing.empathy += clampScore(Number(log.empathy || 0));
+            existing.listening += clampScore(Number(log.listening || 0));
+            existing.trust += clampScore(Number(log.trust || 0));
+            existing.followUp += clampScore(Number(log.followUp || 0));
+            existing.closing += clampScore(Number(log.closing || 0));
+            existing.relationship += clampScore(Number(log.relationshipBuilding || 0));
+            existing.count += 1;
+            buckets.set(key, existing);
+        });
+
+        if (buckets.size > 0) {
+            return Array.from(buckets.entries())
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([date, acc]) => ({
+                    date,
+                    scores: {
+                        empathy: Math.round(acc.empathy / acc.count),
+                        listening: Math.round(acc.listening / acc.count),
+                        trust: Math.round(acc.trust / acc.count),
+                        followUp: Math.round(acc.followUp / acc.count),
+                        closing: Math.round(acc.closing / acc.count),
+                        relationship: Math.round(acc.relationship / acc.count),
+                    },
+                }));
+        }
+    }
+
     const users = await getScopeUsers(scope);
     const snapshots = users
         .map((user) => getScopeStatsScores(user))
