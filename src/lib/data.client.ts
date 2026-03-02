@@ -1346,136 +1346,96 @@ export type CxTrendSample = {
     scores: Record<CxSkillId, number>;
 };
 
-type CxDailyAccumulator = {
-    empathy: number;
-    listening: number;
-    trust: number;
-    followUp: number;
-    closing: number;
-    relationship: number;
-    count: number;
-};
+function getScopeStatsScores(user: User): Record<CxSkillId, number> | null {
+    const stats = user.stats as Record<string, any> | undefined;
+    if (!stats) return null;
 
-function buildEmptyCxDailyAccumulator(): CxDailyAccumulator {
-    return {
-        empathy: 0,
-        listening: 0,
-        trust: 0,
-        followUp: 0,
-        closing: 0,
-        relationship: 0,
-        count: 0,
+    const read = (value: unknown): number | null => {
+        if (typeof value === 'number' && Number.isFinite(value)) return clampScore(value);
+        if (value && typeof value === 'object' && typeof (value as any).score === 'number') {
+            return clampScore((value as any).score);
+        }
+        return null;
     };
+
+    const empathy = read(stats.empathy);
+    const listening = read(stats.listening);
+    const trust = read(stats.trust);
+    const followUp = read(stats.followUp);
+    const closing = read(stats.closing);
+    const relationship = read(stats.relationship ?? stats.relationshipBuilding);
+
+    if (
+        empathy === null ||
+        listening === null ||
+        trust === null ||
+        followUp === null ||
+        closing === null ||
+        relationship === null
+    ) {
+        return null;
+    }
+
+    return { empathy, listening, trust, followUp, closing, relationship };
 }
 
-function toDayKey(date: Date): string {
-    return format(startOfDay(date), 'yyyy-MM-dd');
-}
+async function getScopeUsers(scope: CxScope): Promise<User[]> {
+    if (isTouringUser(scope.userId) || String(scope.storeId || '').startsWith('tour-')) {
+        const { users } = await getTourData();
+        if (scope.userId) return users.filter((u) => u.userId === scope.userId);
+        if (scope.storeId) {
+            return users.filter((u) => (Array.isArray(u.dealershipIds) ? u.dealershipIds : []).includes(scope.storeId as string));
+        }
+        return users;
+    }
 
-function toScopeLogScores(log: LessonLog): Record<CxSkillId, number> {
-    return {
-        empathy: clampScore(Number(log.empathy || 0)),
-        listening: clampScore(Number(log.listening || 0)),
-        trust: clampScore(Number(log.trust || 0)),
-        followUp: clampScore(Number(log.followUp || 0)),
-        closing: clampScore(Number(log.closing || 0)),
-        relationship: clampScore(Number(log.relationshipBuilding || 0)),
-    };
-}
+    if (scope.userId) {
+        const user = await getUserById(scope.userId);
+        return user ? [user] : [];
+    }
 
-async function getScopeUserIds(scope: CxScope): Promise<string[]> {
-    if (scope.userId) return [scope.userId];
     const { firestore: db } = getFirebase();
-
     const usersSnap = scope.storeId
         ? await getDocs(query(collection(db, 'users'), where('dealershipIds', 'array-contains', scope.storeId)))
         : await getDocs(collection(db, 'users'));
 
     return usersSnap.docs
         .map((doc) => ({ ...doc.data(), userId: doc.id } as User))
-        .filter((member) => !['Admin', 'Developer', 'Trainer'].includes(member.role))
-        .map((member) => member.userId);
-}
-
-async function getLogsForUserInRange(userId: string, rangeStart: Date, rangeEnd: Date): Promise<LessonLog[]> {
-    if (isTouringUser(userId)) {
-        const { lessonLogs } = await getTourData();
-        return lessonLogs
-            .filter((log) => (
-                log.userId === userId &&
-                log.timestamp >= rangeStart &&
-                log.timestamp <= rangeEnd
-            ))
-            .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-    }
-
-    const { firestore: db } = getFirebase();
-    const logsSnap = await getDocs(query(
-        collection(db, `users/${userId}/lessonLogs`),
-        where('timestamp', '>=', Timestamp.fromDate(rangeStart)),
-        where('timestamp', '<=', Timestamp.fromDate(rangeEnd))
-    ));
-
-    return logsSnap.docs
-        .map((docSnap) => {
-            const data = docSnap.data() as any;
-            return {
-                ...data,
-                logId: data.logId || docSnap.id,
-                timestamp: toSafeDate(data.timestamp, new Date(0)),
-            } as LessonLog;
-        })
-        .filter((log) => log.timestamp.getTime() > 0)
-        .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        .filter((member) => !['Admin', 'Developer', 'Trainer'].includes(member.role));
 }
 
 export async function getCxTrendForScope(scope: CxScope, days: number = 30): Promise<CxTrendSample[]> {
     const safeDays = Math.max(1, Math.min(90, Math.round(days)));
+    const users = await getScopeUsers(scope);
+    const snapshots = users
+        .map((user) => getScopeStatsScores(user))
+        .filter((scores): scores is Record<CxSkillId, number> => scores !== null);
+    if (!snapshots.length) return [];
+
+    const totals = snapshots.reduce((acc, row) => {
+        acc.empathy += row.empathy;
+        acc.listening += row.listening;
+        acc.trust += row.trust;
+        acc.followUp += row.followUp;
+        acc.closing += row.closing;
+        acc.relationship += row.relationship;
+        return acc;
+    }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationship: 0 });
+    const count = snapshots.length;
+    const averageScores: Record<CxSkillId, number> = {
+        empathy: Math.round(totals.empathy / count),
+        listening: Math.round(totals.listening / count),
+        trust: Math.round(totals.trust / count),
+        followUp: Math.round(totals.followUp / count),
+        closing: Math.round(totals.closing / count),
+        relationship: Math.round(totals.relationship / count),
+    };
+
     const today = startOfDay(new Date());
-    const rangeStart = startOfDay(subDays(today, safeDays - 1));
-    const rangeEnd = new Date(today);
-    rangeEnd.setHours(23, 59, 59, 999);
-
-    const userIds = await getScopeUserIds(scope);
-    if (!userIds.length) return [];
-
-    const logsByUser = await Promise.all(
-        userIds.map((userId) => getLogsForUserInRange(userId, rangeStart, rangeEnd).catch(() => []))
-    );
-
-    const buckets = new Map<string, CxDailyAccumulator>();
-
-    logsByUser.flat().forEach((log) => {
-        const key = toDayKey(log.timestamp);
-        const existing = buckets.get(key) || buildEmptyCxDailyAccumulator();
-        const scores = toScopeLogScores(log);
-        existing.empathy += scores.empathy;
-        existing.listening += scores.listening;
-        existing.trust += scores.trust;
-        existing.followUp += scores.followUp;
-        existing.closing += scores.closing;
-        existing.relationship += scores.relationship;
-        existing.count += 1;
-        buckets.set(key, existing);
-    });
-
-    if (!buckets.size) return [];
-
-    const ordered = Array.from(buckets.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, acc]) => ({
-            date,
-            scores: {
-                empathy: Math.round(acc.empathy / acc.count),
-                listening: Math.round(acc.listening / acc.count),
-                trust: Math.round(acc.trust / acc.count),
-                followUp: Math.round(acc.followUp / acc.count),
-                closing: Math.round(acc.closing / acc.count),
-                relationship: Math.round(acc.relationship / acc.count),
-            },
-        }));
-
-    return ordered;
+    return Array.from({ length: safeDays }, (_, idx) => ({
+        date: format(subDays(today, safeDays - 1 - idx), 'yyyy-MM-dd'),
+        scores: averageScores,
+    }));
 }
 
 export async function getDailyLessonLimits(userId: string): Promise<{ recommendedTaken: boolean, otherTaken: boolean }> {
