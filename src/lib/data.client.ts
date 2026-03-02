@@ -856,6 +856,7 @@ export async function createDealership(dealershipData: {
     trainerId?: string;
 }): Promise<Dealership> {
     if (isTouringUser(dealershipData.trainerId)) {
+        const tour = await getTourData();
         const trialWindow = buildTrialWindow(new Date());
         const newDealership: Dealership = {
             id: `tour-dealership-${Math.random()}`,
@@ -874,7 +875,11 @@ export async function createDealership(dealershipData: {
             billingOwnerAccountCount: 0,
             billingStoreCount: 1,
         };
-        (await getTourData()).dealerships.push(newDealership);
+        tour.dealerships.push(newDealership);
+        const groupedIds = tour.dealerships.map((dealership) => dealership.id);
+        tour.dealerships.forEach((dealership) => {
+            dealership.groupDealershipIds = groupedIds;
+        });
         return newDealership;
     }
 

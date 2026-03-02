@@ -84,6 +84,12 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 }
             });
         }
+        // Demo all tour stores as one logical group so group-comparison features
+        // are visible out of the box.
+        const tourGroupIds = dealerships.map((dealership) => dealership.id);
+        dealerships.forEach((dealership) => {
+            dealership.groupDealershipIds = tourGroupIds;
+        });
         
         const lessons: Lesson[] = [
             {
