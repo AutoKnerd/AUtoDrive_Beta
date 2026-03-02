@@ -180,6 +180,7 @@ export function CxSoundwaveCard({
   const formatPercent = (value: number) => (
     range === 'today' ? `${value.toFixed(0)}%` : `${value.toFixed(1)}%`
   );
+  const targetMarker = 75;
 
   if (!mounted) {
     return (
@@ -346,27 +347,58 @@ export function CxSoundwaveCard({
             </div>
           ) : (
             <div className="space-y-4 p-4">
-              {barRows.map((row) => (
+              {barRows.map((row, idx) => (
                 <div key={row.skillId} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">{row.label}</p>
-                    <p className="text-xs font-bold text-foreground">
-                      {formatPercent(row.foregroundValue)}
-                      {mode === 'compare' ? ` / ${formatPercent(row.baselineValue)}` : ''}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-foreground">
+                        {formatPercent(row.foregroundValue)}
+                        {mode === 'compare' ? ` / ${formatPercent(row.baselineValue)}` : ''}
+                      </p>
+                      {mode === 'compare' && (
+                        <span
+                          className={cn(
+                            "rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                            row.foregroundValue - row.baselineValue >= 0
+                              ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                              : "border-rose-400/40 bg-rose-400/10 text-rose-300"
+                          )}
+                        >
+                          {row.foregroundValue - row.baselineValue >= 0 ? '+' : ''}
+                          {(row.foregroundValue - row.baselineValue).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-1.5">
-                    <div className="h-3 rounded-full bg-muted/60 border border-border/60 overflow-hidden">
+                    <div className="relative h-3 rounded-full bg-muted/60 border border-border/60 overflow-hidden">
+                      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[length:25%_100%] pointer-events-none" />
                       <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${row.foregroundValue}%`, backgroundColor: row.color }}
+                        className="absolute top-0 bottom-0 w-px border-l border-dashed border-amber-300/40"
+                        style={{ left: `${targetMarker}%` }}
                       />
+                      <div
+                        className="relative h-full rounded-full transition-all duration-700 ease-out"
+                        style={{
+                          width: `${row.foregroundValue}%`,
+                          background: `linear-gradient(90deg, ${row.color}CC 0%, ${row.color} 60%, ${row.color}F0 100%)`,
+                          boxShadow: `0 0 14px ${row.color}66`,
+                          transitionDelay: `${idx * 40}ms`,
+                        }}
+                      />
+                      <div className="absolute left-0 right-0 top-0 h-[35%] rounded-full bg-white/15 pointer-events-none" />
                     </div>
                     {mode === 'compare' && (
-                      <div className="h-2 rounded-full bg-muted/40 border border-border/40 overflow-hidden">
+                      <div className="relative h-2 rounded-full bg-muted/40 border border-border/40 overflow-hidden">
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:25%_100%] pointer-events-none" />
                         <div
-                          className="h-full rounded-full transition-all duration-500 opacity-60"
-                          style={{ width: `${row.baselineValue}%`, backgroundColor: row.color }}
+                          className="h-full rounded-full transition-all duration-700 ease-out opacity-60"
+                          style={{
+                            width: `${row.baselineValue}%`,
+                            background: `linear-gradient(90deg, ${row.color}AA 0%, ${row.color}CC 100%)`,
+                            transitionDelay: `${idx * 40 + 20}ms`,
+                          }}
                         />
                       </div>
                     )}
