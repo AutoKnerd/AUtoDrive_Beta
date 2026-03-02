@@ -4,7 +4,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { CxScope, getComparisonScope, getScopeLabel } from '@/lib/cx/scope';
 import { rollupCxTrend, type CxSeries } from '@/lib/cx/rollups';
 import { CX_SKILLS, CxSkillId } from '@/lib/cx/skills';
-import { CxSoundwaveChart } from './CxSoundwaveChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -65,8 +64,6 @@ export function CxSoundwaveCard({
 }: CxSoundwaveCardProps) {
   const [internalRange, setInternalRange] = useState<CxRange>('today');
   const [internalViewMode, setInternalViewMode] = useState<'team' | 'personal'>('team');
-  const [hoveredSkillId, setHoveredSkillId] = useState<CxSkillId | null>(null);
-  const [selectedSkillId, setSelectedSkillId] = useState<CxSkillId | null>(null);
   const [mounted, setMounted] = useState(false);
 
   const viewMode = externalViewMode || internalViewMode;
@@ -100,7 +97,6 @@ export function CxSoundwaveCard({
     }
   }, [mounted, rangeAvailability]);
 
-  const activeSkillId = hoveredSkillId || selectedSkillId;
   const activeScope = viewMode === 'personal' && personalScope ? personalScope : scope;
   const comparisonScope = useMemo(() => getComparisonScope(activeScope), [activeScope]);
   const anchoredScores = useMemo(() => normalizeScores(data), [data]);
@@ -149,10 +145,6 @@ export function CxSoundwaveCard({
   ), [series]);
   const mode = comparisonScope && hasComparisonData ? 'compare' : 'groupOnly';
 
-  const handleSkillClick = (id: CxSkillId | null) => {
-    setSelectedSkillId(prev => prev === id ? null : id);
-  };
-
   const handleViewModeToggle = (mode: 'team' | 'personal') => {
     if (onViewModeChange) {
       onViewModeChange(mode);
@@ -181,6 +173,24 @@ export function CxSoundwaveCard({
     { id: '30d', label: '30d', min: 30 },
     { id: '90d', label: '90d', min: 90 },
   ] as const;
+  const barRows = useMemo(() => {
+    return series.map((s) => {
+      const foregroundValue = range === 'today'
+        ? (s.points[s.points.length - 1]?.foreground || 0)
+        : (s.points.reduce((acc, p) => acc + p.foreground, 0) / Math.max(1, s.points.length));
+      const baselineValue = range === 'today'
+        ? (s.points[s.points.length - 1]?.baseline || 0)
+        : (s.points.reduce((acc, p) => acc + p.baseline, 0) / Math.max(1, s.points.length));
+      const skill = CX_SKILLS.find((entry) => entry.id === s.skillId);
+      return {
+        skillId: s.skillId,
+        label: skill?.label || s.skillId,
+        color: s.color,
+        foregroundValue: Math.max(0, Math.min(100, foregroundValue)),
+        baselineValue: Math.max(0, Math.min(100, baselineValue)),
+      };
+    });
+  }, [series, range]);
 
   return (
     <Card className={cn(
@@ -299,13 +309,13 @@ export function CxSoundwaveCard({
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-b border-border/50 p-1.5 md:p-3 dark:border-white/5 bg-muted/10">
             <div className="flex items-center gap-2">
               <div className="w-6 h-1 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Performance Wave</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Selected Scope</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-cyan-400/20 border border-cyan-400/50" />
               <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Depth of Mastery</span>
-                <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">Proficiency intensity</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Average Score Bars</span>
+                <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">{range === 'today' ? 'Current snapshot' : `Range average (${range})`}</span>
               </div>
             </div>
             {mode === 'compare' && (
@@ -316,7 +326,7 @@ export function CxSoundwaveCard({
                   <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Dealer Average</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Comparison Scope</span>
                   <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">Mean Average</span>
                 </div>
               </div>
@@ -327,55 +337,41 @@ export function CxSoundwaveCard({
             <div className="p-4">
               <Skeleton className="h-[250px] w-full" />
             </div>
+          ) : barRows.length === 0 ? (
+            <div className="flex h-[250px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
+              No scored data available for this range.
+            </div>
           ) : (
-            <CxSoundwaveChart 
-              series={series} 
-              activeSkillId={activeSkillId} 
-              mode={mode} 
-              onSkillHover={setHoveredSkillId}
-              onSkillClick={handleSkillClick}
-            />
+            <div className="space-y-4 p-4">
+              {barRows.map((row) => (
+                <div key={row.skillId} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">{row.label}</p>
+                    <p className="text-xs font-bold text-foreground">
+                      {row.foregroundValue.toFixed(0)}%
+                      {mode === 'compare' ? ` / ${row.baselineValue.toFixed(0)}%` : ''}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-3 rounded-full bg-muted/60 border border-border/60 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${row.foregroundValue}%`, backgroundColor: row.color }}
+                      />
+                    </div>
+                    {mode === 'compare' && (
+                      <div className="h-2 rounded-full bg-muted/40 border border-border/40 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 opacity-60"
+                          style={{ width: `${row.baselineValue}%`, backgroundColor: row.color }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-        </div>
-
-        {/* Skill grid with percentages, now moved up and interactive */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 pt-2 px-4 pb-4">
-          {series.map((s) => {
-            const displayValue = range === 'today' 
-              ? (s.points[s.points.length - 1]?.foreground || 0)
-              : (s.points.reduce((acc, p) => acc + p.foreground, 0) / s.points.length);
-              
-            const skill = CX_SKILLS.find(sk => sk.id === s.skillId);
-            const Icon = skill?.icon || TrendingUp;
-            const isActive = activeSkillId === s.skillId;
-            const isDimmed = activeSkillId !== null && !isActive;
-
-            return (
-              <div 
-                key={s.skillId} 
-                onMouseEnter={() => setHoveredSkillId(s.skillId)}
-                onMouseLeave={() => setHoveredSkillId(null)}
-                onClick={() => handleSkillClick(s.skillId)}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 transition-all duration-500 cursor-pointer p-2 rounded-2xl",
-                  isActive ? "bg-muted dark:bg-white/5 ring-1 ring-border" : "hover:bg-muted/50",
-                  isDimmed ? "opacity-30 grayscale-[0.5]" : "opacity-100"
-                )}
-              >
-                <div className="p-2 rounded-lg bg-background shadow-sm dark:bg-slate-900">
-                  <Icon className="h-4 w-4" style={{ color: s.color }} />
-                </div>
-                <div className="text-center space-y-0.5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none">
-                    {s.label}
-                  </p>
-                  <p className="text-xl font-black tracking-tighter text-foreground">
-                    {displayValue.toFixed(0)}%
-                  </p>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </CardContent>
     </Card>
