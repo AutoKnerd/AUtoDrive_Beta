@@ -1384,11 +1384,22 @@ function toDayKey(date: Date): string {
 }
 
 async function getScopeUsers(scope: CxScope): Promise<User[]> {
-    if (isTouringUser(scope.userId) || String(scope.storeId || '').startsWith('tour-')) {
-        const { users } = await getTourData();
+    if (isTouringUser(scope.userId) || String(scope.storeId || '').startsWith('tour-') || String(scope.comparisonStoreId || '').startsWith('tour-')) {
+        const { users, dealerships } = await getTourData();
         if (scope.userId) return users.filter((u) => u.userId === scope.userId);
         if (scope.storeId) {
             return users.filter((u) => (Array.isArray(u.dealershipIds) ? u.dealershipIds : []).includes(scope.storeId as string));
+        }
+        if (scope.comparisonStoreId) {
+            const anchorDealership = dealerships.find((d) => d.id === scope.comparisonStoreId);
+            const groupIds = Array.from(new Set([
+                scope.comparisonStoreId,
+                ...((anchorDealership?.groupDealershipIds || []) as string[]),
+            ]));
+            return users.filter((u) => {
+                const ids = Array.isArray(u.dealershipIds) ? u.dealershipIds : [];
+                return ids.some((id) => groupIds.includes(id));
+            });
         }
         return users;
     }
@@ -1399,6 +1410,36 @@ async function getScopeUsers(scope: CxScope): Promise<User[]> {
     }
 
     const { firestore: db } = getFirebase();
+    if (scope.comparisonStoreId && !scope.storeId) {
+        const anchorRef = doc(db, 'dealerships', scope.comparisonStoreId);
+        const anchorSnap = await getDoc(anchorRef).catch(() => null);
+        const anchorData = anchorSnap?.exists() ? (anchorSnap.data() as Dealership) : null;
+        const groupIds = Array.from(new Set([
+            scope.comparisonStoreId,
+            ...((anchorData?.groupDealershipIds || []) as string[]),
+        ])).filter(Boolean);
+        if (!groupIds.length) return [];
+
+        // Firestore array-contains-any supports up to 10 values per query.
+        const chunks: string[][] = [];
+        for (let i = 0; i < groupIds.length; i += 10) chunks.push(groupIds.slice(i, i + 10));
+
+        const snapshots = await Promise.all(
+            chunks.map((chunk) =>
+                getDocs(query(collection(db, 'users'), where('dealershipIds', 'array-contains-any', chunk)))
+            )
+        );
+
+        const byUserId = new Map<string, User>();
+        snapshots.forEach((snap) => {
+            snap.docs.forEach((doc) => {
+                byUserId.set(doc.id, { ...doc.data(), userId: doc.id } as User);
+            });
+        });
+
+        return Array.from(byUserId.values()).filter((member) => !['Admin', 'Developer', 'Trainer'].includes(member.role));
+    }
+
     const usersSnap = scope.storeId
         ? await getDocs(query(collection(db, 'users'), where('dealershipIds', 'array-contains', scope.storeId)))
         : await getDocs(collection(db, 'users'));
