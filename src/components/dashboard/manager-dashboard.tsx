@@ -685,6 +685,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           onViewModeChange={setViewMode}
           range={range}
           onRangeChange={setRange}
+          actionLabel="Update"
+          onActionClick={handleRecalculateDealershipData}
+          actionDisabled={isRecalculatingDealership || !selectedDealershipId || selectedDealershipId === 'all'}
+          actionLoading={isRecalculatingDealership}
           hideInternalToggle 
         />
       </section>
@@ -931,13 +935,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={handleGenerateSystemReport} disabled={isGeneratingReport}>
                       {isGeneratingReport ? 'Generating...' : 'System Report'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleRecalculateDealershipData}
-                      disabled={isRecalculatingDealership || !selectedDealershipId || selectedDealershipId === 'all'}
-                    >
-                      {isRecalculatingDealership ? 'Recalculating...' : 'Recalculate Store Data'}
                     </Button>
                   </div>
                   {systemReport && <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-md border p-3"><div><p className="text-sm text-muted-foreground">Users</p><p className="font-semibold">Total: {systemReport.users.total}</p></div><div><p className="text-sm text-muted-foreground">Dealerships</p><p className="font-semibold">Active: {systemReport.dealerships.active}</p></div><div><p className="text-sm text-muted-foreground">Performance</p><p className="font-semibold">Avg: {systemReport.performance.averageScore}%</p></div></div>}

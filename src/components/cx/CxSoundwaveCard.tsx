@@ -28,6 +28,10 @@ interface CxSoundwaveCardProps {
   range?: CxRange;
   onRangeChange?: (range: CxRange) => void;
   hideInternalToggle?: boolean;
+  actionLabel?: string;
+  onActionClick?: () => void;
+  actionDisabled?: boolean;
+  actionLoading?: boolean;
 }
 
 function normalizeScores(raw?: Partial<Record<string, number>>): Partial<Record<CxSkillId, number>> | undefined {
@@ -53,7 +57,11 @@ export function CxSoundwaveCard({
   onViewModeChange,
   range: externalRange,
   onRangeChange: externalOnRangeChange,
-  hideInternalToggle = false
+  hideInternalToggle = false,
+  actionLabel,
+  onActionClick,
+  actionDisabled = false,
+  actionLoading = false,
 }: CxSoundwaveCardProps) {
   const [internalRange, setInternalRange] = useState<CxRange>('today');
   const [internalViewMode, setInternalViewMode] = useState<'team' | 'personal'>('team');
@@ -244,6 +252,18 @@ export function CxSoundwaveCard({
               })}
             </div>
           </TooltipProvider>
+
+          {actionLabel && onActionClick && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onActionClick}
+              disabled={actionDisabled || actionLoading}
+              className="h-7 px-3 text-[10px] font-bold tracking-widest uppercase"
+            >
+              {actionLoading ? 'Updating...' : actionLabel}
+            </Button>
+          )}
         </div>
       </CardHeader>
 
