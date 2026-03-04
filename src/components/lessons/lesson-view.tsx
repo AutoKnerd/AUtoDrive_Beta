@@ -199,6 +199,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
   const finalizingLesson = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const promptLessonRole = lesson.role === 'global' && user?.role ? user.role : lesson.role;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -362,7 +363,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
         const initialResponse = await conductLesson({
           lessonId: lesson.lessonId,
           lessonTitle: lesson.title,
-          lessonRole: lesson.role,
+          lessonRole: promptLessonRole,
           lessonCategory: lesson.category,
           lessonAssociatedTrait: lesson.associatedTrait,
           isRecommendedLesson: isRecommended,
@@ -385,7 +386,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
       }
     }
     startLesson();
-  }, [cxScores, lesson.lessonId, lesson.title, lesson.role, lesson.category, lesson.associatedTrait, lesson.customScenario, isRecommended, toast]); 
+  }, [cxScores, lesson.lessonId, lesson.title, lesson.role, lesson.category, lesson.associatedTrait, lesson.customScenario, isRecommended, toast, promptLessonRole]);
 
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -404,7 +405,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
       const response = await conductLesson({
           lessonId: lesson.lessonId,
           lessonTitle: lesson.title,
-          lessonRole: lesson.role,
+          lessonRole: promptLessonRole,
           lessonCategory: lesson.category,
           lessonAssociatedTrait: lesson.associatedTrait,
           isRecommendedLesson: isRecommended,
@@ -437,7 +438,7 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
       const response = await conductLesson({
           lessonId: lesson.lessonId,
           lessonTitle: lesson.title,
-          lessonRole: lesson.role,
+          lessonRole: promptLessonRole,
           lessonCategory: lesson.category,
           lessonAssociatedTrait: lesson.associatedTrait,
           isRecommendedLesson: isRecommended,
