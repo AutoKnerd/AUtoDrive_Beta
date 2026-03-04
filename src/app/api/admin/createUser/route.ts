@@ -283,6 +283,7 @@ export async function POST(req: Request) {
     const allowedBootstrapRoles = ['Owner', 'General Manager', 'manager'];
     const allowedPrivilegedRoles = [
       'Sales Consultant',
+      'BDC',
       'Service Writer',
       'manager',
       'Service Manager',

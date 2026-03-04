@@ -277,7 +277,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const teamContext = useMemo(() => {
     switch (user.role) {
-      case 'manager': return { memberLabel: 'Sales Consultants', description: 'Across your sales team' };
+      case 'manager': return { memberLabel: 'Sales Team Members', description: 'Across your sales team' };
       case 'Service Manager': return { memberLabel: 'Service Writers', description: 'Across your service team' };
       case 'Parts Manager': return { memberLabel: 'Parts Consultants', description: 'Across your parts team' };
       default: return { memberLabel: 'Team Members', description: 'Across your entire team' };

@@ -16,6 +16,7 @@ export type Address = {
 
 export type UserRole = 
   | 'Sales Consultant' 
+  | 'BDC'
   | 'manager' 
   | 'Service Writer' 
   | 'Service Manager' 
@@ -39,6 +40,7 @@ export const allRoles: UserRole[] = [
     'Parts Manager',
     'Finance Manager',
     'Sales Consultant',
+    'BDC',
     'Service Writer',
     'Parts Consultant',
 ];
@@ -160,6 +162,12 @@ export const lessonCategoriesByRole: Record<string, LessonCategory[]> = {
     'Sales - Negotiation',
     'Sales - Closing',
     'Sales - Delivery',
+    'Sales - Follow-up',
+    'Product Knowledge',
+  ],
+  BDC: [
+    'Sales - Meet and Greet',
+    'Sales - Needs Assessment',
     'Sales - Follow-up',
     'Product Knowledge',
   ],

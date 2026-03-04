@@ -46,21 +46,21 @@ const GLOBAL_MANAGER_ROLES = new Set<UserRole>(['Admin', 'Developer']);
 function getManageableRoles(managerRole: UserRole): UserRole[] {
   switch (managerRole) {
     case 'manager':
-      return ['Sales Consultant'];
+      return ['Sales Consultant', 'BDC'];
     case 'Service Manager':
       return ['Service Writer'];
     case 'Parts Manager':
       return ['Parts Consultant'];
     case 'General Manager':
-      return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager'];
+      return ['Sales Consultant', 'BDC', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager'];
     case 'Owner':
-      return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager'];
+      return ['Sales Consultant', 'BDC', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager'];
     case 'Trainer':
-      return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Developer'];
+      return ['Sales Consultant', 'BDC', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Developer'];
     case 'Admin':
-      return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Developer', 'Admin'];
+      return ['Sales Consultant', 'BDC', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Developer', 'Admin'];
     case 'Developer':
-      return ['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Admin'];
+      return ['Sales Consultant', 'BDC', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Admin'];
     default:
       return [];
   }

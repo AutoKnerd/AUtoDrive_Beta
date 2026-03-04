@@ -40,6 +40,7 @@ const defaultScores: ScoreMap = {
 
 const baselineRoleOptions: UserRole[] = [
   'Sales Consultant',
+  'BDC',
   'manager',
   'Service Writer',
   'Service Manager',
