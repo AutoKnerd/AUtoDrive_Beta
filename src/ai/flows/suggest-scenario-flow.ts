@@ -5,7 +5,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { UserRole as UserRoleType, CxTrait as CxTraitType, LessonCategory as LessonCategoryType } from '@/lib/definitions';
 
-const UserRoleSchema = z.enum(['Developer', 'Admin', 'Owner', 'Trainer', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Sales Consultant', 'Service Writer', 'Parts Consultant']);
+const UserRoleSchema = z.enum(['Developer', 'Admin', 'Owner', 'Trainer', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Sales Consultant', 'BDC', 'Service Writer', 'Parts Consultant']);
 const CxTraitSchema = z.enum(['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding']);
 const LessonCategorySchema = z.enum([
     'Sales - Meet and Greet',

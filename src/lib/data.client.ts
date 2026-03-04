@@ -1965,7 +1965,7 @@ export async function logLessonCompletion(data: {
 
 export const getTeamMemberRoles = (managerRole: UserRole): UserRole[] => {
     switch (managerRole) {
-        case 'manager': return ['Sales Consultant'];
+        case 'manager': return ['Sales Consultant', 'BDC'];
         case 'Service Manager': return ['Service Writer'];
         case 'Parts Manager': return ['Parts Consultant'];
         case 'Finance Manager': return ['Finance Manager'];

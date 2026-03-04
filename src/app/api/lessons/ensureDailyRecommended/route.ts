@@ -17,6 +17,7 @@ const VALID_TRAITS = new Set<CxTrait>([
 
 const VALID_ROLES = new Set<LessonRole>([
   'Sales Consultant',
+  'BDC',
   'manager',
   'Service Writer',
   'Service Manager',

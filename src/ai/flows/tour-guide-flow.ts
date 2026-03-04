@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { UserRole as UserRoleType } from '@/lib/definitions';
 import { ASSISTANT_NAME } from '@/lib/assistant';
 
-const UserRoleSchema = z.enum(['Sales Consultant', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Admin', 'Developer']);
+const UserRoleSchema = z.enum(['Sales Consultant', 'BDC', 'manager', 'Service Writer', 'Service Manager', 'Finance Manager', 'Parts Consultant', 'Parts Manager', 'General Manager', 'Owner', 'Trainer', 'Admin', 'Developer']);
 
 const TourGuideInputSchema = z.object({
   question: z.string().describe('The user\'s question about the AutoDrive application.'),
@@ -36,7 +36,7 @@ If the user's question is "__INIT_TOUR_GUIDE__" or if the conversation history i
 1. Greet the user and mention their role (e.g., "Welcome to your tour as a Sales Consultant!"). If their role is 'manager', refer to them as 'Sales Manager'.
 2. Introduce yourself as ${ASSISTANT_NAME}, their tour guide.
 3. Based on their role, provide 3 specific, bulleted example questions they can ask to get started. Do not just say "ask me anything".
-    - If the role is 'Sales Consultant' or 'Service Writer', suggest questions about personal development like "What are CX Scores?", "Tell me about my dashboard", or "What is a Score Card?".
+    - If the role is 'Sales Consultant', 'BDC', or 'Service Writer', suggest questions about personal development like "What are CX Scores?", "Tell me about my dashboard", or "What is a Score Card?".
     - If the role is 'manager', 'Owner', 'General Manager', 'Trainer', 'Admin', or 'Developer', suggest questions about team management like "How do I see my team's stats?", "How can I create a custom lesson?", or "What's the difference between the tour roles?".
 
 If the user's question is NOT "__INIT_TOUR_GUIDE__" and the conversation history is NOT empty, then answer the user's latest question based on the features and guardrails below.
