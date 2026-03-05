@@ -62,7 +62,15 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   ), [user.dealershipIds]);
 
 
-  const { level } = calculateLevel(user.xp);
+  const displayXp = useMemo(() => {
+    const profileXp = typeof user.xp === 'number' ? user.xp : 0;
+    const activityXp = activity.reduce((sum, log) => (
+      sum + (Number.isFinite(log.xpGained) ? log.xpGained : 0)
+    ), 0);
+    return Math.max(profileXp, activityXp);
+  }, [user.xp, activity]);
+
+  const { level } = calculateLevel(displayXp);
 
   const viewerIsAdmin = currentUser.role === 'Admin' || currentUser.role === 'Developer';
   const viewerIsTrainer = currentUser.role === 'Trainer';
@@ -334,7 +342,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                 </div>
                 <div className="text-right">
                     <p className="text-sm font-medium text-muted-foreground">Level {level}</p>
-                    <p className="font-bold text-lg">{user.xp.toLocaleString()} XP</p>
+                    <p className="font-bold text-lg">{displayXp.toLocaleString()} XP</p>
                 </div>
             </CardHeader>
         </Card>

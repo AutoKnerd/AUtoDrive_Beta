@@ -2072,6 +2072,8 @@ function buildStatsFromTraitScores(scores: Record<CxTrait, number>, timestamp: D
 function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivityRow {
     const consultantSnapshot = cloneTourUser(consultant);
     const traits: CxTrait[] = ['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding'];
+    const profileXp = typeof consultantSnapshot.xp === 'number' ? consultantSnapshot.xp : 0;
+    consultantSnapshot.xp = profileXp;
 
     if (!logs.length) {
         const traitScores = getTraitScoresFromUserStats(consultantSnapshot);
@@ -2093,7 +2095,7 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
             return {
                 consultant: consultantSnapshot,
                 lessonsCompleted: 0,
-                totalXp: consultant.xp,
+                totalXp: profileXp,
                 avgScore,
                 topStrength,
                 weakestSkill,
@@ -2104,7 +2106,7 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
         return {
             consultant: consultantSnapshot,
             lessonsCompleted: 0,
-            totalXp: consultant.xp,
+            totalXp: profileXp,
             avgScore: 0,
             topStrength: null,
             weakestSkill: null,
@@ -2144,6 +2146,9 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
         if (!latest || log.timestamp > latest) return log.timestamp;
         return latest;
     }, null);
+    const logsXp = logs.reduce((sum, log) => sum + (Number.isFinite(log.xpGained) ? log.xpGained : 0), 0);
+    const resolvedXp = Math.max(profileXp, logsXp);
+    consultantSnapshot.xp = resolvedXp;
 
     if (!hasUsableStats(consultantSnapshot)) {
         const statsTimestamp = lastInteraction || new Date();
@@ -2160,7 +2165,7 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
     return {
         consultant: consultantSnapshot,
         lessonsCompleted: count,
-        totalXp: consultant.xp,
+        totalXp: resolvedXp,
         avgScore: Math.round((Object.values(avgByTrait).reduce((sum, value) => sum + value, 0) / traits.length)),
         topStrength,
         weakestSkill,
