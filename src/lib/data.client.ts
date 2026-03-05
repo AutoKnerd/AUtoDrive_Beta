@@ -1581,9 +1581,12 @@ export async function logLessonCompletion(data: {
     const severity = normalizeSeverity(data.severity);
     const normalizedRatings = normalizeRatings(data.ratings, data.scores);
     const normalizedScores = toLegacyScores(normalizedRatings);
-    const xpDelta = sanitizeXpDelta(data.xpGained, severity);
     const flags = normalizeFlags(data.flags);
     const isBaselineAssessment = String(data.lessonId || '').startsWith('baseline-');
+    const sanitizedXpDelta = sanitizeXpDelta(data.xpGained, severity);
+    const xpDelta = (!isBaselineAssessment && severity === 'normal' && sanitizedXpDelta === 0)
+        ? 10
+        : sanitizedXpDelta;
 
     if (isTouringUser(data.userId)) {
         const tour = await getTourData();

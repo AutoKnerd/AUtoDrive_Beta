@@ -300,7 +300,10 @@ export function LessonView({ lesson, isRecommended }: LessonViewProps) {
         const effectiveSeverity: InteractionSeverity =
           moderation.violated ? 'behavior_violation' : (result.severity ?? 'normal');
         const effectiveRatings = moderation.adjustedRatings ?? result.ratings ?? fallbackRatings;
-        const effectiveXpAwarded = moderation.adjustedXpAwarded ?? result.xpAwarded;
+        const rawEffectiveXpAwarded = moderation.adjustedXpAwarded ?? result.xpAwarded;
+        const effectiveXpAwarded = effectiveSeverity === 'normal'
+          ? Math.max(10, Math.min(100, Math.round(rawEffectiveXpAwarded)))
+          : Math.max(-100, Math.min(0, Math.round(rawEffectiveXpAwarded)));
         displayedXp = effectiveXpAwarded;
 
         try {
