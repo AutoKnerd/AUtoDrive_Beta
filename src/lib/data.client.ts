@@ -2317,10 +2317,36 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
             const memberDealershipIds = Array.isArray(member.dealershipIds) ? member.dealershipIds : [];
             return memberDealershipIds.includes(dealershipId);
         });
-    
+
+    const logsByUserId = new Map<string, LessonLog[]>();
+    await Promise.all(filtered.map(async (member) => {
+        try {
+            const logsSnapshot = await getDocs(collection(db, `users/${member.userId}/lessonLogs`));
+            const memberLogs = logsSnapshot.docs
+                .map((logDoc) => {
+                    const data = logDoc.data() as Partial<LessonLog> & { timestamp?: unknown };
+                    return {
+                        ...data,
+                        logId: typeof data.logId === 'string' ? data.logId : logDoc.id,
+                        userId: member.userId,
+                        timestamp: toSafeDate(data.timestamp, new Date(0)),
+                    } as LessonLog;
+                })
+                .filter((log) => log.timestamp.getTime() > 0);
+
+            logsByUserId.set(member.userId, memberLogs);
+        } catch {
+            logsByUserId.set(member.userId, []);
+        }
+    }));
+
+    const teamActivity = filtered.map((member) => (
+        buildTeamActivityRow(member, logsByUserId.get(member.userId) || [])
+    ));
+
     return {
-        teamActivity: filtered.map((member) => buildTeamActivityRow(member, [])),
-        managerStats: { totalLessons: 0, avgScores: null }
+        teamActivity,
+        managerStats: buildManagerStatsFromRows(teamActivity, logsByUserId),
     };
 }
 
