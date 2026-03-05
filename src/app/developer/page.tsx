@@ -11,7 +11,7 @@ import { hasDealershipAssignment } from '@/lib/billing/access';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Header } from '@/components/layout/header';
-import { SlidersHorizontal } from 'lucide-react';
+import { Download, SlidersHorizontal } from 'lucide-react';
 import { getManageableUsers, getDealerships } from '@/lib/data.client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RegisterDealershipForm } from '@/components/admin/register-dealership-form';
@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
 
 type DashboardMode = 'role_based' | 'single_user';
 
@@ -91,6 +92,7 @@ function buildUserStatsFromLiveScores(scores: LiveCxScores): User['stats'] {
 
 export default function DeveloperPage() {
   const { user, loading, setUser, originalUser } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
   const originalUserIsAssigned = !!originalUser && hasDealershipAssignment(originalUser);
 
@@ -103,6 +105,9 @@ export default function DeveloperPage() {
     user ? buildLiveCxScoresFromUser(user) : buildDefaultLiveCxScores()
   ));
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
+  const [isExportingUsers, setIsExportingUsers] = useState(false);
 
   const refreshData = useCallback(async () => {
     if (originalUser) {
@@ -229,6 +234,20 @@ export default function DeveloperPage() {
       .slice(0, 100);
   }, [manageableUsers]);
 
+  const filteredNewestUsers = useMemo(() => {
+    const startTs = exportStartDate ? new Date(`${exportStartDate}T00:00:00`).getTime() : null;
+    const endTs = exportEndDate ? new Date(`${exportEndDate}T23:59:59.999`).getTime() : null;
+
+    return newestUsers.filter((candidate) => {
+      if (!candidate.memberSince) return !startTs && !endTs;
+      const joinedTs = new Date(candidate.memberSince).getTime();
+      if (Number.isNaN(joinedTs)) return !startTs && !endTs;
+      if (startTs !== null && joinedTs < startTs) return false;
+      if (endTs !== null && joinedTs > endTs) return false;
+      return true;
+    });
+  }, [newestUsers, exportStartDate, exportEndDate]);
+
   const getAffiliationLabel = useCallback((candidate: User) => {
     const ids = Array.isArray(candidate.dealershipIds) ? candidate.dealershipIds : [];
     const names = ids
@@ -241,6 +260,48 @@ export default function DeveloperPage() {
     }
     return 'No dealership assigned';
   }, [dealershipNameById]);
+
+  const handleExportNewUsers = useCallback(async () => {
+    try {
+      setIsExportingUsers(true);
+
+      const rows = filteredNewestUsers.map((candidate) => ({
+        Joined: candidate.memberSince ? new Date(candidate.memberSince).toLocaleDateString() : '',
+        Name: candidate.name || 'New User',
+        Email: candidate.email || '',
+        Role: candidate.role || '',
+        DealerAffiliation: getAffiliationLabel(candidate),
+      }));
+
+      if (rows.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'No users to export',
+          description: 'Adjust the date range to include at least one user.',
+        });
+        return;
+      }
+
+      const XLSX = await import('xlsx');
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'New Users');
+
+      const rangeSuffix = exportStartDate || exportEndDate
+        ? `_${exportStartDate || 'start'}_to_${exportEndDate || 'end'}`
+        : '';
+      XLSX.writeFile(workbook, `new-users-watchlist${rangeSuffix}.xlsx`);
+    } catch (error) {
+      console.error('Failed to export new users watchlist:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Export failed',
+        description: 'Could not generate the Excel file.',
+      });
+    } finally {
+      setIsExportingUsers(false);
+    }
+  }, [filteredNewestUsers, getAffiliationLabel, exportStartDate, exportEndDate, toast]);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -412,29 +473,65 @@ export default function DeveloperPage() {
                     <CardContent>
                         {dataLoading ? (
                           <Spinner />
-                        ) : newestUsers.length === 0 ? (
+                        ) : filteredNewestUsers.length === 0 && newestUsers.length === 0 ? (
                           <p className="text-sm text-muted-foreground">No users found.</p>
                         ) : (
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Joined</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Dealer Affiliation</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {newestUsers.map((candidate) => (
-                                <TableRow key={candidate.userId}>
-                                  <TableCell>{candidate.memberSince ? new Date(candidate.memberSince).toLocaleDateString() : '-'}</TableCell>
-                                  <TableCell className="font-medium">{candidate.name || 'New User'}</TableCell>
-                                  <TableCell>{candidate.email}</TableCell>
-                                  <TableCell>{getAffiliationLabel(candidate)}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                          <div className="space-y-4">
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div className="space-y-1">
+                                <Label htmlFor="new-users-start-date">Start Date</Label>
+                                <Input
+                                  id="new-users-start-date"
+                                  type="date"
+                                  value={exportStartDate}
+                                  onChange={(event) => setExportStartDate(event.target.value)}
+                                  className="w-[180px]"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor="new-users-end-date">End Date</Label>
+                                <Input
+                                  id="new-users-end-date"
+                                  type="date"
+                                  value={exportEndDate}
+                                  onChange={(event) => setExportEndDate(event.target.value)}
+                                  className="w-[180px]"
+                                />
+                              </div>
+                              <Button variant="outline" onClick={() => { setExportStartDate(''); setExportEndDate(''); }}>
+                                Clear Range
+                              </Button>
+                              <Button onClick={handleExportNewUsers} disabled={isExportingUsers || filteredNewestUsers.length === 0}>
+                                <Download className="mr-2 h-4 w-4" />
+                                {isExportingUsers ? 'Exporting...' : 'Export Excel'}
+                              </Button>
+                            </div>
+
+                            {filteredNewestUsers.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No users found in this date range.</p>
+                            ) : (
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Joined</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Dealer Affiliation</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {filteredNewestUsers.map((candidate) => (
+                                    <TableRow key={candidate.userId}>
+                                      <TableCell>{candidate.memberSince ? new Date(candidate.memberSince).toLocaleDateString() : '-'}</TableCell>
+                                      <TableCell className="font-medium">{candidate.name || 'New User'}</TableCell>
+                                      <TableCell>{candidate.email}</TableCell>
+                                      <TableCell>{getAffiliationLabel(candidate)}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            )}
+                          </div>
                         )}
                     </CardContent>
                  </Card>
