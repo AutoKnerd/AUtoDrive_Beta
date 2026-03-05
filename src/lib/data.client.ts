@@ -1997,6 +1997,18 @@ type ManagerStats = {
     avgScores: Record<CxTrait, number> | null;
 };
 
+type DealershipActivityRow = {
+    userId: string;
+    memberName: string;
+    memberRole: UserRole;
+    lessonId: string;
+    timestamp: Date;
+    xpGained: number;
+    isRecommended: boolean;
+    trainedTrait?: string;
+    severity?: InteractionSeverity;
+};
+
 function hasUsableStats(user: User): boolean {
     if (!user.stats) return false;
     const stats = user.stats as Record<string, any>;
@@ -2235,6 +2247,33 @@ function buildManagerStatsFromRows(rows: TeamActivityRow[], logsByUserId: Map<st
     };
 }
 
+function buildDealershipActivityRows(members: User[], logsByUserId: Map<string, LessonLog[]>): DealershipActivityRow[] {
+    const rows: DealershipActivityRow[] = [];
+
+    members.forEach((member) => {
+        const memberLogs = logsByUserId.get(member.userId) || [];
+        const memberName = (member.name || '').trim() || (member.email || '').split('@')[0] || 'Member';
+
+        memberLogs.forEach((log) => {
+            rows.push({
+                userId: member.userId,
+                memberName,
+                memberRole: member.role,
+                lessonId: String(log.lessonId || ''),
+                timestamp: log.timestamp,
+                xpGained: Number.isFinite(log.xpGained) ? log.xpGained : 0,
+                isRecommended: log.isRecommended === true,
+                trainedTrait: typeof log.trainedTrait === 'string' ? log.trainedTrait : undefined,
+                severity: log.severity,
+            });
+        });
+    });
+
+    return rows
+        .filter((row) => row.lessonId.length > 0 && row.timestamp instanceof Date && !Number.isNaN(row.timestamp.getTime()))
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+}
+
 export async function getDealerships(user?: User): Promise<Dealership[]> {
     const { firestore: db } = getFirebase();
     if (isTouringUser(user?.userId)) return (await getTourData()).dealerships;
@@ -2256,6 +2295,7 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
         return {
             teamActivity: [],
             managerStats: { totalLessons: 0, avgScores: null },
+            dealershipActivity: [],
         };
     }
 
@@ -2266,6 +2306,7 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
             return {
                 teamActivity: [],
                 managerStats: { totalLessons: 0, avgScores: null },
+                dealershipActivity: [],
             };
         }
         const members = tour.users.filter((member) => (
@@ -2297,10 +2338,12 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
         const teamActivity = filtered.map((member) => (
             buildTeamActivityRow(member, logsByUserId.get(member.userId) || [])
         ));
+        const dealershipActivity = buildDealershipActivityRows(filtered, logsByUserId);
 
         return {
             teamActivity,
             managerStats: buildManagerStatsFromRows(teamActivity, logsByUserId),
+            dealershipActivity,
         };
     }
 
@@ -2309,6 +2352,7 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
         return {
             teamActivity: [],
             managerStats: { totalLessons: 0, avgScores: null },
+            dealershipActivity: [],
         };
     }
 
@@ -2351,10 +2395,12 @@ export async function getCombinedTeamData(dealershipId: string, user: User): Pro
     const teamActivity = filtered.map((member) => (
         buildTeamActivityRow(member, logsByUserId.get(member.userId) || [])
     ));
+    const dealershipActivity = buildDealershipActivityRows(filtered, logsByUserId);
 
     return {
         teamActivity,
         managerStats: buildManagerStatsFromRows(teamActivity, logsByUserId),
+        dealershipActivity,
     };
 }
 

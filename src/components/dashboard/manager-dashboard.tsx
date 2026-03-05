@@ -59,6 +59,17 @@ type TeamMemberStats = {
   pendingInvite?: PendingInvitation;
 };
 type TeamSortField = 'name' | 'role' | 'lastInteraction' | 'topStrength' | 'weakestSkill';
+type DealershipActivityEntry = {
+  userId: string;
+  memberName: string;
+  memberRole: UserRole;
+  lessonId: string;
+  timestamp: Date;
+  xpGained: number;
+  isRecommended: boolean;
+  trainedTrait?: string;
+  severity?: 'normal' | 'behavior_violation';
+};
 
 type DealershipInsight = {
     trait: string;
@@ -245,6 +256,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const { originalUser, isTouring } = useAuth();
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
+  const [dealershipActivity, setDealershipActivity] = useState<DealershipActivityEntry[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [managerActivity, setManagerActivity] = useState<LessonLog[]>([]);
   const [managerBadges, setManagerBadges] = useState<Badge[]>([]);
@@ -341,6 +353,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           });
           
           setStats(combinedData.managerStats);
+          setDealershipActivity((combinedData.dealershipActivity || []) as DealershipActivityEntry[]);
           const teamActivityByUserId = new Map<string, TeamMemberStats>(
             hydratedTeamRows.map((row: TeamMemberStats) => [row.consultant.userId, row])
           );
@@ -926,6 +939,54 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     )}
                 </CardContent>
             </Card>
+
+            {isSuperAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dealership Activity</CardTitle>
+                  <CardDescription>
+                    Recent lesson completions and XP gains for {selectedDealershipId === 'all' ? 'the current scope' : 'this dealership'}.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <Skeleton className="h-40 w-full" />
+                  ) : dealershipActivity.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No lesson activity found for this selection.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>When</TableHead>
+                          <TableHead>Member</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Lesson</TableHead>
+                          <TableHead className="text-right">XP</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dealershipActivity.slice(0, 100).map((entry) => (
+                          <TableRow key={`${entry.userId}-${entry.lessonId}-${new Date(entry.timestamp).getTime()}`}>
+                            <TableCell>{new Date(entry.timestamp).toLocaleString()}</TableCell>
+                            <TableCell>{formatUserDisplayName(entry.memberName)}</TableCell>
+                            <TableCell>{entry.memberRole === 'manager' ? 'Sales Manager' : entry.memberRole}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{entry.lessonId}</span>
+                                {entry.isRecommended && <UiBadge variant="secondary">Recommended</UiBadge>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {entry.xpGained >= 0 ? `+${entry.xpGained}` : entry.xpGained}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </>
       ) : (
           <div className="space-y-8">
