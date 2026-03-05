@@ -16,6 +16,7 @@ import {
   ensureDailyRecommendedLesson,
   getPppAccessForUser,
   getSaasPppAccessForUser,
+  updateUser,
 } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
@@ -44,9 +45,12 @@ import { useToast } from '@/hooks/use-toast';
 import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
+import { SprocketFirstLoginTour } from './sprocket-first-login-tour';
 
 interface ConsultantDashboardProps {
   user: User;
+  sprocketTourPreviewNonce?: number;
+  isSprocketTourSandboxPreview?: boolean;
 }
 
 const SteeringWheelIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -63,6 +67,7 @@ const dashboardFeatureCardClass =
   'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
 const dashboardDisabledButtonClass =
   'w-full border-border bg-muted/70 text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50';
+const SPROCKET_TOUR_COMPLETE_KEY = 'sprocketTourComplete';
 
 function normalizeScore(value: unknown): number | null {
   const numeric = typeof value === 'number' ? value : Number(value);
@@ -273,7 +278,7 @@ const RecentActivityItem = ({ icon, text, note }: { icon: LucideIcon, text: stri
     );
 };
 
-export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
+export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSprocketTourSandboxPreview = false }: ConsultantDashboardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [activity, setActivity] = useState<LessonLog[]>([]);
   const [assignedLessons, setAssignedLessons] = useState<Lesson[]>([]);
@@ -287,6 +292,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const { isTouring, setUser } = useAuth();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
+  const [showSprocketTour, setShowSprocketTour] = useState(false);
+  const [sprocketTourStep, setSprocketTourStep] = useState(0);
   const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
   const [creatingUniqueTestingLesson, setCreatingUniqueTestingLesson] = useState(false);
@@ -310,6 +317,41 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const hasDealershipContext = scopedDealershipIds.length > 0;
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
+  const sprocketTourCompleteKeyForUser = `${SPROCKET_TOUR_COMPLETE_KEY}_${user.userId}`;
+  const sprocketTourStepKeyForUser = `sprocketTourStep_${user.userId}`;
+
+  const hasCompletedSprocketTour = () => {
+    if (typeof window === 'undefined') return !!user.hasSeenSprocketTour;
+    return (
+      user.hasSeenSprocketTour === true
+      || localStorage.getItem(sprocketTourCompleteKeyForUser) === 'true'
+      || localStorage.getItem(SPROCKET_TOUR_COMPLETE_KEY) === 'true'
+    );
+  };
+
+  const setSprocketTourStepPersisted = (step: number) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(sprocketTourStepKeyForUser, String(step));
+  };
+
+  const markSprocketTourComplete = async () => {
+    if (isSprocketTourSandboxPreview) return;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(sprocketTourCompleteKeyForUser, 'true');
+      localStorage.setItem(SPROCKET_TOUR_COMPLETE_KEY, 'true');
+      localStorage.removeItem(sprocketTourStepKeyForUser);
+    }
+
+    if (user.hasSeenSprocketTour) return;
+    try {
+      const updated = await updateUser(user.userId, { hasSeenSprocketTour: true });
+      setUser(updated);
+    } catch (error) {
+      console.error('[ConsultantDashboard] Failed to persist Sprocket tour completion', error);
+      setUser({ ...user, hasSeenSprocketTour: true });
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -416,6 +458,26 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       }
     }
   }, [isTouring, user.role]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (hasCompletedSprocketTour()) return;
+
+    const savedStepRaw = localStorage.getItem(sprocketTourStepKeyForUser);
+    if (!savedStepRaw) return;
+
+    const savedStep = Number(savedStepRaw);
+    if (!Number.isFinite(savedStep) || savedStep < 0) return;
+
+    setSprocketTourStep(Math.floor(savedStep));
+    setShowSprocketTour(true);
+  }, [sprocketTourStepKeyForUser]);
+
+  useEffect(() => {
+    if (!sprocketTourPreviewNonce) return;
+    setSprocketTourStep(0);
+    setShowSprocketTour(true);
+  }, [sprocketTourPreviewNonce]);
 
   useEffect(() => {
     if (!viewModeInitialized) {
@@ -607,6 +669,28 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         .map(act => ({ icon: activityIcons[act.type], text: act.text, note: act.note }));
   }, [activity, lessons, assignedLessons, user]);
 
+  const handleSkipSprocketTour = async () => {
+    setShowSprocketTour(false);
+    await markSprocketTourComplete();
+  };
+
+  const handleFinishSprocketTour = async () => {
+    setShowSprocketTour(false);
+    await markSprocketTourComplete();
+  };
+
+  const handleStartLessonFromSprocketTour = async () => {
+    setShowSprocketTour(false);
+    await markSprocketTourComplete();
+
+    if (availableRecommendedLesson && !lessonLimits.recommendedTaken) {
+      router.push(`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`);
+      return;
+    }
+
+    document.getElementById('lessons')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="space-y-8 pb-24 text-foreground">
         <BaselineAssessmentDialog
@@ -617,7 +701,25 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             setShowBaselineAssessment(false);
             setNeedsBaselineAssessment(false);
             setRefreshKey(prev => prev + 1);
+
+            if (!hasCompletedSprocketTour()) {
+              setSprocketTourStep(0);
+              setSprocketTourStepPersisted(0);
+              setShowSprocketTour(true);
+            }
           }}
+        />
+        <SprocketFirstLoginTour
+          open={showSprocketTour}
+          stepIndex={sprocketTourStep}
+          onStepChange={(nextStep) => {
+            const safeStep = Math.max(0, Math.min(nextStep, 5));
+            setSprocketTourStep(safeStep);
+            setSprocketTourStepPersisted(safeStep);
+          }}
+          onSkip={handleSkipSprocketTour}
+          onFinish={handleFinishSprocketTour}
+          onStartLesson={handleStartLessonFromSprocketTour}
         />
         <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
             <DialogContent>
@@ -648,7 +750,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             </Alert>
         )}
 
-        <section className="space-y-3">
+        <section className="space-y-3" data-sprocket-tour="level-xp">
              {loading ? <Skeleton className="h-24 w-full" /> : (
                 <div>
                     <LevelDisplay user={user} />
@@ -693,7 +795,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             </div>
         </div>
 
-        <section>
+        <section data-sprocket-tour="cx-scores">
           <CxSoundwaveCard 
             scope={hasDealershipContext ? dealershipScope : personalScope}
             personalScope={hasDealershipContext ? personalScope : undefined}
@@ -714,7 +816,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
                 {loading ? (
                     <Skeleton className="h-full min-h-[160px] rounded-2xl" />
                 ) : (
-                    <Card className={cn(
+                    <Card data-sprocket-tour="recommended-lesson" className={cn(
                         `flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`,
                         isPaused && "opacity-50 pointer-events-none"
                     )}>
@@ -854,7 +956,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
           </section>
         )}
 
-        <section>
+        <section data-sprocket-tour="badges">
              {loading ? (
                 <Skeleton className="h-40 w-full rounded-2xl" />
              ) : (

@@ -94,6 +94,7 @@ export type User = {
   subscriptionStatus?: BillingSubscriptionStatus;
   trialStartedAt?: string | null;
   trialEndsAt?: string | null;
+  hasSeenSprocketTour?: boolean;
   stats?: Partial<UserStats>;
   ppp_enabled?: boolean;
   ppp_level?: number;

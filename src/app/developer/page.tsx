@@ -171,6 +171,7 @@ export default function DeveloperPage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const [dashboardMode, setDashboardMode] = useState<DashboardMode>('role_based');
+  const [sprocketTourPreviewNonce, setSprocketTourPreviewNonce] = useState(0);
   const [singleUserScores, setSingleUserScores] = useState<LiveCxScores>(() => (
     user ? buildLiveCxScoresFromUser(user) : buildDefaultLiveCxScores()
   ));
@@ -496,6 +497,21 @@ export default function DeveloperPage() {
             </span>
           )}
         </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setSprocketTourPreviewNonce((prev) => prev + 1)}
+            disabled={isViewingAsManager}
+          >
+            Launch Sprocket Tour Preview
+          </Button>
+          {isViewingAsManager ? (
+            <span className="text-xs text-muted-foreground">Switch to a consultant role (or Single User mode) to preview this tour.</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">Sandbox only. Opens the Sprocket First Login Tour without baseline submission.</span>
+          )}
+        </div>
         {canSeeDeveloperCxTuner && !showDeveloperCxTuner && (
           <Card className="mt-6 border-primary/30">
             <CardHeader className="pb-3">
@@ -555,7 +571,15 @@ export default function DeveloperPage() {
           </Card>
         )}
         <div className="mt-6 border-t pt-8">
-          {isViewingAsManager ? <ManagerDashboard user={dashboardUser} /> : <ConsultantDashboard user={dashboardUser} />}
+          {isViewingAsManager ? (
+            <ManagerDashboard user={dashboardUser} />
+          ) : (
+            <ConsultantDashboard
+              user={dashboardUser}
+              sprocketTourPreviewNonce={sprocketTourPreviewNonce}
+              isSprocketTourSandboxPreview
+            />
+          )}
         </div>
       </CardContent>
     </Card>
