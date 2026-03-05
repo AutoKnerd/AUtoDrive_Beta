@@ -25,6 +25,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type DashboardMode = 'role_based' | 'single_user';
 
@@ -101,6 +102,7 @@ export default function DeveloperPage() {
   const [singleUserScores, setSingleUserScores] = useState<LiveCxScores>(() => (
     user ? buildLiveCxScoresFromUser(user) : buildDefaultLiveCxScores()
   ));
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
 
   const refreshData = useCallback(async () => {
     if (originalUser) {
@@ -111,6 +113,7 @@ export default function DeveloperPage() {
       ]);
       setManageableUsers(users);
       setAllDealerships(dealerships);
+      setLastRefreshedAt(new Date());
       setDataLoading(false);
     }
   }, [originalUser]);
@@ -118,6 +121,14 @@ export default function DeveloperPage() {
   useEffect(() => {
     if (!loading && originalUser) refreshData();
   }, [loading, originalUser, refreshData]);
+
+  useEffect(() => {
+    if (!originalUser) return;
+    const timer = setInterval(() => {
+      refreshData().catch(() => undefined);
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [originalUser, refreshData]);
 
   useEffect(() => {
     if (!loading && (!user || (originalUser?.role !== 'Developer' && originalUser?.role !== 'Admin'))) {
@@ -201,6 +212,35 @@ export default function DeveloperPage() {
     { value: 'create_dealership', label: 'Create Dealership' },
     { value: 'manage_dealerships', label: 'Manage Dealerships' },
   ];
+
+  const dealershipNameById = useMemo(() => (
+    new Map(allDealerships.map((dealership) => [dealership.id, dealership.name]))
+  ), [allDealerships]);
+
+  const newestUsers = useMemo(() => {
+    const safeDate = (value?: string) => {
+      if (!value) return 0;
+      const parsed = new Date(value).getTime();
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    return [...manageableUsers]
+      .sort((a, b) => safeDate(b.memberSince) - safeDate(a.memberSince))
+      .slice(0, 100);
+  }, [manageableUsers]);
+
+  const getAffiliationLabel = useCallback((candidate: User) => {
+    const ids = Array.isArray(candidate.dealershipIds) ? candidate.dealershipIds : [];
+    const names = ids
+      .map((id) => dealershipNameById.get(id))
+      .filter((name): name is string => typeof name === 'string' && name.length > 0);
+
+    if (names.length > 0) return names.join(', ');
+    if (candidate.selfDeclaredDealershipId) {
+      return dealershipNameById.get(candidate.selfDeclaredDealershipId) || candidate.selfDeclaredDealershipId;
+    }
+    return 'No dealership assigned';
+  }, [dealershipNameById]);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -358,6 +398,43 @@ export default function DeveloperPage() {
                                     {activeTool === 'manage_dealerships' && <ManageDealershipForm dealerships={allDealerships} onDealershipManaged={refreshData} />}
                                 </div>
                             </div>
+                        )}
+                    </CardContent>
+                 </Card>
+                 <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>New Users Watchlist</CardTitle>
+                        <CardDescription>
+                          Live list of newest users for welcome email follow-up.
+                          {lastRefreshedAt ? ` Last refreshed ${lastRefreshedAt.toLocaleTimeString()}.` : ''}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {dataLoading ? (
+                          <Spinner />
+                        ) : newestUsers.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No users found.</p>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Joined</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Dealer Affiliation</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {newestUsers.map((candidate) => (
+                                <TableRow key={candidate.userId}>
+                                  <TableCell>{candidate.memberSince ? new Date(candidate.memberSince).toLocaleDateString() : '-'}</TableCell>
+                                  <TableCell className="font-medium">{candidate.name || 'New User'}</TableCell>
+                                  <TableCell>{candidate.email}</TableCell>
+                                  <TableCell>{getAffiliationLabel(candidate)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
                         )}
                     </CardContent>
                  </Card>
