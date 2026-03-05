@@ -874,6 +874,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                         <p className="text-sm text-muted-foreground">
                                                           {!!member.pendingInvite ? 'Pending invitation' : `Level ${calculateLevel(member.consultant.xp).level}`}
                                                         </p>
+                                                        {!member.pendingInvite && (
+                                                          <p className="text-xs text-muted-foreground">
+                                                            {member.totalXp.toLocaleString()} XP
+                                                          </p>
+                                                        )}
                                                       </div>
                                                     </>
                                                   );
