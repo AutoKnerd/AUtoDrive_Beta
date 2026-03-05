@@ -95,6 +95,7 @@ export type User = {
   trialStartedAt?: string | null;
   trialEndsAt?: string | null;
   hasSeenSprocketTour?: boolean;
+  forceSprocketTourOnNextLogin?: boolean;
   stats?: Partial<UserStats>;
   ppp_enabled?: boolean;
   ppp_level?: number;

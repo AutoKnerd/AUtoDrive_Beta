@@ -321,6 +321,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const sprocketTourStepKeyForUser = `sprocketTourStep_${user.userId}`;
 
   const hasCompletedSprocketTour = () => {
+    if (user.forceSprocketTourOnNextLogin === true) return false;
     if (typeof window === 'undefined') return !!user.hasSeenSprocketTour;
     return (
       user.hasSeenSprocketTour === true
@@ -343,13 +344,16 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
       localStorage.removeItem(sprocketTourStepKeyForUser);
     }
 
-    if (user.hasSeenSprocketTour) return;
+    if (user.hasSeenSprocketTour && user.forceSprocketTourOnNextLogin !== true) return;
     try {
-      const updated = await updateUser(user.userId, { hasSeenSprocketTour: true });
+      const updated = await updateUser(user.userId, {
+        hasSeenSprocketTour: true,
+        forceSprocketTourOnNextLogin: false,
+      });
       setUser(updated);
     } catch (error) {
       console.error('[ConsultantDashboard] Failed to persist Sprocket tour completion', error);
-      setUser({ ...user, hasSeenSprocketTour: true });
+      setUser({ ...user, hasSeenSprocketTour: true, forceSprocketTourOnNextLogin: false });
     }
   };
 
@@ -458,6 +462,15 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
       }
     }
   }, [isTouring, user.role]);
+
+  useEffect(() => {
+    if (!user.forceSprocketTourOnNextLogin) return;
+    setSprocketTourStep(0);
+    setShowSprocketTour(true);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(sprocketTourStepKeyForUser);
+    }
+  }, [user.forceSprocketTourOnNextLogin, sprocketTourStepKeyForUser]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
