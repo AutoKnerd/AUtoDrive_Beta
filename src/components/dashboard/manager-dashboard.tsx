@@ -56,6 +56,8 @@ type TeamMemberStats = {
   topStrength: CxTrait | null;
   weakestSkill: CxTrait | null;
   lastInteraction: Date | null;
+  lastRecommendedInteraction: Date | null;
+  tookRecommendedToday: boolean;
   pendingInvite?: PendingInvitation;
 };
 type TeamSortField = 'name' | 'role' | 'lastInteraction' | 'topStrength' | 'weakestSkill';
@@ -367,13 +369,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             if (!teamActivityByUserId.has(u.userId)) {
               teamActivityByUserId.set(u.userId, {
                 consultant: u, lessonsCompleted: 0, totalXp: u.xp, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null,
+                lastRecommendedInteraction: null, tookRecommendedToday: false,
               });
             }
           });
 
           const pendingRows: TeamMemberStats[] = pendingInvitations.map((invite) => ({
             consultant: { userId: `invite-${invite.token}`, name: invite.email.split('@')[0] || invite.email, email: invite.email, role: invite.role, dealershipIds: [invite.dealershipId], avatarUrl: '', xp: 0 },
-            lessonsCompleted: 0, totalXp: 0, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null, pendingInvite: invite,
+            lessonsCompleted: 0, totalXp: 0, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null, lastRecommendedInteraction: null, tookRecommendedToday: false, pendingInvite: invite,
           }));
 
           setTeamActivity([...Array.from(teamActivityByUserId.values()), ...pendingRows]);
@@ -499,6 +502,44 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const formatTrait = useCallback((trait: CxTrait | null) => {
     if (!trait) return '-';
     return trait.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  }, []);
+
+  const getRecommendedStatus = useCallback((member: TeamMemberStats) => {
+    if (member.tookRecommendedToday) {
+      return {
+        label: 'Today',
+        colorClass: 'bg-emerald-500',
+        detail: 'Recommended lesson completed today.',
+      };
+    }
+
+    if (!member.lastRecommendedInteraction) {
+      return {
+        label: 'Overdue',
+        colorClass: 'bg-red-500',
+        detail: 'No recommended lesson completed yet.',
+      };
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const lastStart = new Date(member.lastRecommendedInteraction);
+    lastStart.setHours(0, 0, 0, 0);
+    const daysSince = Math.max(0, Math.floor((todayStart.getTime() - lastStart.getTime()) / (24 * 60 * 60 * 1000)));
+
+    if (daysSince > 3) {
+      return {
+        label: 'Overdue',
+        colorClass: 'bg-red-500',
+        detail: `${daysSince} days since last recommended lesson.`,
+      };
+    }
+
+    return {
+      label: 'Due Soon',
+      colorClass: 'bg-amber-400',
+      detail: `${daysSince} day${daysSince === 1 ? '' : 's'} since last recommended lesson.`,
+    };
   }, []);
 
   const isMetricsHiddenForViewer = useCallback((member: User) => {
@@ -848,7 +889,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 <CardContent>
                     {loading ? <Skeleton className="h-40 w-full" /> : (
                         <Table>
-                            <TableHeader><TableRow><TableHead>Member</TableHead><TableHead>Role</TableHead><TableHead className="text-center">Last Active</TableHead><TableHead className="text-center">Top Skill</TableHead><TableHead className="text-center">Watch Area</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Member</TableHead><TableHead>Role</TableHead><TableHead className="text-center">Recommended</TableHead><TableHead className="text-center">Last Active</TableHead><TableHead className="text-center">Top Skill</TableHead><TableHead className="text-center">Watch Area</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {sortedTeamActivity.length > 0 ? sortedTeamActivity.map(member => (
                                     <Dialog key={member.consultant.userId}>
@@ -911,6 +952,21 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                 ? '-'
                                                 : isMetricsHiddenForViewer(member.consultant)
                                                   ? 'Private'
+                                                  : (() => {
+                                                    const status = getRecommendedStatus(member);
+                                                    return (
+                                                      <div className="inline-flex items-center gap-2" title={status.detail}>
+                                                        <span className={cn('h-2.5 w-2.5 rounded-full', status.colorClass)} />
+                                                        <span>{status.label}</span>
+                                                      </div>
+                                                    );
+                                                  })()}
+                                            </TableCell>
+                                            <TableCell className="text-center font-medium">
+                                              {!!member.pendingInvite
+                                                ? '-'
+                                                : isMetricsHiddenForViewer(member.consultant)
+                                                  ? 'Private'
                                                   : member.lastInteraction
                                                     ? new Date(member.lastInteraction).toLocaleDateString()
                                                     : 'New'}
@@ -933,7 +989,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                         </DialogTrigger>
                                         <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Performance Snapshot</DialogTitle></DialogHeader><ScrollArea className="max-h-[70vh]"><div className="pr-6"><TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={async () => { await fetchData(selectedDealershipId || user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null); }} /></div></ScrollArea></DialogContent>
                                     </Dialog>
-                                )) : <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No team activity found.</TableCell></TableRow>}
+                                )) : <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No team activity found.</TableCell></TableRow>}
                             </TableBody>
                         </Table>
                     )}

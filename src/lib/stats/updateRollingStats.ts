@@ -115,21 +115,14 @@ export async function updateRollingStats(userId: string, ratings: Ratings): Prom
     const rawStats = (userData.stats ?? {}) as Partial<
       Record<RatingKey, { score?: unknown; lastUpdated?: unknown }>
     >;
-    const dealershipIds = Array.isArray((userData as { dealershipIds?: unknown[] }).dealershipIds)
-      ? ((userData as { dealershipIds?: unknown[] }).dealershipIds as unknown[])
-          .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
-      : [];
-    const primaryDealershipId = dealershipIds[0];
     let deltaGain = DEFAULT_CX_DELTA_GAIN;
-    if (primaryDealershipId) {
-      try {
-        const dealershipRef = doc(db, 'dealerships', primaryDealershipId);
-        const dealershipSnap = await transaction.get(dealershipRef);
-        const aggressiveness = normalizeCxAggressiveness(dealershipSnap.data()?.cxAggressiveness);
-        deltaGain = aggressiveness / 100;
-      } catch {
-        // Fallback to default aggressiveness when dealership settings are unavailable.
-      }
+    try {
+      const cxConfigRef = doc(db, 'systemSettings', 'cx');
+      const cxConfigSnap = await transaction.get(cxConfigRef);
+      const aggressiveness = normalizeCxAggressiveness(cxConfigSnap.data()?.aggressiveness);
+      deltaGain = aggressiveness / 100;
+    } catch {
+      // Fallback to default aggressiveness when system settings are unavailable.
     }
 
     const nextStats = {} as UserStats;

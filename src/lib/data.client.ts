@@ -16,7 +16,6 @@ import {
     DEFAULT_CX_AGGRESSIVENESS,
     DEFAULT_CX_DELTA_GAIN,
     MAX_CX_DELTA_PER_LESSON,
-    normalizeCxAggressiveness,
     clampRatings,
     updateRollingStats,
 } from '@/lib/stats/updateRollingStats';
@@ -879,7 +878,6 @@ export async function createDealership(dealershipData: {
             address: dealershipData.address as Address,
             enableRetakeRecommendedTesting: false,
             enableNewRecommendedTesting: false,
-            cxAggressiveness: DEFAULT_CX_AGGRESSIVENESS,
             enablePppProtocol: false,
             enableSaasPppTraining: false,
             billingTier: 'sales_fi',
@@ -2005,6 +2003,8 @@ type TeamActivityRow = {
     topStrength: CxTrait | null;
     weakestSkill: CxTrait | null;
     lastInteraction: Date | null;
+    lastRecommendedInteraction: Date | null;
+    tookRecommendedToday: boolean;
 };
 
 type ManagerStats = {
@@ -2130,6 +2130,8 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
                 topStrength,
                 weakestSkill,
                 lastInteraction: null,
+                lastRecommendedInteraction: null,
+                tookRecommendedToday: false,
             };
         }
 
@@ -2141,6 +2143,8 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
             topStrength: null,
             weakestSkill: null,
             lastInteraction: null,
+            lastRecommendedInteraction: null,
+            tookRecommendedToday: false,
         };
     }
 
@@ -2176,6 +2180,12 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
         if (!latest || log.timestamp > latest) return log.timestamp;
         return latest;
     }, null);
+    const recommendedLogs = logs.filter((log) => log.isRecommended === true);
+    const lastRecommendedInteraction = recommendedLogs.reduce<Date | null>((latest, log) => {
+        if (!latest || log.timestamp > latest) return log.timestamp;
+        return latest;
+    }, null);
+    const tookRecommendedToday = recommendedLogs.some((log) => isToday(log.timestamp));
     const logsXp = logs.reduce((sum, log) => sum + (Number.isFinite(log.xpGained) ? log.xpGained : 0), 0);
     const resolvedXp = Math.max(profileXp, logsXp);
     consultantSnapshot.xp = resolvedXp;
@@ -2200,6 +2210,8 @@ function buildTeamActivityRow(consultant: User, logs: LessonLog[]): TeamActivity
         topStrength,
         weakestSkill,
         lastInteraction,
+        lastRecommendedInteraction,
+        tookRecommendedToday,
     };
 }
 
@@ -2550,40 +2562,6 @@ export async function updateDealershipNewRecommendedTestingAccess(
     return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
 }
 
-export async function updateDealershipCxAggressiveness(
-    dealershipId: string,
-    aggressiveness: number
-): Promise<Dealership> {
-    const { firestore: db } = getFirebase();
-    const normalizedAggressiveness = normalizeCxAggressiveness(aggressiveness);
-    if (dealershipId.startsWith('tour-')) {
-        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
-        if (dealership) {
-            dealership.cxAggressiveness = normalizedAggressiveness;
-            return dealership;
-        }
-        throw new Error('Tour dealership not found');
-    }
-
-    const dealershipsCollection = collection(db, 'dealerships');
-    const dealershipRef = doc(dealershipsCollection, dealershipId);
-
-    try {
-        await updateDoc(dealershipRef, { cxAggressiveness: normalizedAggressiveness });
-    } catch (e: any) {
-        const contextualError = new FirestorePermissionError({
-            path: dealershipRef.path,
-            operation: 'update',
-            requestResourceData: { cxAggressiveness: normalizedAggressiveness },
-        });
-        errorEmitter.emit('permission-error', contextualError);
-        throw contextualError;
-    }
-
-    const updatedDealership = await getDoc(dealershipRef);
-    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
-}
-
 export async function updateDealershipPppAccess(
     dealershipId: string,
     enabled: boolean
@@ -2723,6 +2701,10 @@ type PppSystemConfig = {
   updatedUsers?: number;
 };
 
+type CxSystemConfig = {
+  aggressiveness: number;
+};
+
 export async function getPppSystemConfig(): Promise<PppSystemConfig> {
     const { auth } = getFirebase();
     const currentUser = auth.currentUser;
@@ -2772,6 +2754,56 @@ export async function updatePppSystemConfig(enabled: boolean): Promise<PppSystem
     return {
         enabled: payload?.enabled === true,
         updatedUsers: typeof payload?.updatedUsers === 'number' ? payload.updatedUsers : undefined,
+    };
+}
+
+export async function getCxSystemConfig(): Promise<CxSystemConfig> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error('Authentication required.');
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/admin/cxConfig', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${idToken}` },
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to load CX settings.');
+    }
+
+    return {
+        aggressiveness: typeof payload?.aggressiveness === 'number' ? payload.aggressiveness : DEFAULT_CX_AGGRESSIVENESS,
+    };
+}
+
+export async function updateCxSystemConfig(aggressiveness: number): Promise<CxSystemConfig> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error('Authentication required.');
+    }
+
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/admin/cxConfig', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ aggressiveness }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to update CX settings.');
+    }
+
+    return {
+        aggressiveness: typeof payload?.aggressiveness === 'number' ? payload.aggressiveness : DEFAULT_CX_AGGRESSIVENESS,
     };
 }
 

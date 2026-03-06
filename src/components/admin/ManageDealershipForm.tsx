@@ -1,13 +1,14 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dealership, type DealershipBillingTier } from '@/lib/definitions';
 import {
   updateDealershipStatus,
   updateDealershipRetakeTestingAccess,
   updateDealershipNewRecommendedTestingAccess,
-  updateDealershipCxAggressiveness,
+  getCxSystemConfig,
+  updateCxSystemConfig,
   updateDealershipPppAccess,
   updateDealershipSaasPppAccess,
   updateDealershipBillingConfig,
@@ -49,6 +50,8 @@ interface ManageDealershipFormProps {
 
 export function ManageDealershipForm({ dealerships, onDealershipManaged }: ManageDealershipFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [cxConfigLoading, setCxConfigLoading] = useState(true);
+  const [cxConfigSaving, setCxConfigSaving] = useState(false);
   const [selectedDealership, setSelectedDealership] = useState<Dealership | null>(null);
   const [isConfirming, setIsConfirming] = useState<'pause' | 'deactivate' | 'clear_assignments' | null>(null);
   const [confirmationInput, setConfirmationInput] = useState('');
@@ -56,6 +59,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [newRecommendedTestingEnabled, setNewRecommendedTestingEnabled] = useState(false);
   const [pppProtocolEnabled, setPppProtocolEnabled] = useState(false);
   const [saasPppTrainingEnabled, setSaasPppTrainingEnabled] = useState(false);
+  const [persistedCxAggressiveness, setPersistedCxAggressiveness] = useState(DEFAULT_CX_AGGRESSIVENESS);
   const [cxAggressiveness, setCxAggressiveness] = useState(DEFAULT_CX_AGGRESSIVENESS);
   const [billingTier, setBillingTier] = useState<DealershipBillingTier>('sales_fi');
   const [billingUserCount, setBillingUserCount] = useState('0');
@@ -63,6 +67,33 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [billingStoreCount, setBillingStoreCount] = useState('1');
   const [groupDealershipIds, setGroupDealershipIds] = useState<string[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    let active = true;
+    async function loadCxConfig() {
+      setCxConfigLoading(true);
+      try {
+        const config = await getCxSystemConfig();
+        if (!active) return;
+        setPersistedCxAggressiveness(config.aggressiveness);
+        setCxAggressiveness(config.aggressiveness);
+      } catch (e) {
+        if (!active) return;
+        toast({
+          variant: 'destructive',
+          title: 'CX settings unavailable',
+          description: (e as Error).message || 'Could not load global CX settings.',
+        });
+      } finally {
+        if (active) setCxConfigLoading(false);
+      }
+    }
+
+    loadCxConfig();
+    return () => {
+      active = false;
+    };
+  }, [toast]);
   
   const toSafeCount = (value: string, fallback = 0): number => {
     const parsed = Number.parseInt(value, 10);
@@ -77,12 +108,6 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     setNewRecommendedTestingEnabled(dealership?.enableNewRecommendedTesting === true);
     setPppProtocolEnabled(dealership?.enablePppProtocol === true);
     setSaasPppTrainingEnabled(dealership?.enableSaasPppTraining === true);
-    setCxAggressiveness(
-      Math.max(
-        MIN_CX_AGGRESSIVENESS,
-        Math.min(MAX_CX_AGGRESSIVENESS, Math.round(dealership?.cxAggressiveness ?? DEFAULT_CX_AGGRESSIVENESS))
-      )
-    );
     setBillingTier((dealership?.billingTier as DealershipBillingTier) || 'sales_fi');
     setBillingUserCount(String(dealership?.billingUserCount ?? 0));
     setBillingOwnerAccountCount(String(dealership?.billingOwnerAccountCount ?? 0));
@@ -234,16 +259,15 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   }
 
   async function handleUpdateCxAggressiveness() {
-    if (!selectedDealership) return;
-    setIsLoading(true);
+    setCxConfigSaving(true);
     try {
-      const next = await updateDealershipCxAggressiveness(selectedDealership.id, cxAggressiveness);
-      setSelectedDealership(next);
+      const next = await updateCxSystemConfig(cxAggressiveness);
+      setPersistedCxAggressiveness(next.aggressiveness);
+      setCxAggressiveness(next.aggressiveness);
       toast({
         title: 'CX Aggressiveness Updated',
-        description: `${selectedDealership.name} now uses ${cxAggressiveness}% CX delta gain with a per-lesson cap of ±10.`,
+        description: `Global CX delta gain is now ${next.aggressiveness}% with a per-lesson cap of ±10.`,
       });
-      onDealershipManaged?.();
     } catch (e) {
       toast({
         variant: 'destructive',
@@ -251,7 +275,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
         description: (e as Error).message || 'An error occurred.',
       });
     } finally {
-      setIsLoading(false);
+      setCxConfigSaving(false);
     }
   }
 
@@ -343,13 +367,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     persistedGroupIds.length !== selectedGroupIdsSorted.length
       || persistedGroupIds.some((id, idx) => id !== selectedGroupIdsSorted[idx])
   );
-  const persistedCxAggressiveness = selectedDealership
-    ? Math.max(
-      MIN_CX_AGGRESSIVENESS,
-      Math.min(MAX_CX_AGGRESSIVENESS, Math.round(selectedDealership.cxAggressiveness ?? DEFAULT_CX_AGGRESSIVENESS))
-    )
-    : DEFAULT_CX_AGGRESSIVENESS;
-  const cxAggressivenessDirty = !!selectedDealership && cxAggressiveness !== persistedCxAggressiveness;
+  const cxAggressivenessDirty = cxAggressiveness !== persistedCxAggressiveness;
   const handleGroupCheckedChange = (dealershipId: string, checked: boolean) => {
     setGroupDealershipIds((prev) => {
       const next = new Set(prev);
@@ -494,9 +512,9 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
 
             <div className="rounded-md border p-3 space-y-3">
                 <div>
-                    <p className="text-sm font-medium">CX Rating Aggressiveness</p>
+                    <p className="text-sm font-medium">CX Rating Aggressiveness (Global)</p>
                     <p className="text-xs text-muted-foreground">
-                        Controls how quickly CX trait scores move after lessons. Higher values adapt faster. Per-lesson score changes are capped at ±10.
+                        Controls how quickly CX trait scores move after lessons for all dealerships. Higher values adapt faster. Per-lesson score changes are capped at ±10.
                     </p>
                 </div>
                 <div className="space-y-2">
@@ -510,17 +528,17 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                       max={MAX_CX_AGGRESSIVENESS}
                       step={1}
                       onValueChange={(value) => setCxAggressiveness(value[0] ?? DEFAULT_CX_AGGRESSIVENESS)}
-                      disabled={isLoading}
+                      disabled={cxConfigLoading || cxConfigSaving}
                       aria-label="CX rating aggressiveness"
                     />
                 </div>
                 <Button
                   variant="outline"
-                  disabled={isLoading || !cxAggressivenessDirty}
+                  disabled={cxConfigLoading || cxConfigSaving || !cxAggressivenessDirty}
                   onClick={handleUpdateCxAggressiveness}
                   className="w-full md:w-auto"
                 >
-                  {isLoading ? <Spinner size="sm" /> : 'Save CX Aggressiveness'}
+                  {cxConfigSaving ? <Spinner size="sm" /> : 'Save Global CX Setting'}
                 </Button>
             </div>
 
