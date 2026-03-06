@@ -231,16 +231,6 @@ export default function DeveloperPage() {
     if (fallback) setActiveTool(fallback.id);
   }, [activeSection, activeTool]);
 
-  if (
-    loading ||
-    !user ||
-    !originalUser ||
-    !originalUserIsAssigned ||
-    (originalUser.role !== 'Developer' && originalUser.role !== 'Admin')
-  ) {
-    return <div className="flex h-screen w-full items-center justify-center bg-background"><Spinner size="lg" /></div>;
-  }
-
   const handleSwitchRole = (newRole: UserRole) => {
     if (originalUser) setUser({ ...originalUser, role: newRole });
   };
@@ -271,8 +261,19 @@ export default function DeveloperPage() {
     setSingleUserScores(buildLiveCxScoresFromUser(originalUser));
   }, [originalUser]);
 
-  const dashboardUser: User = useMemo(() => (
-    dashboardMode === 'single_user'
+  const dashboardUser: User = useMemo(() => {
+    if (!user) {
+      return {
+        userId: '',
+        name: '',
+        email: '',
+        role: 'Sales Consultant',
+        dealershipIds: [],
+        avatarUrl: '',
+        xp: 0,
+      };
+    }
+    return dashboardMode === 'single_user'
       ? {
           ...user,
           role: 'Sales Consultant',
@@ -280,11 +281,11 @@ export default function DeveloperPage() {
           selfDeclaredDealershipId: undefined,
           stats: buildUserStatsFromLiveScores(singleUserScores),
         }
-      : user
-  ), [dashboardMode, singleUserScores, user]);
+      : user;
+  }, [dashboardMode, singleUserScores, user]);
 
   const isViewingAsManager = managerialRoles.includes(dashboardUser.role);
-  const canSeeDeveloperCxTuner = originalUser.role === 'Developer';
+  const canSeeDeveloperCxTuner = originalUser?.role === 'Developer';
   const showDeveloperCxTuner = canSeeDeveloperCxTuner && dashboardMode === 'single_user';
 
   const dealershipNameById = useMemo(() => (
@@ -375,6 +376,16 @@ export default function DeveloperPage() {
       setIsExportingUsers(false);
     }
   }, [filteredNewestUsers, getAffiliationLabel, exportStartDate, exportEndDate, toast]);
+
+  if (
+    loading ||
+    !user ||
+    !originalUser ||
+    !originalUserIsAssigned ||
+    (originalUser.role !== 'Developer' && originalUser.role !== 'Admin')
+  ) {
+    return <div className="flex h-screen w-full items-center justify-center bg-background"><Spinner size="lg" /></div>;
+  }
 
   const goToSection = (section: SectionId, toolId?: ToolId) => {
     setActiveSection(section);

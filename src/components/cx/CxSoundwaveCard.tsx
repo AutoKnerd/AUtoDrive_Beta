@@ -64,6 +64,7 @@ export function CxSoundwaveCard({
 }: CxSoundwaveCardProps) {
   const [internalRange, setInternalRange] = useState<CxRange>('today');
   const [internalViewMode, setInternalViewMode] = useState<'team' | 'personal'>('team');
+  const [nonTodayView, setNonTodayView] = useState<'trend' | 'change'>('trend');
   const [mounted, setMounted] = useState(false);
 
   const viewMode = externalViewMode || internalViewMode;
@@ -192,9 +193,60 @@ export function CxSoundwaveCard({
       };
     });
   }, [series, range]);
+  const trendRows = useMemo(() => {
+    return series.map((s) => {
+      const skill = CX_SKILLS.find((entry) => entry.id === s.skillId);
+      const points = s.points
+        .map((p) => Math.max(0, Math.min(100, p.foreground)))
+        .filter((value) => Number.isFinite(value));
+      const currentValue = points.length ? points[points.length - 1] : 0;
+      const startValue = points.length ? points[0] : 0;
+      const delta = currentValue - startValue;
+      return {
+        skillId: s.skillId,
+        label: skill?.label || s.skillId,
+        color: s.color,
+        points,
+        currentValue,
+        delta,
+      };
+    });
+  }, [series]);
+  const maxAbsDelta = useMemo(() => {
+    const largest = trendRows.reduce((max, row) => Math.max(max, Math.abs(row.delta)), 0);
+    return Math.max(1, largest);
+  }, [trendRows]);
+  const trendTickPercents = useMemo(() => {
+    if (range === 'today') return [];
+    const tickCountByRange: Record<Exclude<CxRange, 'today'>, number> = {
+      '7d': 8,   // daily marks
+      '30d': 7,  // roughly weekly marks
+      '90d': 7,  // evenly distributed long-range marks
+    };
+    const tickCount = tickCountByRange[range];
+    if (tickCount <= 1) return [0, 100];
+    return Array.from({ length: tickCount }, (_, index) => (
+      (index / (tickCount - 1)) * 100
+    ));
+  }, [range]);
   const formatPercent = (value: number) => (
     range === 'today' ? `${value.toFixed(0)}%` : `${value.toFixed(1)}%`
   );
+  const buildSparklinePath = (points: number[]): string => {
+    if (points.length === 0) return '';
+    if (points.length === 1) return `M 0,20 L 100,20`;
+    const max = Math.max(...points);
+    const min = Math.min(...points);
+    const spread = Math.max(1, max - min);
+
+    return points
+      .map((value, index) => {
+        const x = (index / (points.length - 1)) * 100;
+        const y = 22 - ((value - min) / spread) * 18;
+        return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(' ');
+  };
   const targetMarker = 75;
 
   if (!mounted) {
@@ -309,6 +361,33 @@ export function CxSoundwaveCard({
             </div>
           </TooltipProvider>
 
+          {range !== 'today' && (
+            <div className="flex bg-muted p-1 rounded-lg border border-border dark:bg-white/5">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setNonTodayView('trend')}
+                className={cn(
+                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase",
+                  nonTodayView === 'trend' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
+                )}
+              >
+                Trend
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setNonTodayView('change')}
+                className={cn(
+                  "h-7 px-3 text-[10px] font-bold tracking-widest uppercase",
+                  nonTodayView === 'change' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground/60"
+                )}
+              >
+                Change
+              </Button>
+            </div>
+          )}
+
           {actionLabel && onActionClick && (
             <Button
               variant="outline"
@@ -333,8 +412,14 @@ export function CxSoundwaveCard({
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-cyan-400/20 border border-cyan-400/50" />
               <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">Average Score Bars</span>
-                <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">{range === 'today' ? 'Current snapshot' : `Range average (${range})`}</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-tight">
+                  {range === 'today' ? 'Average Score Bars' : (nonTodayView === 'trend' ? 'Trend Sparkline' : 'Delta Bar')}
+                </span>
+                <span className="text-[8px] text-muted-foreground/60 uppercase leading-none">
+                  {range === 'today'
+                    ? 'Current snapshot'
+                    : (nonTodayView === 'trend' ? `Direction over ${range}` : `Current vs start (${range})`)}
+                </span>
               </div>
             </div>
             {mode === 'compare' && (
@@ -356,11 +441,11 @@ export function CxSoundwaveCard({
             <div className="p-4">
               <Skeleton className="h-[250px] w-full" />
             </div>
-          ) : barRows.length === 0 ? (
+          ) : (range === 'today' ? barRows.length === 0 : trendRows.length === 0) ? (
             <div className="flex h-[250px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
               No scored data available for this range.
             </div>
-          ) : (
+          ) : range === 'today' ? (
             <div className="space-y-4 p-4">
               {barRows.map((row, idx) => (
                 <div key={row.skillId} className="space-y-2">
@@ -421,6 +506,77 @@ export function CxSoundwaveCard({
                   </div>
                 </div>
               ))}
+            </div>
+          ) : nonTodayView === 'trend' ? (
+            <div className="space-y-3 p-4">
+              {trendRows.map((row) => (
+                <div key={row.skillId} className="grid grid-cols-[minmax(120px,170px)_78px_66px_1fr] items-center gap-3 rounded-lg border border-border/50 bg-muted/5 px-3 py-2">
+                  <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">{row.label}</p>
+                  <p className="text-xs font-semibold text-foreground">{formatPercent(row.currentValue)}</p>
+                  <span
+                    className={cn(
+                      "inline-flex items-center justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                      row.delta >= 0
+                        ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                        : "border-rose-400/40 bg-rose-400/10 text-rose-300"
+                    )}
+                  >
+                    {row.delta >= 0 ? '▲' : '▼'} {row.delta >= 0 ? '+' : ''}{row.delta.toFixed(1)}
+                  </span>
+                  <div className="h-7 rounded-md border border-border/60 bg-background/40 px-2 py-1">
+                    <svg viewBox="0 0 100 24" preserveAspectRatio="none" className="h-full w-full">
+                      {trendTickPercents.map((x, index) => (
+                        <line
+                          key={`tick-${row.skillId}-${index}`}
+                          x1={x}
+                          y1={1}
+                          x2={x}
+                          y2={23}
+                          stroke="currentColor"
+                          strokeWidth="0.5"
+                          className="text-muted-foreground/35"
+                        />
+                      ))}
+                      <path d={buildSparklinePath(row.points)} stroke={row.color} strokeWidth="2" fill="none" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3 p-4">
+              {trendRows.map((row) => {
+                const halfWidthPct = (Math.abs(row.delta) / maxAbsDelta) * 50;
+                const left = row.delta >= 0 ? 50 : 50 - halfWidthPct;
+                return (
+                  <div key={row.skillId} className="grid grid-cols-[minmax(120px,170px)_66px_1fr] items-center gap-3 rounded-lg border border-border/50 bg-muted/5 px-3 py-2">
+                    <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">{row.label}</p>
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                        row.delta >= 0
+                          ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                          : "border-rose-400/40 bg-rose-400/10 text-rose-300"
+                      )}
+                    >
+                      {row.delta >= 0 ? '+' : ''}{row.delta.toFixed(1)}
+                    </span>
+                    <div className="relative h-4 rounded-full border border-border/60 bg-muted/40 overflow-hidden">
+                      <div className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 bg-muted-foreground/50" />
+                      <div
+                        className={cn(
+                          "absolute top-0 bottom-0 rounded-full",
+                          row.delta >= 0 ? "bg-emerald-400/70" : "bg-rose-400/70"
+                        )}
+                        style={{
+                          left: `${left}%`,
+                          width: `${halfWidthPct}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
