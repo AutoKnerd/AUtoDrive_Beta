@@ -7,12 +7,18 @@ import {
   updateDealershipStatus,
   updateDealershipRetakeTestingAccess,
   updateDealershipNewRecommendedTestingAccess,
+  updateDealershipCxAggressiveness,
   updateDealershipPppAccess,
   updateDealershipSaasPppAccess,
   updateDealershipBillingConfig,
   updateDealershipGroupMembers,
   clearDealershipAssignedLessons,
 } from '@/lib/data.client';
+import {
+  DEFAULT_CX_AGGRESSIVENESS,
+  MAX_CX_AGGRESSIVENESS,
+  MIN_CX_AGGRESSIVENESS,
+} from '@/lib/stats/updateRollingStats';
 import { BILLING_PRICING, calculateDealershipMonthlyCents, formatUsdFromCents } from '@/lib/billing/tiers';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +40,7 @@ import { Ban, Play, Trash2 } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 
 interface ManageDealershipFormProps {
   dealerships: Dealership[];
@@ -49,6 +56,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [newRecommendedTestingEnabled, setNewRecommendedTestingEnabled] = useState(false);
   const [pppProtocolEnabled, setPppProtocolEnabled] = useState(false);
   const [saasPppTrainingEnabled, setSaasPppTrainingEnabled] = useState(false);
+  const [cxAggressiveness, setCxAggressiveness] = useState(DEFAULT_CX_AGGRESSIVENESS);
   const [billingTier, setBillingTier] = useState<DealershipBillingTier>('sales_fi');
   const [billingUserCount, setBillingUserCount] = useState('0');
   const [billingOwnerAccountCount, setBillingOwnerAccountCount] = useState('0');
@@ -69,6 +77,12 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     setNewRecommendedTestingEnabled(dealership?.enableNewRecommendedTesting === true);
     setPppProtocolEnabled(dealership?.enablePppProtocol === true);
     setSaasPppTrainingEnabled(dealership?.enableSaasPppTraining === true);
+    setCxAggressiveness(
+      Math.max(
+        MIN_CX_AGGRESSIVENESS,
+        Math.min(MAX_CX_AGGRESSIVENESS, Math.round(dealership?.cxAggressiveness ?? DEFAULT_CX_AGGRESSIVENESS))
+      )
+    );
     setBillingTier((dealership?.billingTier as DealershipBillingTier) || 'sales_fi');
     setBillingUserCount(String(dealership?.billingUserCount ?? 0));
     setBillingOwnerAccountCount(String(dealership?.billingOwnerAccountCount ?? 0));
@@ -219,6 +233,28 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     }
   }
 
+  async function handleUpdateCxAggressiveness() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      const next = await updateDealershipCxAggressiveness(selectedDealership.id, cxAggressiveness);
+      setSelectedDealership(next);
+      toast({
+        title: 'CX Aggressiveness Updated',
+        description: `${selectedDealership.name} now uses ${cxAggressiveness}% CX delta gain with a per-lesson cap of ±10.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleUpdateBillingConfig() {
     if (!selectedDealership) return;
     setIsLoading(true);
@@ -307,6 +343,13 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     persistedGroupIds.length !== selectedGroupIdsSorted.length
       || persistedGroupIds.some((id, idx) => id !== selectedGroupIdsSorted[idx])
   );
+  const persistedCxAggressiveness = selectedDealership
+    ? Math.max(
+      MIN_CX_AGGRESSIVENESS,
+      Math.min(MAX_CX_AGGRESSIVENESS, Math.round(selectedDealership.cxAggressiveness ?? DEFAULT_CX_AGGRESSIVENESS))
+    )
+    : DEFAULT_CX_AGGRESSIVENESS;
+  const cxAggressivenessDirty = !!selectedDealership && cxAggressiveness !== persistedCxAggressiveness;
   const handleGroupCheckedChange = (dealershipId: string, checked: boolean) => {
     setGroupDealershipIds((prev) => {
       const next = new Set(prev);
@@ -446,6 +489,38 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                   className="w-full md:w-auto"
                 >
                   {isLoading ? <Spinner size="sm" /> : 'Save SaaS PPP Access'}
+                </Button>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+                <div>
+                    <p className="text-sm font-medium">CX Rating Aggressiveness</p>
+                    <p className="text-xs text-muted-foreground">
+                        Controls how quickly CX trait scores move after lessons. Higher values adapt faster. Per-lesson score changes are capped at ±10.
+                    </p>
+                </div>
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Gain: {cxAggressiveness}%</span>
+                        <span>Range: {MIN_CX_AGGRESSIVENESS}% - {MAX_CX_AGGRESSIVENESS}%</span>
+                    </div>
+                    <Slider
+                      value={[cxAggressiveness]}
+                      min={MIN_CX_AGGRESSIVENESS}
+                      max={MAX_CX_AGGRESSIVENESS}
+                      step={1}
+                      onValueChange={(value) => setCxAggressiveness(value[0] ?? DEFAULT_CX_AGGRESSIVENESS)}
+                      disabled={isLoading}
+                      aria-label="CX rating aggressiveness"
+                    />
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={isLoading || !cxAggressivenessDirty}
+                  onClick={handleUpdateCxAggressiveness}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save CX Aggressiveness'}
                 </Button>
             </div>
 

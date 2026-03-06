@@ -2,6 +2,7 @@
 import { User, Dealership, LessonLog, UserRole, Badge, EarnedBadge, Lesson, LessonAssignment, CxTrait, ThemePreference } from './definitions';
 import { calculateLevel } from './xp';
 import { allBadges }from './badges';
+import { DEFAULT_CX_AGGRESSIVENESS } from './stats/updateRollingStats';
 
 const dealershipNames = [
     "Prestige Auto Group",
@@ -67,6 +68,7 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 id: `tour-dealership-${i + 1}`,
                 name: dealershipNames[i],
                 status: 'active',
+                cxAggressiveness: DEFAULT_CX_AGGRESSIVENESS,
                 enablePppProtocol: false,
                 enableSaasPppTraining: false,
                 billingTier: 'sales_fi',

@@ -318,6 +318,7 @@ export type Dealership = {
   address?: Address;
   enableRetakeRecommendedTesting?: boolean;
   enableNewRecommendedTesting?: boolean;
+  cxAggressiveness?: number;
   enablePppProtocol?: boolean;
   enableSaasPppTraining?: boolean;
   billingTier?: DealershipBillingTier;

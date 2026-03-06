@@ -10,7 +10,16 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { generateTourData } from './tour-data';
 import { initializeFirebase } from '@/firebase/init';
-import { ALPHA, BASELINE, LAMBDA, clampRatings, updateRollingStats } from '@/lib/stats/updateRollingStats';
+import {
+    BASELINE,
+    LAMBDA,
+    DEFAULT_CX_AGGRESSIVENESS,
+    DEFAULT_CX_DELTA_GAIN,
+    MAX_CX_DELTA_PER_LESSON,
+    normalizeCxAggressiveness,
+    clampRatings,
+    updateRollingStats,
+} from '@/lib/stats/updateRollingStats';
 import { buildAutoRecommendedLesson, buildUniqueRecommendedTestingLesson } from '@/lib/lessons/auto-recommended';
 import { clampPppLevel, getPppLessonsForLevel, getPppLevelBadge, getPppLevelXp, PPP_DAILY_PASS_LIMIT, PPP_TOUR_UNLOCKED_LESSON_COUNT } from '@/lib/ppp/definitions';
 import { buildDefaultPppState, getNextPppLevel, getPppLevelKey, getPppUtcDateKey, normalizePppUserState } from '@/lib/ppp/state';
@@ -252,11 +261,16 @@ function applyTourRollingStatsUpdate(
 
     const calc = (key: keyof Ratings) => {
         const currentStat = sourceStats?.[key];
-        const before = clampScore(typeof currentStat?.score === 'number' ? currentStat.score : BASELINE);
+        const rawBefore = clampScore(typeof currentStat?.score === 'number' ? currentStat.score : BASELINE);
+        const before = Math.round(rawBefore);
         const lastUpdated = toSafeDate(currentStat?.lastUpdated, now);
         const deltaDays = Math.max(0, (now.getTime() - lastUpdated.getTime()) / msPerDay);
         const drifted = BASELINE + (before - BASELINE) * Math.exp(-LAMBDA * deltaDays);
-        const after = clampScore((1 - ALPHA) * drifted + ALPHA * ratings[key]);
+        const driftDelta = drifted - before;
+        const ratingDelta = ratings[key] - before;
+        const rawDelta = driftDelta + ratingDelta * DEFAULT_CX_DELTA_GAIN;
+        const stepDelta = Math.max(-MAX_CX_DELTA_PER_LESSON, Math.min(MAX_CX_DELTA_PER_LESSON, Math.round(rawDelta)));
+        const after = clampScore(before + stepDelta);
 
         return {
             before,
@@ -865,6 +879,7 @@ export async function createDealership(dealershipData: {
             address: dealershipData.address as Address,
             enableRetakeRecommendedTesting: false,
             enableNewRecommendedTesting: false,
+            cxAggressiveness: DEFAULT_CX_AGGRESSIVENESS,
             enablePppProtocol: false,
             enableSaasPppTraining: false,
             billingTier: 'sales_fi',
@@ -2526,6 +2541,40 @@ export async function updateDealershipNewRecommendedTestingAccess(
             path: dealershipRef.path,
             operation: 'update',
             requestResourceData: { enableNewRecommendedTesting: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+export async function updateDealershipCxAggressiveness(
+    dealershipId: string,
+    aggressiveness: number
+): Promise<Dealership> {
+    const { firestore: db } = getFirebase();
+    const normalizedAggressiveness = normalizeCxAggressiveness(aggressiveness);
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.cxAggressiveness = normalizedAggressiveness;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    const dealershipsCollection = collection(db, 'dealerships');
+    const dealershipRef = doc(dealershipsCollection, dealershipId);
+
+    try {
+        await updateDoc(dealershipRef, { cxAggressiveness: normalizedAggressiveness });
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: { cxAggressiveness: normalizedAggressiveness },
         });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;
