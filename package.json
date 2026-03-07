@@ -7,7 +7,17 @@
     "build": "NODE_ENV=production next build && node scripts/firebase-apphosting-postbuild.cjs",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:app": "next dev",
+    "build:app": "NODE_ENV=production next build && node scripts/firebase-apphosting-postbuild.cjs",
+    "start:app": "next start",
+    "lint:app": "next lint",
+    "typecheck:app": "tsc --noEmit",
+    "install:webpage": "npm --prefix apps/webpage install",
+    "dev:webpage": "npm --prefix apps/webpage run dev",
+    "build:webpage": "npm --prefix apps/webpage run build",
+    "preview:webpage": "npm --prefix apps/webpage run preview",
+    "lint:webpage": "npm --prefix apps/webpage run lint"
   },
   "dependencies": {
     "@genkit-ai/anthropic": "^0.2.0",
