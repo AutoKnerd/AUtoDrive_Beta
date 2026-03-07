@@ -182,7 +182,6 @@ export default function DeveloperPage() {
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
   const [isExportingUsers, setIsExportingUsers] = useState(false);
-  const [newSubscriberSessionId, setNewSubscriberSessionId] = useState('');
   const sandboxDealershipStorageKey = useMemo(
     () => `managerDashboard:selectedDealershipId:${originalUser?.userId || user?.userId || 'sandbox'}`,
     [originalUser?.userId, user?.userId]
@@ -363,15 +362,10 @@ export default function DeveloperPage() {
   const pausedDealershipCount = useMemo(() => (
     allDealerships.filter((dealership) => dealership.status === 'paused').length
   ), [allDealerships]);
-  const newSubscriberSetupUrl = useMemo(() => {
-    if (typeof window === 'undefined') return '/new-subscriber';
-    const url = new URL('/new-subscriber', window.location.origin);
-    const trimmedSessionId = newSubscriberSessionId.trim();
-    if (trimmedSessionId) {
-      url.searchParams.set('session_id', trimmedSessionId);
-    }
-    return url.toString();
-  }, [newSubscriberSessionId]);
+  const tempProSignupUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '/signup';
+    return new URL('/signup', window.location.origin).toString();
+  }, []);
 
   const getAffiliationLabel = useCallback((candidate: User) => {
     const ids = Array.isArray(candidate.dealershipIds) ? candidate.dealershipIds : [];
@@ -428,23 +422,23 @@ export default function DeveloperPage() {
     }
   }, [filteredNewestUsers, getAffiliationLabel, exportStartDate, exportEndDate, toast]);
 
-  const handleCopyNewSubscriberLink = useCallback(async () => {
+  const handleCopyTempProSignupLink = useCallback(async () => {
     try {
       if (typeof window === 'undefined') return;
-      await navigator.clipboard.writeText(newSubscriberSetupUrl);
+      await navigator.clipboard.writeText(tempProSignupUrl);
       toast({
         title: 'Link copied',
-        description: 'New subscriber setup URL copied to clipboard.',
+        description: 'Signup test URL copied to clipboard.',
       });
     } catch (error) {
-      console.error('Failed to copy new subscriber setup URL:', error);
+      console.error('Failed to copy signup test URL:', error);
       toast({
         variant: 'destructive',
         title: 'Copy failed',
         description: 'Could not copy the link. You can copy it from the field below.',
       });
     }
-  }, [newSubscriberSetupUrl, toast]);
+  }, [tempProSignupUrl, toast]);
 
   if (
     loading ||
@@ -746,43 +740,12 @@ export default function DeveloperPage() {
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Jump directly to high-frequency workflows.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => goToSection('access', 'create_user')}>Create User</Button>
-            <Button variant="outline" onClick={() => goToSection('access', 'invite')}>Send Invitation</Button>
-            <Button variant="outline" onClick={() => goToSection('organizations', 'create_dealership')}>Create Dealership</Button>
-            <Button variant="outline" onClick={() => goToSection('features', 'ppp_global')}>PPP Global Setting</Button>
-            <Button variant="outline" onClick={() => goToSection('sandbox')}>Open Sandbox</Button>
-          </div>
-          <div className="rounded-md border p-3">
-            <p className="text-sm font-medium">New Subscriber Setup Link</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Generate a direct link to <code>/new-subscriber</code>. Add a Stripe <code>session_id</code> to test full claim flow.
-            </p>
-            <div className="mt-3 flex flex-wrap items-end gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="new-subscriber-session-id">Session ID (optional)</Label>
-                <Input
-                  id="new-subscriber-session-id"
-                  placeholder="cs_test_..."
-                  value={newSubscriberSessionId}
-                  onChange={(event) => setNewSubscriberSessionId(event.target.value)}
-                  className="w-[320px]"
-                />
-              </div>
-              <Button type="button" variant="outline" onClick={handleCopyNewSubscriberLink}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy Link
-              </Button>
-              <Button type="button" variant="outline" onClick={() => window.open(newSubscriberSetupUrl, '_blank', 'noopener,noreferrer')}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Open
-              </Button>
-            </div>
-            <div className="mt-3 rounded bg-muted px-3 py-2 text-xs break-all">
-              {newSubscriberSetupUrl}
-            </div>
-          </div>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => goToSection('access', 'create_user')}>Create User</Button>
+          <Button variant="outline" onClick={() => goToSection('access', 'invite')}>Send Invitation</Button>
+          <Button variant="outline" onClick={() => goToSection('organizations', 'create_dealership')}>Create Dealership</Button>
+          <Button variant="outline" onClick={() => goToSection('features', 'ppp_global')}>PPP Global Setting</Button>
+          <Button variant="outline" onClick={() => goToSection('sandbox')}>Open Sandbox</Button>
         </CardContent>
       </Card>
       {renderWatchlistCard()}
@@ -805,6 +768,27 @@ export default function DeveloperPage() {
               <CardDescription>Select a workflow to open the corresponding management panel.</CardDescription>
             </CardHeader>
             <CardContent>
+              {activeSection === 'access' && (
+                <div className="mb-6 rounded-md border p-3">
+                  <p className="text-sm font-medium">Testing Link: Signup Page</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Open or copy the signup flow to test Stripe checkout.
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-end gap-2">
+                    <Button type="button" variant="outline" onClick={handleCopyTempProSignupLink}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy Link
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => window.open(tempProSignupUrl, '_blank', 'noopener,noreferrer')}>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open
+                    </Button>
+                  </div>
+                  <div className="mt-3 rounded bg-muted px-3 py-2 text-xs break-all">
+                    {tempProSignupUrl}
+                  </div>
+                </div>
+              )}
               <div className="mb-6 flex flex-wrap gap-2">
                 {sectionTools.map((tool) => (
                   <Button
