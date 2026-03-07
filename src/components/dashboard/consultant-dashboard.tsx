@@ -17,6 +17,8 @@ import {
   getPppAccessForUser,
   getSaasPppAccessForUser,
   updateUser,
+  getDealershipLeaderboard,
+  type DealershipLeaderboardEntry,
 } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
@@ -32,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Logo } from '@/components/layout/logo';
 import { BadgeShowcase } from '../profile/badge-showcase';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
@@ -304,6 +307,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [range, setRange] = useState<CxRange>('today');
   const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
   const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
+  const [dealershipLeaderboard, setDealershipLeaderboard] = useState<DealershipLeaderboardEntry[]>([]);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -410,6 +414,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
 
         if (scopedDealershipIds.length > 0 && !isTouring) {
           const dealershipData = await Promise.all(scopedDealershipIds.map(id => getDealershipById(id, user.userId)));
+          const leaderboardRows = await getDealershipLeaderboard(scopedDealershipIds[0]);
           if (!active) return;
           const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
           const hasRetakeTestingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
@@ -417,10 +422,12 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           setCanRetakeRecommendedTesting(hasRetakeTestingAccess);
           setCanUseNewRecommendedTesting(hasNewRecommendedTestingAccess);
           setIsPaused(activeDealerships.length === 0);
+          setDealershipLeaderboard(leaderboardRows);
         } else {
           setCanRetakeRecommendedTesting(false);
           setCanUseNewRecommendedTesting(false);
           setIsPaused(false);
+          setDealershipLeaderboard([]);
         }
 
         setMemberSince(
@@ -436,6 +443,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
         setIsPaused(false);
         setPppFeatureEnabled(false);
         setSaasPppFeatureEnabled(false);
+        setDealershipLeaderboard([]);
         toast({
           variant: 'destructive',
           title: 'Dashboard data unavailable',
@@ -967,6 +975,55 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
               )}
             </div>
           </section>
+        )}
+
+        {hasDealershipContext && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Dealership Leaderboard</CardTitle>
+              <CardDescription>Current store ranking by total XP.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-32 w-full" />
+              ) : dealershipLeaderboard.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No leaderboard data available for this dealership yet.</p>
+              ) : (
+                <div className="max-h-[16rem] overflow-y-auto pr-1">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Total XP / Level</TableHead>
+                        <TableHead className="text-right">Lesson Readiness</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dealershipLeaderboard.map((row, index) => (
+                        <TableRow key={row.userId}>
+                          <TableCell className="font-medium">{index + 1}. {row.name}</TableCell>
+                          <TableCell>{row.totalXp.toLocaleString()} XP / Level {row.level}</TableCell>
+                          <TableCell className="text-right">
+                            <span className="inline-flex items-center gap-2" title={row.readinessLabel}>
+                              <span
+                                className={cn(
+                                  'h-2.5 w-2.5 rounded-full',
+                                  row.readiness === 'green' && 'bg-emerald-500',
+                                  row.readiness === 'yellow' && 'bg-amber-400',
+                                  row.readiness === 'red' && 'bg-red-500'
+                                )}
+                              />
+                              <span className="text-xs text-muted-foreground">{row.readinessLabel}</span>
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         <section data-sprocket-tour="badges">

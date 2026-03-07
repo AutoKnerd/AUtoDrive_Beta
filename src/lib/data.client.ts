@@ -1072,6 +1072,39 @@ export async function getPendingInvitations(dealershipId: string, user: User): P
     }
 }
 
+export type DealershipLeaderboardEntry = {
+    userId: string;
+    name: string;
+    totalXp: number;
+    level: number;
+    readiness: 'green' | 'yellow' | 'red';
+    readinessLabel: string;
+};
+
+export async function getDealershipLeaderboard(dealershipId: string): Promise<DealershipLeaderboardEntry[]> {
+    const { auth } = getFirebase();
+    if (!dealershipId || dealershipId === 'all') return [];
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) return [];
+
+    try {
+        const idToken = await currentUser.getIdToken(true);
+        const params = new URLSearchParams({ dealershipId });
+        const response = await fetch(`/api/dealership/leaderboard?${params.toString()}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${idToken}` },
+        });
+
+        if (!response.ok) return [];
+        const payload = await response.json().catch(() => ({}));
+        return Array.isArray(payload?.leaderboard) ? payload.leaderboard as DealershipLeaderboardEntry[] : [];
+    } catch (e) {
+        console.warn('[getDealershipLeaderboard] API error caught:', e);
+        return [];
+    }
+}
+
 export async function getLessons(role: LessonRole, userId?: string): Promise<Lesson[]> {
     const { firestore: db } = getFirebase();
     if (isTouringUser(userId)) {

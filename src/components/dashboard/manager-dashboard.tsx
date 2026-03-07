@@ -61,6 +61,15 @@ type TeamMemberStats = {
   pendingInvite?: PendingInvitation;
 };
 type TeamSortField = 'name' | 'role' | 'lastInteraction' | 'topStrength' | 'weakestSkill';
+type LeaderboardReadiness = 'green' | 'yellow' | 'red';
+type DealershipLeaderboardRow = {
+  userId: string;
+  name: string;
+  totalXp: number;
+  level: number;
+  readiness: LeaderboardReadiness;
+  readinessLabel: string;
+};
 type DealershipActivityEntry = {
   userId: string;
   memberName: string;
@@ -571,6 +580,42 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return list;
   }, [teamActivity, teamSortDirection, teamSortField, formatUserDisplayName]);
 
+  const leaderboardRows = useMemo<DealershipLeaderboardRow[]>(() => {
+    return teamActivity
+      .filter((member) => !member.pendingInvite)
+      .filter((member) => !isMetricsHiddenForViewer(member.consultant))
+      .map((member) => {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const lastStart = member.lastRecommendedInteraction ? new Date(member.lastRecommendedInteraction) : null;
+        if (lastStart) lastStart.setHours(0, 0, 0, 0);
+
+        const daysSince = lastStart
+          ? Math.max(0, Math.floor((todayStart.getTime() - lastStart.getTime()) / (24 * 60 * 60 * 1000)))
+          : Number.POSITIVE_INFINITY;
+
+        const readiness: LeaderboardReadiness = member.tookRecommendedToday
+          ? 'green'
+          : (daysSince > 3 ? 'red' : 'yellow');
+
+        const readinessLabel = readiness === 'green'
+          ? 'Ready'
+          : readiness === 'yellow'
+            ? 'Due Soon'
+            : 'Overdue';
+
+        return {
+          userId: member.consultant.userId,
+          name: formatUserDisplayName(member.consultant.name, member.consultant.email),
+          totalXp: member.totalXp,
+          level: calculateLevel(member.totalXp).level,
+          readiness,
+          readinessLabel,
+        };
+      })
+      .sort((a, b) => b.totalXp - a.totalXp);
+  }, [teamActivity, isMetricsHiddenForViewer, formatUserDisplayName]);
+
   const managerAverageScores = useMemo(() => {
       if (!managerActivity.length) return { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 };
       const total = managerActivity.reduce((acc, log) => {
@@ -818,6 +863,55 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                   )}
               </div>
           </section>
+      )}
+
+      {selectedDealershipId !== 'all' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Dealership Leaderboard</CardTitle>
+            <CardDescription>Current store ranking by total XP.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : leaderboardRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No leaderboard data available for this dealership yet.</p>
+            ) : (
+              <div className="max-h-[16rem] overflow-y-auto pr-1">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Total XP / Level</TableHead>
+                      <TableHead className="text-right">Lesson Readiness</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaderboardRows.map((row, index) => (
+                      <TableRow key={row.userId}>
+                        <TableCell className="font-medium">{index + 1}. {row.name}</TableCell>
+                        <TableCell>{row.totalXp.toLocaleString()} XP / Level {row.level}</TableCell>
+                        <TableCell className="text-right">
+                          <span className="inline-flex items-center gap-2" title={row.readinessLabel}>
+                            <span
+                              className={cn(
+                                'h-2.5 w-2.5 rounded-full',
+                                row.readiness === 'green' && 'bg-emerald-500',
+                                row.readiness === 'yellow' && 'bg-amber-400',
+                                row.readiness === 'red' && 'bg-red-500'
+                              )}
+                            />
+                            <span className="text-xs text-muted-foreground">{row.readinessLabel}</span>
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {viewMode === 'team' ? (
