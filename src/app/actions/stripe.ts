@@ -96,6 +96,30 @@ function toIsoFromUnix(epochSeconds?: number | null): string | null {
   return new Date(epochSeconds * 1000).toISOString();
 }
 
+function normalizeEmail(value?: string | null): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function resolveSessionCustomerEmail(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session
+): Promise<string> {
+  const directEmail = normalizeEmail(session.customer_details?.email || session.customer_email || null);
+  if (directEmail) return directEmail;
+
+  const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+  if (!customerId) return '';
+
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    if (!customer || customer.deleted) return '';
+    return normalizeEmail(customer.email);
+  } catch (error) {
+    console.warn('[Stripe] Could not resolve customer email from checkout session customer:', error);
+    return '';
+  }
+}
+
 async function ensureUserCustomer(userId: string, userData: Partial<User>) {
   const adminDb = getAdminDb();
   const stripe = getStripe();
@@ -478,6 +502,90 @@ export async function finalizeCheckoutSession(idToken: string, sessionId: string
   }
 
   throw new Error(`Unsupported billing scope: ${sessionScope}`);
+}
+
+export async function claimCheckoutFirstSubscriber(idToken: string, sessionId: string) {
+  if (!idToken) {
+    throw new Error('Missing idToken.');
+  }
+  if (!sessionId) {
+    throw new Error('Missing checkout session id.');
+  }
+
+  const adminAuth = getAdminAuth();
+  const adminDb = getAdminDb();
+  const stripe = getStripe();
+  const decoded = await adminAuth.verifyIdToken(idToken);
+
+  const userSnap = await adminDb.collection('users').doc(decoded.uid).get();
+  if (!userSnap.exists) {
+    throw new Error('User profile not found.');
+  }
+  const user = userSnap.data() as User;
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ['subscription'],
+  });
+
+  if (session.mode !== 'subscription') {
+    throw new Error('Checkout session is not a subscription session.');
+  }
+
+  const sessionScope = session.metadata?.billingScope || 'individual';
+  if (sessionScope !== 'individual') {
+    throw new Error('Checkout session is not an individual subscriber checkout.');
+  }
+
+  const metadataUserId = session.metadata?.firebaseUserId || session.client_reference_id || '';
+  if (metadataUserId && metadataUserId !== decoded.uid) {
+    throw new Error('Checkout session belongs to a different user.');
+  }
+
+  const userEmail = normalizeEmail(user.email || decoded.email || '');
+  const sessionEmail = await resolveSessionCustomerEmail(stripe, session);
+  if (!userEmail || !sessionEmail || sessionEmail !== userEmail) {
+    throw new Error('Checkout session email does not match this account.');
+  }
+
+  const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+  if (!customerId) {
+    throw new Error('Checkout session has no customer id.');
+  }
+
+  const patch: Record<string, unknown> = {
+    stripeCustomerId: customerId,
+    subscriptionStatus: 'trialing',
+  };
+
+  let subscription: Stripe.Subscription | null = null;
+  if (session.subscription) {
+    subscription = typeof session.subscription === 'string'
+      ? await stripe.subscriptions.retrieve(session.subscription)
+      : session.subscription;
+  }
+
+  if (subscription) {
+    patch.subscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
+    const trialStartedAt = toIsoFromUnix(subscription.trial_start);
+    const trialEndsAt = toIsoFromUnix(subscription.trial_end);
+    if (trialStartedAt) patch.trialStartedAt = trialStartedAt;
+    if (trialEndsAt) patch.trialEndsAt = trialEndsAt;
+  }
+
+  await adminDb.collection('users').doc(decoded.uid).set(patch, { merge: true });
+
+  try {
+    await stripe.customers.update(customerId, {
+      metadata: {
+        firebaseUserId: decoded.uid,
+        billingScope: 'individual',
+      },
+    });
+  } catch (error) {
+    console.warn('[Stripe] Unable to backfill customer metadata for checkout-first subscriber:', error);
+  }
+
+  return { ok: true as const, status: patch.subscriptionStatus as BillingSubscriptionStatus };
 }
 
 export async function assertBillingEnabled() {

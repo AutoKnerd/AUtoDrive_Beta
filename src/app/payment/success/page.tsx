@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
@@ -19,6 +20,7 @@ function sleep(ms: number) {
 export default function PaymentSuccessPage() {
   const { setUser } = useAuth();
   const firebaseAuth = useFirebaseAuth();
+  const router = useRouter();
   const [sessionId, setSessionId] = useState('');
   const [state, setState] = useState<FinalizeState>('processing');
   const [message, setMessage] = useState('Finalizing billing access...');
@@ -45,6 +47,10 @@ export default function PaymentSuccessPage() {
       const firebaseUser = firebaseAuth.currentUser;
       if (!firebaseUser) {
         if (!cancelled) {
+          if (sessionId) {
+            router.replace(`/new-subscriber?session_id=${encodeURIComponent(sessionId)}`);
+            return;
+          }
           setState('error');
           setMessage('Your session expired. Please sign in again.');
         }
@@ -96,7 +102,7 @@ export default function PaymentSuccessPage() {
     return () => {
       cancelled = true;
     };
-  }, [firebaseAuth, sessionId, setUser, syncAttempt]);
+  }, [firebaseAuth, router, sessionId, setUser, syncAttempt]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
