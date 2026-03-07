@@ -60,16 +60,7 @@ type TeamMemberStats = {
   tookRecommendedToday: boolean;
   pendingInvite?: PendingInvitation;
 };
-type TeamSortField = 'name' | 'role' | 'lastInteraction' | 'topStrength' | 'weakestSkill';
-type LeaderboardReadiness = 'green' | 'yellow' | 'red';
-type DealershipLeaderboardRow = {
-  userId: string;
-  name: string;
-  totalXp: number;
-  level: number;
-  readiness: LeaderboardReadiness;
-  readinessLabel: string;
-};
+type TeamSortField = 'leaderboard' | 'name' | 'role' | 'lastInteraction' | 'topStrength' | 'weakestSkill';
 type DealershipActivityEntry = {
   userId: string;
   memberName: string;
@@ -289,8 +280,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [manageableUsers, setManageableUsers] = useState<User[]>([]);
   const [allDealershipsForAdmin, setAllDealershipsForAdmin] = useState<Dealership[]>([]);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
-  const [teamSortField, setTeamSortField] = useState<TeamSortField>('name');
-  const [teamSortDirection, setTeamSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [teamSortField, setTeamSortField] = useState<TeamSortField>('leaderboard');
+  const [teamSortDirection, setTeamSortDirection] = useState<'asc' | 'desc'>('desc');
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
   const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
   const [dailyRecommendedLessonId, setDailyRecommendedLessonId] = useState<string | null>(null);
@@ -302,6 +293,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const router = useRouter();
   const canViewAllStores = ['Admin', 'Developer'].includes(user.role);
   const canViewAssignedStoresAggregate = !canViewAllStores && (user.dealershipIds?.length ?? 0) > 1;
+  const dealershipSelectionStorageKey = useMemo(
+    () => `managerDashboard:selectedDealershipId:${originalUser?.userId || user.userId}`,
+    [originalUser?.userId, user.userId]
+  );
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
 
@@ -456,7 +451,16 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         
         let currentSelectedId = selectedDealershipId;
         if (currentSelectedId === null) {
-            if (canViewAllStores) currentSelectedId = 'all';
+            let persistedSelection: string | null = null;
+            if (typeof window !== 'undefined') {
+              persistedSelection = localStorage.getItem(dealershipSelectionStorageKey);
+            }
+            const canUsePersistedAll = persistedSelection === 'all' && (canViewAllStores || canViewAssignedStoresAggregate);
+            const canUsePersistedStore = !!persistedSelection && persistedSelection !== 'all'
+              && initialDealerships.some((d) => d.id === persistedSelection);
+
+            if (canUsePersistedAll || canUsePersistedStore) currentSelectedId = persistedSelection;
+            else if (canViewAllStores) currentSelectedId = 'all';
             else if (canViewAssignedStoresAggregate && initialDealerships.length > 1) currentSelectedId = 'all';
             else if (initialDealerships.length > 0) currentSelectedId = initialDealerships[0].id;
         }
@@ -464,18 +468,27 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             currentSelectedId = initialDealerships[0]?.id || user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null;
         }
         if (currentSelectedId) {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(dealershipSelectionStorageKey, currentSelectedId);
+            }
             if (selectedDealershipId === null) setSelectedDealershipId(currentSelectedId);
             await fetchData(currentSelectedId);
         } else setLoading(false);
     };
     fetchInitialData();
-  }, [user, selectedDealershipId, fetchData, fetchAdminData, canViewAllStores, canViewAssignedStoresAggregate]);
+  }, [user, selectedDealershipId, fetchData, fetchAdminData, canViewAllStores, canViewAssignedStoresAggregate, dealershipSelectionStorageKey]);
 
   useEffect(() => {
     if (user.memberSince) {
       setMemberSince(new Date(user.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
     }
   }, [user.memberSince]);
+
+  useEffect(() => {
+    // Always default Team Activity back to leaderboard ranking for the current dealership.
+    setTeamSortField('leaderboard');
+    setTeamSortDirection('desc');
+  }, [selectedDealershipId, teamActivity.length]);
 
   useEffect(() => {
     if (isTouring) {
@@ -497,6 +510,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const handleDealershipChange = (dealershipId: string) => {
     if (dealershipId === 'all' && !canViewAllStores && !canViewAssignedStoresAggregate) return;
     setSelectedDealershipId(dealershipId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(dealershipSelectionStorageKey, dealershipId);
+    }
   };
 
   const formatUserDisplayName = useCallback((name?: string, email?: string) => {
@@ -565,6 +581,18 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       const bPending = !!b.pendingInvite;
       if (aPending !== bPending) return aPending ? 1 : -1;
       switch (teamSortField) {
+        case 'leaderboard': {
+          const leaderboardDir = teamSortDirection === 'desc' ? 1 : -1;
+          const aLevel = calculateLevel(a.totalXp).level;
+          const bLevel = calculateLevel(b.totalXp).level;
+          const levelDiff = bLevel - aLevel;
+          if (levelDiff !== 0) return levelDiff * leaderboardDir;
+          const xpDiff = b.totalXp - a.totalXp;
+          if (xpDiff !== 0) return xpDiff * leaderboardDir;
+          return formatUserDisplayName(a.consultant.name, a.consultant.email)
+            .localeCompare(formatUserDisplayName(b.consultant.name, b.consultant.email))
+            * leaderboardDir;
+        }
         case 'role': return a.consultant.role.localeCompare(b.consultant.role) * dir;
         case 'lastInteraction': {
           const aTime = a.lastInteraction ? new Date(a.lastInteraction).getTime() : 0;
@@ -580,41 +608,37 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return list;
   }, [teamActivity, teamSortDirection, teamSortField, formatUserDisplayName]);
 
-  const leaderboardRows = useMemo<DealershipLeaderboardRow[]>(() => {
-    return teamActivity
+  const leaderboardRankByUserId = useMemo(() => {
+    const ranked = teamActivity
       .filter((member) => !member.pendingInvite)
-      .filter((member) => !isMetricsHiddenForViewer(member.consultant))
-      .map((member) => {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const lastStart = member.lastRecommendedInteraction ? new Date(member.lastRecommendedInteraction) : null;
-        if (lastStart) lastStart.setHours(0, 0, 0, 0);
+      .slice()
+      .sort((a, b) => {
+        const aLevel = calculateLevel(a.totalXp).level;
+        const bLevel = calculateLevel(b.totalXp).level;
+        const levelDiff = bLevel - aLevel;
+        if (levelDiff !== 0) return levelDiff;
+        const xpDiff = b.totalXp - a.totalXp;
+        if (xpDiff !== 0) return xpDiff;
+        return formatUserDisplayName(a.consultant.name, a.consultant.email).localeCompare(
+          formatUserDisplayName(b.consultant.name, b.consultant.email)
+        );
+      });
 
-        const daysSince = lastStart
-          ? Math.max(0, Math.floor((todayStart.getTime() - lastStart.getTime()) / (24 * 60 * 60 * 1000)))
-          : Number.POSITIVE_INFINITY;
+    const rankMap = new Map<string, number>();
+    ranked.forEach((member, index) => {
+      rankMap.set(member.consultant.userId, index + 1);
+    });
+    return rankMap;
+  }, [teamActivity, formatUserDisplayName]);
 
-        const readiness: LeaderboardReadiness = member.tookRecommendedToday
-          ? 'green'
-          : (daysSince > 3 ? 'red' : 'yellow');
-
-        const readinessLabel = readiness === 'green'
-          ? 'Ready'
-          : readiness === 'yellow'
-            ? 'Due Soon'
-            : 'Overdue';
-
-        return {
-          userId: member.consultant.userId,
-          name: formatUserDisplayName(member.consultant.name, member.consultant.email),
-          totalXp: member.totalXp,
-          level: calculateLevel(member.totalXp).level,
-          readiness,
-          readinessLabel,
-        };
-      })
-      .sort((a, b) => b.totalXp - a.totalXp);
-  }, [teamActivity, isMetricsHiddenForViewer, formatUserDisplayName]);
+  const toggleTeamSort = useCallback((field: TeamSortField) => {
+    if (teamSortField === field) {
+      setTeamSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setTeamSortField(field);
+    setTeamSortDirection(field === 'leaderboard' ? 'desc' : 'asc');
+  }, [teamSortField]);
 
   const managerAverageScores = useMemo(() => {
       if (!managerActivity.length) return { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 };
@@ -716,9 +740,27 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               </DialogHeader>
           </DialogContent>
       </Dialog>
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-3">
           <Logo variant="full" width={183} height={61} />
-          <UserNav user={user} avatarClassName="h-14 w-14" />
+          <div className="flex items-center gap-3">
+            {(canViewAllStores || (dealerships && dealerships.length > 1)) && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase text-muted-foreground whitespace-nowrap">Dealership:</span>
+                <Select value={selectedDealershipId || ''} onValueChange={handleDealershipChange}>
+                  <SelectTrigger className="w-[220px] bg-background h-9 text-xs">
+                    <SelectValue placeholder="Select a dealership" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(canViewAllStores || canViewAssignedStoresAggregate) && (
+                      <SelectItem value="all">{canViewAllStores ? 'All Stores' : 'All Assigned Stores'}</SelectItem>
+                    )}
+                    {dealerships.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <UserNav user={user} avatarClassName="h-14 w-14" />
+          </div>
       </header>
 
       <section className="space-y-3">
@@ -727,22 +769,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
       {/* Control Bar - Repositioned below Identity */}
       <div className="flex flex-col md:flex-row items-center justify-center bg-card/50 backdrop-blur-sm border rounded-xl p-3 gap-4">
-          {(canViewAllStores || (dealerships && dealerships.length > 1)) && (
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                  <span className="text-xs font-bold uppercase text-muted-foreground whitespace-nowrap">Dealership:</span>
-                  <Select value={selectedDealershipId || ''} onValueChange={handleDealershipChange}>
-                      <SelectTrigger className="w-full md:w-[240px] bg-background h-9 text-xs">
-                          <SelectValue placeholder="Select a dealership" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {(canViewAllStores || canViewAssignedStoresAggregate) && (
-                            <SelectItem value="all">{canViewAllStores ? 'All Stores' : 'All Assigned Stores'}</SelectItem>
-                          )}
-                          {dealerships.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                      </SelectContent>
-                  </Select>
-              </div>
-          )}
           <div className="flex bg-muted p-1 rounded-lg border">
               <Button
                   variant="ghost"
@@ -865,55 +891,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           </section>
       )}
 
-      {selectedDealershipId !== 'all' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Dealership Leaderboard</CardTitle>
-            <CardDescription>Current store ranking by total XP.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-32 w-full" />
-            ) : leaderboardRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No leaderboard data available for this dealership yet.</p>
-            ) : (
-              <div className="max-h-[16rem] overflow-y-auto pr-1">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Total XP / Level</TableHead>
-                      <TableHead className="text-right">Lesson Readiness</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {leaderboardRows.map((row, index) => (
-                      <TableRow key={row.userId}>
-                        <TableCell className="font-medium">{index + 1}. {row.name}</TableCell>
-                        <TableCell>{row.totalXp.toLocaleString()} XP / Level {row.level}</TableCell>
-                        <TableCell className="text-right">
-                          <span className="inline-flex items-center gap-2" title={row.readinessLabel}>
-                            <span
-                              className={cn(
-                                'h-2.5 w-2.5 rounded-full',
-                                row.readiness === 'green' && 'bg-emerald-500',
-                                row.readiness === 'yellow' && 'bg-amber-400',
-                                row.readiness === 'red' && 'bg-red-500'
-                              )}
-                            />
-                            <span className="text-xs text-muted-foreground">{row.readinessLabel}</span>
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {viewMode === 'team' ? (
           <>
             <Card>
@@ -983,14 +960,57 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 <CardContent>
                     {loading ? <Skeleton className="h-40 w-full" /> : (
                         <Table>
-                            <TableHeader><TableRow><TableHead>Member</TableHead><TableHead>Role</TableHead><TableHead className="text-center">Recommended</TableHead><TableHead className="text-center">Last Active</TableHead><TableHead className="text-center">Top Skill</TableHead><TableHead className="text-center">Watch Area</TableHead></TableRow></TableHeader>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-center">
+                                  <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('leaderboard')}>
+                                    Leaderboard
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'leaderboard' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead>
+                                  <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('name')}>
+                                    Member
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'name' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead>
+                                  <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('role')}>
+                                    Role
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'role' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead className="text-center">Recommended</TableHead>
+                                <TableHead className="text-center">
+                                  <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('lastInteraction')}>
+                                    Last Active
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'lastInteraction' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('topStrength')}>
+                                    Top Skill
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'topStrength' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('weakestSkill')}>
+                                    Watch Area
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'weakestSkill' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                              </TableRow>
+                            </TableHeader>
                             <TableBody>
-                                {sortedTeamActivity.length > 0 ? sortedTeamActivity.map(member => (
+                                {sortedTeamActivity.length > 0 ? sortedTeamActivity.map((member) => (
                                     <Dialog key={member.consultant.userId}>
                                         <DialogTrigger asChild>
                                           <TableRow className="cursor-pointer">
+                                            <TableCell className="text-center align-middle font-semibold text-muted-foreground">
+                                              {member.pendingInvite ? '-' : `${leaderboardRankByUserId.get(member.consultant.userId) ?? '-'}`}
+                                            </TableCell>
                                             <TableCell>
-                                              <div className="flex items-center gap-3">
+                                              <div className="flex items-center gap-4">
                                                 {(() => {
                                                   const memberName = formatUserDisplayName(member.consultant.name, member.consultant.email);
                                                   const avatarScores = getUserAvatarScores(member.consultant);
@@ -1005,7 +1025,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
                                                   return (
                                                     <>
-                                                      <div className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                                                      <div className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center mr-1">
                                                         <AvatarSoundRing
                                                           scores={avatarScores}
                                                           hasActivity={hasAvatarActivity}
@@ -1017,7 +1037,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                           <AvatarFallback>{memberName.charAt(0)}</AvatarFallback>
                                                         </Avatar>
                                                       </div>
-                                                      <div>
+                                                      <div className="pl-1">
                                                         <p className="font-medium">{memberName}</p>
                                                         <p className="text-sm text-muted-foreground">
                                                           {!!member.pendingInvite ? 'Pending invitation' : `Level ${calculateLevel(member.consultant.xp).level}`}
@@ -1115,7 +1135,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {dealershipActivity.slice(0, 100).map((entry) => (
+                        {dealershipActivity.map((entry) => (
                           <TableRow key={`${entry.userId}-${entry.lessonId}-${new Date(entry.timestamp).getTime()}`}>
                             <TableCell>{new Date(entry.timestamp).toLocaleString()}</TableCell>
                             <TableCell>{formatUserDisplayName(entry.memberName)}</TableCell>

@@ -282,6 +282,7 @@ export type LessonLog = {
   trainedTrait?: string;
   coachSummary?: string;
   recommendedNextFocus?: string;
+  activitySource?: 'core' | 'ppp' | 'saas-ppp';
   scoreDelta?: {
     empathy: number;
     listening: number;

@@ -171,6 +171,7 @@ export default function DeveloperPage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const [dashboardMode, setDashboardMode] = useState<DashboardMode>('role_based');
+  const [sandboxDealershipId, setSandboxDealershipId] = useState<string>('all');
   const [sprocketTourPreviewNonce, setSprocketTourPreviewNonce] = useState(0);
   const [singleUserScores, setSingleUserScores] = useState<LiveCxScores>(() => (
     user ? buildLiveCxScoresFromUser(user) : buildDefaultLiveCxScores()
@@ -179,6 +180,25 @@ export default function DeveloperPage() {
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
   const [isExportingUsers, setIsExportingUsers] = useState(false);
+  const sandboxDealershipStorageKey = useMemo(
+    () => `managerDashboard:selectedDealershipId:${originalUser?.userId || user?.userId || 'sandbox'}`,
+    [originalUser?.userId, user?.userId]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const persisted = localStorage.getItem(sandboxDealershipStorageKey);
+    if (persisted && persisted.trim().length > 0) {
+      setSandboxDealershipId(persisted);
+    }
+  }, [sandboxDealershipStorageKey]);
+
+  const handleSandboxDealershipChange = useCallback((value: string) => {
+    setSandboxDealershipId(value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(sandboxDealershipStorageKey, value);
+    }
+  }, [sandboxDealershipStorageKey]);
 
   const refreshData = useCallback(async () => {
     if (!originalUser) return;
@@ -273,16 +293,35 @@ export default function DeveloperPage() {
         xp: 0,
       };
     }
-    return dashboardMode === 'single_user'
-      ? {
+    if (dashboardMode === 'single_user') {
+      return {
+        ...user,
+        role: 'Sales Consultant',
+        dealershipIds: [],
+        selfDeclaredDealershipId: undefined,
+        stats: buildUserStatsFromLiveScores(singleUserScores),
+      };
+    }
+
+    if (sandboxDealershipId && sandboxDealershipId !== 'all') {
+      const sourceIds = Array.from(new Set([
+        ...(user.dealershipIds || []),
+        ...(user.selfDeclaredDealershipId ? [user.selfDeclaredDealershipId] : []),
+      ]));
+      const isPrivilegedViewer = originalUser?.role === 'Admin' || originalUser?.role === 'Developer';
+      const canScopeToSelected = isPrivilegedViewer || sourceIds.includes(sandboxDealershipId);
+
+      if (canScopeToSelected) {
+        return {
           ...user,
-          role: 'Sales Consultant',
-          dealershipIds: [],
-          selfDeclaredDealershipId: undefined,
-          stats: buildUserStatsFromLiveScores(singleUserScores),
-        }
-      : user;
-  }, [dashboardMode, singleUserScores, user]);
+          dealershipIds: [sandboxDealershipId],
+          selfDeclaredDealershipId: sandboxDealershipId,
+        };
+      }
+    }
+
+    return user;
+  }, [dashboardMode, singleUserScores, user, sandboxDealershipId, originalUser?.role]);
 
   const isViewingAsManager = managerialRoles.includes(dashboardUser.role);
   const canSeeDeveloperCxTuner = originalUser?.role === 'Developer';
@@ -491,6 +530,22 @@ export default function DeveloperPage() {
           </Select>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-4">
+          <span className="text-sm font-medium">Dealership:</span>
+          <Select onValueChange={handleSandboxDealershipChange} value={sandboxDealershipId}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stores</SelectItem>
+              {allDealerships.map((dealership) => (
+                <SelectItem key={dealership.id} value={dealership.id}>
+                  {dealership.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
           <span className="text-sm font-medium">Impersonating:</span>
           <Select onValueChange={(role) => handleSwitchRole(role as UserRole)} value={user.role}>
             <SelectTrigger className="w-[240px]" disabled={dashboardMode === 'single_user'}>
@@ -583,7 +638,7 @@ export default function DeveloperPage() {
         )}
         <div className="mt-6 border-t pt-8">
           {isViewingAsManager ? (
-            <ManagerDashboard user={dashboardUser} />
+            <ManagerDashboard key={`sandbox-manager-${sandboxDealershipId}-${dashboardUser.role}`} user={dashboardUser} />
           ) : (
             <ConsultantDashboard
               user={dashboardUser}

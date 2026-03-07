@@ -1606,7 +1606,11 @@ export async function getDailyLessonLimits(userId: string): Promise<{ recommende
     }
 
     const logs = await getConsultantActivity(userId);
-    const todayLogs = logs.filter(log => isToday(log.timestamp));
+    const todayLogs = logs.filter((log) => (
+        isToday(log.timestamp) &&
+        log.activitySource !== 'ppp' &&
+        log.activitySource !== 'saas-ppp'
+    ));
     return { recommendedTaken: todayLogs.some(l => l.isRecommended), otherTaken: todayLogs.some(l => !l.isRecommended) };
 }
 
@@ -1713,6 +1717,7 @@ export async function logLessonCompletion(data: {
             trainedTrait: data.trainedTrait,
             coachSummary: data.coachSummary,
             recommendedNextFocus: data.recommendedNextFocus,
+            activitySource: 'core',
             scoreDelta,
             isRecommended: data.isRecommended,
         };
@@ -1801,6 +1806,7 @@ export async function logLessonCompletion(data: {
         ratings: normalizedRatings,
         severity,
         flags,
+        activitySource: 'core',
     };
     if (typeof data.trainedTrait === 'string' && data.trainedTrait.trim().length > 0) {
         newLogData.trainedTrait = data.trainedTrait;
@@ -2916,6 +2922,33 @@ export async function completePppLessonPass(
         user.ppp_certified = certified;
         user.ppp_daily_pass_date = todayKey;
         user.ppp_daily_pass_count = dailyPassCount + 1;
+        const scoreSeed = getTraitScoresFromUserStats(user) || {
+            empathy: BASELINE,
+            listening: BASELINE,
+            trust: BASELINE,
+            followUp: BASELINE,
+            closing: BASELINE,
+            relationshipBuilding: BASELINE,
+        };
+        const now = new Date();
+        tour.lessonLogs.push({
+            logId: `tour-ppp-${userId}-${now.getTime()}`,
+            timestamp: now,
+            userId,
+            lessonId,
+            stepResults: { pass: 'pass' },
+            xpGained: xpAwarded,
+            empathy: scoreSeed.empathy,
+            listening: scoreSeed.listening,
+            trust: scoreSeed.trust,
+            followUp: scoreSeed.followUp,
+            closing: scoreSeed.closing,
+            relationshipBuilding: scoreSeed.relationshipBuilding,
+            isRecommended: false,
+            trainedTrait: 'ppp',
+            coachSummary: 'PPP lesson pass recorded.',
+            activitySource: 'ppp',
+        });
 
         return {
             updatedUser: cloneTourUser(user),
@@ -3009,6 +3042,33 @@ export async function completePppLessonPass(
             ppp_certified: certified,
             ppp_daily_pass_date: todayKey,
             ppp_daily_pass_count: dailyPassCount + 1,
+        });
+        const scoreSeed = getTraitScoresFromUserStats(user) || {
+            empathy: BASELINE,
+            listening: BASELINE,
+            trust: BASELINE,
+            followUp: BASELINE,
+            closing: BASELINE,
+            relationshipBuilding: BASELINE,
+        };
+        const pppLogRef = doc(collection(db, `users/${userId}/lessonLogs`));
+        transaction.set(pppLogRef, {
+            logId: pppLogRef.id,
+            timestamp: Timestamp.fromDate(new Date()),
+            userId,
+            lessonId,
+            stepResults: { pass: 'pass' },
+            xpGained: xpAwarded,
+            empathy: scoreSeed.empathy,
+            listening: scoreSeed.listening,
+            trust: scoreSeed.trust,
+            followUp: scoreSeed.followUp,
+            closing: scoreSeed.closing,
+            relationshipBuilding: scoreSeed.relationshipBuilding,
+            isRecommended: false,
+            trainedTrait: 'ppp',
+            coachSummary: 'PPP lesson pass recorded.',
+            activitySource: 'ppp',
         });
 
         transactionResult = {
@@ -3270,6 +3330,35 @@ export async function completeSaasPppLessonPass(
         user.saas_ppp_enabled = hasAccess;
         const result = computeSaasPppPassPatch(user, safeLevel, lessonId, nowIso);
         Object.assign(user, result.patch);
+        if (!result.alreadyPassed) {
+            const scoreSeed = getTraitScoresFromUserStats(user) || {
+                empathy: BASELINE,
+                listening: BASELINE,
+                trust: BASELINE,
+                followUp: BASELINE,
+                closing: BASELINE,
+                relationshipBuilding: BASELINE,
+            };
+            const now = new Date();
+            tour.lessonLogs.push({
+                logId: `tour-saas-ppp-${userId}-${now.getTime()}`,
+                timestamp: now,
+                userId,
+                lessonId,
+                stepResults: { pass: 'pass' },
+                xpGained: result.xpAwarded,
+                empathy: scoreSeed.empathy,
+                listening: scoreSeed.listening,
+                trust: scoreSeed.trust,
+                followUp: scoreSeed.followUp,
+                closing: scoreSeed.closing,
+                relationshipBuilding: scoreSeed.relationshipBuilding,
+                isRecommended: false,
+                trainedTrait: 'saas-ppp',
+                coachSummary: 'SaaS PPP lesson pass recorded.',
+                activitySource: 'saas-ppp',
+            });
+        }
 
         return {
             updatedUser: cloneTourUser(user),
@@ -3318,6 +3407,35 @@ export async function completeSaasPppLessonPass(
             ...result.patch,
             saas_ppp_enabled: hasAccess,
         });
+        if (!result.alreadyPassed) {
+            const scoreSeed = getTraitScoresFromUserStats(user) || {
+                empathy: BASELINE,
+                listening: BASELINE,
+                trust: BASELINE,
+                followUp: BASELINE,
+                closing: BASELINE,
+                relationshipBuilding: BASELINE,
+            };
+            const saasPppLogRef = doc(collection(db, `users/${userId}/lessonLogs`));
+            transaction.set(saasPppLogRef, {
+                logId: saasPppLogRef.id,
+                timestamp: Timestamp.fromDate(new Date()),
+                userId,
+                lessonId,
+                stepResults: { pass: 'pass' },
+                xpGained: result.xpAwarded,
+                empathy: scoreSeed.empathy,
+                listening: scoreSeed.listening,
+                trust: scoreSeed.trust,
+                followUp: scoreSeed.followUp,
+                closing: scoreSeed.closing,
+                relationshipBuilding: scoreSeed.relationshipBuilding,
+                isRecommended: false,
+                trainedTrait: 'saas-ppp',
+                coachSummary: 'SaaS PPP lesson pass recorded.',
+                activitySource: 'saas-ppp',
+            });
+        }
 
         transactionResult = {
             xpAwarded: result.xpAwarded,
