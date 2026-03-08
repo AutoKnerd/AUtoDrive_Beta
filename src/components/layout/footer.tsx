@@ -19,7 +19,7 @@ export function Footer() {
             <Link href="/privacy" className="hover:text-primary underline-offset-4 hover:underline">Privacy Policy</Link>
             <span className="mx-2">|</span>
             <span suppressHydrationWarning className="inline-block h-4">
-                © {currentYear} AutoKnerd, Inc. All rights reserved.
+                © {currentYear} AutoKnerd, LLC. All rights reserved.
             </span>
             <span className="mx-2">|</span>
             <span className="inline-block h-4">v{appVersion}-{gitSha}</span>

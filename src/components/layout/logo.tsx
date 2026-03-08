@@ -11,8 +11,8 @@ interface LogoProps {
 }
 
 export function Logo({ width = 24, height = 24, className, variant = 'icon' }: LogoProps) {
-  const src = variant === 'full' ? '/logo-full3.png' : '/logo-icon1.png';
-  const alt = variant === 'full' ? 'AutoDrive Logo' : 'AutoDrive Icon';
+  const src = variant === 'full' ? '/AutoDriveCXLogo030625.png' : '/logo-icon1.png';
+  const alt = variant === 'full' ? 'AutoDriveCX Logo' : 'AutoDrive Icon';
   
   return (
     <Image

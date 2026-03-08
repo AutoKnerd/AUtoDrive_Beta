@@ -7,6 +7,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuth as useFirebaseAuth } from '@/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +44,9 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTouring, setIsTouring] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const router = useRouter();
+  const firebaseAuth = useFirebaseAuth();
   const { login } = useAuth();
   const { toast } = useToast();
 
@@ -94,6 +98,33 @@ export function LoginForm() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const emailValue = form.getValues('email').trim();
+    const emailValidation = z.string().email().safeParse(emailValue);
+
+    if (!emailValidation.success) {
+      form.setError('email', { type: 'manual', message: 'Enter your email above, then click Forgot password.' });
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      await sendPasswordResetEmail(firebaseAuth, emailValue);
+      toast({
+        title: 'Reset Email Sent',
+        description: 'If an account exists for that email, a reset link has been sent.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Reset Failed',
+        description: (error as Error).message || 'Could not send password reset email.',
+      });
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   return (
     <Card className="bg-card/80 backdrop-blur-sm">
       <CardHeader>
@@ -120,7 +151,17 @@ export function LoginForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Password</FormLabel>
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={isSubmitting || isTouring || isResettingPassword}
+                      className="text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isResettingPassword ? 'Sending...' : 'Forgot password?'}
+                    </button>
+                  </div>
                   <FormControl>
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>

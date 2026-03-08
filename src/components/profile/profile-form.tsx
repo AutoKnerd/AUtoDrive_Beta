@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useRouter } from 'next/navigation';
 import { User, Dealership, UserRole, allRoles, carBrands, type ThemePreference } from '@/lib/definitions';
 import { updateUser, getDealerships, updateUserDealerships } from '@/lib/data.client';
 import { useAuth } from '@/hooks/use-auth';
@@ -64,6 +65,7 @@ const SELF_SELECTABLE_ROLES: UserRole[] = allRoles.filter((role) => (
 ));
 
 export function ProfileForm({ user }: ProfileFormProps) {
+  const router = useRouter();
   const { setUser } = useAuth();
   const firebaseAuth = useFirebaseAuth();
   const { toast } = useToast();
@@ -198,6 +200,14 @@ export function ProfileForm({ user }: ProfileFormProps) {
       setIsPortalLoading(false);
     }
   }
+
+  const handleModifySubscription = async () => {
+    if (user.stripeCustomerId) {
+      await handleManageSubscription();
+      return;
+    }
+    router.push('/subscribe');
+  };
 
   const handleRoleUpdate = async () => {
     if (!isUnassignedUser) return;
@@ -501,7 +511,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   </div>
                   {user.stripeCustomerId ? (
                     <Button type="button" onClick={handleManageSubscription} variant="ghost" disabled={isPortalLoading} className="text-sm">
-                      {isPortalLoading ? <Spinner size="sm" /> : <>Manage <ExternalLink className="ml-2 h-4 w-4" /></>}
+                      {isPortalLoading ? <Spinner size="sm" /> : <>Modify Subscription <ExternalLink className="ml-2 h-4 w-4" /></>}
                     </Button>
                   ) : null}
                 </div>
@@ -517,6 +527,16 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <p className="text-sm text-muted-foreground">
                   Your trial has ended or billing has not been activated yet. Contact your manager or activate an individual plan.
                 </p>
+                {isUnassignedUser ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleModifySubscription}
+                    disabled={isPortalLoading}
+                  >
+                    {isPortalLoading ? <Spinner size="sm" /> : (user.stripeCustomerId ? 'Modify Subscription' : 'Activate Subscription')}
+                  </Button>
+                ) : null}
               </div>
             )}
           </CardContent>
@@ -625,21 +645,15 @@ export function ProfileForm({ user }: ProfileFormProps) {
                     name="selfDeclaredDealershipId"
                     render={({ field }) => (
                       <FormItem>
-                        <Select onValueChange={(value) => field.onChange(value === 'none' ? '' : value)} value={field.value || 'none'}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a dealership to affiliate with..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">-- Not Affiliated --</SelectItem>
-                            {allDealerships.filter(d => d.status === 'active').map(d => (
-                              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value || ''}
+                            placeholder="Type your dealership name..."
+                          />
+                        </FormControl>
                         <FormDescription>
-                          As an individual subscriber, you can display a public affiliation with one dealership. This does not grant access to dealership-specific data.
+                          As an individual subscriber, you can display a public dealership affiliation. This does not grant access to dealership-specific data.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
