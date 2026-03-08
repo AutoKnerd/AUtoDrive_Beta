@@ -380,6 +380,16 @@ export default function DeveloperPage() {
     return 'No dealership assigned';
   }, [dealershipNameById]);
 
+  const getWatchlistRoleLabel = useCallback((candidate: User) => {
+    const role = candidate.signupRoleInterest || candidate.role;
+    if (!role) return '';
+    if (role === 'manager') return 'Sales Manager';
+    if (role === 'Service Writer') return 'Service Advisor';
+    if (role === 'BDC') return 'BDC Professional';
+    if (role === 'Finance Manager') return 'F&I Director';
+    return role;
+  }, []);
+
   const handleExportNewUsers = useCallback(async () => {
     try {
       setIsExportingUsers(true);
@@ -388,7 +398,7 @@ export default function DeveloperPage() {
         Joined: candidate.memberSince ? new Date(candidate.memberSince).toLocaleDateString() : '',
         Name: candidate.name || 'New User',
         Email: candidate.email || '',
-        Role: candidate.role || '',
+        Role: getWatchlistRoleLabel(candidate),
         DealerAffiliation: getAffiliationLabel(candidate),
       }));
 
@@ -420,7 +430,7 @@ export default function DeveloperPage() {
     } finally {
       setIsExportingUsers(false);
     }
-  }, [filteredNewestUsers, getAffiliationLabel, exportStartDate, exportEndDate, toast]);
+  }, [filteredNewestUsers, getWatchlistRoleLabel, getAffiliationLabel, exportStartDate, exportEndDate, toast]);
 
   const handleCopyTempProSignupLink = useCallback(async () => {
     try {
@@ -511,6 +521,7 @@ export default function DeveloperPage() {
                     <TableHead>Joined</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
                     <TableHead>Dealer Affiliation</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -520,6 +531,7 @@ export default function DeveloperPage() {
                       <TableCell>{candidate.memberSince ? new Date(candidate.memberSince).toLocaleDateString() : '-'}</TableCell>
                       <TableCell className="font-medium">{candidate.name || 'New User'}</TableCell>
                       <TableCell>{candidate.email}</TableCell>
+                      <TableCell>{getWatchlistRoleLabel(candidate) || '-'}</TableCell>
                       <TableCell>{getAffiliationLabel(candidate)}</TableCell>
                     </TableRow>
                   ))}

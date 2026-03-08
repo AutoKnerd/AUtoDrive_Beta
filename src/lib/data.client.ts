@@ -609,6 +609,8 @@ export async function getUserById(userId: string): Promise<User | null> {
 type CreateUserProfileOptions = {
     // For direct individual signups, require Stripe Checkout before trial starts.
     requireCheckoutForTrial?: boolean;
+    // Captures selected role from public signup for marketing attribution.
+    signupRoleInterest?: UserRole;
 };
 
 export async function createUserProfile(
@@ -653,6 +655,7 @@ export async function createUserProfile(
         name: name,
         email: email,
         role: role,
+        signupRoleInterest: options?.signupRoleInterest,
         dealershipIds: dealershipIds,
         avatarUrl: 'https://images.unsplash.com/photo-1515086828834-023d61380316?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzdGVlcmluZyUyMHdoZWVsfGVufDB8fHx8MTc2ODkxMTAyM3ww&ixlib=rb-4.1.0&q=80&w=1080',
         xp: 0,
