@@ -7,7 +7,7 @@ const IndividualTrial: React.FC = () => {
     const { pathname, hash } = useLocation();
     const enrollmentRef = useRef<HTMLElement | null>(null);
     const startTrialAnchor = '/start-trial#trial-enrollment';
-    const signupUrl = 'https://app.autodrivecx.com/signup';
+    const directCheckoutUrl = import.meta.env.VITE_STRIPE_CHECKOUT_URL as string | undefined;
 
     useEffect(() => {
         if ((pathname === '/start-trial' && hash === '#trial-enrollment') && enrollmentRef.current) {
@@ -16,7 +16,12 @@ const IndividualTrial: React.FC = () => {
     }, [pathname, hash]);
 
     const handleCheckoutStart = () => {
-        window.location.assign(signupUrl);
+        if (directCheckoutUrl) {
+            window.location.assign(directCheckoutUrl);
+            return;
+        }
+
+        window.location.assign('/api/create-checkout-session');
     };
 
     return (
