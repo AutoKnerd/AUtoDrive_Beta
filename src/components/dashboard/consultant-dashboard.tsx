@@ -851,7 +851,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                         {needsBaselineAssessment ? (
                             <div className="grid grid-cols-2 gap-2">
                                 {availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
-                                    <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
+                                    <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full lesson-ready-pulse", buttonVariants({ className: "w-full font-bold" }))}>
                                         Recommended Lesson
                                     </Link>
                                 ) : (
@@ -867,7 +867,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                                 </Button>
                             </div>
                         ) : availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
-                            <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
+                            <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full lesson-ready-pulse", buttonVariants({ className: "w-full font-bold" }))}>
                                 {availableRecommendedLesson.title}
                             </Link>
 	                        ) : (retakeTestingLesson || availableRecommendedLesson) && lessonLimits.recommendedTaken ? (
@@ -934,7 +934,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                                       key={lesson.lessonId}
                                       href={`/lesson/${lesson.lessonId}`}
                                       className={cn(
-                                        "w-full justify-between text-black hover:text-black",
+                                        "w-full justify-between text-black hover:text-black lesson-ready-pulse",
                                         buttonVariants({
                                           className: "w-full font-normal bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]",
                                         })

@@ -38,6 +38,7 @@ export function SaasPppDashboardCard({ user, className, featureEnabled }: SaasPp
   if (!enabled) return null;
 
   const certified = !!state.certifiedTimestamp;
+  const hasNextSaasPppLesson = !certified && state.currentLevelLessonCount > state.currentLevelPassedCount;
   const levelLabel = certified ? 'LVL 5 Certified' : `LVL ${state.currentLevel}`;
   const levelContext = certified
     ? 'Certification complete'
@@ -65,7 +66,7 @@ export function SaasPppDashboardCard({ user, className, featureEnabled }: SaasPp
           value={state.currentLevelProgress}
           className="h-3 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-emerald-400 [&>div]:to-teal-400"
         />
-        <Button asChild className="w-full bg-emerald-500 font-semibold text-slate-950 hover:bg-emerald-400">
+        <Button asChild className={cn("w-full bg-emerald-500 font-semibold text-slate-950 hover:bg-emerald-400", hasNextSaasPppLesson && "lesson-ready-pulse")}>
           <Link href="/ppp-saas">
             Enter SaaS PPP
             <ArrowRight className="ml-2 h-4 w-4" />
