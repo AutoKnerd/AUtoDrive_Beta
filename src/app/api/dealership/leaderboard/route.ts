@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User, UserRole } from '@/lib/definitions';
+import type { Firestore } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,9 +37,40 @@ function getReadiness(lastRecommendedAt: Date | null): { readiness: Readiness; r
   lastStart.setHours(0, 0, 0, 0);
 
   const daysSince = Math.max(0, Math.floor((todayStart.getTime() - lastStart.getTime()) / (24 * 60 * 60 * 1000)));
-  if (daysSince === 0) return { readiness: 'green', readinessLabel: 'Ready' };
+  if (daysSince === 0) return { readiness: 'green', readinessLabel: 'Today' };
   if (daysSince > 3) return { readiness: 'red', readinessLabel: 'Overdue' };
   return { readiness: 'yellow', readinessLabel: 'Due Soon' };
+}
+
+async function getLastRecommendedAt(adminDb: Firestore, userId: string): Promise<Date | null> {
+  const logsRef = adminDb.collection('users').doc(userId).collection('lessonLogs');
+
+  try {
+    const recommendedSnap = await logsRef
+      .where('isRecommended', '==', true)
+      .orderBy('timestamp', 'desc')
+      .limit(1)
+      .get();
+
+    return recommendedSnap.docs[0] ? toDate(recommendedSnap.docs[0].data().timestamp) : null;
+  } catch {
+    // Fallback if the composite index is unavailable: scan a recent timestamp-ordered window.
+    const recentSnap = await logsRef
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get()
+      .catch(() => null);
+
+    if (!recentSnap) return null;
+
+    for (const doc of recentSnap.docs) {
+      const data = doc.data();
+      if (data?.isRecommended === true) {
+        return toDate(data.timestamp);
+      }
+    }
+    return null;
+  }
 }
 
 function calculateLevel(xp: number): number {
@@ -104,17 +136,7 @@ export async function GET(req: Request) {
           if (actor.role !== 'Owner' && member.isPrivate === true) return null;
         }
 
-        const logsSnap = await adminDb
-          .collection('users')
-          .doc(member.userId)
-          .collection('lessonLogs')
-          .where('isRecommended', '==', true)
-          .orderBy('timestamp', 'desc')
-          .limit(1)
-          .get()
-          .catch(() => null);
-
-        const lastRecommendedAt = logsSnap?.docs?.[0] ? toDate(logsSnap.docs[0].data().timestamp) : null;
+        const lastRecommendedAt = await getLastRecommendedAt(adminDb, member.userId);
         const readiness = getReadiness(lastRecommendedAt);
 
         const displayName = (member.name || '').trim() || (member.email || '').split('@')[0] || 'Member';

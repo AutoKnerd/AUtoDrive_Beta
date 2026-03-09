@@ -33,6 +33,28 @@ import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '../ui/spinner';
 import { ArrowRight, User, Shield } from 'lucide-react';
 
+function getResetPasswordErrorMessage(error: any): string {
+  const code = error?.code || '';
+
+  if (code === 'auth/operation-not-allowed') {
+    return 'Password reset is disabled in Firebase. Re-enable Email/Password in Authentication -> Sign-in method.';
+  }
+
+  if (code === 'auth/invalid-email') {
+    return 'That email address is invalid.';
+  }
+
+  if (code === 'auth/too-many-requests') {
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  }
+
+  if (code === 'auth/network-request-failed') {
+    return 'Network error while contacting Firebase. Check your connection and retry.';
+  }
+
+  return error?.message || 'Could not send password reset email.';
+}
+
 const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(1, { message: 'Password is required.' }),
@@ -109,16 +131,32 @@ export function LoginForm() {
 
     setIsResettingPassword(true);
     try {
-      await sendPasswordResetEmail(firebaseAuth, emailValue);
+      // Safe rollout toggle:
+      // Keep this OFF until /reset-password is deployed and tested.
+      // Set NEXT_PUBLIC_USE_CUSTOM_RESET_FLOW=true to enable custom reset links.
+      const useCustomResetFlow = process.env.NEXT_PUBLIC_USE_CUSTOM_RESET_FLOW === 'true';
+
+      if (useCustomResetFlow) {
+        await sendPasswordResetEmail(firebaseAuth, emailValue, {
+          // Replace with your real production domain when ready:
+          // e.g. https://app.yourdomain.com/reset-password
+          url: 'https://YOURDOMAIN.com/reset-password',
+          handleCodeInApp: false,
+        });
+      } else {
+        // Existing default Firebase-hosted reset flow (unchanged).
+        await sendPasswordResetEmail(firebaseAuth, emailValue);
+      }
       toast({
         title: 'Reset Email Sent',
         description: 'If an account exists for that email, a reset link has been sent.',
       });
     } catch (error) {
+      console.error('[LoginForm] Password reset failed:', error);
       toast({
         variant: 'destructive',
         title: 'Reset Failed',
-        description: (error as Error).message || 'Could not send password reset email.',
+        description: getResetPasswordErrorMessage(error),
       });
     } finally {
       setIsResettingPassword(false);

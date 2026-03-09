@@ -995,7 +995,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Total XP / Level</TableHead>
-                        <TableHead className="text-right">Lesson Readiness</TableHead>
+                        <TableHead className="text-right">Recommended</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
