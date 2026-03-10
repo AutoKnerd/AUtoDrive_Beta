@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,13 +11,17 @@ function normalizeConsultant(value: string | null): string {
 }
 
 export default function DemoPage() {
-  const searchParams = useSearchParams();
-  const consultant = normalizeConsultant(searchParams.get('consultant'));
+  const [consultant, setConsultant] = useState('');
 
   const signupHref = useMemo(() => {
     if (!consultant) return '/signup';
     return `/signup?consultant=${encodeURIComponent(consultant)}`;
   }, [consultant]);
+
+  useEffect(() => {
+    const fromUrl = normalizeConsultant(new URLSearchParams(window.location.search).get('consultant'));
+    setConsultant(fromUrl);
+  }, []);
 
   useEffect(() => {
     if (!consultant) return;
