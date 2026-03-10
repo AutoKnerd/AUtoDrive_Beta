@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { isToday } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership, LessonRole, ThemePreference } from '@/lib/definitions';
+import { managerialRoles } from '@/lib/definitions';
 import {
   getLessons,
   getConsultantActivity,
@@ -55,6 +56,16 @@ interface ConsultantDashboardProps {
   sprocketTourPreviewNonce?: number;
   isSprocketTourSandboxPreview?: boolean;
 }
+
+type DealerSalespersonDashboardResponse = {
+  dealership_name: string;
+  today_mission: {
+    title: string;
+    description: string;
+  };
+  training_streak: number;
+  skill_score: number;
+};
 
 const SteeringWheelIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -293,7 +304,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [canRetakeRecommendedTesting, setCanRetakeRecommendedTesting] = useState(false);
   const [canUseNewRecommendedTesting, setCanUseNewRecommendedTesting] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
-  const { isTouring, setUser } = useAuth();
+  const { isTouring, setUser, firebaseUser } = useAuth();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
   const [showSprocketTour, setShowSprocketTour] = useState(false);
   const [sprocketTourStep, setSprocketTourStep] = useState(0);
@@ -308,6 +319,9 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
   const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
   const [dealershipLeaderboard, setDealershipLeaderboard] = useState<DealershipLeaderboardEntry[]>([]);
+  const [dealerMissionData, setDealerMissionData] = useState<DealerSalespersonDashboardResponse | null>(null);
+  const [dealerMissionLoading, setDealerMissionLoading] = useState(false);
+  const [dealerMissionError, setDealerMissionError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -319,6 +333,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
     return Array.from(new Set(ids));
   }, [user.dealershipIds, user.selfDeclaredDealershipId]);
   const hasDealershipContext = scopedDealershipIds.length > 0;
+  const canShowDealerMission = hasDealershipContext && !managerialRoles.includes(user.role);
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
   const sprocketTourCompleteKeyForUser = `${SPROCKET_TOUR_COMPLETE_KEY}_${user.userId}`;
@@ -461,6 +476,52 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
       active = false;
     };
   }, [user, isTouring, refreshKey, scopedDealershipIds, toast]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!canShowDealerMission || !firebaseUser) {
+      setDealerMissionData(null);
+      setDealerMissionLoading(false);
+      setDealerMissionError(null);
+      return () => {
+        active = false;
+      };
+    }
+    const authUser = firebaseUser;
+
+    async function loadDealerMission() {
+      setDealerMissionLoading(true);
+      setDealerMissionError(null);
+      try {
+        const token = await authUser.getIdToken(true);
+        const response = await fetch('/api/dealer/me', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.message || 'Failed to load dealer mission.');
+        }
+        if (!active) return;
+        setDealerMissionData(payload as DealerSalespersonDashboardResponse);
+      } catch (error) {
+        if (!active) return;
+        setDealerMissionData(null);
+        setDealerMissionError(error instanceof Error ? error.message : 'Failed to load dealer mission.');
+      } finally {
+        if (active) {
+          setDealerMissionLoading(false);
+        }
+      }
+    }
+
+    void loadDealerMission();
+    return () => {
+      active = false;
+    };
+  }, [canShowDealerMission, firebaseUser, refreshKey]);
 
   useEffect(() => {
     if (isTouring) {
@@ -653,6 +714,46 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   };
 
   const showTestingControls = !needsBaselineAssessment && (canRetakeRecommendedTesting || canUseNewRecommendedTesting);
+  const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
+  const showAssignedInPppRow = pppCardCount === 1;
+
+  const assignedCard = (
+    <Card className={cn(
+      `flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`,
+      isPaused && "opacity-50 pointer-events-none"
+    )}>
+      <div className="flex-1">
+        <div className="flex items-center gap-3 mb-2">
+          <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+          <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">Lessons assigned to you by your manager.</p>
+      </div>
+      <div className="space-y-2">
+        {assignedLessons.length > 0 ? (
+          assignedLessons.map(lesson => (
+            <Link
+              key={lesson.lessonId}
+              href={`/lesson/${lesson.lessonId}`}
+              className={cn(
+                "w-full justify-between text-black hover:text-black lesson-ready-pulse",
+                buttonVariants({
+                  className: "w-full font-normal bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]",
+                })
+              )}
+            >
+              <span className="truncate">{lesson.title}</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ))
+        ) : (
+          <div className="rounded-md border border-border bg-muted/50 p-4 text-center text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50">
+            No assigned lessons
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 
   const recentActivities = useMemo(() => {
     if (!activity || !user) return [];
@@ -831,129 +932,70 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           />
         </section>
 
-        <section id="lessons" className="space-y-4">
-            <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {loading ? (
-                    <Skeleton className="h-full min-h-[160px] rounded-2xl" />
-                ) : (
-                    <Card data-sprocket-tour="recommended-lesson" className={cn(
-                        `flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`,
-                        isPaused && "opacity-50 pointer-events-none"
-                    )}>
-                        <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <SteeringWheelIcon className="h-8 w-8 text-primary dark:text-cyan-400" />
-                                <h3 className="text-2xl font-bold text-foreground">Recommended</h3>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-4">A daily lesson focused on your area for greatest improvement.</p>
-                        </div>
-                        {needsBaselineAssessment ? (
-                            <div className="grid grid-cols-2 gap-2">
-                                {availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
-                                    <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full lesson-ready-pulse", buttonVariants({ className: "w-full font-bold" }))}>
-                                        Recommended Lesson
-                                    </Link>
-                                ) : (
-                                    <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-                                        {availableRecommendedLesson ? 'Completed for today' : 'No lesson available'}
-                                    </Button>
-                                )}
-                                <Button
-                                  className="w-full font-bold bg-[#8DC63F] text-black hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]"
-                                  onClick={() => setShowBaselineAssessment(true)}
-                                >
-                                    Take Baseline
-                                </Button>
-                            </div>
-                        ) : availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
-                            <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full lesson-ready-pulse", buttonVariants({ className: "w-full font-bold" }))}>
-                                {availableRecommendedLesson.title}
-                            </Link>
-	                        ) : (retakeTestingLesson || availableRecommendedLesson) && lessonLimits.recommendedTaken ? (
-	                            <div className="space-y-2">
-	                                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-	                                    <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</>
-	                                </Button>
-	                            </div>
-	                        ) : (
-	                            <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-	                                No lesson available
-	                            </Button>
-	                        )}
-                            {showTestingControls && (
-                                <div className="mt-2 space-y-2">
-                                    {canRetakeRecommendedTesting && retakeTestingLesson && (
-                                        <Link
-                                          href={`/lesson/${retakeTestingLesson.lessonId}?recommended=true&retake=testing`}
-                                          className={cn(
-                                            "w-full",
-                                            buttonVariants({
-                                              variant: "outline",
-                                              className: "w-full font-semibold border-primary/50 text-primary hover:bg-primary/10 hover:text-primary dark:border-cyan-400/60 dark:text-cyan-200 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-100",
-                                            })
-                                          )}
-                                        >
-                                          Retake Recommended (Testing)
-                                        </Link>
-                                    )}
-                                    {canUseNewRecommendedTesting && (
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          disabled={creatingUniqueTestingLesson}
-                                          onClick={handleCreateUniqueRecommendedTestingLesson}
-                                          className="w-full font-semibold border-accent/60 text-foreground hover:bg-accent/10 hover:text-foreground dark:border-emerald-400/60 dark:text-emerald-200 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-100"
-                                        >
-                                          New Recommended (Testing)
-                                        </Button>
-                                    )}
-                                </div>
-                            )}
-	                    </Card>
-	                )}
-                
-                {loading ? (
-                    <Skeleton className="h-full min-h-[160px] rounded-2xl" />
-                ) : (
-                    <Card className={cn(
-                        `flex flex-col p-6 ${dashboardFeatureCardClass}`,
-                        isPaused && "opacity-50 pointer-events-none"
-                    )}>
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                                <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
-                                <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-4">Lessons assigned to you by your manager.</p>
-                        </div>
-                        <div className="space-y-2">
-                            {assignedLessons.length > 0 ? (
-                                assignedLessons.map(lesson => (
-                                    <Link
-                                      key={lesson.lessonId}
-                                      href={`/lesson/${lesson.lessonId}`}
-                                      className={cn(
-                                        "w-full justify-between text-black hover:text-black lesson-ready-pulse",
-                                        buttonVariants({
-                                          className: "w-full font-normal bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]",
-                                        })
-                                      )}
-                                    >
-                                        <span className="truncate">{lesson.title}</span>
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Link>
-                                ))
+        {canShowDealerMission && (
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold text-foreground">Dealer Focus</h2>
+            <Card className={dashboardFeatureCardClass}>
+              <CardHeader>
+                <CardTitle>Today&apos;s Dealer Mission</CardTitle>
+                <CardDescription>
+                  {dealerMissionData?.dealership_name || 'Dealership'} performance sync.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {dealerMissionLoading ? (
+                  <Skeleton className="h-20 w-full" />
+                ) : dealerMissionError ? (
+                  <p className="text-sm text-muted-foreground">{dealerMissionError}</p>
+                ) : dealerMissionData ? (
+                  <>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-lg font-semibold">{dealerMissionData.today_mission.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{dealerMissionData.today_mission.description}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Training Streak</p>
+                        <p className="mt-2 text-xl font-semibold">{dealerMissionData.training_streak}</p>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Skill Score</p>
+                        <p className="mt-2 text-xl font-semibold">{dealerMissionData.skill_score}</p>
+                      </div>
+                      <div className="col-span-2 md:col-span-1">
+                        {availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
+                          <Link
+                            href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`}
+                            className={cn("h-full w-full", buttonVariants({ className: "h-full w-full font-semibold" }))}
+                          >
+                            Recommended Lesson
+                          </Link>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled
+                            className="h-full w-full font-semibold"
+                          >
+                            {availableRecommendedLesson ? (
+                              <>
+                                <CheckCircle className="mr-2 h-4 w-4" /> Completed for today
+                              </>
                             ) : (
-                                <div className="rounded-md border border-border bg-muted/50 p-4 text-center text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50">
-                                    No assigned lessons
-                                </div>
+                              'No lesson available'
                             )}
-                        </div>
-                    </Card>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No dealer mission data available yet.</p>
                 )}
-            </div>
-        </section>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         {(pppFeatureEnabled || saasPppFeatureEnabled) && (
           <section className="space-y-4">
@@ -972,6 +1014,24 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
               )}
               {saasPppFeatureEnabled && (
                 <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
+              )}
+              {showAssignedInPppRow && (loading ? (
+                <Skeleton className="h-full min-h-[160px] rounded-2xl" />
+              ) : (
+                assignedCard
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!showAssignedInPppRow && (
+          <section id="lessons" className="space-y-4">
+            <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>
+            <div className="grid grid-cols-1 gap-4">
+              {loading ? (
+                <Skeleton className="h-full min-h-[160px] rounded-2xl" />
+              ) : (
+                assignedCard
               )}
             </div>
           </section>

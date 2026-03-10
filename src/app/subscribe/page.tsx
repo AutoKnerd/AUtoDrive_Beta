@@ -21,6 +21,12 @@ export default function SubscribePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const consultant = params.get('consultant')?.trim().toLowerCase();
+    if (consultant) {
+      localStorage.setItem('consultant_referral', consultant);
+    }
+
     if (!loading && !user) {
       router.push('/login');
     }
@@ -38,7 +44,8 @@ export default function SubscribePage() {
       }
 
       const idToken = await fbUser.getIdToken(true);
-      const checkout = await createIndividualCheckoutSessionUrl(idToken);
+      const consultant = localStorage.getItem('consultant_referral')?.trim().toLowerCase();
+      const checkout = await createIndividualCheckoutSessionUrl(idToken, 'monthly', consultant || undefined);
       if (!checkout.ok) {
         throw new Error(checkout.message);
       }

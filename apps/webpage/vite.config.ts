@@ -48,7 +48,12 @@ export default defineConfig(({ mode }) => {
                 mode: 'subscription',
                 payment_method_types: ['card'],
                 line_items: [{ price: stripePriceId, quantity: 1 }],
-                subscription_data: { trial_period_days: 30 },
+                subscription_data: {
+                  trial_period_days: 30,
+                  metadata: {
+                    consultant: 'Lee',
+                  },
+                },
                 custom_text: {
                   submit: {
                     message: '30-day free trial. Cancel anytime before billing begins.',

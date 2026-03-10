@@ -92,6 +92,7 @@ export type User = {
   privacyPolicyVersion?: string | null;
   selfDeclaredDealershipId?: string;
   stripeCustomerId?: string;
+  consultant_referral?: string;
   subscriptionStatus?: BillingSubscriptionStatus;
   trialStartedAt?: string | null;
   trialEndsAt?: string | null;

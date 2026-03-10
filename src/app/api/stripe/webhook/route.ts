@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { getAdminDb } from '@/firebase/admin';
 import type { BillingSubscriptionStatus } from '@/lib/definitions';
+import { upsertCommissionFromSubscription, syncCommissionStatusForSubscription } from '@/lib/consultant-commissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -89,6 +90,118 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   );
 }
 
+async function createConsultantSubscriptionRecord(input: {
+  consultant: string;
+  customerEmail: string;
+  subscriptionId: string;
+  invoiceId?: string;
+  amount: number;
+  status: string;
+}) {
+  const adminDb = getAdminDb();
+  const commissionRate = 0.25;
+  const commission = input.amount * commissionRate;
+  if (input.invoiceId) {
+    const existing = await adminDb
+      .collection('consultant_subscriptions')
+      .where('invoice_id', '==', input.invoiceId)
+      .limit(1)
+      .get();
+    if (!existing.empty) return;
+  }
+
+  await adminDb.collection('consultant_subscriptions').add({
+    consultant: input.consultant,
+    customer_email: input.customerEmail,
+    subscription_id: input.subscriptionId,
+    invoice_id: input.invoiceId || '',
+    amount: input.amount,
+    commission,
+    status: input.status,
+    created_at: new Date(),
+  });
+}
+
+async function handleConsultantRecordFromCheckoutSession(session: Stripe.Checkout.Session) {
+  const stripe = getStripe();
+  const subscriptionId = typeof session.subscription === 'string' ? session.subscription : null;
+  if (!subscriptionId) return;
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const consultant = subscription.metadata?.consultant;
+  if (!consultant) return;
+
+  let amountPaid = 0;
+  if (typeof session.invoice === 'string') {
+    const invoice = await stripe.invoices.retrieve(session.invoice);
+    amountPaid = invoice.amount_paid / 100;
+  }
+
+  let customerEmail =
+    session.customer_details?.email ||
+    session.customer_email ||
+    '';
+  if (!customerEmail && typeof subscription.customer === 'string') {
+    const customer = await stripe.customers.retrieve(subscription.customer);
+    if (!customer.deleted) {
+      customerEmail = customer.email || '';
+    }
+  }
+
+  await createConsultantSubscriptionRecord({
+    consultant,
+    customerEmail,
+    subscriptionId: subscription.id,
+    invoiceId: typeof session.invoice === 'string' ? session.invoice : undefined,
+    amount: amountPaid,
+    status: 'active',
+  });
+
+  await upsertCommissionFromSubscription({
+    subscription,
+    amount: amountPaid,
+    customerEmail,
+    periodStart: new Date(subscription.current_period_start * 1000).toISOString(),
+    periodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+  });
+}
+
+async function handleConsultantRecordFromInvoice(invoice: Stripe.Invoice) {
+  const stripe = getStripe();
+  const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : null;
+  if (!subscriptionId) return;
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const consultant = subscription.metadata?.consultant;
+  if (!consultant) return;
+
+  let customerEmail = invoice.customer_email || '';
+  if (!customerEmail && typeof subscription.customer === 'string') {
+    const customer = await stripe.customers.retrieve(subscription.customer);
+    if (!customer.deleted) {
+      customerEmail = customer.email || '';
+    }
+  }
+
+  await createConsultantSubscriptionRecord({
+    consultant,
+    customerEmail,
+    subscriptionId: subscription.id,
+    invoiceId: invoice.id,
+    amount: invoice.amount_paid / 100,
+    status: 'active',
+  });
+
+  const invoicePeriod = invoice.lines?.data?.[0]?.period;
+  await upsertCommissionFromSubscription({
+    subscription,
+    amount: invoice.amount_paid / 100,
+    customerEmail,
+    periodStart: invoicePeriod?.start ? new Date(invoicePeriod.start * 1000).toISOString() : undefined,
+    periodEnd: invoicePeriod?.end ? new Date(invoicePeriod.end * 1000).toISOString() : undefined,
+  });
+}
+
 type BillingScope = 'individual' | 'dealership';
 
 function normalizeBillingScope(value?: string): BillingScope | null {
@@ -170,19 +283,36 @@ async function handleEvent(event: Stripe.Event) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       await handleCheckoutSessionCompleted(session);
+      await handleConsultantRecordFromCheckoutSession(session);
       break;
     }
 
     case 'customer.subscription.created':
+    {
+      const subscription = event.data.object as Stripe.Subscription;
+      await handleSubscriptionLifecycleEvent(subscription, false);
+      await upsertCommissionFromSubscription({ subscription });
+      break;
+    }
+
     case 'customer.subscription.updated': {
       const subscription = event.data.object as Stripe.Subscription;
       await handleSubscriptionLifecycleEvent(subscription, false);
+      await syncCommissionStatusForSubscription(subscription);
       break;
     }
 
     case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
       await handleSubscriptionLifecycleEvent(subscription, true);
+      await syncCommissionStatusForSubscription(subscription, 'voided');
+      break;
+    }
+
+    case 'invoice.payment_succeeded':
+    case 'invoice.paid': {
+      const invoice = event.data.object as Stripe.Invoice;
+      await handleConsultantRecordFromInvoice(invoice);
       break;
     }
 

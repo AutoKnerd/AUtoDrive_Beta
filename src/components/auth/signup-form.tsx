@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -69,10 +69,19 @@ export function SignupForm() {
     },
   });
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const consultant = params.get('consultant')?.trim().toLowerCase();
+    if (consultant) {
+      localStorage.setItem('consultant_referral', consultant);
+    }
+  }, []);
+
   async function onSubmit(data: SignupFormValues) {
     setIsSubmitting(true);
     try {
-      await publicSignup(data.name, data.email, data.password, data.role as UserRole);
+      const consultant = localStorage.getItem('consultant_referral')?.trim().toLowerCase() || undefined;
+      await publicSignup(data.name, data.email, data.password, data.role as UserRole, consultant);
 
       const fbUser = firebaseAuth.currentUser;
       if (!fbUser) {
@@ -87,7 +96,8 @@ export function SignupForm() {
       });
 
       try {
-        const checkout = await createIndividualCheckoutSessionUrl(idToken);
+        const consultant = localStorage.getItem('consultant_referral')?.trim().toLowerCase();
+        const checkout = await createIndividualCheckoutSessionUrl(idToken, 'monthly', consultant || undefined);
         if (!checkout.ok) {
           throw new Error(checkout.message);
         }

@@ -23,7 +23,7 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>;
   logout: (redirectTo?: string) => Promise<void>;
   register: (name: string, password: string, invitation: EmailInvitation) => Promise<void>;
-  publicSignup: (name: string, email: string, password: string, signupRoleInterest: UserRole) => Promise<void>;
+  publicSignup: (name: string, email: string, password: string, signupRoleInterest: UserRole, consultantReferral?: string) => Promise<void>;
   setUser: (user: User | null) => void;
   switchTourRole: (role: UserRole) => Promise<void>;
 }
@@ -243,7 +243,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [auth]
   );
 
-  const publicSignup = useCallback(async (name: string, email: string, password: string, signupRoleInterest: UserRole) => {
+  const publicSignup = useCallback(async (name: string, email: string, password: string, signupRoleInterest: UserRole, consultantReferral?: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
@@ -256,6 +256,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         {
           requireCheckoutForTrial: true,
           signupRoleInterest,
+          consultantReferral,
         },
       );
       

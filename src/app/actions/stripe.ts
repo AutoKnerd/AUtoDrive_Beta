@@ -173,7 +173,11 @@ async function ensureDealershipCustomer(dealershipId: string, dealershipData: Pa
   return customer.id;
 }
 
-async function createIndividualSessionUrl(userId: string, billingCycle: BillingCycle): Promise<string> {
+async function createIndividualSessionUrl(
+  userId: string,
+  billingCycle: BillingCycle,
+  consultant?: string
+): Promise<string> {
   const adminDb = getAdminDb();
   const stripe = getStripe();
   const appUrl = await getAppUrl();
@@ -191,6 +195,9 @@ async function createIndividualSessionUrl(userId: string, billingCycle: BillingC
   }
 
   const customerId = await ensureUserCustomer(userId, user);
+  const profileConsultantValue = (user.consultant_referral || '').trim().toLowerCase();
+  const passedConsultantValue = (consultant || '').trim().toLowerCase();
+  const consultantValue = profileConsultantValue || passedConsultantValue;
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -204,12 +211,14 @@ async function createIndividualSessionUrl(userId: string, billingCycle: BillingC
       firebaseUserId: userId,
       billingScope: 'individual',
       billingCycle,
+      ...(consultantValue ? { consultant: consultantValue, referral_source: 'consultant_link' } : {}),
     },
     subscription_data: {
       trial_period_days: trialDays,
       metadata: {
         firebaseUserId: userId,
         billingScope: 'individual',
+        ...(consultantValue ? { consultant: consultantValue, referral_source: 'consultant_link' } : {}),
       },
     },
   });
@@ -238,12 +247,13 @@ export async function createIndividualCheckoutSession(idToken: string, billingCy
 
 export async function createIndividualCheckoutSessionUrl(
   idToken: string,
-  billingCycle: BillingCycle = 'monthly'
+  billingCycle: BillingCycle = 'monthly',
+  consultant?: string
 ): Promise<CheckoutSessionResult> {
   try {
     const adminAuth = getAdminAuth();
     const decoded = await adminAuth.verifyIdToken(idToken);
-    const url = await createIndividualSessionUrl(decoded.uid, billingCycle);
+    const url = await createIndividualSessionUrl(decoded.uid, billingCycle, consultant);
     return { ok: true, url };
   } catch (error: any) {
     const message = typeof error?.message === 'string'

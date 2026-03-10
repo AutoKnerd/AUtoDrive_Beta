@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, type ComponentType } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuth as useFirebaseAuth } from '@/firebase';
 import { ConsultantDashboard } from '@/components/dashboard/consultant-dashboard';
 import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { Spinner } from '@/components/ui/spinner';
@@ -14,6 +15,7 @@ import { Header } from '@/components/layout/header';
 import {
   Activity,
   AlertTriangle,
+  BarChart3,
   Building2,
   Copy,
   Download,
@@ -21,10 +23,12 @@ import {
   FlaskConical,
   Home,
   Menu,
+  RefreshCw,
   Settings2,
   SlidersHorizontal,
   Users,
 } from 'lucide-react';
+import Link from 'next/link';
 import { getManageableUsers, getDealerships } from '@/lib/data.client';
 import { RegisterDealershipForm } from '@/components/admin/register-dealership-form';
 import { RemoveUserForm } from '@/components/admin/remove-user-form';
@@ -44,7 +48,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Badge } from '@/components/ui/badge';
 
 type DashboardMode = 'role_based' | 'single_user';
-type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'operations' | 'sandbox' | 'danger';
+type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'operations' | 'sandbox' | 'danger';
 type ToolId =
   | 'create_user'
   | 'edit_user'
@@ -57,6 +61,27 @@ type ToolId =
 
 type LiveCxTrait = 'empathy' | 'listening' | 'trust' | 'followUp' | 'closing' | 'relationship';
 type LiveCxScores = Record<LiveCxTrait, number>;
+type ConsultantPickerOption = {
+  name: string;
+  referral_code?: string;
+  referralCode?: string;
+};
+type AkLeaderboardRow = {
+  consultant: string;
+  sales: number;
+  monthly_revenue: number;
+};
+type AkPayoutRecord = {
+  consultant_id: string;
+  amount: number;
+  commission_amount: number;
+  status: 'pending' | 'approved' | 'voided' | 'paid';
+  period_start: string;
+  created_at: string;
+};
+type AkPayoutResponse = {
+  records: AkPayoutRecord[];
+};
 
 const LIVE_CX_TRAITS: Array<{ key: LiveCxTrait; label: string }> = [
   { key: 'empathy', label: 'Empathy' },
@@ -81,6 +106,7 @@ const SECTION_LABELS: Record<SectionId, string> = {
   access: 'Access',
   organizations: 'Organizations',
   features: 'Programs & Features',
+  consultants: 'AK Consultants',
   operations: 'Operations',
   sandbox: 'Sandbox',
   danger: 'Danger Zone',
@@ -91,6 +117,7 @@ const SECTION_DESCRIPTIONS: Record<SectionId, string> = {
   access: 'Manage users, roles, invitations, and assignments.',
   organizations: 'Manage dealerships, groups, and billing settings.',
   features: 'Configure PPP and controlled feature rollouts.',
+  consultants: 'Consultant subscription dashboards and Stripe-backed sales endpoints.',
   operations: 'Watchlists, exports, and diagnostics.',
   sandbox: 'Safe preview tools for impersonation and CX simulation.',
   danger: 'High-risk operations with explicit confirmation.',
@@ -101,6 +128,7 @@ const SECTION_ICONS: Record<SectionId, ComponentType<{ className?: string }>> = 
   access: Users,
   organizations: Building2,
   features: Settings2,
+  consultants: BarChart3,
   operations: Activity,
   sandbox: FlaskConical,
   danger: AlertTriangle,
@@ -117,7 +145,7 @@ const TOOLS: Array<{ id: ToolId; label: string; section: SectionId }> = [
   { id: 'ppp_global', label: 'PPP Global', section: 'features' },
 ];
 
-const BOTTOM_NAV_SECTIONS: SectionId[] = ['overview', 'access', 'organizations', 'operations'];
+const BOTTOM_NAV_SECTIONS: SectionId[] = ['overview', 'access', 'organizations', 'consultants'];
 
 function clampScore(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -160,6 +188,7 @@ function buildUserStatsFromLiveScores(scores: LiveCxScores): User['stats'] {
 
 export default function DeveloperPage() {
   const { user, loading, setUser, originalUser } = useAuth();
+  const firebaseAuth = useFirebaseAuth();
   const { toast } = useToast();
   const router = useRouter();
   const originalUserIsAssigned = !!originalUser && hasDealershipAssignment(originalUser);
@@ -182,6 +211,16 @@ export default function DeveloperPage() {
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
   const [isExportingUsers, setIsExportingUsers] = useState(false);
+  const [consultantLookupId, setConsultantLookupId] = useState('lee');
+  const [consultantOptions, setConsultantOptions] = useState<Array<{ code: string; name: string }>>([]);
+  const [consultantLeaderboard, setConsultantLeaderboard] = useState<AkLeaderboardRow[]>([]);
+  const [consultantMonthlyGross, setConsultantMonthlyGross] = useState(0);
+  const [consultantYearlyGross, setConsultantYearlyGross] = useState(0);
+  const [consultantMonthlyPayout, setConsultantMonthlyPayout] = useState(0);
+  const [consultantMetricsLoading, setConsultantMetricsLoading] = useState(false);
+  const [consultantMetricsError, setConsultantMetricsError] = useState<string | null>(null);
+  const [consultantMetricsLastRefreshedAt, setConsultantMetricsLastRefreshedAt] = useState<Date | null>(null);
+  const [consultantCommissionDueById, setConsultantCommissionDueById] = useState<Record<string, number>>({});
   const sandboxDealershipStorageKey = useMemo(
     () => `managerDashboard:selectedDealershipId:${originalUser?.userId || user?.userId || 'sandbox'}`,
     [originalUser?.userId, user?.userId]
@@ -228,6 +267,139 @@ export default function DeveloperPage() {
     }, 60_000);
     return () => clearInterval(timer);
   }, [originalUser, refreshData]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadConsultants() {
+      try {
+        const response = await fetch('/api/admin/consultants');
+        if (!response.ok) return;
+        const payload = await response.json() as { consultants?: ConsultantPickerOption[] };
+        const options = (payload.consultants || [])
+          .map((row) => {
+            const code = String(row.referral_code || row.referralCode || '').trim().toLowerCase();
+            const name = String(row.name || '').trim();
+            return { code, name };
+          })
+          .filter((row) => row.code.length > 0);
+        if (cancelled) return;
+        setConsultantOptions(options);
+
+        if (options.length > 0) {
+          const normalizedCurrent = consultantLookupId.trim().toLowerCase();
+          const hasCurrent = options.some((row) => row.code === normalizedCurrent);
+          if (!hasCurrent) {
+            setConsultantLookupId(options[0].code);
+          }
+        }
+      } catch {
+        // Best-effort picker population.
+      }
+    }
+
+    if (!loading && originalUser) {
+      void loadConsultants();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, originalUser]);
+
+  const loadConsultantMetrics = useCallback(async () => {
+    if (!originalUser || (originalUser.role !== 'Admin' && originalUser.role !== 'Developer')) {
+      return;
+    }
+
+    setConsultantMetricsLoading(true);
+    setConsultantMetricsError(null);
+
+    try {
+      const leaderboardResponse = await fetch('/api/leaderboard');
+      const leaderboardPayload = await leaderboardResponse.json();
+      if (!leaderboardResponse.ok) {
+        throw new Error(leaderboardPayload?.error || 'Failed to load consultant leaderboard.');
+      }
+
+      const leaderboardRows = (leaderboardPayload as AkLeaderboardRow[]) || [];
+      const monthlyGross = leaderboardRows.reduce((sum, row) => sum + Number(row.monthly_revenue || 0), 0);
+
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required for payout metrics.');
+      }
+      const token = await fbUser.getIdToken(true);
+      const payoutsResponse = await fetch('/api/admin/payouts', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const payoutsPayload = await payoutsResponse.json() as AkPayoutResponse & { message?: string };
+      if (!payoutsResponse.ok) {
+        throw new Error(payoutsPayload?.message || 'Failed to load payout metrics.');
+      }
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+      const records = payoutsPayload.records || [];
+
+      const yearlyGross = records.reduce((sum, row) => {
+        if (row.status === 'voided') return sum;
+        const iso = row.period_start || row.created_at;
+        const date = new Date(iso);
+        if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) return sum;
+        return sum + Number(row.amount || 0);
+      }, 0);
+
+      const monthlyPayout = records.reduce((sum, row) => {
+        if (row.status === 'voided') return sum;
+        const iso = row.period_start || row.created_at;
+        const date = new Date(iso);
+        if (
+          Number.isNaN(date.getTime())
+          || date.getFullYear() !== currentYear
+          || date.getMonth() !== currentMonth
+        ) return sum;
+        return sum + Number(row.commission_amount || 0);
+      }, 0);
+
+      const commissionDueByConsultant = records.reduce((acc, row) => {
+        if (row.status !== 'pending' && row.status !== 'approved') {
+          return acc;
+        }
+        const consultantId = String(row.consultant_id || '').trim().toLowerCase();
+        if (!consultantId) {
+          return acc;
+        }
+        acc[consultantId] = (acc[consultantId] || 0) + Number(row.commission_amount || 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      setConsultantLeaderboard(leaderboardRows);
+      setConsultantMonthlyGross(Math.round(monthlyGross * 100) / 100);
+      setConsultantYearlyGross(Math.round(yearlyGross * 100) / 100);
+      setConsultantMonthlyPayout(Math.round(monthlyPayout * 100) / 100);
+      setConsultantCommissionDueById(
+        Object.fromEntries(
+          Object.entries(commissionDueByConsultant).map(([key, value]) => [key, Math.round(value * 100) / 100])
+        )
+      );
+      setConsultantMetricsLastRefreshedAt(new Date());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load consultant metrics.';
+      setConsultantMetricsError(message);
+    } finally {
+      setConsultantMetricsLoading(false);
+    }
+  }, [originalUser, firebaseAuth]);
+
+  useEffect(() => {
+    if (activeSection === 'consultants') {
+      void loadConsultantMetrics();
+    }
+  }, [activeSection, loadConsultantMetrics]);
 
   useEffect(() => {
     if (!loading && (!user || (originalUser?.role !== 'Developer' && originalUser?.role !== 'Admin'))) {
@@ -764,8 +936,196 @@ export default function DeveloperPage() {
     </div>
   );
 
+  const renderConsultants = () => {
+    const normalizedConsultantId = consultantLookupId.trim().toLowerCase() || 'lee';
+    const quickAccessConsultantId = consultantLookupId.trim().toLowerCase();
+    const dashboardHref = `/consultant/${encodeURIComponent(normalizedConsultantId)}`;
+    const salesReportHref = `/consultant/${encodeURIComponent(normalizedConsultantId)}/sales-report`;
+    const dealerPipelineHref = `/consultant/${encodeURIComponent(normalizedConsultantId)}/dealer-pipeline`;
+    const customersHref = `/consultant/${encodeURIComponent(normalizedConsultantId)}/customers`;
+
+    const openConsultantDashboard = () => {
+      if (!quickAccessConsultantId) return;
+      router.push(`/consultant/${encodeURIComponent(quickAccessConsultantId)}`);
+    };
+
+    const openConsultantSalesReport = () => {
+      if (!quickAccessConsultantId) return;
+      router.push(`/consultant/${encodeURIComponent(quickAccessConsultantId)}/sales-report`);
+    };
+
+    const openConsultantDealerPipeline = () => {
+      if (!quickAccessConsultantId) return;
+      router.push(`/consultant/${encodeURIComponent(quickAccessConsultantId)}/dealer-pipeline`);
+    };
+
+    const openConsultantCustomers = () => {
+      if (!quickAccessConsultantId) return;
+      router.push(`/consultant/${encodeURIComponent(quickAccessConsultantId)}/customers`);
+    };
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>AK Consultants</CardTitle>
+          <CardDescription>
+            Open consultant performance dashboards and Stripe-powered API outputs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="max-w-sm space-y-1">
+            <Label htmlFor="ak-consultant-id">Consultant ID</Label>
+            <Select value={consultantLookupId} onValueChange={setConsultantLookupId}>
+              <SelectTrigger id="ak-consultant-id">
+                <SelectValue placeholder="Select consultant" />
+              </SelectTrigger>
+              <SelectContent>
+                {consultantOptions.length === 0 ? (
+                  <SelectItem value="lee">Lee</SelectItem>
+                ) : (
+                  consultantOptions.map((consultant) => (
+                    <SelectItem key={consultant.code} value={consultant.code}>
+                      {consultant.name} ({consultant.code})
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Uses Stripe subscription metadata key: <code>consultant</code>
+            </p>
+          </div>
+          <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <p className="text-sm font-medium">Consultant Dashboard Quick Access</p>
+            <p className="text-xs text-muted-foreground">
+              Jump directly to consultant routes using the referral code.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={openConsultantDashboard}>
+                Open Consultant Dashboard
+              </Button>
+              <Button variant="outline" onClick={openConsultantSalesReport}>
+                Open Sales Report
+              </Button>
+              <Button variant="outline" onClick={openConsultantDealerPipeline}>
+                Open Dealer Pipeline
+              </Button>
+              <Button variant="outline" onClick={openConsultantCustomers}>
+                Open Customers
+              </Button>
+            </div>
+          </div>
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="sm:col-span-2 xl:col-span-4 flex items-center justify-between rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+              <p>
+                Last refreshed:{' '}
+                {consultantMetricsLastRefreshedAt
+                  ? consultantMetricsLastRefreshedAt.toLocaleString()
+                  : 'Not refreshed yet'}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void loadConsultantMetrics()}
+                disabled={consultantMetricsLoading}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh Metrics
+              </Button>
+            </div>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Total Gross Sales (Monthly)</CardDescription>
+                <CardTitle>${consultantMonthlyGross.toLocaleString('en-US')}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Total Gross Sales (Yearly)</CardDescription>
+                <CardTitle>${consultantYearlyGross.toLocaleString('en-US')}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Total Payout This Month</CardDescription>
+                <CardTitle>${consultantMonthlyPayout.toLocaleString('en-US')}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Active Consultants</CardDescription>
+                <CardTitle>{consultantLeaderboard.length}</CardTitle>
+              </CardHeader>
+            </Card>
+          </section>
+          <Card>
+            <CardHeader>
+              <CardTitle>AK Consultant Leaderboard</CardTitle>
+              <CardDescription>Ranked by active subscriber count and monthly gross revenue.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {consultantMetricsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading consultant metrics...</p>
+              ) : consultantMetricsError ? (
+                <p className="text-sm text-red-500">{consultantMetricsError}</p>
+              ) : consultantLeaderboard.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No consultant leaderboard data found.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rank</TableHead>
+                      <TableHead>Consultant</TableHead>
+                      <TableHead>Subscribers</TableHead>
+                      <TableHead>Monthly Gross</TableHead>
+                      <TableHead>Commissions To Be Paid</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {consultantLeaderboard.map((row, index) => (
+                      <TableRow key={row.consultant}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{row.consultant}</TableCell>
+                        <TableCell>{row.sales}</TableCell>
+                        <TableCell>${Number(row.monthly_revenue || 0).toLocaleString('en-US')}</TableCell>
+                        <TableCell>
+                          ${(consultantCommissionDueById[String(row.consultant || '').toLowerCase()] || 0).toLocaleString('en-US')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Admin Tools</p>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link href="/admin/consultants">Open Consultant Manager</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/dealers">Open Admin Dealer Pipeline</Link>
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+            <p><span className="font-medium">Consultant Manager:</span> /admin/consultants</p>
+            <p><span className="font-medium">Admin Dealer Pipeline:</span> /admin/dealers</p>
+            <p><span className="font-medium">Dashboard:</span> {dashboardHref}</p>
+            <p><span className="font-medium">Sales Report:</span> {salesReportHref}</p>
+            <p><span className="font-medium">Dealer Pipeline:</span> {dealerPipelineHref}</p>
+            <p><span className="font-medium">Customers:</span> {customersHref}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   const renderMainSection = () => {
     if (activeSection === 'overview') return renderOverview();
+    if (activeSection === 'consultants') return renderConsultants();
     if (activeSection === 'sandbox') return renderSandbox();
 
     const sectionTools = TOOLS.filter((tool) => tool.section === activeSection || (activeSection === 'danger' && tool.id === 'remove'));

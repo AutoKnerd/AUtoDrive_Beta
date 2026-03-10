@@ -78,6 +78,30 @@ type DealershipInsight = {
     score: number;
 };
 
+type DealerOwnerDashboardResponse = {
+  dealership_name: string;
+  snapshot: {
+    team_training_completion: number;
+    team_engagement_rate: number;
+    average_skill_score: number;
+    active_users: number;
+  };
+};
+
+type DealerGmDashboardResponse = {
+  dealership_name: string;
+  rep_performance: Array<{
+    user_id: string;
+    name: string;
+    missions_completed?: number;
+    skill_score?: number;
+    last_activity?: string | null;
+  }>;
+  coaching_alerts: string[];
+};
+
+type DealerLeadershipResponse = DealerOwnerDashboardResponse | DealerGmDashboardResponse;
+
 const dashboardFeatureCardClass =
   'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
 const dashboardDisabledButtonClass =
@@ -223,6 +247,29 @@ function lowestTraitFromSnapshot(scores: CxScoreSnapshot): CxTrait {
     .reduce((lowest, current) => (current[1] < lowest[1] ? current : lowest), ['empathy', Number.POSITIVE_INFINITY])[0];
 }
 
+function parseCoachingAlert(alert: string): { repName: string; reason: string } {
+  const normalized = alert.trim();
+  if (!normalized) return { repName: 'Unknown rep', reason: 'No reason provided' };
+
+  const patterns = [
+    /(.*)\s+inactive for\s+(.*)$/i,
+    /(.*)\s+showing\s+(.*)$/i,
+    /(.*)\s+has\s+(.*)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      return {
+        repName: match[1].trim(),
+        reason: match[2].trim(),
+      };
+    }
+  }
+
+  return { repName: normalized, reason: 'Review this alert in Team Activity.' };
+}
+
 function LevelDisplay({ user }: { user: User }) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
 
@@ -255,7 +302,7 @@ function LevelDisplay({ user }: { user: User }) {
 
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const { toast } = useToast();
-  const { originalUser, isTouring } = useAuth();
+  const { originalUser, isTouring, firebaseUser } = useAuth();
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
   const [dealershipActivity, setDealershipActivity] = useState<DealershipActivityEntry[]>([]);
@@ -290,6 +337,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [isRecalculatingDealership, setIsRecalculatingDealership] = useState(false);
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [range, setRange] = useState<CxRange>('today');
+  const [dealerLeadershipData, setDealerLeadershipData] = useState<DealerLeadershipResponse | null>(null);
+  const [dealerLeadershipLoading, setDealerLeadershipLoading] = useState(false);
+  const [dealerLeadershipError, setDealerLeadershipError] = useState<string | null>(null);
   const router = useRouter();
   const canViewAllStores = ['Admin', 'Developer'].includes(user.role);
   const canViewAssignedStoresAggregate = !canViewAllStores && (user.dealershipIds?.length ?? 0) > 1;
@@ -668,6 +718,30 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return !loading && ((recommendedLesson && !lessonLimits.recommendedTaken) || assignedLessons.length > 0);
   }, [loading, recommendedLesson, lessonLimits.recommendedTaken, assignedLessons.length]);
   const showTodaysLessonsCard = !noPersonalDevelopmentRoles.includes(user.role);
+  const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
+  const showAssignedInPppRow = showTodaysLessonsCard && pppCardCount === 1;
+  const assignedLessonCard = (
+    <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
+      <div>
+        <div className="mb-2 flex items-center gap-3">
+          <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+          <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">Training assigned specifically to you.</p>
+      </div>
+      {loading ? (
+        <Skeleton className="h-10 w-full" />
+      ) : assignedLessons.length > 0 ? (
+        <Link href={`/lesson/${assignedLessons[0].lessonId}`} className={cn("w-full text-black", buttonVariants({ className: "w-full font-bold bg-[#8DC63F]" }))}>
+          {assignedLessons[0].title}
+        </Link>
+      ) : (
+        <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
+          No assignments
+        </Button>
+      )}
+    </Card>
+  );
 
   const dealershipInsights = useMemo(() => {
     if (!stats?.avgScores) return { bestStat: null, watchStat: null };
@@ -728,6 +802,65 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const showInsufficientDataWarning = stats?.totalLessons === -1;
   const canManage = ['Admin', 'Trainer', 'Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Developer'].includes(user.role);
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
+  const isOwnerDashboardRole = user.role === 'Owner';
+  const isGmDashboardRole = ['General Manager', 'manager', 'Admin', 'Developer'].includes(user.role);
+
+  useEffect(() => {
+    let active = true;
+    const hasDealershipContext = (user.dealershipIds?.length ?? 0) > 0 || !!user.selfDeclaredDealershipId;
+    const endpoint = isOwnerDashboardRole ? '/api/dealer/owner' : isGmDashboardRole ? '/api/dealer/gm' : null;
+    const scopedDealershipId = selectedDealershipId && selectedDealershipId !== 'all'
+      ? selectedDealershipId
+      : null;
+
+    if (!endpoint || !hasDealershipContext || isTouring || !firebaseUser || !scopedDealershipId) {
+      setDealerLeadershipData(null);
+      setDealerLeadershipError(null);
+      setDealerLeadershipLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+    const authUser = firebaseUser;
+    const requestEndpoint = `${endpoint}?dealershipId=${encodeURIComponent(scopedDealershipId)}`;
+
+    async function fetchDealerLeadershipData() {
+      setDealerLeadershipLoading(true);
+      setDealerLeadershipError(null);
+
+      try {
+        const token = await authUser.getIdToken(true);
+        const response = await fetch(requestEndpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.message || 'Unable to load dealer leadership data.');
+        }
+        if (!active) return;
+        setDealerLeadershipData(payload as DealerLeadershipResponse);
+      } catch (error) {
+        if (!active) return;
+        setDealerLeadershipData(null);
+        setDealerLeadershipError(error instanceof Error ? error.message : 'Unable to load dealer leadership data.');
+      } finally {
+        if (active) {
+          setDealerLeadershipLoading(false);
+        }
+      }
+    }
+
+    void fetchDealerLeadershipData();
+    return () => {
+      active = false;
+    };
+  }, [firebaseUser, isOwnerDashboardRole, isGmDashboardRole, isTouring, selectedDealershipId, user.dealershipIds, user.selfDeclaredDealershipId]);
+
+  const isOwnerLeadershipData = (value: DealerLeadershipResponse | null): value is DealerOwnerDashboardResponse => {
+    return !!value && 'snapshot' in value;
+  };
 
   return (
     <div className="space-y-8 pb-8 text-foreground">
@@ -820,8 +953,149 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
       {showTodaysLessonsCard && (
         <section className="space-y-4">
+          <h2 className="text-xl font-bold text-foreground">Dealer Focus</h2>
+          <Card className={dashboardFeatureCardClass}>
+            <CardHeader>
+              <CardTitle>Today&apos;s Leadership Mission</CardTitle>
+              <CardDescription>
+                Keep dealer execution tight with one focused coaching action.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {dealerLeadershipLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : dealerLeadershipError ? (
+                <p className="text-sm text-muted-foreground">{dealerLeadershipError}</p>
+              ) : null}
+              <div className="rounded-lg border p-4">
+                <p className="text-lg font-semibold">
+                  {recommendedLesson?.title || 'Leadership Calibration Sprint'}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {recommendedLesson
+                    ? 'Complete this recommended lesson to strengthen your lowest coaching trait today.'
+                    : 'No recommended lesson is available right now. Check assigned training and team priorities.'}
+                </p>
+                {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData) && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Top alert: {dealerLeadershipData.coaching_alerts[0] || 'No active alerts'}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <details className="rounded-lg border p-3">
+                  <summary className="list-none cursor-pointer">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Sales Reps</p>
+                        <p className="mt-2 text-xl font-semibold">
+                          {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData)
+                            ? dealerLeadershipData.rep_performance.length
+                            : teamActivity.length}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">Click to view rep list</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </summary>
+                  <div className="mt-3 space-y-2 border-t pt-3 text-sm">
+                    {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData) ? (
+                      dealerLeadershipData.rep_performance.length > 0 ? (
+                        dealerLeadershipData.rep_performance.map((rep) => (
+                          <div key={rep.user_id} className="rounded-md border p-2">
+                            <p className="font-medium">{rep.name}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">No reps in this view yet.</p>
+                      )
+                    ) : (
+                      <p className="text-muted-foreground">Rep details are shown in Team Activity below.</p>
+                    )}
+                  </div>
+                </details>
+                <details className="rounded-lg border p-3">
+                  <summary className="list-none cursor-pointer">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Coaching Alerts</p>
+                        <p className="mt-2 text-xl font-semibold">
+                          {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData)
+                            ? dealerLeadershipData.coaching_alerts.length
+                            : 0}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">Click to view who and why</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </summary>
+                  <div className="mt-3 space-y-2 border-t pt-3 text-sm">
+                    {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData) ? (
+                      dealerLeadershipData.coaching_alerts.length > 0 ? (
+                        dealerLeadershipData.coaching_alerts.map((alert, index) => {
+                          const parsed = parseCoachingAlert(alert);
+                          return (
+                            <div key={`${alert}-${index}`} className="rounded-md border p-2">
+                              <p className="font-medium">{parsed.repName}</p>
+                              <p className="text-xs text-muted-foreground">{parsed.reason}</p>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-muted-foreground">No active coaching alerts.</p>
+                      )
+                    ) : (
+                      <p className="text-muted-foreground">Coaching alert details are available in GM view.</p>
+                    )}
+                  </div>
+                </details>
+                <div className="col-span-2 md:col-span-1">
+                  {loading ? (
+                    <Skeleton className="h-12 w-full rounded-md" />
+                  ) : needsBaselineAssessment ? (
+                    <Button className="h-full w-full font-bold bg-[#8DC63F] text-black" onClick={() => setShowBaselineAssessment(true)}>
+                      Baseline Assessment
+                    </Button>
+                  ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
+                    <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("h-full w-full", buttonVariants({ className: "h-full w-full font-semibold" }))}>
+                      Recommended Lesson
+                    </Link>
+                  ) : (
+                    <Button variant="outline" disabled className="h-full w-full font-semibold">
+                      {recommendedLesson ? (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" /> Completed for today
+                        </>
+                      ) : (
+                        'No lesson available'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {(pppFeatureEnabled || saasPppFeatureEnabled) && (
+          <section>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {pppFeatureEnabled && (
+                    <PppDashboardCard user={user} featureEnabled={pppFeatureEnabled} className={dashboardFeatureCardClass} />
+                  )}
+                  {saasPppFeatureEnabled && (
+                    <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
+                  )}
+                  {showAssignedInPppRow && assignedLessonCard}
+              </div>
+          </section>
+      )}
+
+      {showTodaysLessonsCard && !showAssignedInPppRow && (
+        <section className="space-y-4">
           <h2 className="text-xl font-bold text-foreground">Today&apos;s Lessons</h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4">
             <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
               <div>
                 <div className="mb-2 flex items-center gap-3">
@@ -854,41 +1128,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 </Button>
               )}
             </Card>
-            <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
-              <div>
-                <div className="mb-2 flex items-center gap-3">
-                  <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
-                  <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
-                </div>
-                <p className="mb-4 text-sm text-muted-foreground">Training assigned specifically to you.</p>
-              </div>
-              {loading ? (
-                <Skeleton className="h-10 w-full" />
-              ) : assignedLessons.length > 0 ? (
-                <Link href={`/lesson/${assignedLessons[0].lessonId}`} className={cn("w-full text-black", buttonVariants({ className: "w-full font-bold bg-[#8DC63F]" }))}>
-                  {assignedLessons[0].title}
-                </Link>
-              ) : (
-                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-                  No assignments
-                </Button>
-              )}
-            </Card>
+            {assignedLessonCard}
           </div>
         </section>
-      )}
-
-      {(pppFeatureEnabled || saasPppFeatureEnabled) && (
-          <section>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {pppFeatureEnabled && (
-                    <PppDashboardCard user={user} featureEnabled={pppFeatureEnabled} className={dashboardFeatureCardClass} />
-                  )}
-                  {saasPppFeatureEnabled && (
-                    <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
-                  )}
-              </div>
-          </section>
       )}
 
       {viewMode === 'team' ? (
