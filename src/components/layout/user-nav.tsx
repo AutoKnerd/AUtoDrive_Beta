@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Message } from '@/lib/definitions';
+import { User, Message, managerialRoles } from '@/lib/definitions';
 import { useAuth } from '@/hooks/use-auth';
 import { getMessagesForUser } from '@/lib/data.client';
 import { formatDistanceToNow } from 'date-fns';
@@ -16,10 +16,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, User as UserIcon, MessageSquare, CreditCard, Undo2, Home } from 'lucide-react';
+import { LogOut, User as UserIcon, MessageSquare, CreditCard, Undo2, Home, BarChart3 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AvatarSoundRing } from '@/components/profile/avatar-sound-ring';
 import { cn } from '@/lib/utils';
+import { hasDealershipAssignment } from '@/lib/billing/access';
 
 function MessageItem({ message }: { message: Message }) {
     const [relativeTime, setRelativeTime] = useState('');
@@ -78,12 +79,13 @@ function normalizeAvatarScore(value: unknown): number {
 }
 
 export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProps) {
-    const { logout, originalUser, setUser } = useAuth();
+    const { logout, originalUser, setUser, firebaseUser } = useAuth();
     const router = useRouter();
     const [messages, setMessages] = useState<Message[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isClient, setIsClient] = useState(false);
+    const [consultantReferralCode, setConsultantReferralCode] = useState<string | null>(null);
 
     useEffect(() => {
         // This ensures the component has mounted on the client
@@ -107,6 +109,58 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
         }
         fetchMessages();
     }, [user, isClient]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadConsultantMapping() {
+            if (!user || !isClient) {
+                setConsultantReferralCode(null);
+                return;
+            }
+
+            const role = String(user.role || '').toLowerCase();
+            if (role === 'admin' || role === 'developer') {
+                setConsultantReferralCode(null);
+                return;
+            }
+
+            try {
+                if (!firebaseUser) {
+                    if (!cancelled) setConsultantReferralCode(null);
+                    return;
+                }
+                const token = await firebaseUser.getIdToken(true);
+                const response = await fetch('/api/consultants/me', {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+                const payload = await response.json() as { consultant?: { referral_code?: string; referralCode?: string } };
+                if (!response.ok) {
+                    if (!cancelled) setConsultantReferralCode(null);
+                    return;
+                }
+
+                const referralCode = String(payload.consultant?.referral_code || payload.consultant?.referralCode || '')
+                    .trim()
+                    .toLowerCase();
+                if (!cancelled) {
+                    setConsultantReferralCode(referralCode || null);
+                }
+            } catch {
+                if (!cancelled) {
+                    setConsultantReferralCode(null);
+                }
+            }
+        }
+
+        void loadConsultantMapping();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user?.userId, user?.role, isClient, firebaseUser]);
 
     const handleMessagesDialogOpen = (open: boolean) => {
         setIsDialogOpen(open);
@@ -145,6 +199,15 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
         if (!avatarScores) return false;
         return Object.values(avatarScores).some((value) => value > 0);
     }, [avatarScores]);
+
+    const trainingDashboardPath = useMemo(() => {
+        const isAssigned = hasDealershipAssignment(user);
+        if (!isAssigned) return '/';
+
+        if (user.role === 'Owner') return '/dealer/owner';
+        if (managerialRoles.includes(user.role)) return '/dealer/gm';
+        return '/dealer/me';
+    }, [user]);
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleMessagesDialogOpen}>
@@ -193,18 +256,30 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                     <span>Back to Developer</span>
                 </DropdownMenuItem>
             )}
-            <DropdownMenuItem onSelect={() => router.push('/')}>
+            <DropdownMenuItem onSelect={() => router.push(trainingDashboardPath)}>
                 <Home className="mr-2 h-4 w-4" />
-                <span>Dashboard</span>
+                <span>Training Dashboard</span>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => router.push('/profile')}>
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>Profile</span>
             </DropdownMenuItem>
-             <DropdownMenuItem onSelect={() => router.push('/scorecard')}>
+            <DropdownMenuItem onSelect={() => router.push('/scorecard')}>
                 <CreditCard className="mr-2 h-4 w-4" />
                 <span>Score Card</span>
             </DropdownMenuItem>
+            {consultantReferralCode && (
+              <>
+                <DropdownMenuItem onSelect={() => router.push(`/consultant/${encodeURIComponent(consultantReferralCode)}`)}>
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  <span>AK Consultant Dashboard</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => router.push(`/consultant/${encodeURIComponent(consultantReferralCode)}/sales-report`)}>
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  <span>AK Sales Report</span>
+                </DropdownMenuItem>
+              </>
+            )}
             <DialogTrigger asChild>
                 <DropdownMenuItem>
                     <MessageSquare className="mr-2 h-4 w-4" />

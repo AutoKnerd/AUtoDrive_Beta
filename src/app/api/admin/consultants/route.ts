@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createConsultant, listConsultants } from '@/lib/consultants-store';
+import { getAdminDb } from '@/firebase/admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const adminDb = getAdminDb();
     const consultants = await listConsultants();
-    return NextResponse.json({ consultants });
+    const usersSnapshot = await adminDb.collection('users').limit(500).get();
+    const users = usersSnapshot.docs.map((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      return {
+        userId: doc.id,
+        name: String(data.name || ''),
+        email: String(data.email || ''),
+        role: String(data.role || ''),
+      };
+    });
+    return NextResponse.json({ consultants, users });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load consultants.';
     return NextResponse.json({ error: message }, { status: 500 });

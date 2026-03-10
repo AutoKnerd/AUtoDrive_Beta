@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Consultant = {
   id: string;
@@ -16,8 +17,24 @@ type Consultant = {
   createdAt: string;
 };
 
+type ExistingUser = {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
+function suggestionReferralCodeFromEmail(email: string): string {
+  const localPart = (email || '').split('@')[0] || '';
+  return localPart.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 export default function AdminConsultantsPage() {
   const [consultants, setConsultants] = useState<Consultant[]>([]);
+  const [existingUsers, setExistingUsers] = useState<ExistingUser[]>([]);
+  const [selectedExistingUserId, setSelectedExistingUserId] = useState<string>('');
+  const [existingUserSearch, setExistingUserSearch] = useState('');
+  const [consultantSearch, setConsultantSearch] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [referralCode, setReferralCode] = useState('');
@@ -40,6 +57,24 @@ export default function AdminConsultantsPage() {
     return window.location.origin;
   }, []);
 
+  const filteredExistingUsers = useMemo(() => {
+    const query = existingUserSearch.trim().toLowerCase();
+    if (!query) return existingUsers;
+    return existingUsers.filter((user) => {
+      const haystack = `${user.name} ${user.email} ${user.role} ${user.userId}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [existingUsers, existingUserSearch]);
+
+  const filteredConsultants = useMemo(() => {
+    const query = consultantSearch.trim().toLowerCase();
+    if (!query) return consultants;
+    return consultants.filter((consultant) => {
+      const haystack = `${consultant.name} ${consultant.email} ${consultant.referralCode} ${consultant.firebaseUid}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [consultants, consultantSearch]);
+
   async function loadConsultants() {
     setIsLoading(true);
     setError(null);
@@ -53,6 +88,7 @@ export default function AdminConsultantsPage() {
       }
 
       setConsultants(payload.consultants || []);
+      setExistingUsers(payload.users || []);
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : 'Failed to load consultants.';
       setError(message);
@@ -64,6 +100,19 @@ export default function AdminConsultantsPage() {
   useEffect(() => {
     void loadConsultants();
   }, []);
+
+  function handleExistingUserSelect(userId: string) {
+    setSelectedExistingUserId(userId);
+    const selected = existingUsers.find((user) => user.userId === userId);
+    if (!selected) return;
+
+    setName(selected.name || '');
+    setEmail(selected.email || '');
+    setFirebaseUid(selected.userId || '');
+    if (!referralCode.trim()) {
+      setReferralCode(suggestionReferralCodeFromEmail(selected.email || selected.name || ''));
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,6 +143,7 @@ export default function AdminConsultantsPage() {
       setEmail('');
       setReferralCode('');
       setFirebaseUid('');
+      setSelectedExistingUserId('');
       await loadConsultants();
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : 'Failed to create consultant.';
@@ -166,6 +216,37 @@ export default function AdminConsultantsPage() {
         </CardHeader>
         <CardContent>
           <form className="grid gap-4 md:grid-cols-4" onSubmit={handleSubmit}>
+            <div className="space-y-2 md:col-span-4">
+              <Label htmlFor="existing-user-select">Add Existing User</Label>
+              <Input
+                id="existing-user-search"
+                value={existingUserSearch}
+                onChange={(event) => setExistingUserSearch(event.target.value)}
+                placeholder="Search users by name, email, role, or UID"
+                className="md:max-w-xl"
+              />
+              <Select value={selectedExistingUserId} onValueChange={handleExistingUserSelect}>
+                <SelectTrigger id="existing-user-select" className="w-full md:max-w-xl">
+                  <SelectValue placeholder="Select a current user to auto-fill consultant fields" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredExistingUsers.length === 0 ? (
+                    <SelectItem value="none" disabled>No users found</SelectItem>
+                  ) : (
+                    filteredExistingUsers
+                      .filter((user) => !!user.userId)
+                      .map((user) => (
+                        <SelectItem key={user.userId} value={user.userId}>
+                          {user.name || 'Unnamed'} ({user.email || 'no-email'}) [{user.role || 'unknown-role'}]
+                        </SelectItem>
+                      ))
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Selecting a user will auto-fill Name, Email, and Firebase UID.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="consultant-name">Name</Label>
               <Input
@@ -222,13 +303,22 @@ export default function AdminConsultantsPage() {
           <CardDescription>Referral and dashboard links for each consultant.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 max-w-md space-y-2">
+            <Label htmlFor="consultants-search">Search Consultants</Label>
+            <Input
+              id="consultants-search"
+              value={consultantSearch}
+              onChange={(event) => setConsultantSearch(event.target.value)}
+              placeholder="Search by name, email, referral code, or UID"
+            />
+          </div>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading consultants...</p>
-          ) : consultants.length === 0 ? (
+          ) : filteredConsultants.length === 0 ? (
             <p className="text-sm text-muted-foreground">No consultants created yet.</p>
           ) : (
             <div className="space-y-4">
-              {consultants.map((consultant) => {
+              {filteredConsultants.map((consultant) => {
                 const referralLink = `${baseUrl}/signup?consultant=${encodeURIComponent(consultant.referralCode)}`;
                 const dashboardLink = `${baseUrl}/consultant/${encodeURIComponent(consultant.referralCode)}`;
                 const isEditing = editingId === consultant.id;
