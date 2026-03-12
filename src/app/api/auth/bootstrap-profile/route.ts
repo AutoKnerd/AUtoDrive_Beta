@@ -93,16 +93,15 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
-    const newUser: User = {
-      userId: decoded.uid,
-      name: requestedName,
-      email: tokenEmail,
-      role: DEFAULT_ROLE,
-      signupRoleInterest,
-      consultant_referral: consultantReferral,
-      dealershipIds: [],
-      avatarUrl: DEFAULT_AVATAR_URL,
-      xp: 0,
+  const newUser: User = {
+    userId: decoded.uid,
+    name: requestedName,
+    email: tokenEmail,
+    role: DEFAULT_ROLE,
+    signupRoleInterest,
+    dealershipIds: [],
+    avatarUrl: DEFAULT_AVATAR_URL,
+    xp: 0,
       isPrivate: false,
       isPrivateFromOwner: false,
       showDealerCriticalOnly: true,
@@ -110,12 +109,16 @@ export async function POST(req: Request) {
       subscriptionStatus: 'inactive',
       trialStartedAt: null,
       trialEndsAt: null,
-      stats: buildDefaultStats(now),
-      ...buildDefaultPppState(false),
-      ...buildDefaultSaasPppState(false),
-    };
+    stats: buildDefaultStats(now),
+    ...buildDefaultPppState(false),
+    ...buildDefaultSaasPppState(false),
+  };
 
-    await userRef.set(newUser);
+  if (consultantReferral) {
+    newUser.consultant_referral = consultantReferral;
+  }
+
+  await userRef.set(newUser);
 
     return NextResponse.json({ ok: true, userId: decoded.uid, existed: false }, { status: 200 });
   } catch (error: any) {
