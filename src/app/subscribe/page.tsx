@@ -5,7 +5,7 @@ import { useAuth as useFirebaseAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Header } from '@/components/layout/header';
+import { Logo } from '@/components/layout/logo';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,13 +69,15 @@ export default function SubscribePage() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen w-full flex-col">
-        <Header />
-        <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6 lg:p-8">
-          <Card className="w-full max-w-md">
+      <main className="flex min-h-screen flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-8">
+          <div className="flex flex-col items-center">
+            <Logo variant="full" width={610} height={203} />
+          </div>
+          <Card>
             <CardHeader>
-              <CardTitle className="text-3xl">Start Your Pro Trial</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-center text-3xl">Start Your Pro Trial</CardTitle>
+              <CardDescription className="text-center">
                 Create your account first, then we&apos;ll send you straight into secure Stripe checkout.
               </CardDescription>
             </CardHeader>
@@ -98,8 +100,8 @@ export default function SubscribePage() {
               </Button>
             </CardFooter>
           </Card>
-        </main>
-      </div>
+        </div>
+      </main>
     );
   }
 
@@ -113,7 +115,6 @@ export default function SubscribePage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header />
       <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6 lg:p-8">
         <Card className="w-full max-w-md">
           <CardHeader>
