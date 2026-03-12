@@ -228,7 +228,7 @@ export async function POST(
           xp: 0,
           isPrivate: false,
           isPrivateFromOwner: false,
-          showDealerCriticalOnly: false,
+          showDealerCriticalOnly: true,
           memberSince: now.toISOString(),
           subscriptionStatus: isPrivilegedRole ? 'active' : 'trialing',
           trialStartedAt: isPrivilegedRole ? null : trialWindow.trialStartedAt,

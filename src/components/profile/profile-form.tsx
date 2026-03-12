@@ -78,6 +78,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [confirmationInput, setConfirmationInput] = useState('');
   const [isRemoving, setIsRemoving] = useState(false);
   const [showOwnerPrivacyDialog, setShowOwnerPrivacyDialog] = useState(false);
+  const [showFullMetricsDialog, setShowFullMetricsDialog] = useState(false);
+  const [fullMetricsConfirmationInput, setFullMetricsConfirmationInput] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>(
     SELF_SELECTABLE_ROLES.includes(user.role) ? user.role : 'Sales Consultant'
   );
@@ -100,7 +102,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       },
       isPrivate: user.isPrivate || false,
       isPrivateFromOwner: user.isPrivateFromOwner || false,
-      showDealerCriticalOnly: user.showDealerCriticalOnly || false,
+      showDealerCriticalOnly: user.showDealerCriticalOnly ?? true,
       themePreference: user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant'),
       selfDeclaredDealershipId: user.selfDeclaredDealershipId || '',
     },
@@ -139,6 +141,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
       .map(id => allDealerships.find(d => d.id === id))
       .filter((d): d is Dealership => d !== undefined);
   }, [user.dealershipIds, allDealerships]);
+  const managementPrivateDataViewingDisabled = useMemo(() => (
+    userDealerships.some((dealership) => dealership.disableManagementPrivateDataViewing === true)
+  ), [userDealerships]);
   const billingAccess = useMemo(() => resolveBillingAccess(user, userDealerships), [user, userDealerships]);
   const trialDaysRemaining = useMemo(() => getDaysRemaining(billingAccess.trialEndsAt), [billingAccess.trialEndsAt]);
 
@@ -297,6 +302,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
     setShowOwnerPrivacyDialog(false);
   };
 
+  const confirmFullMetricsVisibility = () => {
+    if (managementPrivateDataViewingDisabled) {
+      setShowFullMetricsDialog(false);
+      setFullMetricsConfirmationInput('');
+      return;
+    }
+    form.setValue('showDealerCriticalOnly', false);
+    form.setValue('isPrivate', false);
+    form.setValue('isPrivateFromOwner', false);
+    setShowFullMetricsDialog(false);
+    setFullMetricsConfirmationInput('');
+  };
+
+  const cancelFullMetricsVisibility = () => {
+    setShowFullMetricsDialog(false);
+    setFullMetricsConfirmationInput('');
+  };
+
   useEffect(() => {
     if (!isPrivateValue) {
       form.setValue('isPrivateFromOwner', false);
@@ -304,10 +327,16 @@ export function ProfileForm({ user }: ProfileFormProps) {
   }, [isPrivateValue, form]);
 
   useEffect(() => {
-    if (isPrivateValue && criticalOnlyValue) {
-      form.setValue('showDealerCriticalOnly', false);
+    if (isPrivateValue && !criticalOnlyValue) {
+      form.setValue('showDealerCriticalOnly', true);
     }
   }, [isPrivateValue, criticalOnlyValue, form]);
+
+  useEffect(() => {
+    if (managementPrivateDataViewingDisabled && !criticalOnlyValue) {
+      form.setValue('showDealerCriticalOnly', true);
+    }
+  }, [managementPrivateDataViewingDisabled, criticalOnlyValue, form]);
 
   return (
     <Form {...form}>
@@ -721,21 +750,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
-                      Show Dealer Critical Only
+                      Show Full Dealer Metrics
                     </FormLabel>
                     <FormDescription>
-                      Superiors will only see your top strength and area for improvement, without percentage scores.
+                      Off by default. Enable and type ALLOW to share full percentage metrics; otherwise only top and bottom skills are shown.
+                      {managementPrivateDataViewingDisabled ? ' Your dealership has locked this setting to protect consultant privacy.' : ''}
                     </FormDescription>
                   </div>
                   <FormControl>
                     <Switch
-                      checked={field.value}
+                      checked={!field.value}
+                      disabled={managementPrivateDataViewingDisabled}
                       onCheckedChange={(checked) => {
-                        field.onChange(checked);
+                        if (managementPrivateDataViewingDisabled) return;
                         if (checked) {
-                          form.setValue('isPrivate', false);
-                          form.setValue('isPrivateFromOwner', false);
+                          setShowFullMetricsDialog(true);
+                          return;
                         }
+                        field.onChange(true);
                       }}
                     />
                   </FormControl>
@@ -761,7 +793,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                       onCheckedChange={(checked) => {
                         field.onChange(checked);
                         if (checked) {
-                          form.setValue('showDealerCriticalOnly', false);
+                          form.setValue('showDealerCriticalOnly', true);
                         }
                       }}
                     />
@@ -841,6 +873,38 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <AlertDialogCancel onClick={() => setShowOwnerPrivacyDialog(false)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmOwnerPrivacy}>
               I Understand, Hide My Data
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={showFullMetricsDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelFullMetricsVisibility();
+          }
+        }}
+      >
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Full Metric Sharing</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will allow leadership to view your full score percentages instead of only top and bottom skills. Type <strong>ALLOW</strong> to continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={fullMetricsConfirmationInput}
+            onChange={(e) => setFullMetricsConfirmationInput(e.target.value)}
+            placeholder="ALLOW"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelFullMetricsVisibility}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmFullMetricsVisibility}
+              disabled={fullMetricsConfirmationInput.trim() !== 'ALLOW'}
+            >
+              Enable Full Metrics
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

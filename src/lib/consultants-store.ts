@@ -167,6 +167,17 @@ export async function updateConsultant(id: string, input: UpdateConsultantInput)
   return updated;
 }
 
+export async function deleteConsultant(id: string): Promise<void> {
+  const consultants = await readConsultants();
+  const nextConsultants = consultants.filter((consultant) => consultant.id !== id);
+
+  if (nextConsultants.length === consultants.length) {
+    throw new Error('Consultant not found.');
+  }
+
+  await writeConsultants(nextConsultants);
+}
+
 export async function getConsultantByFirebaseUid(firebaseUid: string): Promise<ConsultantRecord | null> {
   const normalizedUid = firebaseUid.trim();
   if (!normalizedUid) {

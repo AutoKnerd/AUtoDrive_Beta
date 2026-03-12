@@ -7,6 +7,7 @@ import {
   updateDealershipStatus,
   updateDealershipRetakeTestingAccess,
   updateDealershipNewRecommendedTestingAccess,
+  updateDealershipManagementPrivateDataViewingAccess,
   getCxSystemConfig,
   updateCxSystemConfig,
   updateDealershipPppAccess,
@@ -57,6 +58,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [confirmationInput, setConfirmationInput] = useState('');
   const [retakeTestingEnabled, setRetakeTestingEnabled] = useState(false);
   const [newRecommendedTestingEnabled, setNewRecommendedTestingEnabled] = useState(false);
+  const [managementPrivateDataViewingDisabled, setManagementPrivateDataViewingDisabled] = useState(false);
   const [pppProtocolEnabled, setPppProtocolEnabled] = useState(false);
   const [saasPppTrainingEnabled, setSaasPppTrainingEnabled] = useState(false);
   const [persistedCxAggressiveness, setPersistedCxAggressiveness] = useState(DEFAULT_CX_AGGRESSIVENESS);
@@ -106,6 +108,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     setSelectedDealership(dealership || null);
     setRetakeTestingEnabled(dealership?.enableRetakeRecommendedTesting === true);
     setNewRecommendedTestingEnabled(dealership?.enableNewRecommendedTesting === true);
+    setManagementPrivateDataViewingDisabled(dealership?.disableManagementPrivateDataViewing === true);
     setPppProtocolEnabled(dealership?.enablePppProtocol === true);
     setSaasPppTrainingEnabled(dealership?.enableSaasPppTraining === true);
     setBillingTier((dealership?.billingTier as DealershipBillingTier) || 'sales_fi');
@@ -197,6 +200,32 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       toast({
         title: 'Testing Access Updated',
         description: `${selectedDealership.name} ${newRecommendedTestingEnabled ? 'can now' : 'can no longer'} use the New Recommended (Testing) button.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleUpdateManagementPrivateDataViewing() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      await updateDealershipManagementPrivateDataViewingAccess(selectedDealership.id, managementPrivateDataViewingDisabled);
+      setSelectedDealership((prev) => (
+        prev ? { ...prev, disableManagementPrivateDataViewing: managementPrivateDataViewingDisabled } : prev
+      ));
+      toast({
+        title: 'Privacy Lock Updated',
+        description: managementPrivateDataViewingDisabled
+          ? `${selectedDealership.name} now enforces consultant privacy lock for management views.`
+          : `${selectedDealership.name} no longer enforces consultant privacy lock for management views.`,
       });
       onDealershipManaged?.();
     } catch (e) {
@@ -457,6 +486,31 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
                   className="w-full md:w-auto"
                 >
                   {isLoading ? <Spinner size="sm" /> : 'Save New Lesson Access'}
+                </Button>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-medium">Disable Management Private Data Viewing</p>
+                        <p className="text-xs text-muted-foreground">
+                            When enabled, management views are locked to dealer-critical summaries (top strength and area for improvement only).
+                        </p>
+                    </div>
+                    <Switch
+                      checked={managementPrivateDataViewingDisabled}
+                      onCheckedChange={setManagementPrivateDataViewingDisabled}
+                      disabled={isLoading}
+                      aria-label="Disable management private data viewing"
+                    />
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={isLoading || managementPrivateDataViewingDisabled === (selectedDealership.disableManagementPrivateDataViewing === true)}
+                  onClick={handleUpdateManagementPrivateDataViewing}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save Privacy Lock'}
                 </Button>
             </div>
 

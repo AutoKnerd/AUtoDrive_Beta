@@ -47,6 +47,7 @@ export default function AdminConsultantsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const baseUrl = useMemo(() => {
@@ -204,6 +205,38 @@ export default function AdminConsultantsPage() {
       setError(message);
     } finally {
       setIsUpdating(false);
+    }
+  }
+
+  async function handleDeleteConsultant(consultant: Consultant) {
+    const confirmed = window.confirm(
+      `Delete consultant "${consultant.name}" (${consultant.referralCode})? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(consultant.id);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/consultants/${encodeURIComponent(consultant.id)}`, {
+        method: 'DELETE',
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete consultant.');
+      }
+
+      if (editingId === consultant.id) {
+        cancelEditing();
+      }
+
+      await loadConsultants();
+    } catch (deleteError) {
+      const message = deleteError instanceof Error ? deleteError.message : 'Failed to delete consultant.';
+      setError(message);
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -371,6 +404,14 @@ export default function AdminConsultantsPage() {
                           </Button>
                           <Button type="button" variant="outline" onClick={cancelEditing} disabled={isUpdating}>
                             Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => void handleDeleteConsultant(consultant)}
+                            disabled={deletingId === consultant.id || isUpdating}
+                          >
+                            {deletingId === consultant.id ? 'Deleting...' : 'Delete'}
                           </Button>
                         </div>
                       </form>

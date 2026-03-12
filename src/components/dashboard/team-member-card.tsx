@@ -5,7 +5,7 @@ import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership, Badge } 
 import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles, getEarnedBadgesByUserId, convertUserToSingleUser } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, ShieldOff, Copy, KeyRound } from 'lucide-react';
+import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, ShieldOff, Copy, KeyRound, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -60,6 +60,11 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const normalizedUserDealershipIds = useMemo(() => (
     Array.isArray(user.dealershipIds) ? user.dealershipIds : []
   ), [user.dealershipIds]);
+  const managementPrivateDataViewingDisabled = useMemo(() => (
+    normalizedUserDealershipIds.some((dealershipId) => (
+      dealerships.find((dealership) => dealership.id === dealershipId)?.disableManagementPrivateDataViewing === true
+    ))
+  ), [normalizedUserDealershipIds, dealerships]);
 
 
   const displayXp = useMemo(() => {
@@ -81,7 +86,9 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const hideMetrics =
     (viewerIsManager && user.isPrivate) ||
     (viewerIsOwner && user.isPrivateFromOwner);
-  const showCriticalOnly = viewerIsSuperior && !hideMetrics && user.showDealerCriticalOnly === true;
+  const showCriticalOnly = viewerIsSuperior && !hideMetrics && (
+    managementPrivateDataViewingDisabled || user.showDealerCriticalOnly === true
+  );
 
 
   useEffect(() => {
@@ -403,14 +410,20 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                         This user shares only top strength and area for improvement with leadership.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between rounded-md border p-3">
-                        <span className="text-sm text-muted-foreground">Top Strength</span>
-                        <span className="font-semibold">{formatTrait(criticalTraits.topStrength)}</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-md border p-3">
-                        <span className="text-sm text-muted-foreground">Area for Improvement</span>
+                <CardContent className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-md border p-3">
+                        <div className="mb-1 flex items-center gap-2">
+                          <ArrowDownLeft className="h-4 w-4 text-rose-400" />
+                          <span className="text-sm text-muted-foreground">Area for Improvement</span>
+                        </div>
                         <span className="font-semibold">{formatTrait(criticalTraits.weakestSkill)}</span>
+                    </div>
+                    <div className="rounded-md border p-3 md:text-right">
+                        <div className="mb-1 flex items-center justify-start gap-2 md:justify-end">
+                          <span className="text-sm text-muted-foreground">Top Strength</span>
+                          <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                        </div>
+                        <span className="font-semibold">{formatTrait(criticalTraits.topStrength)}</span>
                     </div>
                 </CardContent>
             </Card>

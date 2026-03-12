@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateConsultant } from '@/lib/consultants-store';
+import { deleteConsultant, updateConsultant } from '@/lib/consultants-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +29,21 @@ export async function PATCH(
         ? 400
         : 500;
 
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    await deleteConsultant(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete consultant.';
+    const status = message === 'Consultant not found.' ? 404 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

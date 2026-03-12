@@ -664,7 +664,7 @@ export async function createUserProfile(
         xp: 0,
         isPrivate: false,
         isPrivateFromOwner: false,
-        showDealerCriticalOnly: false,
+        showDealerCriticalOnly: true,
         memberSince: now.toISOString(),
         subscriptionStatus: isPrivilegedRole
             ? 'active'
@@ -699,20 +699,45 @@ export async function createUserProfile(
 export async function updateUser(userId: string, data: Partial<Omit<User, 'userId' | 'xp' | 'dealershipIds'>>): Promise<User> {
     const { firestore: db } = getFirebase();
     if (isTouringUser(userId)) {
-        const user = (await getTourData()).users.find(u => u.userId === userId);
+        const tour = await getTourData();
+        const user = tour.users.find(u => u.userId === userId);
         if (!user) throw new Error("Tour user not found after update");
+        const shouldEnforceCriticalOnly = (data.showDealerCriticalOnly === false)
+            && (Array.isArray(user.dealershipIds) ? user.dealershipIds : []).some((dealershipId) => {
+                const dealership = (tour.dealerships || []).find((d) => d.id === dealershipId);
+                return dealership?.disableManagementPrivateDataViewing === true;
+            });
+        if (shouldEnforceCriticalOnly) {
+            data = { ...data, showDealerCriticalOnly: true };
+        }
         Object.assign(user, data);
         return { ...user };
     }
 
     const userRef = doc(db, 'users', userId);
+    let nextData = { ...data };
+    if (data.showDealerCriticalOnly === false) {
+        const existingUser = await getDataById<User>(db, 'users', userId);
+        const dealershipIds = Array.isArray(existingUser?.dealershipIds) ? existingUser.dealershipIds : [];
+        if (dealershipIds.length > 0) {
+            const dealershipSnapshots = await Promise.all(
+                Array.from(new Set(dealershipIds)).map((id) => getDoc(doc(db, 'dealerships', id)).catch(() => null))
+            );
+            const policyLocked = dealershipSnapshots.some((snapshot) => (
+                snapshot?.exists() && snapshot.data()?.disableManagementPrivateDataViewing === true
+            ));
+            if (policyLocked) {
+                nextData = { ...nextData, showDealerCriticalOnly: true };
+            }
+        }
+    }
     try {
-        await updateDoc(userRef, data);
+        await updateDoc(userRef, nextData);
     } catch (e: any) {
         const contextualError = new FirestorePermissionError({
             path: userRef.path,
             operation: 'update',
-            requestResourceData: data,
+            requestResourceData: nextData,
         });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;
@@ -884,6 +909,7 @@ export async function createDealership(dealershipData: {
             address: dealershipData.address as Address,
             enableRetakeRecommendedTesting: false,
             enableNewRecommendedTesting: false,
+            disableManagementPrivateDataViewing: false,
             enablePppProtocol: false,
             enableSaasPppTraining: false,
             billingTier: 'sales_fi',
@@ -2598,6 +2624,39 @@ export async function updateDealershipNewRecommendedTestingAccess(
             path: dealershipRef.path,
             operation: 'update',
             requestResourceData: { enableNewRecommendedTesting: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+export async function updateDealershipManagementPrivateDataViewingAccess(
+    dealershipId: string,
+    disabled: boolean
+): Promise<Dealership> {
+    const { firestore: db } = getFirebase();
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.disableManagementPrivateDataViewing = disabled;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    const dealershipsCollection = collection(db, 'dealerships');
+    const dealershipRef = doc(dealershipsCollection, dealershipId);
+
+    try {
+        await updateDoc(dealershipRef, { disableManagementPrivateDataViewing: disabled });
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: { disableManagementPrivateDataViewing: disabled },
         });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;
