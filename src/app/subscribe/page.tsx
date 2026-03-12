@@ -3,6 +3,7 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Header } from '@/components/layout/header';
 import { Spinner } from '@/components/ui/spinner';
@@ -27,9 +28,6 @@ export default function SubscribePage() {
       localStorage.setItem('consultant_referral', consultant);
     }
 
-    if (!loading && !user) {
-      router.push('/login');
-    }
     if (!loading && user && !requiresIndividualCheckout(user)) {
       router.push('/');
     }
@@ -61,7 +59,51 @@ export default function SubscribePage() {
     }
   };
 
-  if (loading || !user || !requiresIndividualCheckout(user)) {
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen w-full flex-col">
+        <Header />
+        <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6 lg:p-8">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-3xl">Start Your Pro Trial</CardTitle>
+              <CardDescription>
+                Create your account first, then we&apos;ll send you straight into secure Stripe checkout.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">What happens next:</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>Create your AutoDrive account</li>
+                  <li>Add your billing method securely in Stripe</li>
+                  <li>Start your 30-day trial</li>
+                </ul>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-2">
+              <Button asChild className="w-full">
+                <Link href="/signup">Create Pro Account</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (!requiresIndividualCheckout(user)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Spinner size="lg" />
