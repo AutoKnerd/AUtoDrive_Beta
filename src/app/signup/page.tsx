@@ -5,6 +5,8 @@ import { SignupForm } from '@/components/auth/signup-form';
 import { Logo } from '@/components/layout/logo';
 
 export default function SignupPage() {
+  const gitSha = process.env.NEXT_PUBLIC_GIT_SHA ?? 'local';
+
   return (
     <main className="relative isolate min-h-screen overflow-hidden px-3 py-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-10 lg:px-8">
       <div
@@ -27,6 +29,9 @@ export default function SignupPage() {
           <div className="space-y-4">
             <div className="w-fit rounded-full border border-cyan-300/35 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
               AutoDriveCX Individual
+            </div>
+            <div className="w-fit rounded-full border border-amber-300/35 bg-amber-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+              Build {gitSha}
             </div>
             <Logo variant="full" width={330} height={110} className="h-auto w-auto max-w-[300px]" />
             <h1 className="text-balance text-2xl font-semibold leading-tight text-white sm:text-3xl">
