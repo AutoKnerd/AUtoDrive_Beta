@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { User, Dealership, UserRole, allRoles, carBrands, type ThemePreference } from '@/lib/definitions';
+import { User, Dealership, UserRole, allRoles, carBrands } from '@/lib/definitions';
 import { updateUser, getDealerships, updateUserDealerships } from '@/lib/data.client';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
@@ -16,9 +16,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge as UiBadge } from '@/components/ui/badge';
 import placeholderImagesData from '@/lib/placeholder-images.json';
-import { Camera, X, CheckCircle, ExternalLink, Sparkles, Shield, Palette } from 'lucide-react';
+import { Camera, X, CheckCircle, ExternalLink, Palette } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { createCustomerPortalSession } from '@/app/actions/stripe';
 import { resolveBillingAccess } from '@/lib/billing/access';
 import { getDaysRemaining } from '@/lib/billing/trial';
+import { formatPasswordResetErrorMessage, sendUserPasswordResetEmail } from '@/lib/auth/password-reset';
 
 interface ProfileFormProps {
   user: User;
@@ -66,11 +66,12 @@ const SELF_SELECTABLE_ROLES: UserRole[] = allRoles.filter((role) => (
 
 export function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter();
-  const { setUser } = useAuth();
+  const { setUser, isTouring } = useAuth();
   const firebaseAuth = useFirebaseAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [isSendingPasswordReset, setIsSendingPasswordReset] = useState(false);
   const [allDealerships, setAllDealerships] = useState<Dealership[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +142,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       .map(id => allDealerships.find(d => d.id === id))
       .filter((d): d is Dealership => d !== undefined);
   }, [user.dealershipIds, allDealerships]);
+  const signInEmail = firebaseAuth.currentUser?.email?.trim() || user.email?.trim() || '';
   const managementPrivateDataViewingDisabled = useMemo(() => (
     userDealerships.some((dealership) => dealership.disableManagementPrivateDataViewing === true)
   ), [userDealerships]);
@@ -212,6 +214,35 @@ export function ProfileForm({ user }: ProfileFormProps) {
       return;
     }
     router.push('/subscribe');
+  };
+
+  const handleChangePassword = async () => {
+    if (!signInEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'No Sign-in Email Found',
+        description: 'We could not find the email tied to your login.',
+      });
+      return;
+    }
+
+    setIsSendingPasswordReset(true);
+    try {
+      await sendUserPasswordResetEmail(firebaseAuth, signInEmail);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `We sent a secure reset link to ${signInEmail}.`,
+      });
+    } catch (error) {
+      console.error('[ProfileForm] Password reset failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Password Reset Failed',
+        description: formatPasswordResetErrorMessage(error),
+      });
+    } finally {
+      setIsSendingPasswordReset(false);
+    }
   };
 
   const handleRoleUpdate = async () => {
@@ -568,6 +599,34 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 ) : null}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Security</CardTitle>
+            <CardDescription>Send a secure password reset link to the email you use to sign in.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border p-4">
+              <p className="text-sm font-medium">Sign-in Email</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {signInEmail || 'No sign-in email is available for this account.'}
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {isTouring
+                ? 'Demo accounts use shared credentials, so password changes are disabled here.'
+                : 'We will email you a reset link so you can choose a new password securely.'}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleChangePassword}
+              disabled={isSendingPasswordReset || !signInEmail || isTouring}
+            >
+              {isSendingPasswordReset ? <Spinner size="sm" /> : 'Change Password'}
+            </Button>
           </CardContent>
         </Card>
 
