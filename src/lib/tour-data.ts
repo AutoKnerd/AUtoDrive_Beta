@@ -42,6 +42,69 @@ const generateRandomScore = (base: number, bias: 'strong' | 'weak' | 'neutral' =
     return Math.min(99, Math.max(40, Math.round(score)));
 };
 
+const buildTourTimestamp = (daysAgo: number) => {
+    const timestamp = new Date();
+    timestamp.setHours(12, 0, 0, 0);
+    timestamp.setDate(timestamp.getDate() - daysAgo);
+    return timestamp;
+};
+
+const managerShowcaseProfiles = [
+    { userId: 'tour-consultant', name: 'Mike Uschold', xp: 4200, showDealerCriticalOnly: true, overdue: false },
+    { userId: 'tour-user-tour-dealership-1-0', name: 'Jesse Jones', xp: 488, showDealerCriticalOnly: true, overdue: true },
+    { userId: 'tour-user-tour-dealership-1-1', name: 'Avery Hernandez', xp: 395, showDealerCriticalOnly: false, overdue: false },
+    { userId: 'tour-user-tour-dealership-1-2', name: 'Taylor Wilson', xp: 203, showDealerCriticalOnly: true, overdue: false },
+] as const;
+
+function applyManagerShowcase(users: User[], lessonLogs: LessonLog[]) {
+    const showcaseIds = new Set(managerShowcaseProfiles.map((profile) => profile.userId));
+
+    managerShowcaseProfiles.forEach((profile) => {
+        const user = users.find((entry) => entry.userId === profile.userId);
+        if (!user) return;
+
+        user.name = profile.name;
+        user.xp = profile.xp;
+        user.isPrivate = false;
+        user.isPrivateFromOwner = false;
+        user.showDealerCriticalOnly = profile.showDealerCriticalOnly;
+    });
+
+    for (let index = lessonLogs.length - 1; index >= 0; index -= 1) {
+        if (showcaseIds.has(lessonLogs[index].userId)) {
+            lessonLogs.splice(index, 1);
+        }
+    }
+
+    managerShowcaseProfiles.forEach((profile) => {
+        const scoreSets = [
+            { empathy: 74, listening: 72, trust: 79, followUp: 64, closing: 45, relationshipBuilding: 92 },
+            { empathy: 76, listening: 70, trust: 80, followUp: 66, closing: 47, relationshipBuilding: 90 },
+            { empathy: 73, listening: 71, trust: 77, followUp: 63, closing: 46, relationshipBuilding: 91 },
+        ];
+        const schedule = profile.overdue ? [4, 5, 6] : [0, 1, 2];
+
+        schedule.forEach((daysAgo, logIndex) => {
+            const scores = scoreSets[logIndex % scoreSets.length];
+            lessonLogs.push({
+                logId: `tour-showcase-${profile.userId}-${logIndex}`,
+                timestamp: buildTourTimestamp(daysAgo),
+                userId: profile.userId,
+                lessonId: `tour-lesson-${(logIndex % 4) + 1}`,
+                stepResults: { final: 'pass' },
+                xpGained: [125, 95, 80][logIndex] ?? 60,
+                empathy: scores.empathy,
+                listening: scores.listening,
+                trust: scores.trust,
+                followUp: scores.followUp,
+                closing: scores.closing,
+                relationshipBuilding: scores.relationshipBuilding,
+                isRecommended: profile.overdue ? logIndex === 1 : logIndex === 0,
+            });
+        });
+    });
+}
+
 type TourData = {
     dealerships: Dealership[];
     users: User[];
@@ -198,7 +261,7 @@ const generateTourDataInternal = (): Promise<TourData> => {
             },
             {
                 userId: 'tour-consultant',
-                name: 'Demo Sales Consultant',
+                name: 'Mike Uschold',
                 email: 'consultant.demo@autodrive.com',
                 role: 'Sales Consultant',
                 dealershipIds: [dealerships[0].id],
@@ -206,7 +269,7 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 xp: 4200,
                 isPrivate: false,
                 isPrivateFromOwner: false,
-                showDealerCriticalOnly: false,
+                showDealerCriticalOnly: true,
                 memberSince: new Date(new Date().getTime() - 100 * 24 * 60 * 60 * 1000).toISOString(),
                 subscriptionStatus: 'active'
             },
@@ -314,15 +377,29 @@ const generateTourDataInternal = (): Promise<TourData> => {
                 const themePreference = themeRotation[(i + dealerships.indexOf(dealership)) % themeRotation.length];
                 const user: User = {
                     userId: `tour-user-${dealership.id}-${i}`,
-                    name: name,
+                    name: dealership.id === 'tour-dealership-1' && i === 0
+                        ? 'Jesse Jones'
+                        : dealership.id === 'tour-dealership-1' && i === 1
+                            ? 'Avery Hernandez'
+                            : dealership.id === 'tour-dealership-1' && i === 2
+                                ? 'Taylor Wilson'
+                                : name,
                     email: generateRandomEmail(name),
                     role: role,
                     dealershipIds: [dealership.id],
                     avatarUrl: `https://i.pravatar.cc/150?u=tour-user-${dealership.id}-${i}`,
-                    xp: 0,
+                    xp: dealership.id === 'tour-dealership-1' && i === 0
+                        ? 488
+                        : dealership.id === 'tour-dealership-1' && i === 1
+                            ? 395
+                            : dealership.id === 'tour-dealership-1' && i === 2
+                                ? 203
+                                : 0,
                     isPrivate: Math.random() > 0.8,
                     isPrivateFromOwner: Math.random() > 0.9,
-                    showDealerCriticalOnly: Math.random() > 0.75,
+                    showDealerCriticalOnly: dealership.id === 'tour-dealership-1' && i < 3
+                        ? i !== 1
+                        : Math.random() > 0.75,
                     themePreference,
                     useProfessionalTheme: themePreference !== 'vibrant',
                     memberSince: new Date(new Date().getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
@@ -384,6 +461,8 @@ const generateTourDataInternal = (): Promise<TourData> => {
             { badgeId: 'xp-10000', userId: ownerUserId, timestamp: new Date() },
             { badgeId: 'level-25', userId: ownerUserId, timestamp: new Date() },
         ];
+
+        applyManagerShowcase(users, lessonLogs);
         
         resolve({ dealerships, users, lessonLogs, earnedBadges, lessons, lessonAssignments });
     });

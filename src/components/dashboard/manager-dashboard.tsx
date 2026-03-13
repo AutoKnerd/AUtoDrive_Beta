@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
 import { Badge as UiBadge } from '../ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Button, buttonVariants } from '../ui/button';
 import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,6 +43,7 @@ import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
 import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
+import { ManagerGuidedTour } from './manager-guided-tour';
 
 interface ManagerDashboardProps {
   user: User;
@@ -270,6 +271,69 @@ function parseCoachingAlert(alert: string): { repName: string; reason: string } 
   return { repName: normalized, reason: 'Review this alert in Team Activity.' };
 }
 
+function resolveTeamMemberName(member: TeamMemberStats): string {
+  const normalizedName = (member.consultant.name || '').trim();
+  if (normalizedName && normalizedName.toLowerCase() !== 'new user') return normalizedName;
+  const localPart = (member.consultant.email || '').split('@')[0] || '';
+  const cleaned = localPart.replace(/[._-]+/g, ' ').trim();
+  if (!cleaned) return 'Rep';
+  return cleaned
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function scoreFromTeamMember(member: TeamMemberStats): number {
+  const snapshot = scoreSnapshotFromUserStats(member.consultant);
+  if (snapshot) {
+    const values = Object.values(snapshot);
+    return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100;
+  }
+
+  return Math.round(member.avgScore * 100) / 100;
+}
+
+function daysSinceActivity(lastActivity: string | Date | null, now: Date): number {
+  if (!lastActivity) return Number.MAX_SAFE_INTEGER;
+  const parsed = lastActivity instanceof Date ? lastActivity : new Date(lastActivity);
+  if (Number.isNaN(parsed.getTime())) return Number.MAX_SAFE_INTEGER;
+  return Math.floor((now.getTime() - parsed.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function buildTourLeadershipData(teamActivity: TeamMemberStats[]): DealerGmDashboardResponse {
+  const now = new Date();
+  const repPerformance = teamActivity
+    .filter((member) => !member.pendingInvite)
+    .map((member) => ({
+      user_id: member.consultant.userId,
+      name: resolveTeamMemberName(member),
+      missions_completed: member.lessonsCompleted,
+      skill_score: scoreFromTeamMember(member),
+      last_activity: member.lastInteraction ? member.lastInteraction.toISOString() : null,
+    }));
+
+  const jesse = repPerformance.find((rep) => rep.name === 'Jesse Jones');
+  const coachingAlerts: string[] = [];
+  if (jesse) {
+    const daysInactive = daysSinceActivity(jesse.last_activity ?? null, now);
+    if (daysInactive === Number.MAX_SAFE_INTEGER) {
+      coachingAlerts.push('Jesse Jones has no recorded activity yet');
+    } else if (daysInactive >= 1) {
+      coachingAlerts.push(`Jesse Jones overdue training for ${daysInactive} ${daysInactive === 1 ? 'day' : 'days'}`);
+    } else {
+      coachingAlerts.push('Jesse Jones overdue training');
+    }
+    coachingAlerts.push('Jesse Jones has incomplete training streaks');
+  }
+
+  return {
+    dealership_name: 'Tour Dealership',
+    rep_performance: repPerformance,
+    coaching_alerts: coachingAlerts.slice(0, 12),
+  };
+}
+
 function LevelDisplay({ user }: { user: User }) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
 
@@ -319,7 +383,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [isMessageDialogOpen, setMessageDialogOpen] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [lessonLimits, setLessonLimits] = useState({ recommendedTaken: false, otherTaken: false });
-  const [showTourWelcome, setShowTourWelcome] = useState(false);
+  const [showGuidedTour, setShowGuidedTour] = useState(false);
+  const [guidedTourStep, setGuidedTourStep] = useState(0);
   const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
   const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
 
@@ -543,14 +608,20 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   useEffect(() => {
     if (isTouring) {
       const hasSeenWelcome = sessionStorage.getItem(`tourWelcomeSeen_${user.role}`);
-      if (!hasSeenWelcome) setShowTourWelcome(true);
+      if (!hasSeenWelcome) {
+        setGuidedTourStep(0);
+        setShowGuidedTour(true);
+      }
     }
   }, [isTouring, user.role]);
-  
-  const handleWelcomeDialogChange = (open: boolean) => {
-    if (!open) sessionStorage.setItem(`tourWelcomeSeen_${user.role}`, 'true');
-    setShowTourWelcome(open);
-  }
+
+  const closeGuidedTour = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`tourWelcomeSeen_${user.role}`, 'true');
+    }
+    setShowGuidedTour(false);
+    setGuidedTourStep(0);
+  }, [user.role]);
 
   const handleLessonCreated = () => {
     setCreateLessonOpen(false);
@@ -580,6 +651,23 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, []);
 
   const getRecommendedStatus = useCallback((member: TeamMemberStats) => {
+    if (isTouring) {
+      const displayName = resolveTeamMemberName(member);
+      if (displayName === 'Jesse Jones') {
+        return {
+          label: 'Overdue',
+          colorClass: 'bg-red-500',
+          detail: 'Jesse Jones is intentionally shown as overdue in the guided tour.',
+        };
+      }
+
+      return {
+        label: 'Up to date',
+        colorClass: 'bg-emerald-500',
+        detail: 'Guided tour teammates are shown as current.',
+      };
+    }
+
     if (member.tookRecommendedToday) {
       return {
         label: 'Today',
@@ -615,7 +703,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       colorClass: 'bg-amber-400',
       detail: `${daysSince} day${daysSince === 1 ? '' : 's'} since last recommended lesson.`,
     };
-  }, []);
+  }, [isTouring]);
 
   const isMetricsHiddenForViewer = useCallback((member: User) => {
     if (['Admin', 'Developer', 'Trainer'].includes(user.role)) return false;
@@ -804,6 +892,12 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
   const isOwnerDashboardRole = user.role === 'Owner';
   const isGmDashboardRole = ['General Manager', 'manager', 'Admin', 'Developer'].includes(user.role);
+  const effectiveLeadershipData = useMemo<DealerLeadershipResponse | null>(() => {
+    if (isTouring) {
+      return buildTourLeadershipData(teamActivity);
+    }
+    return dealerLeadershipData;
+  }, [dealerLeadershipData, isTouring, teamActivity]);
 
   useEffect(() => {
     let active = true;
@@ -864,15 +958,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   return (
     <div className="space-y-8 pb-8 text-foreground">
+      <ManagerGuidedTour
+        open={showGuidedTour}
+        stepIndex={guidedTourStep}
+        onStepChange={setGuidedTourStep}
+        onSkip={closeGuidedTour}
+        onFinish={closeGuidedTour}
+      />
       <BaselineAssessmentDialog user={user} open={showBaselineAssessment} onOpenChange={setShowBaselineAssessment} onCompleted={async () => { setShowBaselineAssessment(false); setNeedsBaselineAssessment(false); await fetchData(selectedDealershipId); }} />
-      <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle className="text-2xl">Welcome, {user.role === 'manager' ? 'Sales Manager' : user.role}!</DialogTitle>
-                  <DialogDescription className="pt-2">This is your command center. From here, you can monitor team-wide statistics, track individual member activity, and create custom training lessons.</DialogDescription>
-              </DialogHeader>
-          </DialogContent>
-      </Dialog>
       <header className="flex flex-wrap items-center justify-between gap-3">
           <Logo variant="full" width={183} height={61} />
           <div className="flex items-center gap-3">
@@ -932,7 +1025,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           </div>
       </div>
 
-      <section>
+      <section data-manager-tour="team-scores">
         <CxSoundwaveCard 
           scope={activeScope} 
           personalScope={personalScope}
@@ -952,7 +1045,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       </section>
 
       {showTodaysLessonsCard && (
-        <section className="space-y-4">
+        <section className="space-y-4" data-manager-tour="dealer-focus">
           <h2 className="text-xl font-bold text-foreground">Dealer Focus</h2>
           <Card className={dashboardFeatureCardClass}>
             <CardHeader>
@@ -976,9 +1069,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     ? 'Complete this recommended lesson to strengthen your lowest coaching trait today.'
                     : 'No recommended lesson is available right now. Check assigned training and team priorities.'}
                 </p>
-                {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData) && (
+                {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Top alert: {dealerLeadershipData.coaching_alerts[0] || 'No active alerts'}
+                    Top alert: {effectiveLeadershipData.coaching_alerts[0] || 'No active alerts'}
                   </p>
                 )}
               </div>
@@ -987,10 +1080,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                   <summary className="list-none cursor-pointer">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Sales Reps</p>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Team Members</p>
                         <p className="mt-2 text-xl font-semibold">
-                          {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData)
-                            ? dealerLeadershipData.rep_performance.length
+                          {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData)
+                            ? effectiveLeadershipData.rep_performance.length
                             : teamActivity.length}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">Click to view rep list</p>
@@ -999,9 +1092,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     </div>
                   </summary>
                   <div className="mt-3 space-y-2 border-t pt-3 text-sm">
-                    {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData) ? (
-                      dealerLeadershipData.rep_performance.length > 0 ? (
-                        dealerLeadershipData.rep_performance.map((rep) => (
+                    {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) ? (
+                      effectiveLeadershipData.rep_performance.length > 0 ? (
+                        effectiveLeadershipData.rep_performance.map((rep) => (
                           <div key={rep.user_id} className="rounded-md border p-2">
                             <p className="font-medium">{rep.name}</p>
                           </div>
@@ -1020,8 +1113,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                       <div>
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">Coaching Alerts</p>
                         <p className="mt-2 text-xl font-semibold">
-                          {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData)
-                            ? dealerLeadershipData.coaching_alerts.length
+                          {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData)
+                            ? effectiveLeadershipData.coaching_alerts.length
                             : 0}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">Click to view who and why</p>
@@ -1030,9 +1123,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     </div>
                   </summary>
                   <div className="mt-3 space-y-2 border-t pt-3 text-sm">
-                    {dealerLeadershipData && !isOwnerLeadershipData(dealerLeadershipData) ? (
-                      dealerLeadershipData.coaching_alerts.length > 0 ? (
-                        dealerLeadershipData.coaching_alerts.map((alert, index) => {
+                    {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) ? (
+                      effectiveLeadershipData.coaching_alerts.length > 0 ? (
+                        effectiveLeadershipData.coaching_alerts.map((alert, index) => {
                           const parsed = parseCoachingAlert(alert);
                           return (
                             <div key={`${alert}-${index}`} className="rounded-md border p-2">
@@ -1135,7 +1228,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
       {viewMode === 'team' ? (
           <>
-            <Card>
+            <Card data-manager-tour="team-stats">
               <CardHeader><CardTitle>Team Statistics</CardTitle><CardDescription>{selectedDealershipId === 'all' ? (canViewAllStores ? 'Across all dealerships' : 'Across assigned dealerships') : `Performance overview`}</CardDescription></CardHeader>
               <CardContent>
                   {loading ? <Skeleton className="h-24 w-full" /> : showInsufficientDataWarning ? (
@@ -1153,11 +1246,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card data-manager-tour="team-activity">
                 <CardHeader className="flex-col gap-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div><CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5" />Team Activity</CardTitle></div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2" data-manager-tour="team-actions">
                             {canManage && (
                                 <Dialog open={isManageUsersOpen} onOpenChange={setManageUsersOpen}>
                                     <DialogTrigger asChild><Button variant="outline" size="sm"><Users className="mr-2 h-4 w-4" />Manage Team</Button></DialogTrigger>

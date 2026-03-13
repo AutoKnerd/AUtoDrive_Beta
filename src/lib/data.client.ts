@@ -1466,6 +1466,77 @@ function toDayKey(date: Date): string {
     return format(startOfDay(date), 'yyyy-MM-dd');
 }
 
+function buildTourTrendSeries(
+    buckets: Map<string, {
+        empathy: number;
+        listening: number;
+        trust: number;
+        followUp: number;
+        closing: number;
+        relationship: number;
+        count: number;
+    }>,
+    safeDays: number,
+    today: Date
+): CxTrendSample[] {
+    const orderedDates = Array.from({ length: safeDays }, (_, idx) => (
+        format(subDays(today, safeDays - 1 - idx), 'yyyy-MM-dd')
+    ));
+
+    const seededStart = {
+        empathy: 72,
+        listening: 71,
+        trust: 74,
+        followUp: 68,
+        closing: 66,
+        relationship: 78,
+    };
+
+    const upliftByRange = safeDays <= 7
+        ? { empathy: 2.6, listening: 2.1, trust: 1.8, followUp: 2.9, closing: 2.4, relationship: 1.7 }
+        : safeDays <= 30
+            ? { empathy: 4.8, listening: 4.1, trust: 3.5, followUp: 5.6, closing: 4.4, relationship: 3.8 }
+            : { empathy: 7.2, listening: 6.4, trust: 5.7, followUp: 8.1, closing: 6.9, relationship: 6.1 };
+
+    return orderedDates.map((date, index) => {
+        const progress = orderedDates.length <= 1 ? 1 : index / (orderedDates.length - 1);
+        const bucket = buckets.get(date);
+        const syntheticScores = {
+            empathy: Number((seededStart.empathy + upliftByRange.empathy * progress).toFixed(1)),
+            listening: Number((seededStart.listening + upliftByRange.listening * progress).toFixed(1)),
+            trust: Number((seededStart.trust + upliftByRange.trust * progress).toFixed(1)),
+            followUp: Number((seededStart.followUp + upliftByRange.followUp * progress).toFixed(1)),
+            closing: Number((seededStart.closing + upliftByRange.closing * progress).toFixed(1)),
+            relationship: Number((seededStart.relationship + upliftByRange.relationship * progress).toFixed(1)),
+        };
+
+        if (!bucket) {
+            return { date, scores: syntheticScores };
+        }
+
+        const actualScores = {
+            empathy: Number((bucket.empathy / bucket.count).toFixed(1)),
+            listening: Number((bucket.listening / bucket.count).toFixed(1)),
+            trust: Number((bucket.trust / bucket.count).toFixed(1)),
+            followUp: Number((bucket.followUp / bucket.count).toFixed(1)),
+            closing: Number((bucket.closing / bucket.count).toFixed(1)),
+            relationship: Number((bucket.relationship / bucket.count).toFixed(1)),
+        };
+
+        return {
+            date,
+            scores: {
+                empathy: Math.max(actualScores.empathy, syntheticScores.empathy),
+                listening: Math.max(actualScores.listening, syntheticScores.listening),
+                trust: Math.max(actualScores.trust, syntheticScores.trust),
+                followUp: Math.max(actualScores.followUp, syntheticScores.followUp),
+                closing: Math.max(actualScores.closing, syntheticScores.closing),
+                relationship: Math.max(actualScores.relationship, syntheticScores.relationship),
+            },
+        };
+    });
+}
+
 async function getScopeUsers(scope: CxScope): Promise<User[]> {
     if (isTouringUser(scope.userId) || String(scope.storeId || '').startsWith('tour-') || String(scope.comparisonStoreId || '').startsWith('tour-')) {
         const { users, dealerships } = await getTourData();
@@ -1580,19 +1651,7 @@ export async function getCxTrendForScope(scope: CxScope, days: number = 30): Pro
         });
 
         if (buckets.size > 0) {
-            return Array.from(buckets.entries())
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([date, acc]) => ({
-                    date,
-                    scores: {
-                        empathy: Number((acc.empathy / acc.count).toFixed(1)),
-                        listening: Number((acc.listening / acc.count).toFixed(1)),
-                        trust: Number((acc.trust / acc.count).toFixed(1)),
-                        followUp: Number((acc.followUp / acc.count).toFixed(1)),
-                        closing: Number((acc.closing / acc.count).toFixed(1)),
-                        relationship: Number((acc.relationship / acc.count).toFixed(1)),
-                    },
-                }));
+            return buildTourTrendSeries(buckets, safeDays, today);
         }
         // In tour mode, avoid falling back to static scorecard snapshots when
         // the selected range has no activity; surface as "no data" instead.
