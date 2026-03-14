@@ -1429,6 +1429,8 @@ export type CxTrendSample = {
     scores: Record<CxSkillId, number>;
 };
 
+type CxScoreSnapshot = Record<CxSkillId, number>;
+
 function getScopeStatsScores(user: User): Record<CxSkillId, number> | null {
     const stats = user.stats as Record<string, any> | undefined;
     if (!stats) return null;
@@ -1464,6 +1466,89 @@ function getScopeStatsScores(user: User): Record<CxSkillId, number> | null {
 
 function toDayKey(date: Date): string {
     return format(startOfDay(date), 'yyyy-MM-dd');
+}
+
+function getLessonLogScores(log: LessonLog): CxScoreSnapshot {
+    const ratings = log.ratings;
+    return {
+        empathy: clampScore(Number(ratings?.empathy ?? log.empathy ?? 0)),
+        listening: clampScore(Number(ratings?.listening ?? log.listening ?? 0)),
+        trust: clampScore(Number(ratings?.trust ?? log.trust ?? 0)),
+        followUp: clampScore(Number(ratings?.followUp ?? log.followUp ?? 0)),
+        closing: clampScore(Number(ratings?.closing ?? log.closing ?? 0)),
+        relationship: clampScore(Number(ratings?.relationship ?? log.relationshipBuilding ?? 0)),
+    };
+}
+
+function averageSnapshots(samples: CxScoreSnapshot[]): CxScoreSnapshot | null {
+    if (!samples.length) return null;
+
+    const totals = samples.reduce((acc, sample) => {
+        acc.empathy += sample.empathy;
+        acc.listening += sample.listening;
+        acc.trust += sample.trust;
+        acc.followUp += sample.followUp;
+        acc.closing += sample.closing;
+        acc.relationship += sample.relationship;
+        return acc;
+    }, {
+        empathy: 0,
+        listening: 0,
+        trust: 0,
+        followUp: 0,
+        closing: 0,
+        relationship: 0,
+    });
+
+    const count = samples.length;
+    return {
+        empathy: Number((totals.empathy / count).toFixed(1)),
+        listening: Number((totals.listening / count).toFixed(1)),
+        trust: Number((totals.trust / count).toFixed(1)),
+        followUp: Number((totals.followUp / count).toFixed(1)),
+        closing: Number((totals.closing / count).toFixed(1)),
+        relationship: Number((totals.relationship / count).toFixed(1)),
+    };
+}
+
+async function buildHistoricalTrendSeries(users: User[], safeDays: number, today: Date): Promise<CxTrendSample[]> {
+    const rangeStart = startOfDay(subDays(today, safeDays - 1));
+    const orderedDates = Array.from({ length: safeDays }, (_, idx) => (
+        format(subDays(today, safeDays - 1 - idx), 'yyyy-MM-dd')
+    ));
+
+    const userLogs = await Promise.all(users.map(async (user) => ({
+        userId: user.userId,
+        logs: (await getConsultantActivity(user.userId)).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()),
+    })));
+
+    const currentSnapshots = new Map<string, CxScoreSnapshot>();
+
+    userLogs.forEach(({ userId, logs }) => {
+        const priorLog = [...logs]
+            .reverse()
+            .find((log) => startOfDay(log.timestamp).getTime() < rangeStart.getTime());
+        if (priorLog) {
+            currentSnapshots.set(userId, getLessonLogScores(priorLog));
+        }
+    });
+
+    const series = orderedDates.map((date) => {
+        userLogs.forEach(({ userId, logs }) => {
+            const dailyLogs = logs.filter((log) => toDayKey(log.timestamp) === date);
+            if (!dailyLogs.length) return;
+
+            const dailyAverage = averageSnapshots(dailyLogs.map(getLessonLogScores));
+            if (dailyAverage) {
+                currentSnapshots.set(userId, dailyAverage);
+            }
+        });
+
+        const scopeAverage = averageSnapshots(Array.from(currentSnapshots.values()));
+        return scopeAverage ? { date, scores: scopeAverage } : null;
+    });
+
+    return series.filter((sample): sample is CxTrendSample => sample !== null);
 }
 
 function buildTourTrendSeries(
@@ -1605,9 +1690,9 @@ async function getScopeUsers(scope: CxScope): Promise<User[]> {
 
 export async function getCxTrendForScope(scope: CxScope, days: number = 30): Promise<CxTrendSample[]> {
     const safeDays = Math.max(1, Math.min(90, Math.round(days)));
+    const today = startOfDay(new Date());
     const isTourScope = isTouringUser(scope.userId) || String(scope.storeId || '').startsWith('tour-');
     if (isTourScope) {
-        const today = startOfDay(new Date());
         const rangeStart = startOfDay(subDays(today, safeDays - 1));
         const rangeEnd = new Date(today);
         rangeEnd.setHours(23, 59, 59, 999);
@@ -1659,34 +1744,20 @@ export async function getCxTrendForScope(scope: CxScope, days: number = 30): Pro
     }
 
     const users = await getScopeUsers(scope);
+    if (!users.length) return [];
+
+    const historicalSeries = await buildHistoricalTrendSeries(users, safeDays, today);
+    if (historicalSeries.length) return historicalSeries;
+
     const snapshots = users
         .map((user) => getScopeStatsScores(user))
         .filter((scores): scores is Record<CxSkillId, number> => scores !== null);
-    if (!snapshots.length) return [];
+    const fallbackScores = averageSnapshots(snapshots);
+    if (!fallbackScores) return [];
 
-    const totals = snapshots.reduce((acc, row) => {
-        acc.empathy += row.empathy;
-        acc.listening += row.listening;
-        acc.trust += row.trust;
-        acc.followUp += row.followUp;
-        acc.closing += row.closing;
-        acc.relationship += row.relationship;
-        return acc;
-    }, { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationship: 0 });
-    const count = snapshots.length;
-    const averageScores: Record<CxSkillId, number> = {
-        empathy: Number((totals.empathy / count).toFixed(1)),
-        listening: Number((totals.listening / count).toFixed(1)),
-        trust: Number((totals.trust / count).toFixed(1)),
-        followUp: Number((totals.followUp / count).toFixed(1)),
-        closing: Number((totals.closing / count).toFixed(1)),
-        relationship: Number((totals.relationship / count).toFixed(1)),
-    };
-
-    const today = startOfDay(new Date());
     return Array.from({ length: safeDays }, (_, idx) => ({
         date: format(subDays(today, safeDays - 1 - idx), 'yyyy-MM-dd'),
-        scores: averageScores,
+        scores: fallbackScores,
     }));
 }
 
