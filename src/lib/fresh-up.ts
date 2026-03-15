@@ -1,9 +1,10 @@
 import { subDays } from 'date-fns';
-import type { CxTrait, FreshUpMemoryState, FreshUpProfile, FreshUpTag, Lesson, LessonLog, LessonRole } from '@/lib/definitions';
+import type { AisRoleType, CxTrait, FreshUpMemoryState, FreshUpProfile, FreshUpTag, Lesson, LessonLog, LessonRole, UserRole } from '@/lib/definitions';
 import { applyFreshUpEmotionalResponse, normalizeEmotion, type FreshUpEmotionState } from '@/lib/fresh-up-emotion';
 import { createFreshUpMemoryState, updateFreshUpMemoryState } from '@/lib/fresh-up-memory';
 import { generateProceduralFreshUpCustomer } from '@/lib/fresh-up-procedural';
 import { getSignatureFreshUpScenarioById, getSignatureFreshUpScenarios } from '@/lib/fresh-up-signature';
+import { adaptFreshUpProfileToRole, getAisInteractionLabel, getRoleAwareCustomScenario, resolveAisRoleType } from '@/lib/ais-role-adaptive';
 
 export const FRESH_UP_LESSON_ID = 'fresh-up';
 export const FRESH_UP_SKILL_WEIGHT = 1.5;
@@ -94,26 +95,43 @@ export function getFreshUpProfileLibrary(): FreshUpProfile[] {
 }
 
 export function buildFreshUpLesson(role: LessonRole): Lesson {
+  const roleType: AisRoleType = role === 'global' ? 'sales' : resolveAisRoleType(role as UserRole);
+  const interactionLabel = getAisInteractionLabel(roleType);
+  const categoryByRole: Record<AisRoleType, Lesson['category']> = {
+    sales: 'Sales - Meet and Greet',
+    service: 'Service - Write-up',
+    parts: 'Parts - Identifying Needs',
+    fi: 'F&I - Menu Selling',
+  };
   return {
     lessonId: FRESH_UP_LESSON_ID,
-    title: 'Fresh Up!',
+    title: interactionLabel,
     role,
-    category: 'Sales - Meet and Greet',
+    category: categoryByRole[roleType],
     associatedTrait: 'relationshipBuilding',
     lessonType: 'fresh-up',
-    customScenario: 'A higher-level customer just entered the showroom. This conversation will require stronger listening, trust building, and clarity.',
+    customScenario: getRoleAwareCustomScenario(roleType),
   };
 }
 
-export function getFreshUpProfileById(profileId: string | null | undefined): FreshUpProfile | null {
+export function getFreshUpProfileById(
+  profileId: string | null | undefined,
+  roleType: AisRoleType = 'sales'
+): FreshUpProfile | null {
   if (!profileId) return null;
   if (profileId.startsWith('proc-')) {
-    return generateProceduralFreshUpCustomer(profileId);
+    return generateProceduralFreshUpCustomer(profileId, { roleType });
   }
-  return getSignatureFreshUpScenarioById(profileId) ?? generateProceduralFreshUpCustomer(`proc-${profileId}`);
+  const baseProfile = getSignatureFreshUpScenarioById(profileId) ?? generateProceduralFreshUpCustomer(`proc-${profileId}`, { roleType });
+  return adaptFreshUpProfileToRole(baseProfile, roleType);
 }
 
-export function pickFreshUpProfile(userId: string, logs: LessonLog[] = [], consultantLevel?: number): FreshUpProfile {
+export function pickFreshUpProfile(
+  userId: string,
+  logs: LessonLog[] = [],
+  consultantLevel?: number,
+  roleType: AisRoleType = 'sales'
+): FreshUpProfile {
   const completedFreshUps = logs.filter((log) => log.activitySource === 'fresh-up');
   const completedIds = new Set(completedFreshUps.map((log) => log.freshUpId).filter(Boolean));
   const sequence = completedFreshUps.length + 1;
@@ -121,16 +139,16 @@ export function pickFreshUpProfile(userId: string, logs: LessonLog[] = [], consu
   const selector = (selectorSeed % 100) / 100;
 
   if (selector < FRESH_UP_PROCEDURAL_WEIGHT) {
-    return generateProceduralFreshUpCustomer(`proc-${userId}-${sequence}-${selectorSeed}`, { consultantLevel });
+    return generateProceduralFreshUpCustomer(`proc-${userId}-${sequence}-${selectorSeed}`, { consultantLevel, roleType });
   }
 
   const signatures = getSignatureFreshUpScenarios();
   const unseen = signatures.filter((profile) => !completedIds.has(profile.freshUpId));
   const signaturePool = unseen.length > 0 ? unseen : signatures;
   if (!signaturePool.length) {
-    return generateProceduralFreshUpCustomer(`proc-${userId}-${sequence}-${selectorSeed}-fallback`, { consultantLevel });
+    return generateProceduralFreshUpCustomer(`proc-${userId}-${sequence}-${selectorSeed}-fallback`, { consultantLevel, roleType });
   }
-  return signaturePool[selectorSeed % signaturePool.length];
+  return adaptFreshUpProfileToRole(signaturePool[selectorSeed % signaturePool.length], roleType);
 }
 
 export function formatTraitLabel(trait: CxTrait): string {

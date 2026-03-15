@@ -26,6 +26,8 @@ export default function LessonPage() {
     const parsedStartingUpMeter = Number(searchParams.get('sandboxStartingUpMeter') ?? 35);
     const freshUpSandboxConfig: FreshUpSandboxConfig | undefined = sandboxFreshUpEnabled ? {
         enabled: true,
+        roleType: (searchParams.get('sandboxRoleType') as FreshUpSandboxConfig['roleType']) || 'random',
+        interactionDisplayLabel: searchParams.get('sandboxInteractionLabel') || undefined,
         sourceType: (searchParams.get('sandboxSourceType') as FreshUpSandboxConfig['sourceType']) || 'random',
         difficulty: (searchParams.get('sandboxDifficulty') as FreshUpSandboxConfig['difficulty']) || 'random',
         vehicleInterest: (searchParams.get('sandboxVehicleInterest') as FreshUpSandboxConfig['vehicleInterest']) || 'random',

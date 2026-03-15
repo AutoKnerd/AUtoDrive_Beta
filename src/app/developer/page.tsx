@@ -52,6 +52,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { runFreshUpQAMatrix, runFreshUpQAVersionComparison, storeFreshUpQATestRun, type FreshUpQASimulationConfig, type FreshUpQASessionResult, type FreshUpQASummary, type FreshUpQAVersionComparisonResult } from '@/lib/fresh-up-qa';
 import { evaluateFreshUpPromotionSafety, getFreshUpReleaseState, getFreshUpReleaseVersions, rollbackFreshUpProductionVersion, setFreshUpProductionVersion, setFreshUpSandboxDefaultVersion, type FreshUpReleaseSafetyCheck, type FreshUpReleaseVersion } from '@/lib/fresh-up-release';
+import { getAisInteractionLabel } from '@/lib/ais-role-adaptive';
 
 type DashboardMode = 'role_based' | 'single_user';
 type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'operations' | 'sandbox' | 'danger';
@@ -155,6 +156,13 @@ const BOTTOM_NAV_SECTIONS: SectionId[] = ['overview', 'access', 'organizations',
 const SANDBOX_SOURCE_TYPES: Array<{ value: FreshUpSandboxConfig['sourceType']; label: string }> = [
   { value: 'procedural', label: 'Procedural Customer' },
   { value: 'signature', label: 'Signature Scenario' },
+  { value: 'random', label: 'Random' },
+];
+const SANDBOX_ROLE_TYPES: Array<{ value: FreshUpSandboxConfig['roleType']; label: string }> = [
+  { value: 'sales', label: 'Sales' },
+  { value: 'service', label: 'Service' },
+  { value: 'parts', label: 'Parts' },
+  { value: 'fi', label: 'F&I' },
   { value: 'random', label: 'Random' },
 ];
 const SANDBOX_DIFFICULTIES: Array<{ value: FreshUpSandboxConfig['difficulty']; label: string }> = [
@@ -366,6 +374,8 @@ export default function DeveloperPage() {
   const [consultantCommissionDueById, setConsultantCommissionDueById] = useState<Record<string, number>>({});
   const [freshUpSandboxConfig, setFreshUpSandboxConfig] = useState<FreshUpSandboxConfig>({
     enabled: false,
+    roleType: 'random',
+    interactionDisplayLabel: undefined,
     sourceType: 'random',
     difficulty: 'random',
     vehicleInterest: 'random',
@@ -461,6 +471,10 @@ export default function DeveloperPage() {
     const params = new URLSearchParams();
     params.set('freshUp', 'true');
     params.set('sandboxFreshUp', 'true');
+    params.set('sandboxRoleType', freshUpSandboxConfig.roleType);
+    if (freshUpSandboxConfig.roleType !== 'random') {
+      params.set('sandboxInteractionLabel', getAisInteractionLabel(freshUpSandboxConfig.roleType));
+    }
     params.set('sandboxSourceType', freshUpSandboxConfig.sourceType);
     params.set('sandboxDifficulty', freshUpSandboxConfig.difficulty);
     params.set('sandboxVehicleInterest', freshUpSandboxConfig.vehicleInterest);
@@ -1316,6 +1330,22 @@ export default function DeveloperPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select
+                  value={freshUpSandboxConfig.roleType}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({
+                    ...prev,
+                    roleType: value as FreshUpSandboxConfig['roleType'],
+                    interactionDisplayLabel: value === 'random' ? undefined : getAisInteractionLabel(value as Exclude<FreshUpSandboxConfig['roleType'], 'random'>),
+                  }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SANDBOX_ROLE_TYPES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>Source Type</Label>
                 <Select

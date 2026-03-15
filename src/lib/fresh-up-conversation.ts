@@ -1,10 +1,12 @@
 import type {
+  AisRoleType,
   FreshUpEndingType,
   FreshUpMemoryState,
   FreshUpOutcomeTag,
   FreshUpProfile,
   FreshUpRecommendedNextStep,
 } from '@/lib/definitions';
+import { getAisInteractionLabel, getRoleAwareSprocketOpeners } from '@/lib/ais-role-adaptive';
 
 const OPENING_BY_STAGE: Record<string, string[]> = {
   'just browsing': [
@@ -29,12 +31,74 @@ const OPENING_BY_STAGE: Record<string, string[]> = {
   ],
 };
 
-const SPROCKET_OPENERS = [
-  'Fresh up on the floor. Read the room before you read the brochure.',
-  'New up. Tone first, details second.',
-  'Alright, here we go. Match the customer before you move the process.',
-  'Fresh up. Win trust first, then move the conversation.',
-];
+const SERVICE_OPENING_BY_STAGE: Record<string, string[]> = {
+  'appointment check-in': [
+    'I have an appointment, but I need to understand what is actually going on with my vehicle.',
+    'I am here for my service visit and I need a clear timeline before I commit to anything.',
+  ],
+  'diagnosis review': [
+    'Can you walk me through what you found in plain language?',
+    'I need a clear explanation of the diagnosis before we move forward.',
+  ],
+  'repair authorization': [
+    'Before I approve this, I need to understand the cost and why this work matters.',
+    'I am open to getting this done, but I need to feel confident about the recommendation.',
+  ],
+  'timeline update': [
+    'I need a realistic update on timing because this is impacting my day.',
+    'Can we go over where this stands and what I should expect next?',
+  ],
+  'ready for pickup': [
+    'Before pickup, I just want to make sure everything was completed correctly.',
+    'I am here for pickup and want a quick recap so I know what was done.',
+  ],
+};
+
+const PARTS_OPENING_BY_STAGE: Record<string, string[]> = {
+  'availability request': [
+    'I need to check if you have this part in stock today.',
+    'Can you confirm availability before I make the trip over?',
+  ],
+  'fitment confirmation': [
+    'I want to make sure this part actually fits before I order it.',
+    'Can you verify fitment so I do not have to return this later?',
+  ],
+  'special-order discussion': [
+    'If this has to be special ordered, I need clear timing upfront.',
+    'I can special order it, but I need a realistic expectation on delivery.',
+  ],
+  'eta update': [
+    'Can you give me an ETA update? I am trying to plan around this.',
+    'I need a status update on that order before I commit to next steps.',
+  ],
+  'pickup-ready confirmation': [
+    'I got the pickup notice and wanted to confirm everything is ready.',
+    'Before I head over, can you confirm the order is complete and correct?',
+  ],
+};
+
+const FI_OPENING_BY_STAGE: Record<string, string[]> = {
+  'menu discussion': [
+    'Before we go too far, I want to understand these options clearly.',
+    'I am open to the review, but I need this explained in a way that is easy to follow.',
+  ],
+  'payment structure review': [
+    'Can we walk through the payment structure step by step?',
+    'I want to make sure I understand how these terms impact me long term.',
+  ],
+  'lender approval discussion': [
+    'Can you explain where things stand with approval and what options I actually have?',
+    'I need clarity on lender options before I decide anything.',
+  ],
+  'paperwork review': [
+    'I want to understand this paperwork before I sign anything.',
+    'Can we slow down and make sure each section is clear?',
+  ],
+  'signing readiness': [
+    'I am close, but I need to feel confident before the signing step.',
+    'If this all makes sense, I can move forward today.',
+  ],
+};
 
 function hashSeed(input: string): number {
   let hash = 0;
@@ -89,19 +153,25 @@ function toSentenceLimit(text: string, max = 3): string {
   return `${parts.join('. ')}.`;
 }
 
-export function generateFreshUpOpening(profile: FreshUpProfile): {
+export function generateFreshUpOpening(profile: FreshUpProfile, roleType: AisRoleType = 'sales'): {
   sprocketLine: string;
   customerOpening: string;
 } {
   const seed = hashSeed(`${profile.freshUpId}:${profile.customerName}:${profile.buyingStage}`);
-  const stageOpeners = OPENING_BY_STAGE[profile.buyingStage] || OPENING_BY_STAGE['just browsing'];
+  const stageMap = roleType === 'service'
+    ? SERVICE_OPENING_BY_STAGE
+    : (roleType === 'parts'
+      ? PARTS_OPENING_BY_STAGE
+      : (roleType === 'fi' ? FI_OPENING_BY_STAGE : OPENING_BY_STAGE));
+  const fallbackStage = roleType === 'sales' ? 'just browsing' : Object.keys(stageMap)[0];
+  const stageOpeners = stageMap[profile.buyingStage] || stageMap[fallbackStage] || OPENING_BY_STAGE['just browsing'];
   let opening = pick(stageOpeners, seed);
   opening = applyPersonality(opening, profile.personalityType);
   opening = applyCommunicationStyle(opening, profile.communicationStyle, profile.primaryConcern);
   opening = applyEmotion(opening, profile.emotionalState);
 
   return {
-    sprocketLine: pick(SPROCKET_OPENERS, seed),
+    sprocketLine: pick(getRoleAwareSprocketOpeners(roleType), seed),
     customerOpening: toSentenceLimit(opening, 3),
   };
 }
@@ -161,10 +231,15 @@ export function generateFinalCustomerResponse(input: {
   endingType: FreshUpEndingType;
   endingEmotion: string;
   memoryState: FreshUpMemoryState;
+  roleType?: AisRoleType;
 }): string {
-  if (input.endingType === 'appointment_ready') return 'That helps. I am comfortable taking the next step from here.';
-  if (input.endingType === 'positive_progress') return 'I feel better about this now than when I walked in.';
-  if (input.endingType === 'neutral_pause') return 'I still need to think on it, but this was helpful.';
+  const roleType = input.roleType ?? 'sales';
+  const interactionLabel = getAisInteractionLabel(roleType);
+  if (input.endingType === 'appointment_ready') return roleType === 'sales'
+    ? 'That helps. I am comfortable taking the next step from here.'
+    : `That helps. I am comfortable moving to the next ${interactionLabel.toLowerCase()} step.`;
+  if (input.endingType === 'positive_progress') return `I feel better about this ${interactionLabel.toLowerCase()} now than when we started.`;
+  if (input.endingType === 'neutral_pause') return 'I still need to think on it a little, but this was helpful.';
   if (input.endingType === 'stalled_conversation') return 'I am still not sure this is clicking for me yet.';
   if (input.memoryState.trustBreaks > 0) return 'I do not think this is really where I need to be right now.';
   return 'I am probably going to keep looking for now.';

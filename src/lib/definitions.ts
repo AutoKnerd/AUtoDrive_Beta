@@ -29,6 +29,8 @@ export type UserRole =
   | 'Admin'
   | 'Developer';
 
+export type AisRoleType = 'sales' | 'service' | 'parts' | 'fi';
+
 export const allRoles: UserRole[] = [
   'Developer',
   'Admin',
@@ -401,6 +403,8 @@ export type FreshUpTag =
 
 export type FreshUpSandboxConfig = {
   enabled: boolean;
+  roleType: AisRoleType | 'random';
+  interactionDisplayLabel?: string;
   sourceType: 'procedural' | 'signature' | 'random';
   difficulty: 'easy' | 'medium' | 'hard' | 'random';
   vehicleInterest: 'SUV' | 'truck' | 'sedan' | 'hybrid' | 'EV' | 'performance vehicle' | 'family vehicle' | 'random';
@@ -489,6 +493,11 @@ export type LessonLog = {
   followUpDelta?: number;
   closingDelta?: number;
   relationshipDelta?: number;
+  roleType?: AisRoleType;
+  interactionDisplayLabel?: string;
+  concernCategoryRoleSpecific?: string;
+  nextStepType?: string;
+  roleLanguageVersion?: string;
 };
 
 export type EmailInvitation = {

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import type { CxTrait, FreshUpProfile, FreshUpSandboxConfig, FreshUpTag, Lesson, LessonLog, InteractionSeverity, LessonRole, Ratings } from '@/lib/definitions';
+import type { AisRoleType, CxTrait, FreshUpProfile, FreshUpSandboxConfig, FreshUpTag, Lesson, LessonLog, InteractionSeverity, LessonRole, Ratings } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +36,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { calculateLevel } from '@/lib/xp';
 import { mergeFreshUpValidationResults, validateFreshUpEndingGuardrails, validateFreshUpOpeningGuardrails, type FreshUpContentValidationResult } from '@/lib/fresh-up-guardrails';
 import { getFreshUpReleaseState, getFreshUpReleaseVersions, isExperimentalFreshUpVersion, resolveFreshUpToggles, resolveFreshUpVersionForContext, type FreshUpFeatureToggles, type FreshUpReleaseVersion } from '@/lib/fresh-up-release';
+import { AIS_ROLE_LANGUAGE_VERSION, adaptFreshUpProfileToRole, getAisInteractionLabel, getAisSummaryLabel, getRoleAwareNextStep, resolveAisRoleTypeFromSandbox } from '@/lib/ais-role-adaptive';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -291,6 +292,7 @@ function resolveSandboxFreshUpProfile(input: {
   config: FreshUpSandboxConfig;
   userId: string;
   lessonId: string;
+  roleType: AisRoleType;
   consultantLevel?: number;
   toggles?: FreshUpFeatureToggles;
 }): FreshUpProfile {
@@ -313,9 +315,10 @@ function resolveSandboxFreshUpProfile(input: {
       || normalizeLooseValue(scenario.scenarioName) === normalizedForce
       || normalizeLooseValue(scenario.customerName) === normalizedForce
     ));
-    if (forced) return forced;
+    if (forced) return adaptFreshUpProfileToRole(forced, input.roleType);
     if (normalizedForce.startsWith('proc-') && proceduralEnabled) {
       return generateProceduralFreshUpCustomer(normalizedForce, {
+        roleType: input.roleType,
         consultantLevel: effectiveConsultantLevel,
         forceArchetypeIdOrName: input.config.forceArchetypeIdOrName,
         difficultyLevel: input.config.difficulty !== 'random' ? input.config.difficulty : undefined,
@@ -351,6 +354,7 @@ function resolveSandboxFreshUpProfile(input: {
     });
     if (filtered.length === 0 && input.config.forceArchetypeIdOrName && input.config.forceArchetypeIdOrName.trim().length > 0) {
       return generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}:forced-archetype-fallback`, {
+        roleType: input.roleType,
         consultantLevel: effectiveConsultantLevel,
         forceArchetypeIdOrName: input.config.forceArchetypeIdOrName,
         difficultyLevel: input.config.difficulty !== 'random' ? input.config.difficulty : undefined,
@@ -362,11 +366,12 @@ function resolveSandboxFreshUpProfile(input: {
       });
     }
     const signature = pickBySeed(filtered.length > 0 ? filtered : signatureScenarios, `${input.userId}:${input.lessonId}:${Date.now()}`);
-    if (signature) return signature;
+    if (signature) return adaptFreshUpProfileToRole(signature, input.roleType);
   }
 
   if (proceduralEnabled) {
     return generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}`, {
+      roleType: input.roleType,
       consultantLevel: effectiveConsultantLevel,
       forceArchetypeIdOrName: input.config.forceArchetypeIdOrName,
       difficultyLevel: input.config.difficulty !== 'random' ? input.config.difficulty : undefined,
@@ -378,13 +383,14 @@ function resolveSandboxFreshUpProfile(input: {
     });
   }
 
-  const signatures = signatureScenarios.length > 0 ? signatureScenarios : [pickFreshUpProfile(input.userId, [])];
-  return signatures[Math.abs(Date.now()) % signatures.length] ?? signatures[0];
+  const signatures = signatureScenarios.length > 0 ? signatureScenarios : [pickFreshUpProfile(input.userId, [], undefined, input.roleType)];
+  return adaptFreshUpProfileToRole((signatures[Math.abs(Date.now()) % signatures.length] ?? signatures[0]), input.roleType);
 }
 
 async function pickFreshUpProfileWithToggles(input: {
   userId: string;
   lessonId: string;
+  roleType: AisRoleType;
   consultantLevel?: number;
   history: LessonLog[];
   toggles: FreshUpFeatureToggles;
@@ -394,15 +400,16 @@ async function pickFreshUpProfileWithToggles(input: {
   const effectiveConsultantLevel = input.toggles.enableDifficultyDistribution === false ? undefined : input.consultantLevel;
   if (proceduralEnabled && !signatureEnabled) {
     return generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}`, {
+      roleType: input.roleType,
       consultantLevel: effectiveConsultantLevel,
     });
   }
   if (!proceduralEnabled && signatureEnabled) {
     const signatures = getSignatureFreshUpScenarios();
     const seed = [...`${input.userId}:${input.lessonId}:${input.history.length}`].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    return signatures[Math.abs(seed % signatures.length)] ?? signatures[0];
+    return adaptFreshUpProfileToRole((signatures[Math.abs(seed % signatures.length)] ?? signatures[0]), input.roleType);
   }
-  return pickFreshUpProfile(input.userId, input.history, effectiveConsultantLevel);
+  return pickFreshUpProfile(input.userId, input.history, effectiveConsultantLevel, input.roleType);
 }
 
 function hasDebugAccess(input: {
@@ -448,6 +455,15 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const promptLessonRole = lesson.role === 'global' && user?.role ? user.role : lesson.role;
+  const aisRoleType = useMemo(
+    () => resolveAisRoleTypeFromSandbox(freshUpSandboxConfig?.roleType, user?.role),
+    [freshUpSandboxConfig?.roleType, user?.role]
+  );
+  const interactionDisplayLabel = useMemo(
+    () => freshUpSandboxConfig?.interactionDisplayLabel || getAisInteractionLabel(aisRoleType),
+    [freshUpSandboxConfig?.interactionDisplayLabel, aisRoleType]
+  );
+  const summaryDisplayLabel = useMemo(() => getAisSummaryLabel(aisRoleType), [aisRoleType]);
   const consultantLevel = useMemo(() => calculateLevel(user?.xp ?? 0).level, [user?.xp]);
   const isFreshUpSandboxMode = Boolean(isFreshUp && freshUpSandboxConfig?.enabled);
   const configuredStartMeter = Number(freshUpSandboxConfig?.startingUpMeter ?? FRESH_UP_SESSION_START_METER);
@@ -455,7 +471,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
     ? (Number.isFinite(configuredStartMeter) ? clampUpMeter(configuredStartMeter) : FRESH_UP_SESSION_START_METER)
     : FRESH_UP_SESSION_START_METER;
   const sessionOpeningRef = useRef<string>('');
-  const freshUpProfile = useRef<FreshUpProfile | null>(getFreshUpProfileById(freshUpProfileId));
+  const freshUpProfile = useRef<FreshUpProfile | null>(getFreshUpProfileById(freshUpProfileId, aisRoleType));
   const startedAtRef = useRef<Date | null>(null);
   const freshUpMeterRef = useRef<{ start: number; current: number; peak: number }>({
     start: sessionStartMeter,
@@ -469,7 +485,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
     relationship: 60,
     closing: 60,
   });
-  const initialProfile = freshUpProfile.current ?? pickFreshUpProfile(user?.userId || 'guest', [], consultantLevel);
+  const initialProfile = freshUpProfile.current ?? pickFreshUpProfile(user?.userId || 'guest', [], consultantLevel, aisRoleType);
   const freshUpMemoryRef = useRef(createInitialFreshUpMemory(initialProfile));
   const freshUpEmotionRef = useRef<FreshUpEmotionState>(getStartingEmotion(initialProfile));
   const freshUpGuardrailRef = useRef<FreshUpContentValidationResult>({
@@ -507,6 +523,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
           config: freshUpSandboxConfig,
           userId: user.userId,
           lessonId: lesson.lessonId,
+          roleType: aisRoleType,
           consultantLevel,
           toggles: freshUpToggleRef.current,
         });
@@ -519,6 +536,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       freshUpProfile.current = await pickFreshUpProfileWithToggles({
         userId: user.userId,
         lessonId: lesson.lessonId,
+        roleType: aisRoleType,
         consultantLevel,
         history,
         toggles: freshUpToggleRef.current,
@@ -528,7 +546,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
     }
     void ensureFreshUpProfile();
     return () => { active = false; };
-  }, [isFreshUp, user, freshUpSandboxConfig, lesson.lessonId, consultantLevel]);
+  }, [isFreshUp, user, freshUpSandboxConfig, lesson.lessonId, consultantLevel, aisRoleType]);
 
   useEffect(() => {
     let active = true;
@@ -583,23 +601,24 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
         }, prioritizedTraits)
       : [];
 
-    const lines = ['Fresh Up Summary'];
+    const lines = [summaryDisplayLabel];
     ratingSummary.forEach((item) => {
       lines.push(`- ${item.label}: ${item.value}`);
     });
     lines.push('');
-    lines.push(result.sprocketCoachingLine || result.coachSummary || 'Keep slowing the conversation down and earning the next step.');
+    lines.push(result.sprocketCoachingLine || result.coachSummary || `Keep pacing the ${interactionDisplayLabel.toLowerCase()} and earning the next step.`);
     return lines.join('\n');
   }
 
   async function requestLessonResponse(history: Message[], userMessage: string) {
     if (!freshUpProfile.current && isFreshUp) {
-      freshUpProfile.current = getFreshUpProfileById(freshUpProfileId);
+      freshUpProfile.current = getFreshUpProfileById(freshUpProfileId, aisRoleType);
       if (!freshUpProfile.current && user && freshUpSandboxConfig?.enabled) {
         freshUpProfile.current = resolveSandboxFreshUpProfile({
           config: freshUpSandboxConfig,
           userId: user.userId,
           lessonId: lesson.lessonId,
+          roleType: aisRoleType,
           consultantLevel,
           toggles: freshUpToggleRef.current,
         });
@@ -609,6 +628,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
         freshUpProfile.current = await pickFreshUpProfileWithToggles({
           userId: user.userId,
           lessonId: lesson.lessonId,
+          roleType: aisRoleType,
           consultantLevel,
           history: activity,
           toggles: freshUpToggleRef.current,
@@ -807,6 +827,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
               endingType,
               endingEmotion: endingEmotionalState,
               memoryState: freshUpMemoryRef.current,
+              roleType: aisRoleType,
             });
           const sprocketWrapUp = result.sprocketCoachingLine
             ?? generateSprocketEndingLine({ endingType, trustShift });
@@ -876,8 +897,13 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
             finalCustomerResponse,
             endingType,
             recommendedNextStep,
+            nextStepType: getRoleAwareNextStep(aisRoleType, recommendedNextStep),
             trustShift,
             sprocketCoachingLine: sprocketWrapUp,
+            roleType: aisRoleType,
+            interactionDisplayLabel,
+            concernCategoryRoleSpecific: freshUpProfile.current?.primaryConcern,
+            roleLanguageVersion: AIS_ROLE_LANGUAGE_VERSION,
             sandboxMode: isFreshUpSandboxMode,
             saveSessionToLiveAnalytics: freshUpSandboxConfig?.saveSessionToLiveAnalytics,
             freshUpVersionId: freshUpReleaseVersionRef.current?.versionId,
@@ -898,6 +924,8 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
               coachingTag: result.coachingTag ?? freshUpProfile.current?.coachingTag ?? null,
             } : undefined,
             scenarioGenerationDetails: debugAccess ? {
+              roleType: aisRoleType,
+              interactionDisplayLabel,
               sourceType: freshUpProfile.current?.sourceType,
               selectedScenarioId: freshUpProfile.current?.scenarioId ?? freshUpProfile.current?.freshUpId,
               selectedScenarioName: freshUpProfile.current?.scenarioName ?? freshUpProfile.current?.characterName,
@@ -926,7 +954,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
           setUser(completion.updatedUser);
           if (isFreshUp && completion.freshUpSessionStored) {
             toast({
-              title: 'Fresh Up Saved',
+              title: `${interactionDisplayLabel} Saved`,
               description: `Session ${completion.freshUpSessionId || ''} has been recorded.`,
             });
           }
@@ -938,14 +966,14 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
 
           if (isFreshUp) {
             setFreshUpFeedback({
-              scenarioName: freshUpProfile.current?.characterName || 'Fresh Up Scenario',
+              scenarioName: freshUpProfile.current?.characterName || `${interactionDisplayLabel} Scenario`,
               conversationLength: messageHistory.length + 1,
               messagesSent: userMessageCount,
               aiResponseCount: aiMessageCount,
               outcomeTag: resolvedOutcomeTag,
               outcomeMeaning: outcomeMeaning(resolvedOutcomeTag),
               upMeter: resolvedUpMeter,
-              upMeterInsight: result.upMeterInsight || sprocketWrapUp || 'The conversation improved when you stayed curious and acknowledged customer concerns.',
+              upMeterInsight: result.upMeterInsight || sprocketWrapUp || `The ${interactionDisplayLabel.toLowerCase()} improved when you stayed curious and acknowledged customer concerns.`,
               scores: resolvedScores,
               skillTips: {
                 empathy: result.skillTips?.empathy || buildDefaultSkillTip('Empathy', resolvedScores.empathy),
@@ -979,6 +1007,8 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                   coachingTag: result.coachingTag ?? freshUpProfile.current?.coachingTag ?? null,
                 } : undefined,
                 scenarioGenerationDetails: debugAccess ? {
+                  roleType: aisRoleType,
+                  interactionDisplayLabel,
                   sourceType: freshUpProfile.current?.sourceType,
                   selectedScenarioId: freshUpProfile.current?.scenarioId ?? freshUpProfile.current?.freshUpId,
                   selectedScenarioName: freshUpProfile.current?.scenarioName ?? freshUpProfile.current?.characterName,
@@ -1070,6 +1100,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
               config: freshUpSandboxConfig,
               userId: user.userId,
               lessonId: lesson.lessonId,
+              roleType: aisRoleType,
               consultantLevel,
               toggles: freshUpToggleRef.current,
             });
@@ -1077,6 +1108,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
             freshUpProfile.current = await pickFreshUpProfileWithToggles({
               userId: user?.userId || 'guest',
               lessonId: lesson.lessonId,
+              roleType: aisRoleType,
               consultantLevel,
               history,
               toggles: freshUpToggleRef.current,
@@ -1099,9 +1131,9 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
           let selectedProfile = freshUpProfile.current;
           const openingEnabled = freshUpToggleRef.current.enableOpeningMechanic !== false;
           let opening = openingEnabled
-            ? generateFreshUpOpening(selectedProfile)
+            ? generateFreshUpOpening(selectedProfile, aisRoleType)
             : {
-              sprocketLine: 'Fresh up on the floor. Keep it clear and customer-first.',
+              sprocketLine: `${interactionDisplayLabel} is live. Keep it clear and customer-first.`,
               customerOpening: `${selectedProfile.customerName}: I am looking at this ${selectedProfile.vehicleInterest} and I want to make the right decision.`,
             };
           let openingValidation = freshUpToggleRef.current.enableContentGuardrails
@@ -1117,6 +1149,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                 config: freshUpSandboxConfig,
                 userId: user.userId,
                 lessonId: `${lesson.lessonId}:${attempt}:${Date.now()}`,
+                roleType: aisRoleType,
                 consultantLevel,
                 toggles: freshUpToggleRef.current,
               });
@@ -1124,15 +1157,16 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
               selectedProfile = await pickFreshUpProfileWithToggles({
                 userId: user?.userId || 'guest',
                 lessonId: `${lesson.lessonId}:${attempt}:${Date.now()}`,
+                roleType: aisRoleType,
                 consultantLevel,
                 history,
                 toggles: freshUpToggleRef.current,
               });
             }
             opening = openingEnabled
-              ? generateFreshUpOpening(selectedProfile)
+              ? generateFreshUpOpening(selectedProfile, aisRoleType)
               : {
-                sprocketLine: 'Fresh up on the floor. Keep it clear and customer-first.',
+                sprocketLine: `${interactionDisplayLabel} is live. Keep it clear and customer-first.`,
                 customerOpening: `${selectedProfile.customerName}: I am looking at this ${selectedProfile.vehicleInterest} and I want to make the right decision.`,
               };
             openingValidation = freshUpToggleRef.current.enableContentGuardrails
@@ -1174,7 +1208,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       }
     }
     startLesson();
-  }, [cxScores, lesson.lessonId, lesson.title, lesson.role, lesson.category, lesson.associatedTrait, lesson.customScenario, isRecommended, toast, promptLessonRole, isFreshUp, freshUpProfileId, freshUpStarted, user, freshUpSandboxConfig, sessionStartMeter, consultantLevel]);
+  }, [cxScores, lesson.lessonId, lesson.title, lesson.role, lesson.category, lesson.associatedTrait, lesson.customScenario, isRecommended, toast, promptLessonRole, isFreshUp, freshUpProfileId, freshUpStarted, user, freshUpSandboxConfig, sessionStartMeter, consultantLevel, aisRoleType]);
 
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -1257,6 +1291,8 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       const params = new URLSearchParams();
       params.set('freshUp', 'true');
       params.set('sandboxFreshUp', 'true');
+      params.set('sandboxRoleType', aisRoleType);
+      params.set('sandboxInteractionLabel', interactionDisplayLabel);
       params.set('sandboxSourceType', freshUpSandboxConfig.sourceType);
       params.set('sandboxDifficulty', freshUpSandboxConfig.difficulty);
       params.set('sandboxVehicleInterest', freshUpSandboxConfig.vehicleInterest);
@@ -1285,6 +1321,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       const nextProfile = await pickFreshUpProfileWithToggles({
         userId: user.userId,
         lessonId: lesson.lessonId,
+        roleType: aisRoleType,
         consultantLevel,
         history: activity,
         toggles: freshUpToggleRef.current,
@@ -1302,6 +1339,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
         config: freshUpSandboxConfig,
         userId: user.userId,
         lessonId: lesson.lessonId,
+        roleType: aisRoleType,
         consultantLevel,
         toggles: freshUpToggleRef.current,
       });
@@ -1311,6 +1349,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       freshUpProfile.current = await pickFreshUpProfileWithToggles({
         userId: user.userId,
         lessonId: lesson.lessonId,
+        roleType: aisRoleType,
         consultantLevel,
         history: activity,
         toggles: freshUpToggleRef.current,
@@ -1352,7 +1391,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
     <div className="flex-1 flex flex-col items-center p-4 md:p-8">
         <Card className="w-full max-w-3xl h-full flex flex-col bg-card/80 backdrop-blur-sm">
             <CardHeader>
-                <CardTitle>{lesson.title}</CardTitle>
+                <CardTitle>{isFreshUp ? interactionDisplayLabel : lesson.title}</CardTitle>
                 {isFreshUp && freshUpProfile.current ? (
                   <p className="text-sm text-muted-foreground">
                     {freshUpProfile.current.characterName} · {freshUpProfile.current.customerType} · Skills in focus: {getProfilePriorityTraits(freshUpProfile.current).map(formatTraitLabel).join(', ')}
@@ -1364,7 +1403,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                   <div className="h-full flex items-center justify-center">
                     {freshUpProfile.current ? (
                       <div className="w-full max-w-lg rounded-lg border p-5 space-y-4">
-                        <h3 className="text-lg font-semibold">Fresh Up!</h3>
+                        <h3 className="text-lg font-semibold">{interactionDisplayLabel}</h3>
                         <div className="space-y-2 text-sm">
                           <p><span className="text-muted-foreground">Customer:</span> {freshUpProfile.current.customerName}</p>
                           <p><span className="text-muted-foreground">Vehicle Interest:</span> {freshUpProfile.current.vehicleInterest}</p>
@@ -1372,7 +1411,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                           <p><span className="text-muted-foreground">Primary Concern:</span> {freshUpProfile.current.primaryConcern}</p>
                         </div>
                         <Button type="button" className="w-full" onClick={handleStartFreshUp}>
-                          Start Fresh Up
+                          Start {interactionDisplayLabel}
                         </Button>
                       </div>
                     ) : (
@@ -1567,7 +1606,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                 ) : isCompleted && isFreshUp ? (
                     <div className="w-full space-y-2">
                       <Button type="button" className="w-full" onClick={handleTryAnotherFreshUp}>
-                        Fresh Up!
+                        {interactionDisplayLabel}
                       </Button>
                       <Button asChild variant="outline" className="w-full">
                         <Link href="/">

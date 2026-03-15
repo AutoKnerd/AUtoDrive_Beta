@@ -23,6 +23,7 @@ import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
 import { AvatarSoundRing } from '../profile/avatar-sound-ring';
 import { computeWeightedTraitSummary, formatTraitLabel, getFreshUpInsightCopy, getFreshUpManagerRecommendation, getFreshUpSummaryTag } from '@/lib/fresh-up';
+import { getAisInsightLabel, getAisInteractionLabel, resolveAisRoleType } from '@/lib/ais-role-adaptive';
 
 interface TeamMemberCardProps {
   user: User;
@@ -61,6 +62,9 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [riskRadarRows, setRiskRadarRows] = useState<FreshUpRiskRadarRecord[]>([]);
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
+  const aisRoleType = useMemo(() => resolveAisRoleType(user.role), [user.role]);
+  const interactionLabel = useMemo(() => getAisInteractionLabel(aisRoleType), [aisRoleType]);
+  const insightLabel = useMemo(() => getAisInsightLabel(aisRoleType), [aisRoleType]);
   const normalizedUserDealershipIds = useMemo(() => (
     Array.isArray(user.dealershipIds) ? user.dealershipIds : []
   ), [user.dealershipIds]);
@@ -371,7 +375,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const freshUpInsightsCard = (
     <div className="rounded-md border p-3 md:col-span-3">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-semibold text-foreground">Fresh Up Insights</span>
+        <span className="text-sm font-semibold text-foreground">{`${interactionLabel} Insights`}</span>
         <span className="text-xs text-muted-foreground">Last 30 days</span>
       </div>
       {loading ? (
@@ -381,7 +385,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
           <Skeleton className="h-8 w-full" />
         </div>
       ) : !freshUpInsights || !freshUpInsights.available ? (
-        <p className="text-sm text-muted-foreground">Not enough Fresh Up session data in the last 30 days.</p>
+        <p className="text-sm text-muted-foreground">{`Not enough ${interactionLabel} session data in the last 30 days.`}</p>
       ) : (
         <div className="space-y-3">
           <div className="grid gap-2 md:grid-cols-2">
@@ -424,7 +428,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const weeklyDigestCard = (
     <div className="rounded-md border p-3 md:col-span-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold text-foreground">Weekly Fresh Up Digest</span>
+        <span className="text-sm font-semibold text-foreground">{`Weekly ${interactionLabel} Digest`}</span>
         <span className="text-xs text-muted-foreground">
           {weeklyDigest ? `${weeklyDigest.weekStart.toLocaleDateString()} - ${weeklyDigest.weekEnd.toLocaleDateString()}` : 'Latest week'}
         </span>
@@ -455,7 +459,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
               </DialogTrigger>
               <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
-                  <DialogTitle>Weekly Fresh Up Digest</DialogTitle>
+                  <DialogTitle>{`Weekly ${interactionLabel} Digest`}</DialogTitle>
                   <DialogDescription>
                     {weeklyDigest.weekStart.toLocaleDateString()} - {weeklyDigest.weekEnd.toLocaleDateString()}
                   </DialogDescription>
@@ -482,7 +486,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
               variant="outline"
               onClick={() => {
                 const lines = [
-                  '# Weekly Fresh Up Digest',
+                  `# Weekly ${interactionLabel} Digest`,
                   '',
                   `Week Range: ${weeklyDigest.weekStart.toLocaleDateString()} - ${weeklyDigest.weekEnd.toLocaleDateString()}`,
                   '',
@@ -648,7 +652,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                 <CardHeader>
                     <CardTitle>Dealer Critical Summary</CardTitle>
                     <CardDescription>
-                        This user shares only top strength, area for improvement, and Fresh Up insight with leadership.
+                        {`This user shares only top strength, area for improvement, and ${insightLabel.toLowerCase()} with leadership.`}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -670,7 +674,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                     <div className="rounded-md border p-3 md:col-span-3">
                         <div className="mb-1 flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-sky-400" />
-                          <span className="text-sm text-muted-foreground">Fresh Up Insight</span>
+                          <span className="text-sm text-muted-foreground">{insightLabel}</span>
                         </div>
                         <span className="font-semibold">{freshUpInsight}</span>
                     </div>
@@ -689,7 +693,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                     <CardHeader>
                         <CardTitle>Dealer Critical Summary</CardTitle>
                         <CardDescription>
-                          Weighted by recent activity, with Fresh Up results carrying extra influence.
+                          {`Weighted by recent activity, with ${interactionLabel} results carrying extra influence.`}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -711,7 +715,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                       <div className="rounded-md border p-3 md:col-span-3">
                         <div className="mb-1 flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-sky-400" />
-                          <span className="text-sm text-muted-foreground">Fresh Up Insight</span>
+                          <span className="text-sm text-muted-foreground">{insightLabel}</span>
                         </div>
                         <span className="font-semibold">{freshUpInsight}</span>
                       </div>
@@ -751,7 +755,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                         <div className="space-y-2">
                             <p className="text-lg font-semibold text-primary">
                               {recentActivity.activitySource === 'fresh-up'
-                                ? 'Fresh Up!'
+                                ? interactionLabel
                                 : (lessons.find(l => l.lessonId === recentActivity.lessonId)?.title || 'Unknown Lesson')}
                             </p>
                             <p className="text-sm text-muted-foreground">

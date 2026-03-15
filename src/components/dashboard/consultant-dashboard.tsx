@@ -55,6 +55,7 @@ import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 import { SprocketFirstLoginTour } from './sprocket-first-login-tour';
 import { evaluateUpMeterState, FRESH_UP_LESSON_ID, getUpMeterProgress, pickFreshUpProfile } from '@/lib/fresh-up';
+import { getAisInteractionLabel, resolveAisRoleType } from '@/lib/ais-role-adaptive';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -734,7 +735,9 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
   const showAssignedInPppRow = pppCardCount === 1;
   const consultantLevel = useMemo(() => calculateLevel(user.xp).level, [user.xp]);
-  const freshUpProfile = useMemo(() => pickFreshUpProfile(user.userId, activity, consultantLevel), [user.userId, activity, consultantLevel]);
+  const aisRoleType = useMemo(() => resolveAisRoleType(user.role), [user.role]);
+  const interactionLabel = useMemo(() => getAisInteractionLabel(aisRoleType), [aisRoleType]);
+  const freshUpProfile = useMemo(() => pickFreshUpProfile(user.userId, activity, consultantLevel, aisRoleType), [user.userId, activity, consultantLevel, aisRoleType]);
   const freshUpMeter = Math.max(0, Math.round(Number(user.freshUpMeter ?? 0)));
   const freshUpAvailable = user.freshUpAvailable === true;
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
@@ -802,7 +805,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
         const levelBefore = calculateLevel(xpBefore).level;
 
         const lessonTitle = log.activitySource === 'fresh-up'
-          ? 'Fresh Up!'
+          ? interactionLabel
           : (allLessons.find(l => l.lessonId === log.lessonId)?.title || 'a lesson');
         combinedActivities.push({
             type: 'completed',
@@ -825,7 +828,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, 4)
         .map(act => ({ icon: activityIcons[act.type], text: act.text, note: act.note }));
-  }, [activity, lessons, assignedLessons, user]);
+  }, [activity, lessons, assignedLessons, user, interactionLabel]);
 
   const handleSkipSprocketTour = async () => {
     setShowSprocketTour(false);
@@ -1035,10 +1038,10 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
 
         <section className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card className={dashboardFeatureCardClass}>
+            <Card className={cn(dashboardFeatureCardClass, 'md:col-span-2')}>
               <CardHeader>
                 <CardTitle>Up Meter</CardTitle>
-                <CardDescription>Tracks progress toward a Fresh Up.</CardDescription>
+                <CardDescription>{`Tracks progress toward a ${interactionLabel}.`}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -1051,32 +1054,30 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                 <p className="text-sm text-muted-foreground">
                   Normal lessons keep building the meter. Stronger results move it a little faster.
                 </p>
-                <div className="rounded-lg border border-border/70 bg-muted/40 p-3 text-sm text-muted-foreground dark:border-slate-700 dark:bg-slate-800/40">
-                  <p className="font-medium text-foreground">Fresh Up!</p>
-                  <p className="mt-1">
-                    A higher-level customer just entered the showroom. This conversation will require stronger listening, trust building, and clarity.
-                  </p>
-                  <p className="mt-2">
-                    Next customer: <span className="font-medium text-foreground">{freshUpProfile.characterName}</span> · {freshUpProfile.customerType}
-                  </p>
-                </div>
                 {freshUpAvailable ? (
-                  <Link
-                    href={`/lesson/${FRESH_UP_LESSON_ID}?freshUp=true&profileId=${encodeURIComponent(freshUpProfile.freshUpId)}`}
-                    className={cn(
-                      "w-full text-black hover:text-black lesson-ready-pulse",
-                      buttonVariants({
-                        className: 'w-full font-semibold bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]',
-                      })
-                    )}
-                  >
-                    Fresh Up!
-                  </Link>
-                ) : (
-                  <Button type="button" variant="outline" disabled className={dashboardDisabledButtonClass}>
-                    Continue normal lessons to unlock
-                  </Button>
-                )}
+                  <>
+                    <div className="rounded-lg border border-border/70 bg-muted/40 p-3 text-sm text-muted-foreground dark:border-slate-700 dark:bg-slate-800/40">
+                      <p className="font-medium text-foreground">{interactionLabel}</p>
+                      <p className="mt-1">
+                        {`A higher-level customer interaction is ready. This ${interactionLabel.toLowerCase()} will require stronger listening, trust building, and clarity.`}
+                      </p>
+                      <p className="mt-2">
+                        Next customer: <span className="font-medium text-foreground">{freshUpProfile.characterName}</span> · {freshUpProfile.customerType}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/lesson/${FRESH_UP_LESSON_ID}?freshUp=true&profileId=${encodeURIComponent(freshUpProfile.freshUpId)}`}
+                      className={cn(
+                        "w-full text-black hover:text-black lesson-ready-pulse",
+                        buttonVariants({
+                          className: 'w-full font-semibold bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]',
+                        })
+                      )}
+                    >
+                      {interactionLabel}
+                    </Link>
+                  </>
+                ) : null}
               </CardContent>
             </Card>
 
@@ -1095,7 +1096,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                   </p>
                   {adaptiveRecommendation.status === 'improved' && (
                     <p className="text-sm text-emerald-600">
-                      Improved: your recent Fresh Up trend is up by 10+ points in this focus area.
+                      {`Improved: your recent ${interactionLabel} trend is up by 10+ points in this focus area.`}
                     </p>
                   )}
                   {adaptiveLessonStartHref ? (

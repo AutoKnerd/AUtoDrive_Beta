@@ -2893,6 +2893,11 @@ export async function logLessonCompletion(data: {
     freshUpVersionName?: string;
     isExperimental?: boolean;
     environment?: 'sandbox' | 'production';
+    roleType?: LessonLog['roleType'];
+    interactionDisplayLabel?: LessonLog['interactionDisplayLabel'];
+    concernCategoryRoleSpecific?: LessonLog['concernCategoryRoleSpecific'];
+    nextStepType?: LessonLog['nextStepType'];
+    roleLanguageVersion?: LessonLog['roleLanguageVersion'];
 }): Promise<{ updatedUser: User, newBadges: Badge[], freshUpSessionStored?: boolean, freshUpSessionId?: string } & LessonCompletionDetails> {
     const { firestore: db } = getFirebase();
     const severity = normalizeSeverity(data.severity);
@@ -3053,6 +3058,11 @@ export async function logLessonCompletion(data: {
             freshUpVersionName: data.freshUpVersionName,
             isExperimental: typeof data.isExperimental === 'boolean' ? data.isExperimental : undefined,
             environment: data.environment,
+            roleType: data.roleType,
+            interactionDisplayLabel: data.interactionDisplayLabel,
+            concernCategoryRoleSpecific: data.concernCategoryRoleSpecific,
+            nextStepType: data.nextStepType,
+            roleLanguageVersion: data.roleLanguageVersion,
             empathyDelta: scoreDelta.empathy,
             listeningDelta: scoreDelta.listening,
             trustDelta: scoreDelta.trust,
@@ -3229,6 +3239,21 @@ export async function logLessonCompletion(data: {
     }
     if (typeof data.trustShift === 'number' && Number.isFinite(data.trustShift)) {
         newLogData.trustShift = Math.round(data.trustShift);
+    }
+    if (typeof data.roleType === 'string' && data.roleType.trim().length > 0) {
+        newLogData.roleType = data.roleType;
+    }
+    if (typeof data.interactionDisplayLabel === 'string' && data.interactionDisplayLabel.trim().length > 0) {
+        newLogData.interactionDisplayLabel = data.interactionDisplayLabel;
+    }
+    if (typeof data.concernCategoryRoleSpecific === 'string' && data.concernCategoryRoleSpecific.trim().length > 0) {
+        newLogData.concernCategoryRoleSpecific = data.concernCategoryRoleSpecific;
+    }
+    if (typeof data.nextStepType === 'string' && data.nextStepType.trim().length > 0) {
+        newLogData.nextStepType = data.nextStepType;
+    }
+    if (typeof data.roleLanguageVersion === 'string' && data.roleLanguageVersion.trim().length > 0) {
+        newLogData.roleLanguageVersion = data.roleLanguageVersion;
     }
     if (typeof data.archetypeId === 'string' && data.archetypeId.trim().length > 0) {
         newLogData.archetypeId = data.archetypeId;
@@ -3507,6 +3532,11 @@ export async function logLessonCompletion(data: {
                 endingType: data.endingType ?? '',
                 recommendedNextStep: data.recommendedNextStep ?? '',
                 trustShift: Number.isFinite(Number(data.trustShift)) ? Math.round(Number(data.trustShift)) : 0,
+                roleType: data.roleType ?? '',
+                interactionDisplayLabel: data.interactionDisplayLabel ?? '',
+                concernCategoryRoleSpecific: data.concernCategoryRoleSpecific ?? data.primaryConcern ?? '',
+                nextStepType: data.nextStepType ?? data.recommendedNextStep ?? '',
+                roleLanguageVersion: data.roleLanguageVersion ?? '',
                 archetypeId: data.archetypeId ?? '',
                 archetypeName: data.archetypeName ?? '',
                 archetypeCategory: data.archetypeCategory ?? '',

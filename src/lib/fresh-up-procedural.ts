@@ -1,5 +1,6 @@
-import type { FreshUpArchetypeCategory, FreshUpProfile, FreshUpTag } from '@/lib/definitions';
+import type { AisRoleType, FreshUpArchetypeCategory, FreshUpProfile, FreshUpTag } from '@/lib/definitions';
 import { pickFreshUpArchetype } from '@/lib/fresh-up-archetypes';
+import { getAisInteractionLabel, getRoleAwareConcernPool, getRoleAwareStagePool } from '@/lib/ais-role-adaptive';
 
 const PERSONALITY_POOL = ['analytical', 'friendly', 'skeptical', 'impatient', 'overwhelmed', 'excited', 'defensive'] as const;
 const BUYING_STAGE_POOL = ['just browsing', 'comparing models', 'trade-in evaluation', 'payment discussion', 'ready to buy'] as const;
@@ -30,6 +31,7 @@ type WeightedCustomerType = {
 
 type ProceduralOverrides = Partial<{
   consultantLevel: number;
+  roleType: AisRoleType;
   customerType: FreshUpCustomerType;
   forceArchetypeIdOrName: string;
   archetypeCategoryFilter: FreshUpArchetypeCategory[];
@@ -204,6 +206,18 @@ function getArchetypePools(customerType: FreshUpCustomerType) {
   };
 }
 
+function getRoleConcernPool(roleType: AisRoleType | undefined): readonly string[] {
+  if (!roleType) return PRIMARY_CONCERN_POOL;
+  const concerns = getRoleAwareConcernPool(roleType);
+  return concerns.length > 0 ? concerns : PRIMARY_CONCERN_POOL;
+}
+
+function getRoleStagePool(roleType: AisRoleType | undefined): readonly string[] {
+  if (!roleType) return BUYING_STAGE_POOL;
+  const stages = getRoleAwareStagePool(roleType);
+  return stages.length > 0 ? stages : BUYING_STAGE_POOL;
+}
+
 function getArchetypeCategoryPools(category: FreshUpArchetypeCategory): {
   personalityPool?: readonly string[];
   stagePool?: readonly string[];
@@ -282,6 +296,9 @@ function mapConcernToTag(concern: string, style: string): FreshUpTag {
   if (concern === 'trade value') return 'trust_drop';
   if (concern === 'technology confusion') return 'feature_confusion';
   if (concern === 'time efficiency') return 'process_efficiency';
+  if (concern === 'repair timeline' || concern === 'backorder delay') return 'weak_follow_up';
+  if (concern === 'trust in diagnosis' || concern === 'special order trust' || concern === 'protection plan trust') return 'trust_gap';
+  if (concern === 'contract clarity' || concern === 'service clarity') return 'clarity_needed';
   if (style === 'reserved') return 'needs_listening';
   if (style === 'rapid-fire questions') return 'weak_discovery';
   return 'relationship_builder';
@@ -292,10 +309,13 @@ function mapSkills(primaryConcern: string, stage: string): string[] {
   if (primaryConcern === 'price' || primaryConcern === 'monthly payment') skills.add('closing');
   if (primaryConcern === 'trade value' || stage === 'trade-in evaluation') skills.add('relationship');
   if (primaryConcern === 'technology confusion') skills.add('productKnowledge');
+  if (primaryConcern === 'repair timeline' || primaryConcern === 'availability') skills.add('follow up');
+  if (primaryConcern === 'contract clarity' || primaryConcern === 'service clarity') skills.add('clarity');
   return Array.from(skills);
 }
 
 function buildPrompt(input: {
+  roleType: AisRoleType;
   customerName: string;
   personalityType: string;
   buyingStage: string;
@@ -305,14 +325,16 @@ function buildPrompt(input: {
   vehicleInterest: string;
   emotionalState: string;
 }): string {
+  const interactionLabel = getAisInteractionLabel(input.roleType);
   return `You are ${input.customerName}, a ${input.personalityType} customer at the "${input.buyingStage}" stage considering a ${input.vehicleInterest}. `
     + `Your primary concern is ${input.primaryConcern}, and your secondary concern is ${input.secondaryConcern}. `
     + `You communicate in a ${input.communicationStyle} style and currently feel ${input.emotionalState}. `
-    + `You respond positively to clear, patient, transparent guidance and push back when answers feel rushed or vague.`;
+    + `This is a ${interactionLabel} context. You respond positively to clear, patient, transparent guidance and push back when answers feel rushed or vague.`;
 }
 
 export function generateProceduralFreshUpCustomer(seedInput: string, overrides: ProceduralOverrides = {}): FreshUpProfile {
   const seed = hashSeed(seedInput);
+  const roleType = overrides.roleType ?? 'sales';
   const firstName = pickFrom(FIRST_NAMES, seed, 3);
   const lastName = pickFrom(LAST_NAMES, seed, 7);
   const generatedCustomerName = `${firstName} ${lastName}`;
@@ -335,11 +357,11 @@ export function generateProceduralFreshUpCustomer(seedInput: string, overrides: 
     ?? pickFrom(mergePool(customerTypePools.personalityPool, archetypeCategoryPools.personalityPool) ?? PERSONALITY_POOL, seed, 11)
     ?? pickFrom(PERSONALITY_POOL, seed, 11);
   const buyingStage = overrides.buyingStage
-    ?? pickFrom(mergePool(customerTypePools.stagePool, archetypeCategoryPools.stagePool) ?? BUYING_STAGE_POOL, seed, 17)
-    ?? pickFrom(BUYING_STAGE_POOL, seed, 17);
+    ?? pickFrom(mergePool(customerTypePools.stagePool, archetypeCategoryPools.stagePool) ?? getRoleStagePool(roleType), seed, 17)
+    ?? pickFrom(getRoleStagePool(roleType), seed, 17);
   const primaryConcern = overrides.primaryConcern
-    ?? pickFrom(mergePool(customerTypePools.concernPool, archetypeCategoryPools.concernPool) ?? PRIMARY_CONCERN_POOL, seed, 23)
-    ?? pickFrom(PRIMARY_CONCERN_POOL, seed, 23);
+    ?? pickFrom(mergePool(customerTypePools.concernPool, archetypeCategoryPools.concernPool) ?? getRoleConcernPool(roleType), seed, 23)
+    ?? pickFrom(getRoleConcernPool(roleType), seed, 23);
   const secondaryConcern = overrides.secondaryConcern
     ?? pickFrom(mergePool(customerTypePools.secondaryPool, archetypeCategoryPools.secondaryPool) ?? SECONDARY_CONCERN_POOL, seed, 29)
     ?? pickFrom(SECONDARY_CONCERN_POOL, seed, 29);
@@ -360,6 +382,7 @@ export function generateProceduralFreshUpCustomer(seedInput: string, overrides: 
   const freshUpId = `proc-${seed.toString(36)}`;
 
   const prompt = buildPrompt({
+    roleType,
     customerName,
     personalityType,
     buyingStage,
