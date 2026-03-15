@@ -26,7 +26,7 @@ import {
   type FreshUpCoachingInsight,
 } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
-import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
+import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
@@ -740,46 +740,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
   const upMeterProgress = getUpMeterProgress(freshUpMeter);
 
-  const freshUpCard = (
-    <Card className={cn(
-      `flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`,
-      isPaused && 'opacity-50 pointer-events-none'
-    )}>
-      <div className="flex-1 space-y-3">
-        <div className="flex items-center gap-3">
-          <Gauge className="h-8 w-8 text-primary dark:text-cyan-400" />
-          <div>
-            <h3 className="text-2xl font-bold text-foreground">Fresh Up!</h3>
-            <p className="text-sm text-muted-foreground">Advanced diagnostic practice</p>
-          </div>
-        </div>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          A higher-level customer just entered the showroom. This conversation will require stronger listening, trust building, and clarity.
-        </p>
-        <div className="rounded-lg border border-border/70 bg-muted/40 p-3 text-sm text-muted-foreground dark:border-slate-700 dark:bg-slate-800/40">
-          Next customer: <span className="font-medium text-foreground">{freshUpProfile.characterName}</span> · {freshUpProfile.customerType}
-        </div>
-      </div>
-      {freshUpAvailable ? (
-        <Link
-          href={`/lesson/${FRESH_UP_LESSON_ID}?freshUp=true&profileId=${encodeURIComponent(freshUpProfile.freshUpId)}`}
-          className={cn(
-            "mt-4 w-full text-black hover:text-black lesson-ready-pulse",
-            buttonVariants({
-              className: 'w-full font-semibold bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]',
-            })
-          )}
-        >
-          Fresh Up!
-        </Link>
-      ) : (
-        <Button type="button" variant="outline" disabled className={dashboardDisabledButtonClass}>
-          Continue normal lessons to unlock
-        </Button>
-      )}
-    </Card>
-  );
-
   const adaptiveLessonStartHref = useMemo(() => {
     if (!adaptiveRecommendation) return null;
     const scopedLessons = lessons.filter((lesson) => lesson.associatedTrait === adaptiveRecommendation.associatedTrait);
@@ -1008,76 +968,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           />
         </section>
 
-        <section className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card className={dashboardFeatureCardClass}>
-              <CardHeader>
-                <CardTitle>Up Meter</CardTitle>
-                <CardDescription>Tracks progress toward a Fresh Up.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">{upMeterState}</span>
-                    <span className="text-muted-foreground">{freshUpMeter} / 100</span>
-                  </div>
-                  <Progress value={upMeterProgress} className="h-2" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Normal lessons keep building the meter. Stronger results move it a little faster.
-                </p>
-              </CardContent>
-            </Card>
-
-            {adaptiveRecommendation && (
-              <Card className={dashboardFeatureCardClass}>
-                <CardHeader>
-                  <CardTitle>Coaching Opportunity</CardTitle>
-                  <CardDescription>{adaptiveRecommendation.coachingMessage}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Recommended Lesson: <span className="font-medium text-foreground">{adaptiveRecommendation.recommendedLessonTitle}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Estimated Time: <span className="font-medium text-foreground">{adaptiveRecommendation.estimatedMinutes} minutes</span>
-                  </p>
-                  {adaptiveRecommendation.status === 'improved' && (
-                    <p className="text-sm text-emerald-600">
-                      Improved: your recent Fresh Up trend is up by 10+ points in this focus area.
-                    </p>
-                  )}
-                  {adaptiveLessonStartHref ? (
-                    <Link href={adaptiveLessonStartHref} className={cn(buttonVariants({ className: 'w-full font-semibold' }))}>
-                      Start Lesson
-                    </Link>
-                  ) : (
-                    <Button type="button" variant="outline" disabled className={dashboardDisabledButtonClass}>
-                      Lesson unavailable
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-            {coachingInsight && (
-              <Card className={dashboardFeatureCardClass}>
-                <CardHeader>
-                  <CardTitle>Your Coaching Focus</CardTitle>
-                  <CardDescription>{coachingInsight.coachingTopic}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Practice Suggestion: <span className="font-medium text-foreground">{coachingInsight.recommendedPractice}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Suggested AutoForge: <span className="font-medium text-foreground">{coachingInsight.suggestedAutoForgeModule}</span>
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </section>
-
         {canShowDealerMission && (
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-foreground">Dealer Focus</h2>
@@ -1143,6 +1033,102 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           </section>
         )}
 
+        <section className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card className={dashboardFeatureCardClass}>
+              <CardHeader>
+                <CardTitle>Up Meter</CardTitle>
+                <CardDescription>Tracks progress toward a Fresh Up.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">{upMeterState}</span>
+                    <span className="text-muted-foreground">{freshUpMeter} / 100</span>
+                  </div>
+                  <Progress value={upMeterProgress} className="h-2" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Normal lessons keep building the meter. Stronger results move it a little faster.
+                </p>
+                <div className="rounded-lg border border-border/70 bg-muted/40 p-3 text-sm text-muted-foreground dark:border-slate-700 dark:bg-slate-800/40">
+                  <p className="font-medium text-foreground">Fresh Up!</p>
+                  <p className="mt-1">
+                    A higher-level customer just entered the showroom. This conversation will require stronger listening, trust building, and clarity.
+                  </p>
+                  <p className="mt-2">
+                    Next customer: <span className="font-medium text-foreground">{freshUpProfile.characterName}</span> · {freshUpProfile.customerType}
+                  </p>
+                </div>
+                {freshUpAvailable ? (
+                  <Link
+                    href={`/lesson/${FRESH_UP_LESSON_ID}?freshUp=true&profileId=${encodeURIComponent(freshUpProfile.freshUpId)}`}
+                    className={cn(
+                      "w-full text-black hover:text-black lesson-ready-pulse",
+                      buttonVariants({
+                        className: 'w-full font-semibold bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]',
+                      })
+                    )}
+                  >
+                    Fresh Up!
+                  </Link>
+                ) : (
+                  <Button type="button" variant="outline" disabled className={dashboardDisabledButtonClass}>
+                    Continue normal lessons to unlock
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            {adaptiveRecommendation && (
+              <Card className={dashboardFeatureCardClass}>
+                <CardHeader>
+                  <CardTitle>Coaching Opportunity</CardTitle>
+                  <CardDescription>{adaptiveRecommendation.coachingMessage}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Recommended Lesson: <span className="font-medium text-foreground">{adaptiveRecommendation.recommendedLessonTitle}</span>
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Estimated Time: <span className="font-medium text-foreground">{adaptiveRecommendation.estimatedMinutes} minutes</span>
+                  </p>
+                  {adaptiveRecommendation.status === 'improved' && (
+                    <p className="text-sm text-emerald-600">
+                      Improved: your recent Fresh Up trend is up by 10+ points in this focus area.
+                    </p>
+                  )}
+                  {adaptiveLessonStartHref ? (
+                    <Link href={adaptiveLessonStartHref} className={cn(buttonVariants({ className: 'w-full font-semibold' }))}>
+                      Start Lesson
+                    </Link>
+                  ) : (
+                    <Button type="button" variant="outline" disabled className={dashboardDisabledButtonClass}>
+                      Lesson unavailable
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            {coachingInsight && (
+              <Card className={dashboardFeatureCardClass}>
+                <CardHeader>
+                  <CardTitle>Your Coaching Focus</CardTitle>
+                  <CardDescription>{coachingInsight.coachingTopic}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Practice Suggestion: <span className="font-medium text-foreground">{coachingInsight.recommendedPractice}</span>
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Suggested AutoForge: <span className="font-medium text-foreground">{coachingInsight.suggestedAutoForgeModule}</span>
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </section>
+
         {(pppFeatureEnabled || saasPppFeatureEnabled) && (
           <section className="space-y-4">
             <div className="space-y-2">
@@ -1161,7 +1147,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
               {saasPppFeatureEnabled && (
                 <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
               )}
-              {freshUpCard}
               {showAssignedInPppRow && (loading ? (
                 <Skeleton className="h-full min-h-[160px] rounded-2xl" />
               ) : (
@@ -1180,7 +1165,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
               ) : (
                 <>
                   {assignedCard}
-                  {freshUpCard}
                 </>
               )}
             </div>
