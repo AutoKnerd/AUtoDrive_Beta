@@ -39,6 +39,7 @@ import { getFreshUpReleaseState, getFreshUpReleaseVersions, isExperimentalFreshU
 import { AIS_ROLE_LANGUAGE_VERSION, adaptFreshUpProfileToRole, getAisInteractionLabel, getAisSummaryLabel, getRoleAwareNextStep, resolveAisRoleTypeFromSandbox } from '@/lib/ais-role-adaptive';
 import { getAisScoreBand, interpretAisScore } from '@/lib/ais-score-interpretation';
 import { getRoleLabels, resolveRoleLabelKeyFromAisRoleType, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
+import { getRoleToneProfile, getRoleTurnTargets } from '@/config/roleToneProfiles';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -477,6 +478,8 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
     [freshUpSandboxConfig?.interactionDisplayLabel, defaultInteractionDisplayLabel, aisRoleType]
   );
   const summaryDisplayLabel = useMemo(() => getAisSummaryLabel(aisRoleType), [aisRoleType]);
+  const roleToneProfile = useMemo(() => getRoleToneProfile(aisRoleType), [aisRoleType]);
+  const targetTurnRange = useMemo(() => getRoleTurnTargets(aisRoleType), [aisRoleType]);
   const consultantLevel = useMemo(() => calculateLevel(user?.xp ?? 0).level, [user?.xp]);
   const isFreshUpSandboxMode = Boolean(isFreshUp && freshUpSandboxConfig?.enabled);
   const configuredStartMeter = Number(freshUpSandboxConfig?.startingUpMeter ?? FRESH_UP_SESSION_START_METER);
@@ -663,6 +666,9 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
         lessonTitle: lesson.title,
         lessonRole: promptLessonRole,
         lessonCategory: lesson.category,
+        roleType: aisRoleType,
+        roleToneProfile,
+        targetTurnRange,
         profile: freshUpProfile.current,
         upMeterCurrent: freshUpMeterRef.current.current,
         memoryState: freshUpMemoryRef.current,
@@ -1227,7 +1233,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       }
     }
     startLesson();
-  }, [cxScores, lesson.lessonId, lesson.title, lesson.role, lesson.category, lesson.associatedTrait, lesson.customScenario, isRecommended, toast, promptLessonRole, isFreshUp, freshUpProfileId, freshUpStarted, user, freshUpSandboxConfig, sessionStartMeter, consultantLevel, aisRoleType]);
+  }, [cxScores, lesson.lessonId, lesson.title, lesson.role, lesson.category, lesson.associatedTrait, lesson.customScenario, isRecommended, toast, promptLessonRole, isFreshUp, freshUpProfileId, freshUpStarted, user, freshUpSandboxConfig, sessionStartMeter, consultantLevel, aisRoleType, roleToneProfile, targetTurnRange]);
 
 
   const handleSendMessage = async (e: React.FormEvent) => {

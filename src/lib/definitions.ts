@@ -277,6 +277,7 @@ export type Lesson = {
 export type FreshUpProfile = {
   freshUpId: string;
   sourceType: 'procedural' | 'signature';
+  roleType?: AisRoleType;
   scenarioId?: string;
   scenarioName?: string;
   characterName: string;

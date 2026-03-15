@@ -153,6 +153,7 @@ export function adaptFreshUpProfileToRole(profile: FreshUpProfile, roleType: Ais
   const interaction = getAisInteractionLabel(roleType);
   return {
     ...profile,
+    roleType,
     scenarioName: profile.scenarioName || `${interaction} Scenario`,
     primaryConcern: withFallbackConcern(roleType, profile.primaryConcern),
     conversationPrompt: `${profile.conversationPrompt} Role context: ${interaction}. Keep language natural for ${roleType.toUpperCase()} conversations.`,

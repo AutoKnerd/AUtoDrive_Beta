@@ -9,6 +9,7 @@ import { generateProceduralFreshUpCustomer } from '@/lib/fresh-up-procedural';
 import { getSignatureFreshUpScenarios } from '@/lib/fresh-up-signature';
 import { mergeFreshUpValidationResults, validateFreshUpEndingGuardrails, validateFreshUpOpeningGuardrails } from '@/lib/fresh-up-guardrails';
 import type { FreshUpFeatureToggles } from '@/lib/fresh-up-release';
+import { getRoleExchangeTarget } from '@/config/roleToneProfiles';
 
 export type FreshUpQASimulationConfig = {
   sessionsToRun: number;
@@ -300,7 +301,7 @@ function simulateSingleSession(runId: string, index: number, config: FreshUpQASi
   let profile = generateProfileForSimulation({ config, index, runId });
   const simulationID = `${runId}-${String(index + 1).padStart(3, '0')}`;
   let opening = toggles.enableOpeningMechanic
-    ? generateFreshUpOpening(profile)
+    ? generateFreshUpOpening(profile, profile.roleType ?? 'sales')
     : {
       sprocketLine: 'Fresh up on the floor. Stay curious and customer-first.',
       customerOpening: `I am looking at this ${profile.vehicleInterest} and I want to make the right decision.`,
@@ -314,7 +315,7 @@ function simulateSingleSession(runId: string, index: number, config: FreshUpQASi
   for (let attempt = 0; attempt < 2 && !openingValidation.contentValidationPassed; attempt += 1) {
     profile = generateProfileForSimulation({ config, index: index + attempt + 17, runId: `${runId}-regen` });
     opening = toggles.enableOpeningMechanic
-      ? generateFreshUpOpening(profile)
+      ? generateFreshUpOpening(profile, profile.roleType ?? 'sales')
       : {
         sprocketLine: 'Fresh up on the floor. Stay curious and customer-first.',
         customerOpening: `I am looking at this ${profile.vehicleInterest} and I want to make the right decision.`,
@@ -336,7 +337,8 @@ function simulateSingleSession(runId: string, index: number, config: FreshUpQASi
     { speaker: 'customer', text: opening.customerOpening, upMeter: meter },
   ];
 
-  const turns = 6 + (Math.abs(hashSeed(simulationID)) % 3);
+  const exchangeTarget = getRoleExchangeTarget(profile.roleType ?? 'sales');
+  const turns = exchangeTarget.min + (Math.abs(hashSeed(simulationID)) % Math.max(1, exchangeTarget.max - exchangeTarget.min + 1));
   for (let turn = 0; turn < turns; turn += 1) {
     const consultantMessage = buildBaselineConsultantResponse({
       profile,

@@ -1,6 +1,7 @@
 import type { AisRoleType, FreshUpArchetypeCategory, FreshUpProfile, FreshUpTag } from '@/lib/definitions';
 import { pickFreshUpArchetype } from '@/lib/fresh-up-archetypes';
 import { getAisInteractionLabel, getRoleAwareConcernPool, getRoleAwareStagePool } from '@/lib/ais-role-adaptive';
+import { getRoleToneProfile } from '@/config/roleToneProfiles';
 
 const PERSONALITY_POOL = ['analytical', 'friendly', 'skeptical', 'impatient', 'overwhelmed', 'excited', 'defensive'] as const;
 const BUYING_STAGE_POOL = ['just browsing', 'comparing models', 'trade-in evaluation', 'payment discussion', 'ready to buy'] as const;
@@ -208,8 +209,10 @@ function getArchetypePools(customerType: FreshUpCustomerType) {
 
 function getRoleConcernPool(roleType: AisRoleType | undefined): readonly string[] {
   if (!roleType) return PRIMARY_CONCERN_POOL;
+  const toneProfileConcerns = getRoleToneProfile(roleType).typicalConcerns.map((concern) => concern.toLowerCase());
   const concerns = getRoleAwareConcernPool(roleType);
-  return concerns.length > 0 ? concerns : PRIMARY_CONCERN_POOL;
+  const merged = Array.from(new Set([...concerns, ...toneProfileConcerns]));
+  return merged.length > 0 ? merged : PRIMARY_CONCERN_POOL;
 }
 
 function getRoleStagePool(roleType: AisRoleType | undefined): readonly string[] {
@@ -326,10 +329,14 @@ function buildPrompt(input: {
   emotionalState: string;
 }): string {
   const interactionLabel = getAisInteractionLabel(input.roleType);
+  const toneProfile = getRoleToneProfile(input.roleType);
   return `You are ${input.customerName}, a ${input.personalityType} customer at the "${input.buyingStage}" stage considering a ${input.vehicleInterest}. `
     + `Your primary concern is ${input.primaryConcern}, and your secondary concern is ${input.secondaryConcern}. `
     + `You communicate in a ${input.communicationStyle} style and currently feel ${input.emotionalState}. `
-    + `This is a ${interactionLabel} context. You respond positively to clear, patient, transparent guidance and push back when answers feel rushed or vague.`;
+    + `This is a ${interactionLabel} context with a ${toneProfile.tone} tone. `
+    + `Your mindset is ${toneProfile.customerMindset}, your language style is ${toneProfile.languageStyle}, and conversations usually run ${toneProfile.conversationLength}. `
+    + `Common concerns in this role include: ${toneProfile.typicalConcerns.join(', ')}. `
+    + `You respond positively to clear, patient, transparent guidance and push back when answers feel rushed or vague.`;
 }
 
 export function generateProceduralFreshUpCustomer(seedInput: string, overrides: ProceduralOverrides = {}): FreshUpProfile {
@@ -397,6 +404,7 @@ export function generateProceduralFreshUpCustomer(seedInput: string, overrides: 
   return {
     freshUpId,
     sourceType: 'procedural',
+    roleType,
     scenarioId: freshUpId,
     scenarioName: `Generated Customer ${seed.toString(36).toUpperCase()}`,
     characterName: customerName,

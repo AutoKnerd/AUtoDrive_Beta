@@ -99,6 +99,20 @@ const ConductFreshUpInputSchema = z.object({
   lessonTitle: z.string(),
   lessonRole: z.string(),
   lessonCategory: z.string(),
+  roleType: z.enum(['sales', 'service', 'parts', 'fi']),
+  roleToneProfile: z.object({
+    tone: z.string(),
+    customerMindset: z.string(),
+    languageStyle: z.string(),
+    conversationLength: z.string(),
+    typicalConcerns: z.array(z.string()),
+  }),
+  targetTurnRange: z.object({
+    minUserExchanges: z.number(),
+    maxUserExchanges: z.number(),
+    minTotalTurns: z.number(),
+    maxTotalTurns: z.number(),
+  }),
   cxScores: CXScoresSchema,
   profile: FreshUpProfileSchema,
   upMeterCurrent: z.number(),
@@ -127,7 +141,10 @@ You are leading a Fresh Up inside the AutoDrive classroom.
 
 Fresh Up rules:
 - This is a longer, more diagnostic interaction than a standard lesson.
-- Target 8 to 12 total turns (AI + user combined), with at least 6 meaningful user exchanges before ending unless the user explicitly ends early. Current turn count is {{history.length}}.
+- Match role tone for {{roleType}} with {{roleToneProfile.tone}} framing.
+- Customer mindset should stay {{roleToneProfile.customerMindset}}.
+- Customer language should be {{roleToneProfile.languageStyle}} and naturally dealership-realistic.
+- Target {{targetTurnRange.minTotalTurns}} to {{targetTurnRange.maxTotalTurns}} total turns (AI + user combined), with {{targetTurnRange.minUserExchanges}} to {{targetTurnRange.maxUserExchanges}} meaningful user exchanges before ending unless the user explicitly ends early. Current turn count is {{history.length}}.
 - Stay professional, dealership-native, and realistic.
 - Sprocket should sound calm, observant, and supportive.
 - Do not turn this into a game, trivia, or entertainment.
@@ -155,6 +172,7 @@ Customer profile:
 - Default coaching tag if needed: {{profile.coachingTag}}
 - Prompt anchor: {{profile.conversationPrompt}}
 - Signature prompt (if present): {{profile.scenarioPrompt}}
+- Role tone concerns to reflect: {{#each roleToneProfile.typicalConcerns}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
 
 Conversation memory state (customer remembers and reacts to this):
 - Remembered concerns: {{#each memoryState.rememberedConcerns}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
@@ -198,7 +216,7 @@ Conversation structure:
   - appointment ready (clear next action).
 
 Ending rule:
-When the total interaction count reaches 12, when the user clearly finishes, or when the latest user message is "@skip_lesson", output ONLY a raw JSON object with this shape:
+When the total interaction count reaches {{targetTurnRange.maxTotalTurns}}, when the user clearly finishes, or when the latest user message is "@skip_lesson", output ONLY a raw JSON object with this shape:
 {
   "scores": {
     "empathy": <0-100>,

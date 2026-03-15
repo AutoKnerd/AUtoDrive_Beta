@@ -7,6 +7,7 @@ import type {
   FreshUpRecommendedNextStep,
 } from '@/lib/definitions';
 import { getAisInteractionLabel, getRoleAwareSprocketOpeners } from '@/lib/ais-role-adaptive';
+import { getRoleToneProfile } from '@/config/roleToneProfiles';
 
 const OPENING_BY_STAGE: Record<string, string[]> = {
   'just browsing': [
@@ -124,13 +125,20 @@ function applyPersonality(base: string, personality: string): string {
   return base;
 }
 
-function applyCommunicationStyle(base: string, style: string, concern: string): string {
+function applyCommunicationStyle(base: string, style: string, concern: string, roleType: AisRoleType): string {
+  const toneProfile = getRoleToneProfile(roleType);
+  const roleConcern = concern || toneProfile.typicalConcerns[0] || 'next step';
   if (style === 'reserved') return base.split('.').slice(0, 1).join('.').trim() + '.';
-  if (style === 'direct') return `${base} My main concern is ${concern}.`;
+  if (style === 'direct') return `${base} My main concern is ${roleConcern}.`;
   if (style === 'sarcastic') return `${base} Hopefully this is less complicated than the last place I visited.`;
   if (style === 'story-driven') return `${base} I have been through this recently and want to get it right this time.`;
   if (style === 'cautious') return `${base} I just want clear information before I commit to anything.`;
-  if (style === 'rapid-fire questions') return `${base} What does this really cost me monthly? How does this compare long term?`;
+  if (style === 'rapid-fire questions') {
+    if (roleType === 'service') return `${base} What is the actual issue? How long will this take?`;
+    if (roleType === 'parts') return `${base} Do you have it in stock? Can you confirm fitment today?`;
+    if (roleType === 'fi') return `${base} What is required? What is optional? How does this affect payment clarity?`;
+    return `${base} What does this really cost me monthly? How does this compare long term?`;
+  }
   return base;
 }
 
@@ -167,7 +175,7 @@ export function generateFreshUpOpening(profile: FreshUpProfile, roleType: AisRol
   const stageOpeners = stageMap[profile.buyingStage] || stageMap[fallbackStage] || OPENING_BY_STAGE['just browsing'];
   let opening = pick(stageOpeners, seed);
   opening = applyPersonality(opening, profile.personalityType);
-  opening = applyCommunicationStyle(opening, profile.communicationStyle, profile.primaryConcern);
+  opening = applyCommunicationStyle(opening, profile.communicationStyle, profile.primaryConcern, roleType);
   opening = applyEmotion(opening, profile.emotionalState);
 
   return {
