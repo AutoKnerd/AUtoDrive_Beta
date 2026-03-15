@@ -27,6 +27,7 @@ export default function LessonPage() {
     const freshUpSandboxConfig: FreshUpSandboxConfig | undefined = sandboxFreshUpEnabled ? {
         enabled: true,
         roleType: (searchParams.get('sandboxRoleType') as FreshUpSandboxConfig['roleType']) || 'random',
+        roleLabelKey: (searchParams.get('sandboxRoleLabelKey') as FreshUpSandboxConfig['roleLabelKey']) || 'random',
         interactionDisplayLabel: searchParams.get('sandboxInteractionLabel') || undefined,
         sourceType: (searchParams.get('sandboxSourceType') as FreshUpSandboxConfig['sourceType']) || 'random',
         difficulty: (searchParams.get('sandboxDifficulty') as FreshUpSandboxConfig['difficulty']) || 'random',

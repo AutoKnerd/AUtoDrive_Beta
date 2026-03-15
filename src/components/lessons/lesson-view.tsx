@@ -38,6 +38,7 @@ import { mergeFreshUpValidationResults, validateFreshUpEndingGuardrails, validat
 import { getFreshUpReleaseState, getFreshUpReleaseVersions, isExperimentalFreshUpVersion, resolveFreshUpToggles, resolveFreshUpVersionForContext, type FreshUpFeatureToggles, type FreshUpReleaseVersion } from '@/lib/fresh-up-release';
 import { AIS_ROLE_LANGUAGE_VERSION, adaptFreshUpProfileToRole, getAisInteractionLabel, getAisSummaryLabel, getRoleAwareNextStep, resolveAisRoleTypeFromSandbox } from '@/lib/ais-role-adaptive';
 import { getAisScoreBand, interpretAisScore } from '@/lib/ais-score-interpretation';
+import { getRoleLabels, resolveRoleLabelKeyFromAisRoleType, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -460,9 +461,20 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
     () => resolveAisRoleTypeFromSandbox(freshUpSandboxConfig?.roleType, user?.role),
     [freshUpSandboxConfig?.roleType, user?.role]
   );
+  const roleLabelKey = useMemo(() => {
+    if (freshUpSandboxConfig?.roleLabelKey && freshUpSandboxConfig.roleLabelKey !== 'random') {
+      return freshUpSandboxConfig.roleLabelKey;
+    }
+    if (freshUpSandboxConfig?.roleType && freshUpSandboxConfig.roleType !== 'random') {
+      return resolveRoleLabelKeyFromAisRoleType(freshUpSandboxConfig.roleType);
+    }
+    return resolveRoleLabelKeyFromUserRole(user?.role);
+  }, [freshUpSandboxConfig?.roleLabelKey, freshUpSandboxConfig?.roleType, user?.role]);
+  const meterDisplayLabel = useMemo(() => getRoleLabels(roleLabelKey).meterLabel, [roleLabelKey]);
+  const defaultInteractionDisplayLabel = useMemo(() => getRoleLabels(roleLabelKey).interactionLabel, [roleLabelKey]);
   const interactionDisplayLabel = useMemo(
-    () => freshUpSandboxConfig?.interactionDisplayLabel || getAisInteractionLabel(aisRoleType),
-    [freshUpSandboxConfig?.interactionDisplayLabel, aisRoleType]
+    () => freshUpSandboxConfig?.interactionDisplayLabel || defaultInteractionDisplayLabel || getAisInteractionLabel(aisRoleType),
+    [freshUpSandboxConfig?.interactionDisplayLabel, defaultInteractionDisplayLabel, aisRoleType]
   );
   const summaryDisplayLabel = useMemo(() => getAisSummaryLabel(aisRoleType), [aisRoleType]);
   const consultantLevel = useMemo(() => calculateLevel(user?.xp ?? 0).level, [user?.xp]);
@@ -1299,6 +1311,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       params.set('freshUp', 'true');
       params.set('sandboxFreshUp', 'true');
       params.set('sandboxRoleType', aisRoleType);
+      params.set('sandboxRoleLabelKey', roleLabelKey);
       params.set('sandboxInteractionLabel', interactionDisplayLabel);
       params.set('sandboxSourceType', freshUpSandboxConfig.sourceType);
       params.set('sandboxDifficulty', freshUpSandboxConfig.difficulty);
@@ -1439,7 +1452,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                       </div>
 
                       <div className="rounded-lg border p-4">
-                        <h3 className="text-base font-semibold">Up Meter Journey</h3>
+                        <h3 className="text-base font-semibold">{`${meterDisplayLabel} Journey`}</h3>
                         <div className="mt-2 space-y-2">
                           {[{ label: 'Start', value: freshUpFeedback.upMeter.start }, { label: 'Peak', value: freshUpFeedback.upMeter.peak }, { label: 'End', value: freshUpFeedback.upMeter.end }].map((item) => (
                             <div key={item.label} className="space-y-1">

@@ -44,6 +44,7 @@ import { getDefaultScope } from '@/lib/cx/scope';
 import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 import { ManagerGuidedTour } from './manager-guided-tour';
+import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 
 interface ManagerDashboardProps {
   user: User;
@@ -416,6 +417,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   );
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
+  const roleLabels = useMemo(() => getRoleLabels(resolveRoleLabelKeyFromUserRole(user.role)), [user.role]);
 
   const teamContext = useMemo(() => {
     switch (user.role) {
@@ -1132,9 +1134,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                   )}
                 </div>
                 <div className="rounded-md border p-3">
-                  <p className="text-xs font-semibold">Fresh Up Performance Snapshot</p>
+                  <p className="text-xs font-semibold">{`${roleLabels.interactionLabel} Performance Snapshot`}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Sessions {commandCenter.freshUpPerformanceSnapshot.totalFreshUpSessions} • Up Meter Peak {commandCenter.freshUpPerformanceSnapshot.averageUpMeterPeak} • Trust Shift {commandCenter.freshUpPerformanceSnapshot.averageTrustShift}
+                    Sessions {commandCenter.freshUpPerformanceSnapshot.totalFreshUpSessions} • {roleLabels.meterLabel} Peak {commandCenter.freshUpPerformanceSnapshot.averageUpMeterPeak} • Trust Shift {commandCenter.freshUpPerformanceSnapshot.averageTrustShift}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Emp {commandCenter.freshUpPerformanceSnapshot.averageEmpathy} • Lis {commandCenter.freshUpPerformanceSnapshot.averageListening} • Trust {commandCenter.freshUpPerformanceSnapshot.averageTrust}

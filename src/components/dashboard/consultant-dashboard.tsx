@@ -55,7 +55,8 @@ import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 import { SprocketFirstLoginTour } from './sprocket-first-login-tour';
 import { evaluateUpMeterState, FRESH_UP_LESSON_ID, getUpMeterProgress, pickFreshUpProfile } from '@/lib/fresh-up';
-import { getAisInteractionLabel, resolveAisRoleType } from '@/lib/ais-role-adaptive';
+import { resolveAisRoleType } from '@/lib/ais-role-adaptive';
+import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -736,7 +737,9 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const showAssignedInPppRow = pppCardCount === 1;
   const consultantLevel = useMemo(() => calculateLevel(user.xp).level, [user.xp]);
   const aisRoleType = useMemo(() => resolveAisRoleType(user.role), [user.role]);
-  const interactionLabel = useMemo(() => getAisInteractionLabel(aisRoleType), [aisRoleType]);
+  const roleLabels = useMemo(() => getRoleLabels(resolveRoleLabelKeyFromUserRole(user.role)), [user.role]);
+  const interactionLabel = roleLabels.interactionLabel;
+  const meterLabel = roleLabels.meterLabel;
   const freshUpProfile = useMemo(() => pickFreshUpProfile(user.userId, activity, consultantLevel, aisRoleType), [user.userId, activity, consultantLevel, aisRoleType]);
   const freshUpMeter = Math.max(0, Math.round(Number(user.freshUpMeter ?? 0)));
   const freshUpAvailable = user.freshUpAvailable === true;
@@ -1040,7 +1043,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Card className={cn(dashboardFeatureCardClass, 'md:col-span-2')}>
               <CardHeader>
-                <CardTitle>Up Meter</CardTitle>
+                <CardTitle>{meterLabel}</CardTitle>
                 <CardDescription>{`Tracks progress toward a ${interactionLabel}.`}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

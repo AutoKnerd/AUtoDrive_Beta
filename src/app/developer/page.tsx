@@ -54,6 +54,7 @@ import { runFreshUpQAMatrix, runFreshUpQAVersionComparison, storeFreshUpQATestRu
 import { evaluateFreshUpPromotionSafety, getFreshUpReleaseState, getFreshUpReleaseVersions, rollbackFreshUpProductionVersion, setFreshUpProductionVersion, setFreshUpSandboxDefaultVersion, type FreshUpReleaseSafetyCheck, type FreshUpReleaseVersion } from '@/lib/fresh-up-release';
 import { getAisInteractionLabel } from '@/lib/ais-role-adaptive';
 import { interpretAisScore, type AisMetricName } from '@/lib/ais-score-interpretation';
+import { getRoleLabels, resolveRoleLabelKeyFromAisRoleType } from '@/config/roleLabels';
 
 type DashboardMode = 'role_based' | 'single_user';
 type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'operations' | 'sandbox' | 'danger';
@@ -166,6 +167,23 @@ const SANDBOX_ROLE_TYPES: Array<{ value: FreshUpSandboxConfig['roleType']; label
   { value: 'fi', label: 'F&I' },
   { value: 'random', label: 'Random' },
 ];
+const SANDBOX_ROLE_LABEL_TYPES: Array<{ value: NonNullable<FreshUpSandboxConfig['roleLabelKey']>; label: string }> = [
+  { value: 'sales', label: 'Sales' },
+  { value: 'service', label: 'Service' },
+  { value: 'parts', label: 'Parts' },
+  { value: 'fi', label: 'F&I' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'gm', label: 'General Manager' },
+  { value: 'random', label: 'Random' },
+];
+const SANDBOX_ENGINE_ROLE_BY_LABEL: Record<Exclude<NonNullable<FreshUpSandboxConfig['roleLabelKey']>, 'random'>, Exclude<FreshUpSandboxConfig['roleType'], 'random'>> = {
+  sales: 'sales',
+  service: 'service',
+  parts: 'parts',
+  fi: 'fi',
+  manager: 'sales',
+  gm: 'sales',
+};
 const SANDBOX_DIFFICULTIES: Array<{ value: FreshUpSandboxConfig['difficulty']; label: string }> = [
   { value: 'easy', label: 'Easy' },
   { value: 'medium', label: 'Medium' },
@@ -384,6 +402,7 @@ export default function DeveloperPage() {
   const [freshUpSandboxConfig, setFreshUpSandboxConfig] = useState<FreshUpSandboxConfig>({
     enabled: false,
     roleType: 'random',
+    roleLabelKey: 'random',
     interactionDisplayLabel: undefined,
     sourceType: 'random',
     difficulty: 'random',
@@ -494,7 +513,11 @@ export default function DeveloperPage() {
     params.set('freshUp', 'true');
     params.set('sandboxFreshUp', 'true');
     params.set('sandboxRoleType', freshUpSandboxConfig.roleType);
-    if (freshUpSandboxConfig.roleType !== 'random') {
+    if (freshUpSandboxConfig.roleLabelKey && freshUpSandboxConfig.roleLabelKey !== 'random') {
+      params.set('sandboxRoleLabelKey', freshUpSandboxConfig.roleLabelKey);
+      params.set('sandboxInteractionLabel', getRoleLabels(freshUpSandboxConfig.roleLabelKey).interactionLabel);
+    } else if (freshUpSandboxConfig.roleType !== 'random') {
+      params.set('sandboxRoleLabelKey', resolveRoleLabelKeyFromAisRoleType(freshUpSandboxConfig.roleType));
       params.set('sandboxInteractionLabel', getAisInteractionLabel(freshUpSandboxConfig.roleType));
     }
     params.set('sandboxSourceType', freshUpSandboxConfig.sourceType);
@@ -1367,16 +1390,29 @@ export default function DeveloperPage() {
               <div className="space-y-2">
                 <Label>Role</Label>
                 <Select
-                  value={freshUpSandboxConfig.roleType}
-                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({
-                    ...prev,
-                    roleType: value as FreshUpSandboxConfig['roleType'],
-                    interactionDisplayLabel: value === 'random' ? undefined : getAisInteractionLabel(value as Exclude<FreshUpSandboxConfig['roleType'], 'random'>),
-                  }))}
+                  value={freshUpSandboxConfig.roleLabelKey || freshUpSandboxConfig.roleType}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => {
+                    const nextLabelKey = value as NonNullable<FreshUpSandboxConfig['roleLabelKey']>;
+                    if (nextLabelKey === 'random') {
+                      return {
+                        ...prev,
+                        roleLabelKey: 'random',
+                        roleType: 'random',
+                        interactionDisplayLabel: undefined,
+                      };
+                    }
+                    const nextEngineRole = SANDBOX_ENGINE_ROLE_BY_LABEL[nextLabelKey];
+                    return {
+                      ...prev,
+                      roleLabelKey: nextLabelKey,
+                      roleType: nextEngineRole,
+                      interactionDisplayLabel: getRoleLabels(nextLabelKey).interactionLabel,
+                    };
+                  })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {SANDBOX_ROLE_TYPES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                    {SANDBOX_ROLE_LABEL_TYPES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

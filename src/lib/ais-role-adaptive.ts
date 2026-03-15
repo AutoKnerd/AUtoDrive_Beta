@@ -1,4 +1,5 @@
 import type { AisRoleType, FreshUpProfile, UserRole } from '@/lib/definitions';
+import { getRoleLabels, resolveRoleLabelKeyFromAisRoleType } from '@/config/roleLabels';
 
 export const AIS_ROLE_LANGUAGE_VERSION = '2026.03.role-adaptive.v1';
 
@@ -22,7 +23,7 @@ const FI_CONCERNS = ['payment structure', 'product value', 'contract clarity', '
 const ROLE_CONFIG: Record<AisRoleType, AisRoleConfig> = {
   sales: {
     roleType: 'sales',
-    interactionLabel: 'Fresh Up',
+    interactionLabel: getRoleLabels(resolveRoleLabelKeyFromAisRoleType('sales')).interactionLabel,
     insightLabel: 'Fresh Up Insight',
     summaryLabel: 'Fresh Up Summary',
     prebriefLabel: 'Fresh Up!',
@@ -40,7 +41,7 @@ const ROLE_CONFIG: Record<AisRoleType, AisRoleConfig> = {
   },
   service: {
     roleType: 'service',
-    interactionLabel: 'Service Interaction',
+    interactionLabel: getRoleLabels(resolveRoleLabelKeyFromAisRoleType('service')).interactionLabel,
     insightLabel: 'Service Interaction Insight',
     summaryLabel: 'Service Interaction Summary',
     prebriefLabel: 'Service Interaction',
@@ -58,7 +59,7 @@ const ROLE_CONFIG: Record<AisRoleType, AisRoleConfig> = {
   },
   parts: {
     roleType: 'parts',
-    interactionLabel: 'Counter Interaction',
+    interactionLabel: getRoleLabels(resolveRoleLabelKeyFromAisRoleType('parts')).interactionLabel,
     insightLabel: 'Counter Interaction Insight',
     summaryLabel: 'Counter Interaction Summary',
     prebriefLabel: 'Counter Interaction',
@@ -76,7 +77,7 @@ const ROLE_CONFIG: Record<AisRoleType, AisRoleConfig> = {
   },
   fi: {
     roleType: 'fi',
-    interactionLabel: 'Buyer Review',
+    interactionLabel: getRoleLabels(resolveRoleLabelKeyFromAisRoleType('fi')).interactionLabel,
     insightLabel: 'Buyer Review Insight',
     summaryLabel: 'Buyer Review Summary',
     prebriefLabel: 'Buyer Review',
@@ -183,4 +184,3 @@ export function getRoleAwareSprocketOpeners(roleType: AisRoleType): string[] {
     'New up. Tone first, details second.',
   ];
 }
-

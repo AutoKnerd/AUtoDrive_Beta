@@ -23,7 +23,7 @@ import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
 import { AvatarSoundRing } from '../profile/avatar-sound-ring';
 import { computeWeightedTraitSummary, formatTraitLabel, getFreshUpInsightCopy, getFreshUpManagerRecommendation, getFreshUpSummaryTag } from '@/lib/fresh-up';
-import { getAisInsightLabel, getAisInteractionLabel, resolveAisRoleType } from '@/lib/ais-role-adaptive';
+import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 
 interface TeamMemberCardProps {
   user: User;
@@ -62,9 +62,10 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [riskRadarRows, setRiskRadarRows] = useState<FreshUpRiskRadarRecord[]>([]);
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
-  const aisRoleType = useMemo(() => resolveAisRoleType(user.role), [user.role]);
-  const interactionLabel = useMemo(() => getAisInteractionLabel(aisRoleType), [aisRoleType]);
-  const insightLabel = useMemo(() => getAisInsightLabel(aisRoleType), [aisRoleType]);
+  const viewerRoleForLabels = useMemo(() => resolveRoleLabelKeyFromUserRole(currentUser.role), [currentUser.role]);
+  const meterLabel = useMemo(() => getRoleLabels(viewerRoleForLabels).meterLabel, [viewerRoleForLabels]);
+  const interactionLabel = useMemo(() => getRoleLabels(viewerRoleForLabels).interactionLabel, [viewerRoleForLabels]);
+  const insightLabel = useMemo(() => `${interactionLabel} Insight`, [interactionLabel]);
   const normalizedUserDealershipIds = useMemo(() => (
     Array.isArray(user.dealershipIds) ? user.dealershipIds : []
   ), [user.dealershipIds]);
@@ -401,7 +402,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
           </div>
           <div className="grid gap-2 md:grid-cols-2">
             <div className="rounded border bg-muted/40 p-2 text-sm">
-              <p className="text-muted-foreground">Average Up Meter Peak</p>
+              <p className="text-muted-foreground">{`Average ${meterLabel} Peak`}</p>
               <p className="mt-1 font-semibold text-foreground">{freshUpInsights.averageUpMeterPeak.toFixed(1)}</p>
               <p className="text-xs text-muted-foreground">{freshUpInsights.upMeterEngagementLabel}</p>
             </div>

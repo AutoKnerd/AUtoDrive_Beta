@@ -30,6 +30,7 @@ export type UserRole =
   | 'Developer';
 
 export type AisRoleType = 'sales' | 'service' | 'parts' | 'fi';
+export type AisDisplayRole = AisRoleType | 'manager' | 'gm';
 
 export const allRoles: UserRole[] = [
   'Developer',
@@ -404,6 +405,7 @@ export type FreshUpTag =
 export type FreshUpSandboxConfig = {
   enabled: boolean;
   roleType: AisRoleType | 'random';
+  roleLabelKey?: AisDisplayRole | 'random';
   interactionDisplayLabel?: string;
   sourceType: 'procedural' | 'signature' | 'random';
   difficulty: 'easy' | 'medium' | 'hard' | 'random';
