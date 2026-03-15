@@ -192,8 +192,8 @@ export function summarizeFreshUpRatings(
 }
 
 export function getFreshUpInsightCopy(tag: FreshUpTag | null | undefined): string {
-  if (!tag) return 'Not enough Fresh Up activity yet';
-  return FRESH_UP_TAG_COPY[tag] ?? 'Not enough Fresh Up activity yet';
+  if (!tag) return 'Run a few Fresh Ups to unlock interaction insights.';
+  return FRESH_UP_TAG_COPY[tag] ?? 'Run a few Fresh Ups to unlock interaction insights.';
 }
 
 export function getFreshUpManagerRecommendation(tag: FreshUpTag | null | undefined): string {

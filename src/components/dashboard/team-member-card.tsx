@@ -24,6 +24,7 @@ import { getDefaultScope } from '@/lib/cx/scope';
 import { AvatarSoundRing } from '../profile/avatar-sound-ring';
 import { computeWeightedTraitSummary, formatTraitLabel, getFreshUpInsightCopy, getFreshUpManagerRecommendation, getFreshUpSummaryTag } from '@/lib/fresh-up';
 import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
+import { UI_TERMS } from '@/config/uiTerminology';
 
 interface TeamMemberCardProps {
   user: User;
@@ -65,7 +66,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const viewerRoleForLabels = useMemo(() => resolveRoleLabelKeyFromUserRole(currentUser.role), [currentUser.role]);
   const meterLabel = useMemo(() => getRoleLabels(viewerRoleForLabels).meterLabel, [viewerRoleForLabels]);
   const interactionLabel = useMemo(() => getRoleLabels(viewerRoleForLabels).interactionLabel, [viewerRoleForLabels]);
-  const insightLabel = useMemo(() => `${interactionLabel} Insight`, [interactionLabel]);
+  const insightLabel = UI_TERMS.interactionInsight;
   const normalizedUserDealershipIds = useMemo(() => (
     Array.isArray(user.dealershipIds) ? user.dealershipIds : []
   ), [user.dealershipIds]);
@@ -452,7 +453,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const freshUpInsightsCard = (
     <div className="rounded-md border p-3 md:col-span-3">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-semibold text-foreground">{`${interactionLabel} Insights`}</span>
+        <span className="text-sm font-semibold text-foreground">{UI_TERMS.interactionInsights}</span>
         <span className="text-xs text-muted-foreground">Last 30 days</span>
       </div>
       {loading ? (
@@ -462,7 +463,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
           <Skeleton className="h-8 w-full" />
         </div>
       ) : !freshUpInsights || !freshUpInsights.available ? (
-        <p className="text-sm text-muted-foreground">{`Not enough ${interactionLabel} session data in the last 30 days.`}</p>
+        <p className="text-sm text-muted-foreground">Run a few Fresh Ups to unlock interaction insights.</p>
       ) : (
         <div className="space-y-3">
           <div className="grid gap-2 md:grid-cols-2">
@@ -505,7 +506,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const weeklyDigestCard = (
     <div className="rounded-md border p-3 md:col-span-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold text-foreground">{`Weekly ${interactionLabel} Digest`}</span>
+        <span className="text-sm font-semibold text-foreground">{UI_TERMS.interactionDigest}</span>
         <span className="text-xs text-muted-foreground">
           {weeklyDigest ? `${weeklyDigest.weekStart.toLocaleDateString()} - ${weeklyDigest.weekEnd.toLocaleDateString()}` : 'Latest week'}
         </span>
@@ -536,7 +537,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
               </DialogTrigger>
               <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
-                  <DialogTitle>{`Weekly ${interactionLabel} Digest`}</DialogTitle>
+                  <DialogTitle>{UI_TERMS.interactionDigest}</DialogTitle>
                   <DialogDescription>
                     {weeklyDigest.weekStart.toLocaleDateString()} - {weeklyDigest.weekEnd.toLocaleDateString()}
                   </DialogDescription>
@@ -563,7 +564,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
               variant="outline"
               onClick={() => {
                 const lines = [
-                  `# Weekly ${interactionLabel} Digest`,
+                  `# ${UI_TERMS.interactionDigest}`,
                   '',
                   `Week Range: ${weeklyDigest.weekStart.toLocaleDateString()} - ${weeklyDigest.weekEnd.toLocaleDateString()}`,
                   '',

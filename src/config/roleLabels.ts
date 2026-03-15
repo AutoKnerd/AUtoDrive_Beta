@@ -1,4 +1,5 @@
 import type { AisDisplayRole, AisRoleType, UserRole } from '@/lib/definitions';
+import { UI_TERMS } from '@/config/uiTerminology';
 
 export type RoleLabelKey = AisDisplayRole;
 
@@ -25,7 +26,7 @@ export const ROLE_LABELS: Record<RoleLabelKey, RoleLabels> = {
     meterLabel: 'Buyer Confidence Meter',
   },
   manager: {
-    interactionLabel: 'AIS Interaction',
+    interactionLabel: UI_TERMS.interactionSession,
     meterLabel: 'Interaction Comfort Meter',
   },
   gm: {
@@ -52,4 +53,3 @@ export function resolveRoleLabelKeyFromAisRoleType(roleType: AisRoleType): RoleL
 export function getRoleLabels(role: RoleLabelKey): RoleLabels {
   return ROLE_LABELS[role];
 }
-
