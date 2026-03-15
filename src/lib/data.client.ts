@@ -2880,6 +2880,11 @@ export async function logLessonCompletion(data: {
     archetypeName?: string;
     archetypeCategory?: LessonLog['archetypeCategory'];
     humorLevel?: 0 | 1 | 2 | 3;
+    customerArchetypeId?: string;
+    customerArchetypeName?: string;
+    roleAdjustedArchetypeLabel?: string;
+    archetypeConfidence?: number;
+    archetypeBehaviorFlags?: string[];
     guardrailFlags?: string[];
     contentValidationPassed?: boolean;
     validationFailureReasons?: string[];
@@ -3051,6 +3056,11 @@ export async function logLessonCompletion(data: {
             archetypeName: data.archetypeName,
             archetypeCategory: data.archetypeCategory,
             humorLevel: data.humorLevel,
+            customerArchetypeId: data.customerArchetypeId,
+            customerArchetypeName: data.customerArchetypeName,
+            roleAdjustedArchetypeLabel: data.roleAdjustedArchetypeLabel,
+            archetypeConfidence: data.archetypeConfidence,
+            archetypeBehaviorFlags: Array.isArray(data.archetypeBehaviorFlags) ? data.archetypeBehaviorFlags : undefined,
             guardrailFlags: Array.isArray(data.guardrailFlags) ? data.guardrailFlags : undefined,
             contentValidationPassed: typeof data.contentValidationPassed === 'boolean' ? data.contentValidationPassed : undefined,
             validationFailureReasons: Array.isArray(data.validationFailureReasons) ? data.validationFailureReasons : undefined,
@@ -3271,6 +3281,21 @@ export async function logLessonCompletion(data: {
     }
     if (typeof data.humorLevel === 'number' && Number.isFinite(data.humorLevel)) {
         newLogData.humorLevel = Math.max(0, Math.min(3, Math.round(data.humorLevel)));
+    }
+    if (typeof data.customerArchetypeId === 'string' && data.customerArchetypeId.trim().length > 0) {
+        newLogData.customerArchetypeId = data.customerArchetypeId;
+    }
+    if (typeof data.customerArchetypeName === 'string' && data.customerArchetypeName.trim().length > 0) {
+        newLogData.customerArchetypeName = data.customerArchetypeName;
+    }
+    if (typeof data.roleAdjustedArchetypeLabel === 'string' && data.roleAdjustedArchetypeLabel.trim().length > 0) {
+        newLogData.roleAdjustedArchetypeLabel = data.roleAdjustedArchetypeLabel;
+    }
+    if (typeof data.archetypeConfidence === 'number' && Number.isFinite(data.archetypeConfidence)) {
+        newLogData.archetypeConfidence = Math.max(0, Math.min(1, Number(data.archetypeConfidence.toFixed(2))));
+    }
+    if (Array.isArray(data.archetypeBehaviorFlags) && data.archetypeBehaviorFlags.length > 0) {
+        newLogData.archetypeBehaviorFlags = data.archetypeBehaviorFlags.map((flag) => String(flag));
     }
     if (Array.isArray(data.guardrailFlags) && data.guardrailFlags.length > 0) {
         newLogData.guardrailFlags = data.guardrailFlags.map((flag) => String(flag));
@@ -3547,6 +3572,11 @@ export async function logLessonCompletion(data: {
                 archetypeName: data.archetypeName ?? '',
                 archetypeCategory: data.archetypeCategory ?? '',
                 humorLevel: Number.isFinite(Number(data.humorLevel)) ? Math.max(0, Math.min(3, Math.round(Number(data.humorLevel)))) : 0,
+                customerArchetypeId: data.customerArchetypeId ?? '',
+                customerArchetypeName: data.customerArchetypeName ?? '',
+                roleAdjustedArchetypeLabel: data.roleAdjustedArchetypeLabel ?? '',
+                archetypeConfidence: Number.isFinite(Number(data.archetypeConfidence)) ? Math.max(0, Math.min(1, Number(data.archetypeConfidence))) : 0,
+                archetypeBehaviorFlags: Array.isArray(data.archetypeBehaviorFlags) ? data.archetypeBehaviorFlags.map((flag) => String(flag)) : [],
                 guardrailFlags: Array.isArray(data.guardrailFlags) ? data.guardrailFlags.map((flag) => String(flag)) : [],
                 contentValidationPassed: typeof data.contentValidationPassed === 'boolean' ? data.contentValidationPassed : true,
                 validationFailureReasons: Array.isArray(data.validationFailureReasons) ? data.validationFailureReasons.map((reason) => String(reason)) : [],

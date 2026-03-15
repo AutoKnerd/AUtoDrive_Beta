@@ -152,6 +152,17 @@ function applyEmotion(base: string, emotion: string): string {
   return base;
 }
 
+function applyArchetypeOpeningStyle(base: string, profile: FreshUpProfile): string {
+  const archetypeId = String(profile.customerArchetypeId || '').toLowerCase();
+  if (archetypeId === 'skeptic') return `${base} Yeah, I am not trying to get boxed into anything.`;
+  if (archetypeId === 'over-researcher') return `${base} I have already compared a few options, so I care about how this really stacks up.`;
+  if (archetypeId === 'friendly-talker') return `${base} I have been talking about making this move for a while.`;
+  if (archetypeId === 'silent-analyzer') return `${base.split('.').slice(0, 1).join('.').trim()}.`;
+  if (archetypeId === 'rushed-parent') return `${base} I do not have a lot of time, so I need this clear and efficient.`;
+  if (archetypeId === 'joke-machine') return `${base} Either I am deciding today or making some expensive eye contact.`;
+  return base;
+}
+
 function toSentenceLimit(text: string, max = 3): string {
   const parts = text
     .split('.')
@@ -177,6 +188,7 @@ export function generateFreshUpOpening(profile: FreshUpProfile, roleType: AisRol
   opening = applyPersonality(opening, profile.personalityType);
   opening = applyCommunicationStyle(opening, profile.communicationStyle, profile.primaryConcern, roleType);
   opening = applyEmotion(opening, profile.emotionalState);
+  opening = applyArchetypeOpeningStyle(opening, profile);
 
   return {
     sprocketLine: pick(getRoleAwareSprocketOpeners(roleType), seed),

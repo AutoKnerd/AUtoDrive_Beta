@@ -300,6 +300,11 @@ export type FreshUpProfile = {
   archetypeName: string;
   archetypeCategory: FreshUpArchetypeCategory;
   humorLevel: 0 | 1 | 2 | 3;
+  customerArchetypeId?: string;
+  customerArchetypeName?: string;
+  roleAdjustedArchetypeLabel?: string;
+  archetypeConfidence?: number;
+  archetypeBehaviorFlags?: string[];
   winCondition: string;
   failurePattern: string;
   coachingTag: FreshUpTag;
@@ -482,6 +487,11 @@ export type LessonLog = {
   archetypeName?: string;
   archetypeCategory?: FreshUpArchetypeCategory;
   humorLevel?: 0 | 1 | 2 | 3;
+  customerArchetypeId?: string;
+  customerArchetypeName?: string;
+  roleAdjustedArchetypeLabel?: string;
+  archetypeConfidence?: number;
+  archetypeBehaviorFlags?: string[];
   guardrailFlags?: string[];
   contentValidationPassed?: boolean;
   validationFailureReasons?: string[];

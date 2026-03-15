@@ -33,6 +33,11 @@ const FreshUpProfileSchema = z.object({
   archetypeName: z.string(),
   archetypeCategory: z.enum(['friendly', 'curious', 'funny', 'analytical', 'skeptical', 'budget_focused', 'high_stakes', 'family_complex', 'emotional', 'unusual']),
   humorLevel: z.number(),
+  customerArchetypeId: z.string().optional(),
+  customerArchetypeName: z.string().optional(),
+  roleAdjustedArchetypeLabel: z.string().optional(),
+  archetypeConfidence: z.number().optional(),
+  archetypeBehaviorFlags: z.array(z.string()).optional(),
   conversationPrompt: z.string(),
   scenarioPrompt: z.string().optional(),
   customerType: z.string(),
@@ -158,6 +163,10 @@ Customer profile:
 - Buying stage: {{profile.buyingStage}}
 - Customer type: {{profile.customerType}}
 - Archetype: {{profile.archetypeName}} ({{profile.archetypeCategory}}, humor {{profile.humorLevel}})
+- Personality archetype: {{profile.customerArchetypeName}} ({{profile.customerArchetypeId}})
+- Role-adjusted archetype label: {{profile.roleAdjustedArchetypeLabel}}
+- Archetype confidence: {{profile.archetypeConfidence}}
+- Archetype behavior flags: {{#each profile.archetypeBehaviorFlags}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
 - Vehicle interest: {{profile.vehicleInterest}}
 - Personality tone: {{profile.personalityTone}}
 - Primary concern: {{profile.primaryConcern}}

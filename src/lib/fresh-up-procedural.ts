@@ -2,6 +2,7 @@ import type { AisRoleType, FreshUpArchetypeCategory, FreshUpProfile, FreshUpTag 
 import { pickFreshUpArchetype } from '@/lib/fresh-up-archetypes';
 import { getAisInteractionLabel, getRoleAwareConcernPool, getRoleAwareStagePool } from '@/lib/ais-role-adaptive';
 import { getRoleToneProfile } from '@/config/roleToneProfiles';
+import { pickCustomerArchetype } from '@/config/customerArchetypes';
 
 const PERSONALITY_POOL = ['analytical', 'friendly', 'skeptical', 'impatient', 'overwhelmed', 'excited', 'defensive'] as const;
 const BUYING_STAGE_POOL = ['just browsing', 'comparing models', 'trade-in evaluation', 'payment discussion', 'ready to buy'] as const;
@@ -385,6 +386,13 @@ export function generateProceduralFreshUpCustomer(seedInput: string, overrides: 
   const customerName = overrides.customerName ?? generatedCustomerName;
   const coachingTag = mapConcernToTag(primaryConcern, communicationStyle);
   const skillsTested = mapSkills(primaryConcern, buyingStage);
+  const personalityArchetype = pickCustomerArchetype({
+    roleType,
+    seedInput: `${seedInput}:${roleType}:${personalityType}:${primaryConcern}`,
+    personalityType,
+    primaryConcern,
+    forcedArchetypeIdOrName: overrides.forceArchetypeIdOrName,
+  });
 
   const freshUpId = `proc-${seed.toString(36)}`;
 
@@ -399,7 +407,12 @@ export function generateProceduralFreshUpCustomer(seedInput: string, overrides: 
     vehicleInterest,
     emotionalState,
   });
-  const blendedPrompt = `${prompt} Archetype context: ${selectedArchetype.archetypeName}. ${selectedArchetype.corePersonality} ${selectedArchetype.behaviorPattern} Preferred response style: ${selectedArchetype.preferredResponseStyle}`;
+  const blendedPrompt = `${prompt} Archetype context: ${selectedArchetype.archetypeName}. ${selectedArchetype.corePersonality} ${selectedArchetype.behaviorPattern} Preferred response style: ${selectedArchetype.preferredResponseStyle}. `
+    + `Customer personality archetype: ${personalityArchetype.name}. ${personalityArchetype.description} `
+    + `Role-adjusted behavior: ${personalityArchetype.roleAdjustedArchetypeLabel}. `
+    + `Trust style: ${personalityArchetype.trustStyle}. Pacing style: ${personalityArchetype.pacingStyle}. `
+    + `Risk factors: ${personalityArchetype.riskFactors.join(', ')}. Positive signals: ${personalityArchetype.positiveSignals.join(', ')}. `
+    + `Role concern focus: ${personalityArchetype.roleConcernFocus.join(', ')}. Role vocabulary: ${personalityArchetype.roleVocabulary.join(', ')}.`;
 
   return {
     freshUpId,
@@ -424,6 +437,11 @@ export function generateProceduralFreshUpCustomer(seedInput: string, overrides: 
     archetypeName: selectedArchetype.archetypeName,
     archetypeCategory: selectedArchetype.category,
     humorLevel: selectedArchetype.humorLevel,
+    customerArchetypeId: personalityArchetype.archetypeId,
+    customerArchetypeName: personalityArchetype.name,
+    roleAdjustedArchetypeLabel: personalityArchetype.roleAdjustedArchetypeLabel,
+    archetypeConfidence: personalityArchetype.archetypeConfidence,
+    archetypeBehaviorFlags: personalityArchetype.archetypeBehaviorFlags,
     personalityTone: `${personalityType} and ${emotionalState}`,
     conversationStyle: communicationStyle,
     skillsTested,
