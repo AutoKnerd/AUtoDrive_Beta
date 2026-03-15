@@ -10,6 +10,7 @@ import type {
   CoachingSignalContext,
   CoachingTopic,
 } from '@/lib/coaching-intelligence/types';
+import { buildRoleAdaptiveWeaknessLine, inferAisRoleTypeFromSessions } from '@/lib/ais-score-interpretation';
 
 const DEFAULT_ENVIRONMENT: 'sandbox' | 'production' = 'production';
 const LOOKBACK_DAYS = 30;
@@ -203,8 +204,8 @@ function computePriorityScore(input: {
   return Math.max(0, Math.min(100, round(raw)));
 }
 
-function messageForTopic(topic: CoachingTopic, entityName: string): string {
-  return `${entityName} should prioritize ${topic.toLowerCase()} next to improve trust and progression in Fresh Up conversations.`;
+function messageForTopic(topic: CoachingTopic, entityName: string, roleHintLine: string): string {
+  return `${entityName} should prioritize ${topic.toLowerCase()} next to improve trust and progression. ${roleHintLine}`;
 }
 
 function buildEvidence(input: {
@@ -274,6 +275,22 @@ export function buildCoachingInsight(input: {
     goalSignals,
   });
   const priorityLevel = toPriorityLevel(priorityScore);
+  const roleType = inferAisRoleTypeFromSessions(rowsForScoring);
+  const roleWeaknessLine = buildRoleAdaptiveWeaknessLine({
+    roleType,
+    metricName: weakSkill.label === 'Empathy'
+      ? 'empathy'
+      : weakSkill.label === 'Listening'
+        ? 'listening'
+        : weakSkill.label === 'Trust'
+          ? 'trust'
+          : weakSkill.label === 'Follow Up'
+            ? 'followUp'
+            : weakSkill.label === 'Closing'
+              ? 'closing'
+              : 'relationship',
+    concernCategory: concernFriction || undefined,
+  });
   const coachingTopic = topicFromSignals({
     weakSkill: weakSkill.label,
     concernFriction,
@@ -309,7 +326,7 @@ export function buildCoachingInsight(input: {
     priorityLevel,
     priorityScore,
     coachingTopic,
-    message: messageForTopic(coachingTopic, input.entityName),
+    message: messageForTopic(coachingTopic, input.entityName, roleWeaknessLine),
     supportingEvidence,
     recommendedPractice,
     suggestedAutoForgeModule,

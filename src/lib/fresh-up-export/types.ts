@@ -41,6 +41,11 @@ export type FreshUpNormalizedSession = {
   environment: 'sandbox' | 'production';
   isSandbox: boolean;
   sourceType: 'procedural' | 'signature' | '';
+  roleType: string;
+  interactionDisplayLabel: string;
+  concernCategoryRoleSpecific: string;
+  nextStepType: string;
+  interpretationVersion: string;
   customerName: string;
   vehicleInterest: string;
   buyingStage: string;

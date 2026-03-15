@@ -37,6 +37,7 @@ import { calculateLevel } from '@/lib/xp';
 import { mergeFreshUpValidationResults, validateFreshUpEndingGuardrails, validateFreshUpOpeningGuardrails, type FreshUpContentValidationResult } from '@/lib/fresh-up-guardrails';
 import { getFreshUpReleaseState, getFreshUpReleaseVersions, isExperimentalFreshUpVersion, resolveFreshUpToggles, resolveFreshUpVersionForContext, type FreshUpFeatureToggles, type FreshUpReleaseVersion } from '@/lib/fresh-up-release';
 import { AIS_ROLE_LANGUAGE_VERSION, adaptFreshUpProfileToRole, getAisInteractionLabel, getAisSummaryLabel, getRoleAwareNextStep, resolveAisRoleTypeFromSandbox } from '@/lib/ais-role-adaptive';
+import { getAisScoreBand, interpretAisScore } from '@/lib/ais-score-interpretation';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -576,10 +577,15 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
     return () => { active = false; };
   }, [isFreshUp, isFreshUpSandboxMode, freshUpSandboxVersionId, user]);
 
-  const buildDefaultSkillTip = (skill: string, score: number): string => {
-    if (score >= 80) return `${skill}: Strong consistency here. Keep using this approach to maintain customer comfort.`;
-    if (score >= 65) return `${skill}: Solid base. One more intentional moment in this area would improve flow.`;
-    return `${skill}: Growth area. Slow down and add one focused action before moving to the next step.`;
+  const buildDefaultSkillTip = (metricName: 'empathy' | 'listening' | 'trust' | 'relationship' | 'closing', score: number): string => {
+    const interpretation = interpretAisScore({
+      roleType: aisRoleType,
+      metricName: metricName === 'relationship' ? 'relationship' : metricName,
+      metricValue: score,
+      concernCategory: freshUpProfile.current?.primaryConcern,
+      archetypeContext: freshUpProfile.current?.archetypeCategory,
+    });
+    return `${interpretation.feedbackLine} ${interpretation.coachingExample}`;
   };
 
   function buildFreshUpCompletionSummary(
@@ -901,6 +907,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
             trustShift,
             sprocketCoachingLine: sprocketWrapUp,
             roleType: aisRoleType,
+            scoreBand: getAisScoreBand(resolvedScores.trust),
             interactionDisplayLabel,
             concernCategoryRoleSpecific: freshUpProfile.current?.primaryConcern,
             roleLanguageVersion: AIS_ROLE_LANGUAGE_VERSION,
@@ -976,11 +983,11 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
               upMeterInsight: result.upMeterInsight || sprocketWrapUp || `The ${interactionDisplayLabel.toLowerCase()} improved when you stayed curious and acknowledged customer concerns.`,
               scores: resolvedScores,
               skillTips: {
-                empathy: result.skillTips?.empathy || buildDefaultSkillTip('Empathy', resolvedScores.empathy),
-                listening: result.skillTips?.listening || buildDefaultSkillTip('Listening', resolvedScores.listening),
-                trust: result.skillTips?.trust || buildDefaultSkillTip('Trust Building', resolvedScores.trust),
-                relationship: result.skillTips?.relationship || buildDefaultSkillTip('Relationship Building', resolvedScores.relationship),
-                closing: result.skillTips?.closing || buildDefaultSkillTip('Closing Ability', resolvedScores.closing),
+                empathy: `${buildDefaultSkillTip('empathy', resolvedScores.empathy)} ${result.skillTips?.empathy || ''}`.trim(),
+                listening: `${buildDefaultSkillTip('listening', resolvedScores.listening)} ${result.skillTips?.listening || ''}`.trim(),
+                trust: `${buildDefaultSkillTip('trust', resolvedScores.trust)} ${result.skillTips?.trust || ''}`.trim(),
+                relationship: `${buildDefaultSkillTip('relationship', resolvedScores.relationship)} ${result.skillTips?.relationship || ''}`.trim(),
+                closing: `${buildDefaultSkillTip('closing', resolvedScores.closing)} ${result.skillTips?.closing || ''}`.trim(),
               },
               xpEarned: effectiveXpAwarded,
               statBonuses: {

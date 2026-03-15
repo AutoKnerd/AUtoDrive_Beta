@@ -1,5 +1,6 @@
 import type { FreshUpWeeklyDigestAggregates, FreshUpWeeklyDigestContext, FreshUpWeeklyDigestType } from '@/lib/fresh-up-digest/types';
 import type { FreshUpNormalizedSession } from '@/lib/fresh-up-export/types';
+import { inferAisRoleTypeFromSessions } from '@/lib/ais-score-interpretation';
 
 function avg(values: number[]): number {
   if (!values.length) return 0;
@@ -129,6 +130,7 @@ export function aggregateWeeklyDigest(input: {
     mostCommonCustomerFriction: mostCommon(breakdownFlags) || 'No major weekly friction trend',
     mostCommonArchetypeFriction: mostCommon(currentRows.filter((row) => row.outcomeTag === 'Conversation Breakdown').map((row) => row.archetypeCategory)) || 'N/A',
     mostCommonConcernFriction: mostCommon(currentRows.filter((row) => row.outcomeTag === 'Conversation Breakdown').map((row) => row.primaryConcern)) || 'N/A',
+    dominantRoleType: inferAisRoleTypeFromSessions(currentRows),
     outcomes: weeklyOutcomeCounts(currentRows),
     progressVsPreviousWeek: {
       trustDelta: round(currentTrust - previousTrust),

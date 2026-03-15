@@ -1,10 +1,21 @@
 import type { FreshUpNarrativeLength } from '@/lib/fresh-up-narrative/types';
 import type { FreshUpWeeklyDigestAggregates, FreshUpWeeklyDigestType } from '@/lib/fresh-up-digest/types';
+import { buildRoleAdaptiveWeaknessLine } from '@/lib/ais-score-interpretation';
 
 function formatTrend(delta: number): string {
   if (delta > 1.5) return `improved ${delta.toFixed(1)} points`;
   if (delta < -1.5) return `declined ${Math.abs(delta).toFixed(1)} points`;
   return 'remained stable';
+}
+
+function metricNameFromLabel(label: string): 'empathy' | 'listening' | 'trust' | 'followUp' | 'closing' | 'relationship' {
+  const normalized = label.trim().toLowerCase().replace(/\s+/g, '');
+  if (normalized === 'empathy') return 'empathy';
+  if (normalized === 'listening') return 'listening';
+  if (normalized === 'trust') return 'trust';
+  if (normalized === 'followup') return 'followUp';
+  if (normalized === 'closing') return 'closing';
+  return 'relationship';
 }
 
 function headlineByType(input: {
@@ -18,7 +29,12 @@ function headlineByType(input: {
   if (input.digestType === 'version_monitoring_weekly') {
     return `Version monitoring shows trust ${trustTrend} with average Up Meter peak at ${input.aggregates.averageUpMeterPeak}.`;
   }
-  return `Trust ${trustTrend} this week, with ${input.aggregates.topStrength} leading and ${input.aggregates.topImprovementArea} still needing attention.`;
+  const roleWeaknessLine = buildRoleAdaptiveWeaknessLine({
+    roleType: input.aggregates.dominantRoleType,
+    metricName: metricNameFromLabel(input.aggregates.topImprovementArea),
+    concernCategory: input.aggregates.mostCommonConcernFriction,
+  });
+  return `Trust ${trustTrend} this week, with ${input.aggregates.topStrength} leading. ${roleWeaknessLine}`;
 }
 
 function baseInsights(input: {
@@ -30,6 +46,11 @@ function baseInsights(input: {
     `Total Fresh Up sessions: ${a.totalSessions} (${a.progressVsPreviousWeek.sessionDeltaPercent >= 0 ? '+' : ''}${a.progressVsPreviousWeek.sessionDeltaPercent}% vs previous week).`,
     `Average Up Meter Peak: ${a.averageUpMeterPeak} (${a.progressVsPreviousWeek.upMeterDelta >= 0 ? '+' : ''}${a.progressVsPreviousWeek.upMeterDelta} vs previous week).`,
     `Top strength: ${a.topStrength}. Primary growth area: ${a.topImprovementArea}.`,
+    buildRoleAdaptiveWeaknessLine({
+      roleType: a.dominantRoleType,
+      metricName: metricNameFromLabel(a.topImprovementArea),
+      concernCategory: a.mostCommonConcernFriction,
+    }),
     `Most common friction: ${a.mostCommonCustomerFriction}.`,
     `Friction drivers: archetype ${a.mostCommonArchetypeFriction}, concern ${a.mostCommonConcernFriction}.`,
   ];

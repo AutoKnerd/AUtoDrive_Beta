@@ -1,6 +1,7 @@
 import type { FreshUpExportFilters, FreshUpNormalizedSession } from '@/lib/fresh-up-export/types';
 import type { FreshUpNarrativeLength, FreshUpNarrativeResult } from '@/lib/fresh-up-narrative/types';
 import type { FreshUpBenchmarkResult } from '@/lib/fresh-up-benchmark/types';
+import type { AisRoleType } from '@/lib/definitions';
 
 export type FreshUpWeeklyDigestType =
   | 'dealer_weekly'
@@ -38,6 +39,7 @@ export type FreshUpWeeklyDigestAggregates = {
   mostCommonCustomerFriction: string;
   mostCommonArchetypeFriction: string;
   mostCommonConcernFriction: string;
+  dominantRoleType: AisRoleType;
   outcomes: {
     customerEngaged: number;
     trustEstablished: number;

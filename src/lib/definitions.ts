@@ -494,6 +494,7 @@ export type LessonLog = {
   closingDelta?: number;
   relationshipDelta?: number;
   roleType?: AisRoleType;
+  scoreBand?: 'Needs Immediate Support' | 'Below Standard' | 'Developing' | 'Strong' | 'Excellent';
   interactionDisplayLabel?: string;
   concernCategoryRoleSpecific?: string;
   nextStepType?: string;

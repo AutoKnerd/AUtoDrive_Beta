@@ -53,6 +53,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { runFreshUpQAMatrix, runFreshUpQAVersionComparison, storeFreshUpQATestRun, type FreshUpQASimulationConfig, type FreshUpQASessionResult, type FreshUpQASummary, type FreshUpQAVersionComparisonResult } from '@/lib/fresh-up-qa';
 import { evaluateFreshUpPromotionSafety, getFreshUpReleaseState, getFreshUpReleaseVersions, rollbackFreshUpProductionVersion, setFreshUpProductionVersion, setFreshUpSandboxDefaultVersion, type FreshUpReleaseSafetyCheck, type FreshUpReleaseVersion } from '@/lib/fresh-up-release';
 import { getAisInteractionLabel } from '@/lib/ais-role-adaptive';
+import { interpretAisScore, type AisMetricName } from '@/lib/ais-score-interpretation';
 
 type DashboardMode = 'role_based' | 'single_user';
 type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'operations' | 'sandbox' | 'danger';
@@ -221,6 +222,14 @@ const SANDBOX_COMMUNICATION_STYLES: Array<{ value: FreshUpSandboxConfig['communi
   { value: 'cautious', label: 'Cautious' },
   { value: 'rapid-fire questions', label: 'Rapid-Fire Questions' },
   { value: 'random', label: 'Random' },
+];
+const AIS_METRIC_OPTIONS: Array<{ value: AisMetricName; label: string }> = [
+  { value: 'empathy', label: 'Empathy' },
+  { value: 'listening', label: 'Listening' },
+  { value: 'trust', label: 'Trust' },
+  { value: 'followUp', label: 'Follow Up' },
+  { value: 'closing', label: 'Closing' },
+  { value: 'relationship', label: 'Relationship' },
 ];
 const QA_SOURCE_TYPES: Array<{ value: FreshUpQASimulationConfig['sourceType']; label: string }> = [
   { value: 'procedural', label: 'Procedural Customer' },
@@ -415,6 +424,19 @@ export default function DeveloperPage() {
   const [releaseLoading, setReleaseLoading] = useState(false);
   const [releaseBusy, setReleaseBusy] = useState(false);
   const [freshUpTestingControlsOpen, setFreshUpTestingControlsOpen] = useState(false);
+  const [scoreInterpretationTest, setScoreInterpretationTest] = useState<{
+    roleType: FreshUpSandboxConfig['roleType'];
+    metricName: AisMetricName;
+    metricValue: number;
+    concernCategory: string;
+    archetypeContext: string;
+  }>({
+    roleType: 'sales',
+    metricName: 'trust',
+    metricValue: 68,
+    concernCategory: 'price',
+    archetypeContext: 'skeptical',
+  });
   const sandboxDealershipStorageKey = useMemo(
     () => `managerDashboard:selectedDealershipId:${originalUser?.userId || user?.userId || 'sandbox'}`,
     [originalUser?.userId, user?.userId]
@@ -497,6 +519,18 @@ export default function DeveloperPage() {
     }
     router.push(`/lesson/${FRESH_UP_LESSON_ID}?${params.toString()}`);
   }, [freshUpSandboxConfig, router, sandboxVersionId]);
+
+  const scoreInterpretationPreview = useMemo(() => {
+    if (scoreInterpretationTest.roleType === 'random') return null;
+    return interpretAisScore({
+      roleType: scoreInterpretationTest.roleType,
+      metricName: scoreInterpretationTest.metricName,
+      metricValue: scoreInterpretationTest.metricValue,
+      concernCategory: scoreInterpretationTest.concernCategory || undefined,
+      archetypeContext: scoreInterpretationTest.archetypeContext || undefined,
+      interactionContext: getAisInteractionLabel(scoreInterpretationTest.roleType),
+    });
+  }, [scoreInterpretationTest]);
 
   const handleRunFreshUpQAMatrix = useCallback(async () => {
     setIsRunningQAMatrix(true);
@@ -1497,6 +1531,87 @@ export default function DeveloperPage() {
             <Button type="button" className="w-full md:w-auto" onClick={handleLaunchFreshUpSandbox}>
               Launch Fresh Up Test
             </Button>
+
+            <div className="space-y-3 rounded-md border p-3">
+              <div>
+                <p className="text-sm font-semibold">AIS Score Interpretation Sandbox</p>
+                <p className="text-xs text-muted-foreground">
+                  Test how the same score is interpreted across roles without changing raw numeric values.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select
+                    value={scoreInterpretationTest.roleType}
+                    onValueChange={(value) => setScoreInterpretationTest((prev) => ({
+                      ...prev,
+                      roleType: value as FreshUpSandboxConfig['roleType'],
+                    }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {SANDBOX_ROLE_TYPES.filter((item) => item.value !== 'random').map((item) => (
+                        <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Metric</Label>
+                  <Select
+                    value={scoreInterpretationTest.metricName}
+                    onValueChange={(value) => setScoreInterpretationTest((prev) => ({ ...prev, metricName: value as AisMetricName }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {AIS_METRIC_OPTIONS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Score</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={scoreInterpretationTest.metricValue}
+                    onChange={(event) => setScoreInterpretationTest((prev) => ({
+                      ...prev,
+                      metricValue: clampScore(Number(event.target.value)),
+                    }))}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Concern Category</Label>
+                  <Input
+                    value={scoreInterpretationTest.concernCategory}
+                    onChange={(event) => setScoreInterpretationTest((prev) => ({ ...prev, concernCategory: event.target.value }))}
+                    placeholder="e.g. price, repair timeline, availability, paperwork stress"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Archetype Context</Label>
+                  <Input
+                    value={scoreInterpretationTest.archetypeContext}
+                    onChange={(event) => setScoreInterpretationTest((prev) => ({ ...prev, archetypeContext: event.target.value }))}
+                    placeholder="e.g. skeptical"
+                  />
+                </div>
+              </div>
+              {scoreInterpretationPreview && (
+                <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground space-y-2">
+                  <p><span className="font-semibold text-foreground">Score Band:</span> {scoreInterpretationPreview.scoreBand}</p>
+                  <p><span className="font-semibold text-foreground">Meaning:</span> {scoreInterpretationPreview.displayMeaning}</p>
+                  <p><span className="font-semibold text-foreground">Role Interpretation:</span> {scoreInterpretationPreview.roleSpecificInterpretation}</p>
+                  <p><span className="font-semibold text-foreground">Feedback Line:</span> {scoreInterpretationPreview.feedbackLine}</p>
+                  <p><span className="font-semibold text-foreground">Coaching Example:</span> {scoreInterpretationPreview.coachingExample}</p>
+                  <p><span className="font-semibold text-foreground">Improvement Focus:</span> {scoreInterpretationPreview.recommendedImprovementFocus}</p>
+                </div>
+              )}
+            </div>
 
             <Collapsible className="rounded-md border">
               <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">

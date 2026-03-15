@@ -2894,6 +2894,7 @@ export async function logLessonCompletion(data: {
     isExperimental?: boolean;
     environment?: 'sandbox' | 'production';
     roleType?: LessonLog['roleType'];
+    scoreBand?: LessonLog['scoreBand'];
     interactionDisplayLabel?: LessonLog['interactionDisplayLabel'];
     concernCategoryRoleSpecific?: LessonLog['concernCategoryRoleSpecific'];
     nextStepType?: LessonLog['nextStepType'];
@@ -3059,6 +3060,7 @@ export async function logLessonCompletion(data: {
             isExperimental: typeof data.isExperimental === 'boolean' ? data.isExperimental : undefined,
             environment: data.environment,
             roleType: data.roleType,
+            scoreBand: data.scoreBand,
             interactionDisplayLabel: data.interactionDisplayLabel,
             concernCategoryRoleSpecific: data.concernCategoryRoleSpecific,
             nextStepType: data.nextStepType,
@@ -3242,6 +3244,9 @@ export async function logLessonCompletion(data: {
     }
     if (typeof data.roleType === 'string' && data.roleType.trim().length > 0) {
         newLogData.roleType = data.roleType;
+    }
+    if (typeof data.scoreBand === 'string' && data.scoreBand.trim().length > 0) {
+        newLogData.scoreBand = data.scoreBand;
     }
     if (typeof data.interactionDisplayLabel === 'string' && data.interactionDisplayLabel.trim().length > 0) {
         newLogData.interactionDisplayLabel = data.interactionDisplayLabel;
@@ -3533,6 +3538,7 @@ export async function logLessonCompletion(data: {
                 recommendedNextStep: data.recommendedNextStep ?? '',
                 trustShift: Number.isFinite(Number(data.trustShift)) ? Math.round(Number(data.trustShift)) : 0,
                 roleType: data.roleType ?? '',
+                scoreBand: data.scoreBand ?? '',
                 interactionDisplayLabel: data.interactionDisplayLabel ?? '',
                 concernCategoryRoleSpecific: data.concernCategoryRoleSpecific ?? data.primaryConcern ?? '',
                 nextStepType: data.nextStepType ?? data.recommendedNextStep ?? '',

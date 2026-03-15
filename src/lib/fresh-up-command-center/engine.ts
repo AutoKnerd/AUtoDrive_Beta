@@ -12,6 +12,7 @@ import type {
   FreshUpCommandCenterResult,
 } from '@/lib/fresh-up-command-center/types';
 import type { FreshUpNormalizedSession } from '@/lib/fresh-up-export/types';
+import { buildRoleAdaptiveWeaknessLine, inferAisRoleTypeFromSessions } from '@/lib/ais-score-interpretation';
 
 function avg(values: number[]): number {
   if (!values.length) return 0;
@@ -25,6 +26,20 @@ function round(value: number): number {
 function pct(numerator: number, denominator: number): number {
   if (!denominator) return 0;
   return (numerator / denominator) * 100;
+}
+
+function mostCommon(values: string[]): string {
+  const counts = new Map<string, number>();
+  values.filter(Boolean).forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  let winner = '';
+  let max = 0;
+  counts.forEach((count, value) => {
+    if (count > max) {
+      winner = value;
+      max = count;
+    }
+  });
+  return winner;
 }
 
 function splitWindows(rows: FreshUpNormalizedSession[]): { current: FreshUpNormalizedSession[]; previous: FreshUpNormalizedSession[] } {
@@ -322,6 +337,22 @@ export async function buildFreshUpCommandCenter(input: {
 
   const weakSkill = weakestSkill(current);
   const strongSkill = strongestSkill(current);
+  const dominantRoleType = inferAisRoleTypeFromSessions(current);
+  const roleAdaptiveWeakness = buildRoleAdaptiveWeaknessLine({
+    roleType: dominantRoleType,
+    metricName: weakSkill.label === 'Empathy'
+      ? 'empathy'
+      : weakSkill.label === 'Listening'
+        ? 'listening'
+        : weakSkill.label === 'Trust'
+          ? 'trust'
+          : weakSkill.label === 'Follow Up'
+            ? 'followUp'
+            : weakSkill.label === 'Closing'
+              ? 'closing'
+              : 'relationship',
+    concernCategory: mostCommon(current.map((row) => row.primaryConcern)) || undefined,
+  });
   const topRisk = risks[0];
   const topGoalAtRisk = goals.filter((goal) => goal.status === 'at_risk' || goal.status === 'stalled')[0];
 
@@ -357,7 +388,7 @@ export async function buildFreshUpCommandCenter(input: {
     ? `${coachingIntelligence.message} ${coachingIntelligence.recommendedPractice}`
     : (topRisk
       ? `${topRisk.message} Priority coaching move: ${topRisk.recommendedAction}`
-      : `Current strongest area is ${strongSkill.label}. Main growth focus is ${weakSkill.label}, especially in the conversations losing momentum.`);
+      : `Current strongest area is ${strongSkill.label}. ${roleAdaptiveWeakness}`);
 
   const autoforgeModule = coachingIntelligence?.suggestedAutoForgeModule || 'Trust Through Discovery';
   const autoforgeReason = coachingIntelligence
