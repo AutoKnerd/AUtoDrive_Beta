@@ -777,7 +777,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
         ) : showCriticalOnly ? (
             <Card>
                 <CardHeader>
-                    <CardTitle>Dealer Critical Summary</CardTitle>
+                    <CardTitle>Performance Intelligence</CardTitle>
                     <CardDescription>
                         {`This user shares only top strength, area for improvement, and ${insightLabel.toLowerCase()} with leadership.`}
                     </CardDescription>
@@ -820,7 +820,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
             <>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Dealer Critical Summary</CardTitle>
+                        <CardTitle>Performance Intelligence</CardTitle>
                         <CardDescription>
                           {`Weighted by recent activity, with ${interactionLabel} results carrying extra influence.`}
                         </CardDescription>
