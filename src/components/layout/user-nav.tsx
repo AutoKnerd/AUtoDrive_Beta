@@ -260,6 +260,12 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                 <Home className="mr-2 h-4 w-4" />
                 <span>Training Dashboard</span>
             </DropdownMenuItem>
+            {(user.role === 'Admin' || user.role === 'Developer') && (
+              <DropdownMenuItem onSelect={() => router.push('/admin/intelligence')}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                <span>Admin Intelligence</span>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={() => router.push('/profile')}>
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>Profile</span>

@@ -7,7 +7,7 @@ import { useAuth as useFirebaseAuth } from '@/firebase';
 import { ConsultantDashboard } from '@/components/dashboard/consultant-dashboard';
 import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { Spinner } from '@/components/ui/spinner';
-import { allRoles, managerialRoles, UserRole, User, Dealership } from '@/lib/definitions';
+import { allRoles, managerialRoles, UserRole, User, Dealership, FreshUpArchetypeCategory, FreshUpSandboxConfig } from '@/lib/definitions';
 import { hasDealershipAssignment } from '@/lib/billing/access';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,6 +46,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { FRESH_UP_LESSON_ID } from '@/lib/fresh-up';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { runFreshUpQAMatrix, runFreshUpQAVersionComparison, storeFreshUpQATestRun, type FreshUpQASimulationConfig, type FreshUpQASessionResult, type FreshUpQASummary, type FreshUpQAVersionComparisonResult } from '@/lib/fresh-up-qa';
+import { evaluateFreshUpPromotionSafety, getFreshUpReleaseState, getFreshUpReleaseVersions, rollbackFreshUpProductionVersion, setFreshUpProductionVersion, setFreshUpSandboxDefaultVersion, type FreshUpReleaseSafetyCheck, type FreshUpReleaseVersion } from '@/lib/fresh-up-release';
 
 type DashboardMode = 'role_based' | 'single_user';
 type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'operations' | 'sandbox' | 'danger';
@@ -146,10 +152,147 @@ const TOOLS: Array<{ id: ToolId; label: string; section: SectionId }> = [
 ];
 
 const BOTTOM_NAV_SECTIONS: SectionId[] = ['overview', 'access', 'organizations', 'consultants'];
+const SANDBOX_SOURCE_TYPES: Array<{ value: FreshUpSandboxConfig['sourceType']; label: string }> = [
+  { value: 'procedural', label: 'Procedural Customer' },
+  { value: 'signature', label: 'Signature Scenario' },
+  { value: 'random', label: 'Random' },
+];
+const SANDBOX_DIFFICULTIES: Array<{ value: FreshUpSandboxConfig['difficulty']; label: string }> = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+  { value: 'random', label: 'Random' },
+];
+const SANDBOX_VEHICLES: Array<{ value: FreshUpSandboxConfig['vehicleInterest']; label: string }> = [
+  { value: 'SUV', label: 'SUV' },
+  { value: 'truck', label: 'Truck' },
+  { value: 'sedan', label: 'Sedan' },
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'EV', label: 'EV' },
+  { value: 'performance vehicle', label: 'Performance Vehicle' },
+  { value: 'family vehicle', label: 'Family Vehicle' },
+  { value: 'random', label: 'Random' },
+];
+const SANDBOX_PRIMARY_CONCERNS: Array<{ value: FreshUpSandboxConfig['primaryConcern']; label: string }> = [
+  { value: 'price', label: 'Price' },
+  { value: 'trade value', label: 'Trade Value' },
+  { value: 'monthly payment', label: 'Monthly Payment' },
+  { value: 'reliability', label: 'Reliability' },
+  { value: 'technology confusion', label: 'Technology Confusion' },
+  { value: 'fuel economy', label: 'Fuel Economy' },
+  { value: 'safety', label: 'Safety' },
+  { value: 'time efficiency', label: 'Time Efficiency' },
+  { value: 'random', label: 'Random' },
+];
+const SANDBOX_MOODS: Array<{ value: FreshUpSandboxConfig['startingMood']; label: string }> = [
+  { value: 'cautious', label: 'Cautious' },
+  { value: 'curious', label: 'Curious' },
+  { value: 'stressed', label: 'Stressed' },
+  { value: 'excited', label: 'Excited' },
+  { value: 'guarded', label: 'Guarded' },
+  { value: 'frustrated', label: 'Frustrated' },
+  { value: 'optimistic', label: 'Optimistic' },
+  { value: 'random', label: 'Random' },
+];
+const SANDBOX_PERSONALITIES: Array<{ value: FreshUpSandboxConfig['personalityType']; label: string }> = [
+  { value: 'analytical', label: 'Analytical' },
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'skeptical', label: 'Skeptical' },
+  { value: 'impatient', label: 'Impatient' },
+  { value: 'overwhelmed', label: 'Overwhelmed' },
+  { value: 'excited', label: 'Excited' },
+  { value: 'defensive', label: 'Defensive' },
+  { value: 'random', label: 'Random' },
+];
+const SANDBOX_COMMUNICATION_STYLES: Array<{ value: FreshUpSandboxConfig['communicationStyle']; label: string }> = [
+  { value: 'talkative', label: 'Talkative' },
+  { value: 'reserved', label: 'Reserved' },
+  { value: 'direct', label: 'Direct' },
+  { value: 'sarcastic', label: 'Sarcastic' },
+  { value: 'story-driven', label: 'Story-Driven' },
+  { value: 'cautious', label: 'Cautious' },
+  { value: 'rapid-fire questions', label: 'Rapid-Fire Questions' },
+  { value: 'random', label: 'Random' },
+];
+const QA_SOURCE_TYPES: Array<{ value: FreshUpQASimulationConfig['sourceType']; label: string }> = [
+  { value: 'procedural', label: 'Procedural Customer' },
+  { value: 'signature', label: 'Signature Scenario' },
+  { value: 'mixed', label: 'Mixed' },
+];
+const QA_DIFFICULTY_RANGES: Array<{ value: FreshUpQASimulationConfig['difficultyRange']; label: string }> = [
+  { value: 'easy', label: 'Easy Only' },
+  { value: 'medium', label: 'Medium Only' },
+  { value: 'hard', label: 'Hard Only' },
+  { value: 'mixed', label: 'Mixed' },
+];
+const QA_VEHICLE_OPTIONS = [
+  { value: 'SUV', label: 'SUV' },
+  { value: 'truck', label: 'Truck' },
+  { value: 'sedan', label: 'Sedan' },
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'EV', label: 'EV' },
+  { value: 'performance vehicle', label: 'Performance' },
+  { value: 'family vehicle', label: 'Family Vehicle' },
+  { value: 'Random', label: 'Random' },
+];
+const QA_PRIMARY_CONCERN_OPTIONS = [
+  { value: 'price', label: 'Price' },
+  { value: 'trade value', label: 'Trade Value' },
+  { value: 'monthly payment', label: 'Monthly Payment' },
+  { value: 'reliability', label: 'Reliability' },
+  { value: 'technology confusion', label: 'Technology Confusion' },
+  { value: 'fuel economy', label: 'Fuel Economy' },
+  { value: 'safety', label: 'Safety' },
+  { value: 'time efficiency', label: 'Time Efficiency' },
+];
+const QA_PERSONALITY_OPTIONS = [
+  { value: 'analytical', label: 'Analytical' },
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'skeptical', label: 'Skeptical' },
+  { value: 'impatient', label: 'Impatient' },
+  { value: 'overwhelmed', label: 'Overwhelmed' },
+  { value: 'excited', label: 'Excited' },
+  { value: 'defensive', label: 'Defensive' },
+];
+const QA_COMMUNICATION_OPTIONS = [
+  { value: 'talkative', label: 'Talkative' },
+  { value: 'reserved', label: 'Reserved' },
+  { value: 'direct', label: 'Direct' },
+  { value: 'sarcastic', label: 'Sarcastic' },
+  { value: 'story-driven', label: 'Story Driven' },
+  { value: 'cautious', label: 'Cautious' },
+  { value: 'rapid-fire questions', label: 'Rapid Fire Questions' },
+];
+const QA_MOOD_OPTIONS = [
+  { value: 'cautious', label: 'Cautious' },
+  { value: 'curious', label: 'Curious' },
+  { value: 'stressed', label: 'Stressed' },
+  { value: 'excited', label: 'Excited' },
+  { value: 'guarded', label: 'Guarded' },
+  { value: 'frustrated', label: 'Frustrated' },
+  { value: 'optimistic', label: 'Optimistic' },
+];
+const QA_ARCHETYPE_CATEGORY_OPTIONS: Array<{ value: FreshUpArchetypeCategory; label: string }> = [
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'curious', label: 'Curious' },
+  { value: 'funny', label: 'Funny' },
+  { value: 'analytical', label: 'Analytical' },
+  { value: 'skeptical', label: 'Skeptical' },
+  { value: 'budget_focused', label: 'Budget Focused' },
+  { value: 'high_stakes', label: 'High Stakes' },
+  { value: 'family_complex', label: 'Family Complex' },
+  { value: 'emotional', label: 'Emotional' },
+  { value: 'unusual', label: 'Unusual' },
+];
 
 function clampScore(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function togglePoolValue(pool: string[], value: string): string[] {
+  if (pool.includes(value)) return pool.filter((item) => item !== value);
+  return [...pool, value];
 }
 
 function buildLiveCxScoresFromUser(user: User): LiveCxScores {
@@ -221,6 +364,47 @@ export default function DeveloperPage() {
   const [consultantMetricsError, setConsultantMetricsError] = useState<string | null>(null);
   const [consultantMetricsLastRefreshedAt, setConsultantMetricsLastRefreshedAt] = useState<Date | null>(null);
   const [consultantCommissionDueById, setConsultantCommissionDueById] = useState<Record<string, number>>({});
+  const [freshUpSandboxConfig, setFreshUpSandboxConfig] = useState<FreshUpSandboxConfig>({
+    enabled: false,
+    sourceType: 'random',
+    difficulty: 'random',
+    vehicleInterest: 'random',
+    primaryConcern: 'random',
+    startingMood: 'random',
+    personalityType: 'random',
+    communicationStyle: 'random',
+    forceProfileIdOrName: '',
+    forceArchetypeIdOrName: '',
+    startingUpMeter: 35,
+    memoryDebugMode: false,
+    scoringDebugMode: false,
+    saveSessionToLiveAnalytics: false,
+  });
+  const [qaConfig, setQaConfig] = useState<FreshUpQASimulationConfig>({
+    sessionsToRun: 20,
+    sourceType: 'mixed',
+    difficultyRange: 'mixed',
+    vehicleInterestPool: ['SUV', 'truck', 'sedan', 'hybrid', 'EV', 'performance vehicle', 'family vehicle'],
+    primaryConcernPool: ['price', 'trade value', 'monthly payment', 'reliability', 'technology confusion', 'fuel economy', 'safety', 'time efficiency'],
+    personalityPool: ['analytical', 'friendly', 'skeptical', 'impatient', 'overwhelmed', 'excited', 'defensive'],
+    communicationStylePool: ['talkative', 'reserved', 'direct', 'sarcastic', 'story-driven', 'cautious', 'rapid-fire questions'],
+    moodPool: ['cautious', 'curious', 'stressed', 'excited', 'guarded', 'frustrated', 'optimistic'],
+    archetypeCategoryPool: ['friendly', 'curious', 'funny', 'analytical', 'skeptical', 'budget_focused', 'high_stakes', 'family_complex', 'emotional', 'unusual'],
+  });
+  const [isRunningQAMatrix, setIsRunningQAMatrix] = useState(false);
+  const [qaSummary, setQaSummary] = useState<FreshUpQASummary | null>(null);
+  const [qaComparison, setQaComparison] = useState<FreshUpQAVersionComparisonResult | null>(null);
+  const [selectedQASessionId, setSelectedQASessionId] = useState<string | null>(null);
+  const [freshUpVersions, setFreshUpVersions] = useState<FreshUpReleaseVersion[]>([]);
+  const [releaseChecks, setReleaseChecks] = useState<FreshUpReleaseSafetyCheck[]>([]);
+  const [productionVersionId, setProductionVersionId] = useState<string>('');
+  const [sandboxVersionId, setSandboxVersionId] = useState<string>('');
+  const [qaCompareEnabled, setQaCompareEnabled] = useState(false);
+  const [qaCompareLeftVersionId, setQaCompareLeftVersionId] = useState<string>('');
+  const [qaCompareRightVersionId, setQaCompareRightVersionId] = useState<string>('');
+  const [releaseLoading, setReleaseLoading] = useState(false);
+  const [releaseBusy, setReleaseBusy] = useState(false);
+  const [freshUpTestingControlsOpen, setFreshUpTestingControlsOpen] = useState(false);
   const sandboxDealershipStorageKey = useMemo(
     () => `managerDashboard:selectedDealershipId:${originalUser?.userId || user?.userId || 'sandbox'}`,
     [originalUser?.userId, user?.userId]
@@ -240,6 +424,228 @@ export default function DeveloperPage() {
       localStorage.setItem(sandboxDealershipStorageKey, value);
     }
   }, [sandboxDealershipStorageKey]);
+
+  const loadFreshUpReleaseConfig = useCallback(async () => {
+    setReleaseLoading(true);
+    try {
+      const [versions, state] = await Promise.all([
+        getFreshUpReleaseVersions(),
+        getFreshUpReleaseState(),
+      ]);
+      setFreshUpVersions(versions);
+      setProductionVersionId(state.productionVersionId || versions[0]?.versionId || '');
+      const defaultSandbox = state.sandboxDefaultVersionId || versions[0]?.versionId || '';
+      setSandboxVersionId(defaultSandbox);
+      if (!qaCompareLeftVersionId) {
+        setQaCompareLeftVersionId(state.productionVersionId || versions[0]?.versionId || '');
+      }
+      if (!qaCompareRightVersionId) {
+        setQaCompareRightVersionId(defaultSandbox);
+      }
+    } finally {
+      setReleaseLoading(false);
+    }
+  }, [qaCompareLeftVersionId, qaCompareRightVersionId]);
+
+  useEffect(() => {
+    if (!loading && originalUser && (originalUser.role === 'Developer' || originalUser.role === 'Admin')) {
+      void loadFreshUpReleaseConfig();
+    }
+  }, [loading, originalUser, loadFreshUpReleaseConfig]);
+
+  const handleLaunchFreshUpSandbox = useCallback(() => {
+    if (!freshUpSandboxConfig.enabled) {
+      router.push(`/lesson/${FRESH_UP_LESSON_ID}?freshUp=true`);
+      return;
+    }
+    const params = new URLSearchParams();
+    params.set('freshUp', 'true');
+    params.set('sandboxFreshUp', 'true');
+    params.set('sandboxSourceType', freshUpSandboxConfig.sourceType);
+    params.set('sandboxDifficulty', freshUpSandboxConfig.difficulty);
+    params.set('sandboxVehicleInterest', freshUpSandboxConfig.vehicleInterest);
+    params.set('sandboxPrimaryConcern', freshUpSandboxConfig.primaryConcern);
+    params.set('sandboxStartingMood', freshUpSandboxConfig.startingMood);
+    params.set('sandboxPersonalityType', freshUpSandboxConfig.personalityType);
+    params.set('sandboxCommunicationStyle', freshUpSandboxConfig.communicationStyle);
+    params.set('sandboxStartingUpMeter', String(Math.max(0, Math.min(100, Math.round(Number(freshUpSandboxConfig.startingUpMeter || 35))))));
+    params.set('sandboxMemoryDebug', freshUpSandboxConfig.memoryDebugMode ? 'true' : 'false');
+    params.set('sandboxScoringDebug', freshUpSandboxConfig.scoringDebugMode ? 'true' : 'false');
+    params.set('sandboxSaveLive', freshUpSandboxConfig.saveSessionToLiveAnalytics ? 'true' : 'false');
+    if (sandboxVersionId) {
+      params.set('sandboxVersionId', sandboxVersionId);
+    }
+    if (freshUpSandboxConfig.forceProfileIdOrName && freshUpSandboxConfig.forceProfileIdOrName.trim().length > 0) {
+      params.set('sandboxForceProfile', freshUpSandboxConfig.forceProfileIdOrName.trim());
+    }
+    if (freshUpSandboxConfig.forceArchetypeIdOrName && freshUpSandboxConfig.forceArchetypeIdOrName.trim().length > 0) {
+      params.set('sandboxForceArchetype', freshUpSandboxConfig.forceArchetypeIdOrName.trim());
+    }
+    router.push(`/lesson/${FRESH_UP_LESSON_ID}?${params.toString()}`);
+  }, [freshUpSandboxConfig, router, sandboxVersionId]);
+
+  const handleRunFreshUpQAMatrix = useCallback(async () => {
+    setIsRunningQAMatrix(true);
+    try {
+      const selectedVersionForRun = freshUpVersions.find((version) => version.versionId === sandboxVersionId);
+      const resolvedConfig: FreshUpQASimulationConfig = {
+        ...qaConfig,
+        freshUpVersionId: selectedVersionForRun?.versionId || undefined,
+        freshUpVersionName: selectedVersionForRun?.versionName || undefined,
+        featureToggles: selectedVersionForRun?.toggles,
+      };
+      const summary = runFreshUpQAMatrix(resolvedConfig);
+      const qaDealerId = sandboxDealershipId !== 'all'
+        ? sandboxDealershipId
+        : (user?.selfDeclaredDealershipId || user?.dealershipIds?.[0] || undefined);
+      await storeFreshUpQATestRun({
+        runId: summary.runId,
+        dealerId: qaDealerId,
+        sessions: summary.sessions,
+      });
+      setQaSummary(summary);
+      setQaComparison(null);
+      setSelectedQASessionId(summary.flaggedSessions[0]?.simulationID ?? null);
+      if (qaCompareEnabled && qaCompareLeftVersionId && qaCompareRightVersionId) {
+        const leftVersion = freshUpVersions.find((version) => version.versionId === qaCompareLeftVersionId);
+        const rightVersion = freshUpVersions.find((version) => version.versionId === qaCompareRightVersionId);
+        if (leftVersion && rightVersion) {
+          const comparison = runFreshUpQAVersionComparison({
+            baseConfig: qaConfig,
+            leftVersion: {
+              versionId: leftVersion.versionId,
+              versionName: leftVersion.versionName,
+              toggles: leftVersion.toggles,
+            },
+            rightVersion: {
+              versionId: rightVersion.versionId,
+              versionName: rightVersion.versionName,
+              toggles: rightVersion.toggles,
+            },
+          });
+          setQaComparison(comparison);
+          await Promise.all([
+            storeFreshUpQATestRun({
+              runId: comparison.left.runId,
+              dealerId: qaDealerId,
+              sessions: comparison.left.sessions,
+            }),
+            storeFreshUpQATestRun({
+              runId: comparison.right.runId,
+              dealerId: qaDealerId,
+              sessions: comparison.right.sessions,
+            }),
+          ]);
+        }
+      }
+      toast({
+        title: 'Fresh Up QA Matrix Complete',
+        description: qaCompareEnabled
+          ? `Ran ${summary.totalSessionsRun} simulations plus version comparison runs and stored results in freshUpQATests.`
+          : `Ran ${summary.totalSessionsRun} simulations and stored results in freshUpQATests.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'QA Simulation Failed',
+        description: error?.message || 'Unable to complete Fresh Up QA simulation.',
+      });
+    } finally {
+      setIsRunningQAMatrix(false);
+    }
+  }, [qaConfig, sandboxDealershipId, user?.selfDeclaredDealershipId, user?.dealershipIds, toast, sandboxVersionId, freshUpVersions, qaCompareEnabled, qaCompareLeftVersionId, qaCompareRightVersionId]);
+
+  const handleSetSandboxVersion = useCallback(async (versionId: string) => {
+    if (!user) return;
+    setSandboxVersionId(versionId);
+    setReleaseBusy(true);
+    try {
+      await setFreshUpSandboxDefaultVersion({
+        versionId,
+        updatedBy: user.userId,
+      });
+      toast({
+        title: 'Sandbox Version Updated',
+        description: 'Fresh Up sandbox default version has been updated.',
+      });
+      await loadFreshUpReleaseConfig();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Sandbox version update failed',
+        description: error?.message || 'Unable to update sandbox default version.',
+      });
+    } finally {
+      setReleaseBusy(false);
+    }
+  }, [loadFreshUpReleaseConfig, toast, user]);
+
+  const handlePromoteVersion = useCallback(async (versionId: string) => {
+    if (!user) return;
+    setReleaseBusy(true);
+    try {
+      const result = await setFreshUpProductionVersion({
+        versionId,
+        updatedBy: user.userId,
+        enforceSafety: true,
+      });
+      setReleaseChecks(result.checks);
+      if (!result.promoted) {
+        toast({
+          variant: 'destructive',
+          title: 'Promotion blocked by safety checks',
+          description: 'Resolve failed checks before promoting this version to production.',
+        });
+        return;
+      }
+      toast({
+        title: 'Production Version Updated',
+        description: 'Fresh Up production version has been promoted successfully.',
+      });
+      await loadFreshUpReleaseConfig();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Promotion failed',
+        description: error?.message || 'Unable to promote selected version.',
+      });
+    } finally {
+      setReleaseBusy(false);
+    }
+  }, [loadFreshUpReleaseConfig, toast, user]);
+
+  const handlePreviewSafetyChecks = useCallback(async (versionId: string) => {
+    setReleaseBusy(true);
+    try {
+      const version = freshUpVersions.find((entry) => entry.versionId === versionId);
+      if (!version) return;
+      const checks = await evaluateFreshUpPromotionSafety(version);
+      setReleaseChecks(checks);
+    } finally {
+      setReleaseBusy(false);
+    }
+  }, [freshUpVersions]);
+
+  const handleRollbackProduction = useCallback(async () => {
+    if (!user) return;
+    setReleaseBusy(true);
+    try {
+      await rollbackFreshUpProductionVersion(user.userId);
+      toast({
+        title: 'Production Rollback Complete',
+        description: 'Fresh Up reverted to the previous stable version.',
+      });
+      await loadFreshUpReleaseConfig();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Rollback failed',
+        description: error?.message || 'Unable to roll back production version.',
+      });
+    } finally {
+      setReleaseBusy(false);
+    }
+  }, [loadFreshUpReleaseConfig, toast, user]);
 
   const refreshData = useCallback(async () => {
     if (!originalUser) return;
@@ -500,6 +906,19 @@ export default function DeveloperPage() {
   const isViewingAsManager = managerialRoles.includes(dashboardUser.role);
   const canSeeDeveloperCxTuner = originalUser?.role === 'Developer';
   const showDeveloperCxTuner = canSeeDeveloperCxTuner && dashboardMode === 'single_user';
+  const selectedQASession: FreshUpQASessionResult | null = useMemo(() => {
+    if (!qaSummary) return null;
+    if (selectedQASessionId) {
+      return qaSummary.sessions.find((session) => session.simulationID === selectedQASessionId) ?? null;
+    }
+    return qaSummary.sessions[0] ?? null;
+  }, [qaSummary, selectedQASessionId]);
+  const freshUpVersionById = useMemo(() => (
+    new Map(freshUpVersions.map((version) => [version.versionId, version]))
+  ), [freshUpVersions]);
+  const activeProductionVersion = productionVersionId ? (freshUpVersionById.get(productionVersionId) ?? null) : null;
+  const selectedSandboxVersion = sandboxVersionId ? (freshUpVersionById.get(sandboxVersionId) ?? null) : null;
+  const qaMatrixEnabledForSelectedVersion = selectedSandboxVersion?.toggles.enableQAMatrix !== false;
 
   const dealershipNameById = useMemo(() => (
     new Map(allDealerships.map((dealership) => [dealership.id, dealership.name]))
@@ -786,6 +1205,613 @@ export default function DeveloperPage() {
             <span className="text-xs text-muted-foreground">Sandbox only. Opens the Sprocket First Login Tour without baseline submission.</span>
           )}
         </div>
+        <Collapsible open={freshUpTestingControlsOpen} onOpenChange={setFreshUpTestingControlsOpen}>
+          <Card className="mt-6 border-primary/40">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base">Fresh Up Testing Controls</CardTitle>
+                  <CardDescription>
+                    Controlled Fresh Up testing for admins and developers. Test sessions stay out of live analytics unless explicitly enabled.
+                  </CardDescription>
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="outline" size="sm">
+                    {freshUpTestingControlsOpen ? 'Collapse' : 'Expand'}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="space-y-5">
+            <div className="rounded-md border p-4 space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold">Fresh Up Release Version Selector</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose sandbox version, preview promotion safety checks, and promote or roll back without code changes.
+                  </p>
+                </div>
+                {(releaseLoading || releaseBusy) && <Spinner size="sm" />}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Sandbox Version</Label>
+                  <Select
+                    value={sandboxVersionId || ''}
+                    onValueChange={(value) => { void handleSetSandboxVersion(value); }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select sandbox version" /></SelectTrigger>
+                    <SelectContent>
+                      {freshUpVersions.map((version) => (
+                        <SelectItem key={version.versionId} value={version.versionId}>
+                          {version.versionName} ({version.status})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Production Active Version</Label>
+                  <div className="rounded border bg-muted/40 px-3 py-2 text-sm">
+                    {activeProductionVersion ? `${activeProductionVersion.versionName} (${activeProductionVersion.status})` : 'Not set'}
+                  </div>
+                </div>
+              </div>
+              {sandboxVersionId && freshUpVersionById.get(sandboxVersionId) && (
+                <div className="rounded border bg-muted/20 p-3">
+                  <p className="text-xs font-medium">Selected Version Notes</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{freshUpVersionById.get(sandboxVersionId)?.notes || 'No notes provided.'}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Enabled Toggles: {Object.entries(freshUpVersionById.get(sandboxVersionId)?.toggles || {}).filter(([, enabled]) => enabled).map(([key]) => key).join(', ') || 'None'}
+                  </p>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!sandboxVersionId || releaseBusy}
+                  onClick={() => { if (sandboxVersionId) void handlePreviewSafetyChecks(sandboxVersionId); }}
+                >
+                  Run Promotion Safety Check
+                </Button>
+                <Button
+                  type="button"
+                  disabled={!sandboxVersionId || releaseBusy}
+                  onClick={() => { if (sandboxVersionId) void handlePromoteVersion(sandboxVersionId); }}
+                >
+                  Promote Selected to Production
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={releaseBusy}
+                  onClick={() => { void handleRollbackProduction(); }}
+                >
+                  Roll Back Production
+                </Button>
+              </div>
+              {releaseChecks.length > 0 && (
+                <div className="rounded border p-3 space-y-1">
+                  <p className="text-xs font-medium">Promotion Safety Checks</p>
+                  {releaseChecks.map((check) => (
+                    <p key={check.key} className="text-xs text-muted-foreground">
+                      {check.passed ? 'PASS' : 'FAIL'} · {check.label}{check.details ? ` — ${check.details}` : ''}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <p className="text-sm font-medium">Enable Fresh Up Test Mode</p>
+                <p className="text-xs text-muted-foreground">Bypasses normal Up Meter eligibility and launches Fresh Up with the selected test parameters.</p>
+              </div>
+              <Switch
+                checked={freshUpSandboxConfig.enabled}
+                onCheckedChange={(checked) => setFreshUpSandboxConfig((prev) => ({ ...prev, enabled: checked }))}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Source Type</Label>
+                <Select
+                  value={freshUpSandboxConfig.sourceType}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({ ...prev, sourceType: value as FreshUpSandboxConfig['sourceType'] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SANDBOX_SOURCE_TYPES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Difficulty</Label>
+                <Select
+                  value={freshUpSandboxConfig.difficulty}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({ ...prev, difficulty: value as FreshUpSandboxConfig['difficulty'] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SANDBOX_DIFFICULTIES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Vehicle Interest</Label>
+                <Select
+                  value={freshUpSandboxConfig.vehicleInterest}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({ ...prev, vehicleInterest: value as FreshUpSandboxConfig['vehicleInterest'] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SANDBOX_VEHICLES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Primary Concern</Label>
+                <Select
+                  value={freshUpSandboxConfig.primaryConcern}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({ ...prev, primaryConcern: value as FreshUpSandboxConfig['primaryConcern'] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SANDBOX_PRIMARY_CONCERNS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Starting Mood</Label>
+                <Select
+                  value={freshUpSandboxConfig.startingMood}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({ ...prev, startingMood: value as FreshUpSandboxConfig['startingMood'] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SANDBOX_MOODS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Personality Type</Label>
+                <Select
+                  value={freshUpSandboxConfig.personalityType}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({ ...prev, personalityType: value as FreshUpSandboxConfig['personalityType'] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SANDBOX_PERSONALITIES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Communication Style</Label>
+                <Select
+                  value={freshUpSandboxConfig.communicationStyle}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({ ...prev, communicationStyle: value as FreshUpSandboxConfig['communicationStyle'] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SANDBOX_COMMUNICATION_STYLES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Starting Up Meter</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={freshUpSandboxConfig.startingUpMeter}
+                  onChange={(event) => setFreshUpSandboxConfig((prev) => ({ ...prev, startingUpMeter: clampScore(Number(event.target.value)) }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Force Character / Scenario (Optional)</Label>
+                <Input
+                  value={freshUpSandboxConfig.forceProfileIdOrName || ''}
+                  onChange={(event) => setFreshUpSandboxConfig((prev) => ({ ...prev, forceProfileIdOrName: event.target.value }))}
+                  placeholder="e.g. sig-trade-in-skeptic or scenario name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Force Archetype (Optional)</Label>
+                <Input
+                  value={freshUpSandboxConfig.forceArchetypeIdOrName || ''}
+                  onChange={(event) => setFreshUpSandboxConfig((prev) => ({ ...prev, forceArchetypeIdOrName: event.target.value }))}
+                  placeholder="e.g. funny-dad-joke-machine or archetype name"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <p className="text-sm font-medium">Memory Debug Mode</p>
+                  <p className="text-xs text-muted-foreground">Expose post-session memory state panels.</p>
+                </div>
+                <Switch
+                  checked={freshUpSandboxConfig.memoryDebugMode}
+                  onCheckedChange={(checked) => setFreshUpSandboxConfig((prev) => ({ ...prev, memoryDebugMode: checked }))}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <p className="text-sm font-medium">Scoring Debug Mode</p>
+                  <p className="text-xs text-muted-foreground">Expose post-session scoring movement panels.</p>
+                </div>
+                <Switch
+                  checked={freshUpSandboxConfig.scoringDebugMode}
+                  onCheckedChange={(checked) => setFreshUpSandboxConfig((prev) => ({ ...prev, scoringDebugMode: checked }))}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <p className="text-sm font-medium">Save Session to Live Analytics</p>
+                  <p className="text-xs text-muted-foreground">Off by default to avoid contaminating production analytics.</p>
+                </div>
+                <Switch
+                  checked={freshUpSandboxConfig.saveSessionToLiveAnalytics}
+                  onCheckedChange={(checked) => setFreshUpSandboxConfig((prev) => ({ ...prev, saveSessionToLiveAnalytics: checked }))}
+                />
+              </div>
+            </div>
+
+            <Button type="button" className="w-full md:w-auto" onClick={handleLaunchFreshUpSandbox}>
+              Launch Fresh Up Test
+            </Button>
+
+            <Collapsible className="rounded-md border">
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
+                <div>
+                  <p className="text-sm font-semibold">Fresh Up QA Matrix</p>
+                  <p className="text-xs text-muted-foreground">Run silent simulation batches to stress-test Fresh Up behavior combinations.</p>
+                </div>
+                <Badge variant="secondary">Developer QA</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-5 border-t px-4 py-4">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>Number of Simulated Sessions</Label>
+                      <Input
+                        type="number"
+                        min={5}
+                        max={200}
+                        value={qaConfig.sessionsToRun}
+                        onChange={(event) => setQaConfig((prev) => ({ ...prev, sessionsToRun: Math.max(5, Math.min(200, Math.round(Number(event.target.value || 20)))) }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Source Type</Label>
+                      <Select value={qaConfig.sourceType} onValueChange={(value) => setQaConfig((prev) => ({ ...prev, sourceType: value as FreshUpQASimulationConfig['sourceType'] }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {QA_SOURCE_TYPES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Difficulty Range</Label>
+                      <Select value={qaConfig.difficultyRange} onValueChange={(value) => setQaConfig((prev) => ({ ...prev, difficultyRange: value as FreshUpQASimulationConfig['difficultyRange'] }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {QA_DIFFICULTY_RANGES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">QA Version Comparison</p>
+                        <p className="text-xs text-muted-foreground">Run side-by-side QA between two Fresh Up versions.</p>
+                      </div>
+                      <Switch checked={qaCompareEnabled} onCheckedChange={setQaCompareEnabled} />
+                    </div>
+                    {qaCompareEnabled && (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Version A</Label>
+                          <Select value={qaCompareLeftVersionId} onValueChange={setQaCompareLeftVersionId}>
+                            <SelectTrigger><SelectValue placeholder="Select version" /></SelectTrigger>
+                            <SelectContent>
+                              {freshUpVersions.map((version) => (
+                                <SelectItem key={`qa-left-${version.versionId}`} value={version.versionId}>
+                                  {version.versionName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Version B</Label>
+                          <Select value={qaCompareRightVersionId} onValueChange={setQaCompareRightVersionId}>
+                            <SelectTrigger><SelectValue placeholder="Select version" /></SelectTrigger>
+                            <SelectContent>
+                              {freshUpVersions.map((version) => (
+                                <SelectItem key={`qa-right-${version.versionId}`} value={version.versionId}>
+                                  {version.versionName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-md border p-3">
+                      <p className="mb-2 text-sm font-medium">Vehicle Interest Pool</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {QA_VEHICLE_OPTIONS.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={qaConfig.vehicleInterestPool.includes(option.value)}
+                              onCheckedChange={() => setQaConfig((prev) => ({ ...prev, vehicleInterestPool: togglePoolValue(prev.vehicleInterestPool, option.value) }))}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="mb-2 text-sm font-medium">Primary Concern Pool</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {QA_PRIMARY_CONCERN_OPTIONS.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={qaConfig.primaryConcernPool.includes(option.value)}
+                              onCheckedChange={() => setQaConfig((prev) => ({ ...prev, primaryConcernPool: togglePoolValue(prev.primaryConcernPool, option.value) }))}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="mb-2 text-sm font-medium">Personality Pool</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {QA_PERSONALITY_OPTIONS.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={qaConfig.personalityPool.includes(option.value)}
+                              onCheckedChange={() => setQaConfig((prev) => ({ ...prev, personalityPool: togglePoolValue(prev.personalityPool, option.value) }))}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="mb-2 text-sm font-medium">Communication Style Pool</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {QA_COMMUNICATION_OPTIONS.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={qaConfig.communicationStylePool.includes(option.value)}
+                              onCheckedChange={() => setQaConfig((prev) => ({ ...prev, communicationStylePool: togglePoolValue(prev.communicationStylePool, option.value) }))}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-md border p-3 lg:col-span-2">
+                      <p className="mb-2 text-sm font-medium">Mood Pool</p>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        {QA_MOOD_OPTIONS.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={qaConfig.moodPool.includes(option.value)}
+                              onCheckedChange={() => setQaConfig((prev) => ({ ...prev, moodPool: togglePoolValue(prev.moodPool, option.value) }))}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-md border p-3 lg:col-span-2">
+                      <p className="mb-2 text-sm font-medium">Archetype Category Filter</p>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        {QA_ARCHETYPE_CATEGORY_OPTIONS.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={qaConfig.archetypeCategoryPool.includes(option.value)}
+                              onCheckedChange={() => setQaConfig((prev) => ({ ...prev, archetypeCategoryPool: togglePoolValue(prev.archetypeCategoryPool, option.value) as FreshUpArchetypeCategory[] }))}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button type="button" onClick={handleRunFreshUpQAMatrix} disabled={isRunningQAMatrix || !qaMatrixEnabledForSelectedVersion}>
+                    {isRunningQAMatrix ? 'Running QA Simulation...' : 'Run Fresh Up QA Simulation'}
+                  </Button>
+                  {!qaMatrixEnabledForSelectedVersion && (
+                    <p className="text-xs text-muted-foreground">QA Matrix is disabled for the selected sandbox version. Enable `enableQAMatrix` for this version to run simulations.</p>
+                  )}
+
+                  {qaSummary && (
+                    <div className="space-y-4 rounded-md border p-4">
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Sessions Run</p>
+                          <p className="text-lg font-semibold">{qaSummary.totalSessionsRun}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Average Up Meter Change</p>
+                          <p className="text-lg font-semibold">{qaSummary.averageUpMeterChange > 0 ? '+' : ''}{qaSummary.averageUpMeterChange}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Flagged Sessions</p>
+                          <p className="text-lg font-semibold">{qaSummary.flaggedSessions.length}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="rounded-md border p-3">
+                          <p className="text-sm font-medium">Outcome Distribution</p>
+                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            <p>positive_progress: {qaSummary.outcomeDistribution.positive_progress}</p>
+                            <p>neutral_pause: {qaSummary.outcomeDistribution.neutral_pause}</p>
+                            <p>stalled_conversation: {qaSummary.outcomeDistribution.stalled_conversation}</p>
+                            <p>trust_break: {qaSummary.outcomeDistribution.trust_break}</p>
+                            <p>appointment_ready: {qaSummary.outcomeDistribution.appointment_ready}</p>
+                          </div>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <p className="text-sm font-medium">Average Skill Score Impact</p>
+                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            <p>empathy: {qaSummary.averageSkillScoreImpact.empathy > 0 ? '+' : ''}{qaSummary.averageSkillScoreImpact.empathy}</p>
+                            <p>listening: {qaSummary.averageSkillScoreImpact.listening > 0 ? '+' : ''}{qaSummary.averageSkillScoreImpact.listening}</p>
+                            <p>trust: {qaSummary.averageSkillScoreImpact.trust > 0 ? '+' : ''}{qaSummary.averageSkillScoreImpact.trust}</p>
+                            <p>relationship: {qaSummary.averageSkillScoreImpact.relationship > 0 ? '+' : ''}{qaSummary.averageSkillScoreImpact.relationship}</p>
+                            <p>follow_up: {qaSummary.averageSkillScoreImpact.follow_up > 0 ? '+' : ''}{qaSummary.averageSkillScoreImpact.follow_up}</p>
+                            <p>closing: {qaSummary.averageSkillScoreImpact.closing > 0 ? '+' : ''}{qaSummary.averageSkillScoreImpact.closing}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-md border p-3">
+                        <p className="text-sm font-medium">Archetype Performance Comparison</p>
+                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                          {qaSummary.archetypePerformance.length === 0 ? (
+                            <p>No archetype category data available in this run.</p>
+                          ) : (
+                            qaSummary.archetypePerformance.map((row) => (
+                              <p key={row.archetypeCategory}>
+                                {row.archetypeCategory}: {row.sessions} sessions, peak {row.averageUpMeterPeak}, trust-break rate {row.trustBreakRate}%
+                              </p>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-md border p-3">
+                        <p className="text-sm font-medium">Most Common Failure Conditions</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {qaSummary.mostCommonFailureConditions.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">No dominant failure condition detected in this run.</span>
+                          ) : (
+                            qaSummary.mostCommonFailureConditions.map((item) => (
+                              <Badge key={`${item.flag}-${item.count}`} variant="outline">{item.flag} ({item.count})</Badge>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {qaComparison && (
+                        <div className="rounded-md border p-3">
+                          <p className="text-sm font-medium">Version Comparison Snapshot</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {qaComparison.left.freshUpVersionName || qaComparison.left.freshUpVersionId} vs {qaComparison.right.freshUpVersionName || qaComparison.right.freshUpVersionId}
+                          </p>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2 text-xs text-muted-foreground">
+                            <p>Average Up Meter Peak Δ: {qaComparison.deltas.averageUpMeterPeak > 0 ? '+' : ''}{qaComparison.deltas.averageUpMeterPeak}</p>
+                            <p>Average Up Meter Change Δ: {qaComparison.deltas.averageUpMeterChange > 0 ? '+' : ''}{qaComparison.deltas.averageUpMeterChange}</p>
+                            <p>Flagged Sessions Δ: {qaComparison.deltas.flaggedSessionDelta > 0 ? '+' : ''}{qaComparison.deltas.flaggedSessionDelta}</p>
+                            <p>Guardrail Failures Δ: {qaComparison.deltas.guardrailFailureDelta > 0 ? '+' : ''}{qaComparison.deltas.guardrailFailureDelta}</p>
+                            <p>Trust Impact Δ: {qaComparison.deltas.averageSkillScoreImpact.trust > 0 ? '+' : ''}{qaComparison.deltas.averageSkillScoreImpact.trust}</p>
+                            <p>Closing Impact Δ: {qaComparison.deltas.averageSkillScoreImpact.closing > 0 ? '+' : ''}{qaComparison.deltas.averageSkillScoreImpact.closing}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+                        <div className="rounded-md border p-3">
+                          <p className="text-sm font-medium">Flagged Sessions</p>
+                          <div className="mt-2 max-h-[360px] space-y-2 overflow-y-auto">
+                            {qaSummary.flaggedSessions.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">No flagged sessions in this run.</p>
+                            ) : (
+                              qaSummary.flaggedSessions.map((session) => (
+                                <button
+                                  key={session.simulationID}
+                                  type="button"
+                                  className={`w-full rounded border p-2 text-left text-xs ${selectedQASession?.simulationID === session.simulationID ? 'border-primary bg-primary/5' : 'border-border'}`}
+                                  onClick={() => setSelectedQASessionId(session.simulationID)}
+                                >
+                                  <p className="font-semibold">{session.simulationID}</p>
+                                  <p className="text-muted-foreground">{session.customerProfile.characterName} · {session.endingType}</p>
+                                  <p className="mt-1 text-muted-foreground">{Array.from(new Set([...(session.failureFlags || []), ...(session.guardrailFlags || [])])).join(', ')}</p>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-md border p-3">
+                          <p className="text-sm font-medium">Session Review</p>
+                          {!selectedQASession ? (
+                            <p className="mt-2 text-xs text-muted-foreground">Select a flagged session to inspect profile, transcript, meter movement, and ending details.</p>
+                          ) : (
+                            <div className="mt-2 space-y-3 text-sm">
+                              <div>
+                                <p className="font-medium">Generated Customer Profile</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {selectedQASession.customerProfile.characterName} · {selectedQASession.customerProfile.personalityType} · {selectedQASession.customerProfile.vehicleInterest} · {selectedQASession.customerProfile.primaryConcern}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Archetype: {selectedQASession.customerProfile.archetypeName} ({selectedQASession.customerProfile.archetypeCategory}) · Humor {selectedQASession.customerProfile.humorLevel}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="font-medium">Opening Message</p>
+                                <p className="text-xs text-muted-foreground">{selectedQASession.openingMessage}</p>
+                              </div>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <p className="text-xs text-muted-foreground">Up Meter: {selectedQASession.upMeterStart} → {selectedQASession.upMeterPeak} → {selectedQASession.upMeterEnd}</p>
+                                <p className="text-xs text-muted-foreground">Ending: {selectedQASession.endingType} · {selectedQASession.outcomeTag}</p>
+                              </div>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <p className="text-xs text-muted-foreground">Content Validation: {selectedQASession.contentValidationPassed ? 'Passed' : 'Failed'}</p>
+                                <p className="text-xs text-muted-foreground">Validation Reasons: {(selectedQASession.validationFailureReasons || []).join(', ') || 'None'}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground">Guardrail Flags: {(selectedQASession.guardrailFlags || []).join(', ') || 'None'}</p>
+                              <div className="grid gap-2 sm:grid-cols-3">
+                                <p className="text-xs text-muted-foreground">Empathy: {selectedQASession.skillScores.empathy}</p>
+                                <p className="text-xs text-muted-foreground">Listening: {selectedQASession.skillScores.listening}</p>
+                                <p className="text-xs text-muted-foreground">Trust: {selectedQASession.skillScores.trust}</p>
+                                <p className="text-xs text-muted-foreground">Relationship: {selectedQASession.skillScores.relationship}</p>
+                                <p className="text-xs text-muted-foreground">Follow Up: {selectedQASession.skillScores.follow_up}</p>
+                                <p className="text-xs text-muted-foreground">Closing: {selectedQASession.skillScores.closing}</p>
+                              </div>
+                              <div>
+                                <p className="font-medium">Conversation Transcript</p>
+                                <div className="mt-1 max-h-[300px] overflow-y-auto rounded bg-muted p-2">
+                                  {selectedQASession.conversationTranscript.map((line, idx) => (
+                                    <p key={`${line.speaker}-${idx}`} className="mb-1 text-xs">
+                                      <span className="font-semibold">{line.speaker}:</span> {line.text}
+                                      <span className="text-muted-foreground"> (Up Meter {line.upMeter})</span>
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
         {canSeeDeveloperCxTuner && !showDeveloperCxTuner && (
           <Card className="mt-6 border-primary/30">
             <CardHeader className="pb-3">

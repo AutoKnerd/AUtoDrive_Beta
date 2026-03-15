@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Lesson, LessonLog, CxTrait, LessonRole, Dealership, Badge } from '@/lib/definitions';
-import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles, getEarnedBadgesByUserId, convertUserToSingleUser } from '@/lib/data.client';
+import { getLessons, getConsultantActivity, updateUserDealerships, assignLesson, getTeamMemberRoles, getEarnedBadgesByUserId, convertUserToSingleUser, getDealerFreshUpInsights, getWeeklyFreshUpDigests, getFreshUpRiskRadar, type DealerFreshUpInsights, type TrendDirection, type WeeklyFreshUpDigestRecord, type FreshUpRiskRadarRecord } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, ShieldOff, Copy, KeyRound, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { TrendingUp, Smile, Ear, Handshake, Repeat, Target, Users, LucideIcon, Pencil, ShieldOff, Copy, KeyRound, ArrowUpRight, ArrowDownLeft, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { managerialRoles } from '@/lib/definitions';
 import { CxSoundwaveCard } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
 import { AvatarSoundRing } from '../profile/avatar-sound-ring';
+import { computeWeightedTraitSummary, formatTraitLabel, getFreshUpInsightCopy, getFreshUpManagerRecommendation, getFreshUpSummaryTag } from '@/lib/fresh-up';
 
 interface TeamMemberCardProps {
   user: User;
@@ -55,6 +56,9 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [recentActivityDate, setRecentActivityDate] = useState<string | null>(null);
+  const [freshUpInsights, setFreshUpInsights] = useState<DealerFreshUpInsights | null>(null);
+  const [weeklyDigest, setWeeklyDigest] = useState<WeeklyFreshUpDigestRecord | null>(null);
+  const [riskRadarRows, setRiskRadarRows] = useState<FreshUpRiskRadarRecord[]>([]);
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
   const normalizedUserDealershipIds = useMemo(() => (
@@ -89,6 +93,11 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const showCriticalOnly = viewerIsSuperior && !hideMetrics && (
     managementPrivateDataViewingDisabled || user.showDealerCriticalOnly === true
   );
+  const targetDealerId = useMemo(() => {
+    const viewerDealers = Array.isArray(currentUser.dealershipIds) ? currentUser.dealershipIds : [];
+    const common = normalizedUserDealershipIds.find((id) => viewerDealers.includes(id));
+    return common || normalizedUserDealershipIds[0] || user.selfDeclaredDealershipId || null;
+  }, [currentUser.dealershipIds, normalizedUserDealershipIds, user.selfDeclaredDealershipId]);
 
 
   useEffect(() => {
@@ -114,10 +123,22 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
           viewerIsTrainer ||
           viewerIsOwner ||
           viewerIsManager;
-        const [fetchedLessons, fetchedActivity, fetchedBadges] = await Promise.all([
+        const [fetchedLessons, fetchedActivity, fetchedBadges, fetchedFreshUpInsights, fetchedWeeklyDigest, fetchedRisks] = await Promise.all([
           getLessons(user.role as LessonRole, user.userId),
           getConsultantActivity(user.userId),
           canViewBadges ? getEarnedBadgesByUserId(user.userId) : Promise.resolve([]),
+          targetDealerId ? getDealerFreshUpInsights(targetDealerId) : Promise.resolve(null),
+          targetDealerId ? getWeeklyFreshUpDigests({
+            entityType: 'dealer',
+            entityId: targetDealerId,
+            latestOnly: true,
+          }) : Promise.resolve({ latest: null, records: [] }),
+          targetDealerId ? getFreshUpRiskRadar({
+            dealerId: targetDealerId,
+            isActive: true,
+            dateFrom: new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10),
+            dateTo: new Date().toISOString().slice(0, 10),
+          }) : Promise.resolve([]),
         ]);
 
         if (!active) return;
@@ -125,6 +146,9 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
         setLessons(fetchedLessons);
         setActivity(fetchedActivity);
         setBadges(fetchedBadges);
+        setFreshUpInsights(fetchedFreshUpInsights);
+        setWeeklyDigest(fetchedWeeklyDigest.latest || null);
+        setRiskRadarRows(fetchedRisks);
         
         setMemberSince(
           user.memberSince
@@ -154,7 +178,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     return () => {
       active = false;
     };
-  }, [user, hideMetrics, currentUser.userId, viewerIsAdmin, viewerIsTrainer, viewerIsOwner, viewerIsManager, toast]);
+  }, [user, hideMetrics, currentUser.userId, viewerIsAdmin, viewerIsTrainer, viewerIsOwner, viewerIsManager, toast, targetDealerId]);
   
   const currentDealershipNames = useMemo(() => {
     if (user.dealershipIds && user.dealershipIds.length > 0) {
@@ -293,19 +317,26 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
 
   const criticalTraits = useMemo(() => {
     if (!activity.length) return { topStrength: null as CxTrait | null, weakestSkill: null as CxTrait | null };
-    const entries = Object.entries(averageScores) as [CxTrait, number][];
-    if (entries.length === 0) return { topStrength: null as CxTrait | null, weakestSkill: null as CxTrait | null };
+    // Dealer Critical Summary uses weighted trait rollups so Fresh Up sessions
+    // contribute stronger signal than standard lessons.
+    const weightedSummary = computeWeightedTraitSummary(activity);
+    return {
+      topStrength: weightedSummary.topStrength,
+      weakestSkill: weightedSummary.areaForImprovement,
+    };
+  }, [activity]);
 
-    const topStrength = entries.reduce((best, current) => (current[1] > best[1] ? current : best), entries[0])[0];
-    const weakestSkill = entries.reduce((worst, current) => (current[1] < worst[1] ? current : worst), entries[0])[0];
-    return { topStrength, weakestSkill };
-  }, [activity, averageScores]);
+  const freshUpSummaryTag = useMemo(() => getFreshUpSummaryTag(activity), [activity]);
+  const freshUpInsight = useMemo(() => {
+    return getFreshUpInsightCopy(freshUpSummaryTag);
+  }, [freshUpSummaryTag]);
+  const managerCoachingRecommendation = useMemo(() => {
+    return getFreshUpManagerRecommendation(freshUpSummaryTag);
+  }, [freshUpSummaryTag]);
 
   const formatTrait = (trait: CxTrait | null) => {
     if (!trait) return 'Not enough data';
-    return trait
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase());
+    return formatTraitLabel(trait);
   };
   
   const canManageAssignments = currentUser.userId !== user.userId && getTeamMemberRoles(currentUser.role).includes(user.role);
@@ -322,6 +353,216 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     if (typeof setup.link !== 'string' || setup.link.length === 0) return null;
     return setup.link;
   }, [currentUser.role, user.passwordSetup]);
+
+  const trendGlyph = (trend: TrendDirection) => {
+    if (trend === 'up') return <ArrowUp className="h-3.5 w-3.5 text-emerald-400" />;
+    if (trend === 'down') return <ArrowDown className="h-3.5 w-3.5 text-rose-400" />;
+    return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
+  };
+
+  const freshUpMetricTiles = freshUpInsights ? [
+    { label: 'Average Empathy Score', value: freshUpInsights.averageEmpathy.score, trend: freshUpInsights.averageEmpathy.trend },
+    { label: 'Average Listening Score', value: freshUpInsights.averageListening.score, trend: freshUpInsights.averageListening.trend },
+    { label: 'Average Trust Building Score', value: freshUpInsights.averageTrust.score, trend: freshUpInsights.averageTrust.trend },
+    { label: 'Average Relationship Building Score', value: freshUpInsights.averageRelationship.score, trend: freshUpInsights.averageRelationship.trend },
+    { label: 'Average Closing Score', value: freshUpInsights.averageClosing.score, trend: freshUpInsights.averageClosing.trend },
+  ] : [];
+
+  const freshUpInsightsCard = (
+    <div className="rounded-md border p-3 md:col-span-3">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-semibold text-foreground">Fresh Up Insights</span>
+        <span className="text-xs text-muted-foreground">Last 30 days</span>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+      ) : !freshUpInsights || !freshUpInsights.available ? (
+        <p className="text-sm text-muted-foreground">Not enough Fresh Up session data in the last 30 days.</p>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid gap-2 md:grid-cols-2">
+            {freshUpMetricTiles.map((metric) => (
+              <div key={metric.label} className="rounded border bg-muted/40 p-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{metric.label}</span>
+                  <span className="inline-flex items-center gap-1">{trendGlyph(metric.trend)}</span>
+                </div>
+                <p className="mt-1 font-semibold text-foreground">{metric.value.toFixed(1)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="rounded border bg-muted/40 p-2 text-sm">
+              <p className="text-muted-foreground">Average Up Meter Peak</p>
+              <p className="mt-1 font-semibold text-foreground">{freshUpInsights.averageUpMeterPeak.toFixed(1)}</p>
+              <p className="text-xs text-muted-foreground">{freshUpInsights.upMeterEngagementLabel}</p>
+            </div>
+            <div className="rounded border bg-muted/40 p-2 text-sm">
+              <p className="text-muted-foreground">Session Activity</p>
+              <p className="mt-1 font-semibold text-foreground">{freshUpInsights.totalFreshUpSessions} sessions</p>
+              <p className="text-xs text-muted-foreground">Avg conversation length: {freshUpInsights.averageConversationLength.toFixed(1)} messages</p>
+            </div>
+          </div>
+          {viewerIsSuperior && freshUpInsights.skillAlerts.length > 0 ? (
+            <div className="space-y-2 rounded border border-amber-500/40 bg-amber-500/10 p-2">
+              {freshUpInsights.skillAlerts.map((alert) => (
+                <p key={alert.skill} className="text-xs text-amber-100">
+                  <span className="font-semibold">Skill Gap Detected: {alert.skill}</span> Recommendation: {alert.recommendation}
+                </p>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+
+  const weeklyDigestCard = (
+    <div className="rounded-md border p-3 md:col-span-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-semibold text-foreground">Weekly Fresh Up Digest</span>
+        <span className="text-xs text-muted-foreground">
+          {weeklyDigest ? `${weeklyDigest.weekStart.toLocaleDateString()} - ${weeklyDigest.weekEnd.toLocaleDateString()}` : 'Latest week'}
+        </span>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-10/12" />
+        </div>
+      ) : !weeklyDigest ? (
+        <p className="text-sm text-muted-foreground">No weekly digest yet for this dealer.</p>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-foreground">{weeklyDigest.headline}</p>
+          <div className="space-y-1">
+            {weeklyDigest.keyInsights.slice(0, 5).map((insight, index) => (
+              <p key={`weekly-${index}`} className="text-xs text-muted-foreground">• {insight}</p>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Recommended Coaching Focus:</span> {weeklyDigest.recommendedAction}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">View Full Digest</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Weekly Fresh Up Digest</DialogTitle>
+                  <DialogDescription>
+                    {weeklyDigest.weekStart.toLocaleDateString()} - {weeklyDigest.weekEnd.toLocaleDateString()}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">{weeklyDigest.headline}</p>
+                  <div className="space-y-1">
+                    {weeklyDigest.keyInsights.map((insight, index) => (
+                      <p key={`full-${index}`} className="text-sm text-muted-foreground">• {insight}</p>
+                    ))}
+                  </div>
+                  {!!weeklyDigest.narrativeSummary && (
+                    <p className="text-sm text-muted-foreground">{weeklyDigest.narrativeSummary}</p>
+                  )}
+                  <div className="rounded-md border bg-muted/30 p-3">
+                    <p className="text-xs font-semibold">Recommended Coaching Focus</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{weeklyDigest.recommendedAction}</p>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const lines = [
+                  '# Weekly Fresh Up Digest',
+                  '',
+                  `Week Range: ${weeklyDigest.weekStart.toLocaleDateString()} - ${weeklyDigest.weekEnd.toLocaleDateString()}`,
+                  '',
+                  '## Headline Summary',
+                  weeklyDigest.headline,
+                  '',
+                  '## Key Insights',
+                  ...weeklyDigest.keyInsights.map((line) => `- ${line}`),
+                  '',
+                  '## Recommended Coaching Focus',
+                  weeklyDigest.recommendedAction,
+                  '',
+                  weeklyDigest.narrativeSummary ? `## Narrative\n${weeklyDigest.narrativeSummary}` : '',
+                ].filter(Boolean);
+                const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = `fresh-up-weekly-digest-${weeklyDigest.digestId}.md`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Export Digest (MD)
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(weeklyDigest, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = `fresh-up-weekly-digest-${weeklyDigest.digestId}.json`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Export Digest (JSON)
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const riskRadarCard = (
+    <div className="rounded-md border p-3 md:col-span-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-semibold text-foreground">CX Risk Radar</span>
+        <span className="text-xs text-muted-foreground">Active risks</span>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-4 w-10/12" />
+        </div>
+      ) : riskRadarRows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No active CX risks flagged for this dealer right now.</p>
+      ) : (
+        <div className="space-y-2">
+          {riskRadarRows.slice(0, 3).map((risk) => (
+            <div key={risk.riskId} className="rounded-md border bg-muted/30 p-2">
+              <p className="text-xs font-semibold text-foreground">
+                {risk.riskType.replace(/_/g, ' ')} • {risk.riskLevel}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{risk.message}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Action:</span> {risk.recommendedAction}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -407,10 +648,11 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                 <CardHeader>
                     <CardTitle>Dealer Critical Summary</CardTitle>
                     <CardDescription>
-                        This user shares only top strength and area for improvement with leadership.
+                        This user shares only top strength, area for improvement, and Fresh Up insight with leadership.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-2">
+                <CardContent className="space-y-3">
+                  <div className="grid gap-3 md:grid-cols-3">
                     <div className="rounded-md border p-3">
                         <div className="mb-1 flex items-center gap-2">
                           <ArrowDownLeft className="h-4 w-4 text-rose-400" />
@@ -425,10 +667,63 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                         </div>
                         <span className="font-semibold">{formatTrait(criticalTraits.topStrength)}</span>
                     </div>
+                    <div className="rounded-md border p-3 md:col-span-3">
+                        <div className="mb-1 flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-sky-400" />
+                          <span className="text-sm text-muted-foreground">Fresh Up Insight</span>
+                        </div>
+                        <span className="font-semibold">{freshUpInsight}</span>
+                    </div>
+                    {freshUpInsightsCard}
+                    {weeklyDigestCard}
+                    {riskRadarCard}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">Manager Coaching Recommendation:</span> {managerCoachingRecommendation}
+                  </p>
                 </CardContent>
             </Card>
         ) : (
             <>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Dealer Critical Summary</CardTitle>
+                        <CardDescription>
+                          Weighted by recent activity, with Fresh Up results carrying extra influence.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-3">
+                      <div className="rounded-md border p-3">
+                        <div className="mb-1 flex items-center gap-2">
+                          <ArrowDownLeft className="h-4 w-4 text-rose-400" />
+                          <span className="text-sm text-muted-foreground">Area for Improvement</span>
+                        </div>
+                        <span className="font-semibold">{formatTrait(criticalTraits.weakestSkill)}</span>
+                      </div>
+                      <div className="rounded-md border p-3">
+                        <div className="mb-1 flex items-center gap-2">
+                          <ArrowUpRight className="h-4 w-4 text-emerald-400" />
+                          <span className="text-sm text-muted-foreground">Top Strength</span>
+                        </div>
+                        <span className="font-semibold">{formatTrait(criticalTraits.topStrength)}</span>
+                      </div>
+                      <div className="rounded-md border p-3 md:col-span-3">
+                        <div className="mb-1 flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-sky-400" />
+                          <span className="text-sm text-muted-foreground">Fresh Up Insight</span>
+                        </div>
+                        <span className="font-semibold">{freshUpInsight}</span>
+                      </div>
+                      {freshUpInsightsCard}
+                      {weeklyDigestCard}
+                      {riskRadarCard}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">Manager Coaching Recommendation:</span> {managerCoachingRecommendation}
+                      </p>
+                    </CardContent>
+                </Card>
                 {/* Unified Average CX Scores Trend Visualization */}
                 <CxSoundwaveCard 
                   scope={targetUserScope} 
@@ -454,7 +749,11 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                         </div>
                         ) : recentActivity && recentActivityDate ? (
                         <div className="space-y-2">
-                            <p className="text-lg font-semibold text-primary">{lessons.find(l => l.lessonId === recentActivity.lessonId)?.title || 'Unknown Lesson'}</p>
+                            <p className="text-lg font-semibold text-primary">
+                              {recentActivity.activitySource === 'fresh-up'
+                                ? 'Fresh Up!'
+                                : (lessons.find(l => l.lessonId === recentActivity.lessonId)?.title || 'Unknown Lesson')}
+                            </p>
                             <p className="text-sm text-muted-foreground">
                             Completed on {recentActivityDate}
                             </p>

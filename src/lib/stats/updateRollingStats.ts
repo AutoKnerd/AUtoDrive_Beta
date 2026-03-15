@@ -31,6 +31,10 @@ export type RollingStatsUpdateResult = {
   updatedAt: Date;
 };
 
+type UpdateRollingStatsOptions = {
+  weightMultiplier?: number;
+};
+
 function clamp(value: number, min: number = MIN_SCORE, max: number = MAX_SCORE): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -93,7 +97,11 @@ export function clampRatings(ratings: Partial<Ratings> | null | undefined): Rati
   };
 }
 
-export async function updateRollingStats(userId: string, ratings: Ratings): Promise<RollingStatsUpdateResult> {
+export async function updateRollingStats(
+  userId: string,
+  ratings: Ratings,
+  options?: UpdateRollingStatsOptions
+): Promise<RollingStatsUpdateResult> {
   if (!userId) {
     throw new Error('updateRollingStats requires a userId');
   }
@@ -103,6 +111,7 @@ export async function updateRollingStats(userId: string, ratings: Ratings): Prom
   const now = new Date();
   const nowTimestamp = Timestamp.fromDate(now);
   const safeRatings = clampRatings(ratings);
+  const weightMultiplier = Math.max(0.5, Math.min(2, Number(options?.weightMultiplier ?? 1)));
 
   return runTransaction(db, async (transaction) => {
     const userSnap = await transaction.get(userRef);
@@ -139,7 +148,7 @@ export async function updateRollingStats(userId: string, ratings: Ratings): Prom
       const driftedScore = BASELINE + (currentWhole - BASELINE) * Math.exp(-LAMBDA * deltaDays);
       const driftDelta = driftedScore - currentWhole;
       const ratingDelta = safeRatings[key] - currentWhole;
-      const rawDelta = driftDelta + ratingDelta * deltaGain;
+      const rawDelta = driftDelta + ratingDelta * deltaGain * weightMultiplier;
       const stepDelta = clampDelta(Math.round(rawDelta));
       const updatedScore = clamp(currentWhole + stepDelta);
 

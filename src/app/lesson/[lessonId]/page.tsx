@@ -4,7 +4,7 @@
 import { Header } from '@/components/layout/header';
 import { LessonView } from '@/components/lessons/lesson-view';
 import { getDailyLessonLimits, getDealershipById, getLessonById } from '@/lib/data.client';
-import { Lesson, managerialRoles } from '@/lib/definitions';
+import { FreshUpSandboxConfig, Lesson, managerialRoles } from '@/lib/definitions';
 import { useEffect, useMemo, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
@@ -19,6 +19,27 @@ export default function LessonPage() {
     const params = useParams<{ lessonId: string }>();
     const searchParams = useSearchParams();
     const isRecommended = searchParams.get('recommended') === 'true';
+    const isFreshUp = searchParams.get('freshUp') === 'true';
+    const freshUpProfileId = searchParams.get('profileId');
+    const freshUpSandboxVersionId = searchParams.get('sandboxVersionId');
+    const sandboxFreshUpEnabled = searchParams.get('sandboxFreshUp') === 'true';
+    const parsedStartingUpMeter = Number(searchParams.get('sandboxStartingUpMeter') ?? 35);
+    const freshUpSandboxConfig: FreshUpSandboxConfig | undefined = sandboxFreshUpEnabled ? {
+        enabled: true,
+        sourceType: (searchParams.get('sandboxSourceType') as FreshUpSandboxConfig['sourceType']) || 'random',
+        difficulty: (searchParams.get('sandboxDifficulty') as FreshUpSandboxConfig['difficulty']) || 'random',
+        vehicleInterest: (searchParams.get('sandboxVehicleInterest') as FreshUpSandboxConfig['vehicleInterest']) || 'random',
+        primaryConcern: (searchParams.get('sandboxPrimaryConcern') as FreshUpSandboxConfig['primaryConcern']) || 'random',
+        startingMood: (searchParams.get('sandboxStartingMood') as FreshUpSandboxConfig['startingMood']) || 'random',
+        personalityType: (searchParams.get('sandboxPersonalityType') as FreshUpSandboxConfig['personalityType']) || 'random',
+        communicationStyle: (searchParams.get('sandboxCommunicationStyle') as FreshUpSandboxConfig['communicationStyle']) || 'random',
+        forceProfileIdOrName: searchParams.get('sandboxForceProfile') || undefined,
+        forceArchetypeIdOrName: searchParams.get('sandboxForceArchetype') || undefined,
+        startingUpMeter: Number.isFinite(parsedStartingUpMeter) ? Math.max(0, Math.min(100, Math.round(parsedStartingUpMeter))) : 35,
+        memoryDebugMode: searchParams.get('sandboxMemoryDebug') === 'true',
+        scoringDebugMode: searchParams.get('sandboxScoringDebug') === 'true',
+        saveSessionToLiveAnalytics: searchParams.get('sandboxSaveLive') === 'true',
+    } : undefined;
     const isTestingRetake = searchParams.get('retake') === 'testing';
     const isTestingNewRecommended = searchParams.get('new') === 'testing';
     const { user, isTouring } = useAuth();
@@ -224,7 +245,14 @@ export default function LessonPage() {
                         <X className="h-5 w-5" />
                     </Link>
                 </Button>
-                <LessonView lesson={lesson} isRecommended={isRecommended} />
+                <LessonView
+                  lesson={lesson}
+                  isRecommended={isRecommended}
+                  isFreshUp={isFreshUp}
+                  freshUpProfileId={freshUpProfileId}
+                  freshUpSandboxConfig={freshUpSandboxConfig}
+                  freshUpSandboxVersionId={freshUpSandboxVersionId}
+                />
             </main>
             {!isManager && !isTouring && <BottomNav />}
         </div>

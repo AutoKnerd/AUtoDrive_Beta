@@ -1,7 +1,7 @@
 
 'use client';
-import { format, isToday, startOfDay, subDays } from 'date-fns';
-import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope, PendingInvitation, Ratings, InteractionSeverity } from './definitions';
+import { differenceInCalendarDays, format, isToday, startOfDay, subDays } from 'date-fns';
+import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCategory, EmailInvitation, Dealership, LessonAssignment, Badge, BadgeId, EarnedBadge, Address, Message, MessageTargetScope, PendingInvitation, Ratings, InteractionSeverity, UserStats } from './definitions';
 import { lessonCategoriesByRole, noPersonalDevelopmentRoles, allRoles } from './definitions';
 import { allBadges } from './badges';
 import { calculateLevel } from './xp';
@@ -40,6 +40,61 @@ import {
 import type { EnrollmentScope } from '@/lib/enrollment/role-scope';
 import type { CxScope } from '@/lib/cx/scope';
 import type { CxSkillId } from '@/lib/cx/skills';
+import {
+    buildFreshUpLesson,
+    computeUpMeterIncrement,
+    evaluateUpMeterState,
+    FRESH_UP_LESSON_ID,
+    FRESH_UP_MAX_XP,
+    FRESH_UP_MIN_XP,
+    FRESH_UP_SKILL_WEIGHT,
+    maybeUnlockFreshUp,
+    resetUpMeterAfterFreshUp,
+} from '@/lib/fresh-up';
+import {
+    ADAPTIVE_IMPROVEMENT_TARGET,
+    ADAPTIVE_LESSON_MAP,
+    ADAPTIVE_MONITORING_WINDOW,
+    ADAPTIVE_RECOMMENDATION_COOLDOWN_HOURS,
+    emptyAdaptiveSkillAverages,
+    pickLowestGapSkill,
+    toAdaptiveSkillFromTrait,
+    type AdaptiveSkillAverages,
+    type AdaptiveSkillKey,
+} from '@/lib/adaptive-coaching';
+
+function resolveFreshUpOutcomeTag(input: {
+    explicitOutcomeTag?: string;
+    outcome?: LessonLog['outcome'];
+    coachingTag?: LessonLog['coachingTag'];
+    summaryTag?: LessonLog['summaryTag'];
+    severity?: InteractionSeverity;
+}): LessonLog['outcomeTag'] {
+    const explicit = (input.explicitOutcomeTag || '').trim();
+    if (
+        explicit === 'Customer Engaged' ||
+        explicit === 'Trust Established' ||
+        explicit === 'Appointment Set' ||
+        explicit === 'Lost Momentum' ||
+        explicit === 'Conversation Breakdown'
+    ) {
+        return explicit;
+    }
+
+    if (input.severity === 'behavior_violation') return 'Conversation Breakdown';
+
+    const tag = input.summaryTag ?? input.coachingTag;
+    if (tag === 'weak_follow_up') return 'Lost Momentum';
+    if (tag === 'premature_close') return 'Lost Momentum';
+    if (tag === 'strong_relationship') return 'Customer Engaged';
+    if (tag === 'strong_empathy') return 'Trust Established';
+    if (tag === 'trust_builder') return 'Trust Established';
+    if (tag === 'closing_strength') return 'Appointment Set';
+
+    if (input.outcome === 'successful') return 'Appointment Set';
+    if (input.outcome === 'mixed') return 'Customer Engaged';
+    return 'Lost Momentum';
+}
 
 // Initialize SDKs lazily or inside functions to ensure stability
 const getFirebase = () => initializeFirebase();
@@ -248,7 +303,8 @@ function toSafeDate(value: unknown, fallback: Date): Date {
 function applyTourRollingStatsUpdate(
     stats: User['stats'] | undefined,
     ratings: Ratings,
-    now: Date
+    now: Date,
+    skillWeightMultiplier: number = 1
 ): {
     nextStats: User['stats'];
     before: Ratings;
@@ -267,7 +323,7 @@ function applyTourRollingStatsUpdate(
         const drifted = BASELINE + (before - BASELINE) * Math.exp(-LAMBDA * deltaDays);
         const driftDelta = drifted - before;
         const ratingDelta = ratings[key] - before;
-        const rawDelta = driftDelta + ratingDelta * DEFAULT_CX_DELTA_GAIN;
+        const rawDelta = driftDelta + ratingDelta * DEFAULT_CX_DELTA_GAIN * skillWeightMultiplier;
         const stepDelta = Math.max(-MAX_CX_DELTA_PER_LESSON, Math.min(MAX_CX_DELTA_PER_LESSON, Math.round(rawDelta)));
         const after = clampScore(before + stepDelta);
 
@@ -403,14 +459,18 @@ function normalizeFlags(flags?: string[]): string[] {
 const MAX_NORMAL_XP_AWARD = 100;
 const MAX_BEHAVIOR_XP_PENALTY = 100;
 
-function sanitizeXpDelta(xpGained: number, severity: InteractionSeverity): number {
+function sanitizeXpDelta(
+    xpGained: number,
+    severity: InteractionSeverity,
+    maxNormalXpAward: number = MAX_NORMAL_XP_AWARD
+): number {
     const numericXp = Number.isFinite(xpGained) ? Math.round(xpGained) : 0;
     if (severity === 'behavior_violation') {
         if (numericXp > 0) return 0;
         return Math.max(-MAX_BEHAVIOR_XP_PENALTY, numericXp);
     }
 
-    return Math.max(0, Math.min(MAX_NORMAL_XP_AWARD, numericXp));
+    return Math.max(0, Math.min(maxNormalXpAward, numericXp));
 }
 
 function computeNextXp(currentXp: number, xpDelta: number, severity: InteractionSeverity): number {
@@ -440,6 +500,87 @@ export type LessonCompletionDetails = {
         relationshipBuilding: LessonStatChange;
     };
 };
+
+function isFreshUpLessonInput(data: {
+    lessonId: string;
+    activitySource?: LessonLog['activitySource'];
+}): boolean {
+    return data.activitySource === 'fresh-up' || data.lessonId === FRESH_UP_LESSON_ID;
+}
+
+function getSkillWeightMultiplier(data: {
+    skillWeightMultiplier?: number;
+    activitySource?: LessonLog['activitySource'];
+    lessonId: string;
+}): number {
+    const explicit = Number(data.skillWeightMultiplier);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    return isFreshUpLessonInput(data) ? FRESH_UP_SKILL_WEIGHT : 1;
+}
+
+function getStreakBonus(now: Date, priorLogs: LessonLog[]): number {
+    const priorCoreLogs = priorLogs.filter((log) => log.activitySource === 'core');
+    if (!priorCoreLogs.length) return 0;
+
+    const mostRecent = priorCoreLogs[0];
+    const dayGap = differenceInCalendarDays(startOfDay(now), startOfDay(mostRecent.timestamp));
+    return dayGap === 1 ? 20 : 0;
+}
+
+function buildNextFreshUpState(input: {
+    user: User;
+    now: Date;
+    priorLogs: LessonLog[];
+    ratings: Ratings;
+    activitySource?: LessonLog['activitySource'];
+    lessonId: string;
+}): Pick<User, 'freshUpMeter' | 'freshUpAvailable' | 'freshUpLastTriggeredAt' | 'freshUpLastCompletedAt' | 'freshUpCompletedCount'> {
+    // Up Meter progression: every core lesson moves the meter (weak/normal/strong + streak),
+    // then probabilistic thresholds decide Fresh Up availability until 100 guarantees unlock.
+    const currentMeter = Math.max(0, Math.round(Number(input.user.freshUpMeter ?? 0)));
+    const currentAvailable = input.user.freshUpAvailable === true;
+    const isFreshUp = isFreshUpLessonInput(input);
+
+    if (isFreshUp) {
+        return {
+            freshUpMeter: resetUpMeterAfterFreshUp(currentMeter),
+            freshUpAvailable: false,
+            freshUpLastTriggeredAt: input.user.freshUpLastTriggeredAt ?? null,
+            freshUpLastCompletedAt: input.now.toISOString(),
+            freshUpCompletedCount: Math.max(0, Number(input.user.freshUpCompletedCount ?? 0)) + 1,
+        };
+    }
+
+    if (input.activitySource !== 'core') {
+        return {
+            freshUpMeter: currentMeter,
+            freshUpAvailable: currentAvailable,
+            freshUpLastTriggeredAt: input.user.freshUpLastTriggeredAt ?? null,
+            freshUpLastCompletedAt: input.user.freshUpLastCompletedAt ?? null,
+            freshUpCompletedCount: Math.max(0, Number(input.user.freshUpCompletedCount ?? 0)),
+        };
+    }
+
+    const averageRating = Math.round((
+        input.ratings.empathy +
+        input.ratings.listening +
+        input.ratings.trust +
+        input.ratings.followUp +
+        input.ratings.closing +
+        input.ratings.relationship
+    ) / 6);
+    const streakBonus = getStreakBonus(input.now, input.priorLogs);
+    const nextMeter = currentMeter + computeUpMeterIncrement(averageRating, streakBonus);
+    const unlocked = currentAvailable || maybeUnlockFreshUp(nextMeter);
+
+    return {
+        freshUpMeter: nextMeter,
+        freshUpAvailable: unlocked,
+        freshUpLastTriggeredAt: unlocked && !currentAvailable ? input.now.toISOString() : (input.user.freshUpLastTriggeredAt ?? null),
+        freshUpLastCompletedAt: input.user.freshUpLastCompletedAt ?? null,
+        freshUpCompletedCount: Math.max(0, Number(input.user.freshUpCompletedCount ?? 0)),
+    };
+}
 
 export type CxRatingsUpdateDetails = {
     updatedUser: User;
@@ -675,6 +816,11 @@ export async function createUserProfile(
         trialEndsAt: isPrivilegedRole || shouldRequireCheckoutForTrial
             ? null
             : trialWindow.trialEndsAt,
+        freshUpMeter: 0,
+        freshUpAvailable: false,
+        freshUpLastTriggeredAt: null,
+        freshUpLastCompletedAt: null,
+        freshUpCompletedCount: 0,
         stats: buildDefaultUserStats(now),
         ...buildDefaultPppState(pppEnabled),
         ...buildDefaultSaasPppState(saasPppEnabled),
@@ -1113,6 +1259,440 @@ export type DealershipLeaderboardEntry = {
     readinessLabel: string;
 };
 
+export type TrendDirection = 'up' | 'down' | 'stable';
+
+export type DealerFreshUpMetric = {
+    score: number;
+    trend: TrendDirection;
+};
+
+export type DealerFreshUpSkillAlert = {
+    skill: 'Empathy' | 'Listening' | 'Trust Building' | 'Relationship Building' | 'Closing Ability';
+    recommendation: string;
+};
+
+export type DealerFreshUpInsights = {
+    available: boolean;
+    periodDays: number;
+    averageEmpathy: DealerFreshUpMetric;
+    averageListening: DealerFreshUpMetric;
+    averageTrust: DealerFreshUpMetric;
+    averageRelationship: DealerFreshUpMetric;
+    averageClosing: DealerFreshUpMetric;
+    averageUpMeterPeak: number;
+    upMeterEngagementLabel: string;
+    totalFreshUpSessions: number;
+    averageConversationLength: number;
+    skillAlerts: DealerFreshUpSkillAlert[];
+};
+
+export type WeeklyFreshUpDigestEntityType = 'dealer' | 'consultant' | 'platform';
+
+export type WeeklyFreshUpDigestRecord = {
+    digestId: string;
+    entityType: WeeklyFreshUpDigestEntityType;
+    entityId: string;
+    entityName: string;
+    weekStart: Date;
+    weekEnd: Date;
+    headline: string;
+    keyInsights: string[];
+    recommendedAction: string;
+    narrativeSummary?: string;
+    metricsSnapshot: Record<string, unknown>;
+    createdAt: Date;
+    environment: 'sandbox' | 'production';
+};
+
+export type FreshUpRiskRadarRecord = {
+    riskId: string;
+    riskType: string;
+    entityType: string;
+    entityId: string;
+    entityName: string;
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+    confidenceLevel: 'low' | 'medium' | 'high';
+    timeRange: string;
+    message: string;
+    recommendedAction: string;
+    supportingMetrics: Record<string, unknown>;
+    createdAt: Date;
+    resolvedAt?: Date;
+    isActive: boolean;
+    environment: 'sandbox' | 'production';
+};
+
+export type FreshUpCommandCenterResult = {
+    generatedAt: string;
+    entityMode: 'dealer' | 'consultant' | 'platform' | 'version';
+    entityId: string;
+    entityName: string;
+    weeklyDigestSummary: {
+        headline: string;
+        topInsights: string[];
+        recommendedAction: string;
+    };
+    activeRiskRadarSummary: {
+        totalActiveRisks: number;
+        topRisks: Array<{
+            riskId: string;
+            riskType: string;
+            riskLevel: 'low' | 'medium' | 'high' | 'critical';
+            message: string;
+            recommendedAction: string;
+        }>;
+    };
+    goalsAndTargetsSummary: {
+        activeGoals: number;
+        onTrack: number;
+        atRisk: number;
+        exceeded: number;
+        stalled: number;
+        topGoalsNeedingAttention: Array<{
+            goalId: string;
+            goalTitle: string;
+            currentValue: number;
+            targetValue: number;
+            progressPercent: number;
+            status: 'on_track' | 'at_risk' | 'exceeded' | 'stalled';
+        }>;
+    };
+    activeAlertsSummary: {
+        totalActiveAlerts: number;
+        highSeverityAlerts: number;
+        goalRelatedAlerts: number;
+        versionRelatedAlerts: number;
+        topAlerts: Array<{
+            alertId: string;
+            alertType: string;
+            severity: string;
+            message: string;
+            recommendedAction: string;
+        }>;
+    };
+    freshUpPerformanceSnapshot: {
+        totalFreshUpSessions: number;
+        averageUpMeterPeak: number;
+        averageTrustShift: number;
+        averageConversationLength: number;
+        averageEmpathy: number;
+        averageListening: number;
+        averageTrust: number;
+        averageFollowUp: number;
+        averageClosing: number;
+        averageRelationship: number;
+    };
+    coachingIntelligence?: {
+        coachingId?: string;
+        priorityLevel: 'low' | 'medium' | 'high' | 'critical';
+        coachingTopic: string;
+        message: string;
+        supportingEvidence: string;
+        recommendedPractice: string;
+        suggestedAutoForgeModule: string;
+    };
+    coachingPrioritySummary: string;
+    autoForgeRecommendationSummary: {
+        module: string;
+        why: string;
+        action: string;
+    };
+    trendHighlights: Array<{ label: string; delta: number; direction: 'up' | 'down' | 'stable' }>;
+    benchmarkSnapshot: {
+        benchmarkType: string;
+        highlights: Array<{ metricName: string; difference: number; interpretationLabel: string }>;
+    };
+    narrativeSummary?: {
+        title: string;
+        narrative: string;
+        interpretationLabels: string[];
+    };
+    environment: 'sandbox' | 'production';
+};
+
+export type FreshUpCoachingInsight = {
+    coachingId: string;
+    entityType: 'consultant' | 'dealer' | 'team' | 'platform';
+    entityId: string;
+    entityName: string;
+    priorityLevel: 'low' | 'medium' | 'high' | 'critical';
+    priorityScore: number;
+    coachingTopic: string;
+    message: string;
+    supportingEvidence: string;
+    recommendedPractice: string;
+    suggestedAutoForgeModule: string;
+    createdAt: Date;
+    resolvedAt?: Date;
+    environment: 'sandbox' | 'production';
+};
+
+export type AdaptiveCoachingRecommendation = {
+    skill: AdaptiveSkillKey;
+    skillLabel: string;
+    averageScore: number;
+    recommendedLessonTitle: string;
+    estimatedMinutes: number;
+    associatedTrait: CxTrait;
+    status: 'active' | 'improved';
+    generatedAt: Date | null;
+    lessonCompletedAt: Date | null;
+    monitoringRemaining: number;
+    improvedAt: Date | null;
+    coachingMessage: string;
+};
+
+type AdaptiveCoachingDoc = {
+    userId: string;
+    dealerId?: string;
+    status: 'active' | 'improved';
+    skill: AdaptiveSkillKey;
+    baselineScore: number;
+    generatedAt: Date | null;
+    lastSkillAverages: AdaptiveSkillAverages;
+    recommendation: {
+        title: string;
+        estimatedMinutes: number;
+        associatedTrait: CxTrait;
+    };
+    assignmentSource?: 'engine' | 'manager';
+    moduleType?: 'lesson' | 'autoforge';
+    lessonCompletedAt: Date | null;
+    monitoringRemaining: number;
+    monitoredScores: number[];
+    improvedAt: Date | null;
+};
+
+const FRESH_UP_ALERT_RECOMMENDATIONS: Record<DealerFreshUpSkillAlert['skill'], string> = {
+    'Empathy': 'Run AutoForge Module "Empathy in Motion"',
+    'Listening': 'Run AutoForge Module "Active Listening Under Pressure"',
+    'Trust Building': 'Run AutoForge Module "Trust Through Discovery"',
+    'Relationship Building': 'Run AutoForge Module "Relationship Momentum"',
+    'Closing Ability': 'Run AutoForge Module "Confidence to Commitment"',
+};
+
+function asMetricTrend(current: number, previous: number): TrendDirection {
+    const delta = current - previous;
+    if (Math.abs(delta) <= 1.5) return 'stable';
+    return delta > 0 ? 'up' : 'down';
+}
+
+function roundToTenth(value: number): number {
+    return Math.round(value * 10) / 10;
+}
+
+function getEngagementLabel(peak: number): string {
+    if (peak <= 40) return 'Customer trust difficult to establish';
+    if (peak <= 70) return 'Moderate engagement';
+    return 'High trust conversations';
+}
+
+function normalizeAdaptiveDoc(raw: Record<string, unknown> | undefined, userId: string): AdaptiveCoachingDoc | null {
+    if (!raw) return null;
+    const skill = String(raw.skill || '') as AdaptiveSkillKey;
+    if (!(skill in ADAPTIVE_LESSON_MAP)) return null;
+
+    const suggestion = ADAPTIVE_LESSON_MAP[skill];
+    const recommendationRaw = (raw.recommendation as Record<string, unknown> | undefined) || {};
+    const averagesRaw = (raw.lastSkillAverages as Record<string, unknown> | undefined) || {};
+
+    const averages = emptyAdaptiveSkillAverages();
+    (Object.keys(averages) as AdaptiveSkillKey[]).forEach((key) => {
+        const value = Number(averagesRaw[key] ?? 0);
+        averages[key] = Number.isFinite(value) ? value : 0;
+    });
+
+    return {
+        userId: String(raw.userId || userId),
+        dealerId: String(raw.dealerId || ''),
+        status: raw.status === 'improved' ? 'improved' : 'active',
+        skill,
+        baselineScore: Number(raw.baselineScore || 0),
+        generatedAt: toSafeDate(raw.generatedAt, new Date(0)),
+        lastSkillAverages: averages,
+        recommendation: {
+            title: String(recommendationRaw.title || suggestion.recommendedLessonTitle),
+            estimatedMinutes: Number(recommendationRaw.estimatedMinutes ?? suggestion.estimatedMinutes),
+            associatedTrait: (recommendationRaw.associatedTrait as CxTrait | undefined) || suggestion.associatedTrait,
+        },
+        assignmentSource: raw.assignmentSource === 'manager' ? 'manager' : 'engine',
+        moduleType: raw.moduleType === 'autoforge' ? 'autoforge' : 'lesson',
+        lessonCompletedAt: raw.lessonCompletedAt ? toSafeDate(raw.lessonCompletedAt, new Date(0)) : null,
+        monitoringRemaining: Math.max(0, Math.round(Number(raw.monitoringRemaining ?? ADAPTIVE_MONITORING_WINDOW))),
+        monitoredScores: Array.isArray(raw.monitoredScores)
+            ? raw.monitoredScores.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+            : [],
+        improvedAt: raw.improvedAt ? toSafeDate(raw.improvedAt, new Date(0)) : null,
+    };
+}
+
+function buildAdaptiveCoachingMessage(skillLabel: string): string {
+    return `Your recent Fresh Up conversations show an opportunity to improve ${skillLabel}.`;
+}
+
+function scoreFromAdaptiveSkill(ratings: Ratings, skill: AdaptiveSkillKey): number {
+    if (skill === 'empathy') return ratings.empathy;
+    if (skill === 'listening') return ratings.listening;
+    if (skill === 'trust') return ratings.trust;
+    if (skill === 'relationship') return ratings.relationship;
+    return ratings.closing;
+}
+
+async function calculateAdaptiveAveragesFromFreshUps(db: Firestore, userId: string): Promise<{
+    averages: AdaptiveSkillAverages;
+    sessionCount: number;
+}> {
+    const empty = { averages: emptyAdaptiveSkillAverages(), sessionCount: 0 };
+    const snap = await getDocs(query(
+        collection(db, 'freshUpSessions'),
+        where('userId', '==', userId),
+        orderBy('timestamp', 'desc'),
+        limit(5)
+    ));
+    if (snap.empty) return empty;
+
+    const rows = snap.docs.map((docSnap) => docSnap.data() as Record<string, unknown>);
+    const totals = rows.reduce<AdaptiveSkillAverages>((acc, row) => {
+        const scores = (row.scores as Record<string, unknown> | undefined) || {};
+        acc.empathy += Number(scores.empathy || 0);
+        acc.listening += Number(scores.listening || 0);
+        acc.trust += Number(scores.trust || 0);
+        acc.relationship += Number(scores.relationship || 0);
+        acc.closing += Number(scores.closing || 0);
+        return acc;
+    }, emptyAdaptiveSkillAverages());
+    const count = rows.length;
+
+    return {
+        sessionCount: count,
+        averages: {
+            empathy: count > 0 ? totals.empathy / count : 0,
+            listening: count > 0 ? totals.listening / count : 0,
+            trust: count > 0 ? totals.trust / count : 0,
+            relationship: count > 0 ? totals.relationship / count : 0,
+            closing: count > 0 ? totals.closing / count : 0,
+        },
+    };
+}
+
+async function updateAdaptiveCoachingAfterLesson(input: {
+    db: Firestore;
+    userId: string;
+    dealerId?: string;
+    activitySource: LessonLog['activitySource'];
+    completionStatus: LessonLog['completionStatus'];
+    trainedTrait?: string;
+    ratings: Ratings;
+    now: Date;
+}): Promise<void> {
+    if (input.completionStatus !== 'completed') return;
+
+    const recommendationRef = doc(input.db, 'adaptiveCoachingRecommendations', input.userId);
+    const currentSnap = await getDoc(recommendationRef);
+    const currentDoc = normalizeAdaptiveDoc(currentSnap.exists() ? currentSnap.data() as Record<string, unknown> : undefined, input.userId);
+
+    if (input.activitySource !== 'fresh-up') {
+        if (!currentDoc || currentDoc.status !== 'active' || currentDoc.lessonCompletedAt) return;
+        const completedSkill = toAdaptiveSkillFromTrait(input.trainedTrait);
+        if (!completedSkill || completedSkill !== currentDoc.skill) return;
+
+        await setDoc(recommendationRef, {
+            userId: input.userId,
+            dealerId: input.dealerId || currentDoc.dealerId || '',
+            status: 'active',
+            skill: currentDoc.skill,
+            baselineScore: currentDoc.baselineScore,
+            generatedAt: currentDoc.generatedAt ? Timestamp.fromDate(currentDoc.generatedAt) : Timestamp.fromDate(input.now),
+            recommendation: {
+                title: currentDoc.recommendation.title,
+                estimatedMinutes: currentDoc.recommendation.estimatedMinutes,
+                associatedTrait: currentDoc.recommendation.associatedTrait,
+            },
+            assignmentSource: currentDoc.assignmentSource || 'engine',
+            moduleType: currentDoc.moduleType || 'lesson',
+            lessonCompletedAt: Timestamp.fromDate(input.now),
+            monitoringRemaining: ADAPTIVE_MONITORING_WINDOW,
+            monitoredScores: [],
+            improvedAt: null,
+            lastSkillAverages: currentDoc.lastSkillAverages,
+            updatedAt: Timestamp.fromDate(input.now),
+        }, { merge: true });
+        return;
+    }
+
+    let nextDoc = currentDoc;
+    if (nextDoc && nextDoc.status === 'active' && nextDoc.lessonCompletedAt && nextDoc.monitoringRemaining > 0) {
+        const trackedScore = scoreFromAdaptiveSkill(input.ratings, nextDoc.skill);
+        const monitored = [...nextDoc.monitoredScores, trackedScore].slice(0, ADAPTIVE_MONITORING_WINDOW);
+        const monitoringRemaining = Math.max(0, ADAPTIVE_MONITORING_WINDOW - monitored.length);
+        const averageAfterTraining = monitored.length > 0
+            ? monitored.reduce((sum, value) => sum + value, 0) / monitored.length
+            : 0;
+        const improved = monitored.length >= ADAPTIVE_MONITORING_WINDOW
+            && (averageAfterTraining - nextDoc.baselineScore) >= ADAPTIVE_IMPROVEMENT_TARGET;
+
+        await setDoc(recommendationRef, {
+            monitoredScores: monitored,
+            monitoringRemaining,
+            improvedAt: improved ? Timestamp.fromDate(input.now) : null,
+            status: improved ? 'improved' : 'active',
+            updatedAt: Timestamp.fromDate(input.now),
+        }, { merge: true });
+
+        nextDoc = {
+            ...nextDoc,
+            monitoredScores: monitored,
+            monitoringRemaining,
+            improvedAt: improved ? input.now : null,
+            status: improved ? 'improved' : 'active',
+        };
+    }
+
+    const { averages, sessionCount } = await calculateAdaptiveAveragesFromFreshUps(input.db, input.userId);
+    if (sessionCount === 0) return;
+    const gapSkill = pickLowestGapSkill(averages);
+    if (!gapSkill) return;
+
+    const suggestion = ADAPTIVE_LESSON_MAP[gapSkill];
+    const generatedAt = nextDoc?.generatedAt && nextDoc.generatedAt.getTime() > 0
+        ? nextDoc.generatedAt
+        : null;
+    const stillCoolingDown = !!generatedAt
+        && ((input.now.getTime() - generatedAt.getTime()) < (ADAPTIVE_RECOMMENDATION_COOLDOWN_HOURS * 60 * 60 * 1000))
+        && nextDoc?.skill === gapSkill;
+    if (stillCoolingDown) {
+        await setDoc(recommendationRef, {
+            lastSkillAverages: averages,
+            updatedAt: Timestamp.fromDate(input.now),
+        }, { merge: true });
+        return;
+    }
+
+    await setDoc(recommendationRef, {
+        userId: input.userId,
+        dealerId: input.dealerId || nextDoc?.dealerId || '',
+        status: 'active',
+        skill: gapSkill,
+        baselineScore: averages[gapSkill],
+        generatedAt: Timestamp.fromDate(input.now),
+        recommendation: {
+            title: suggestion.recommendedLessonTitle,
+            estimatedMinutes: suggestion.estimatedMinutes,
+            associatedTrait: suggestion.associatedTrait,
+        },
+        assignmentSource: nextDoc?.assignmentSource || 'engine',
+        moduleType: nextDoc?.moduleType || 'lesson',
+        lessonCompletedAt: nextDoc?.skill === gapSkill ? (nextDoc.lessonCompletedAt ? Timestamp.fromDate(nextDoc.lessonCompletedAt) : null) : null,
+        monitoringRemaining: nextDoc?.skill === gapSkill ? nextDoc.monitoringRemaining : ADAPTIVE_MONITORING_WINDOW,
+        monitoredScores: nextDoc?.skill === gapSkill ? nextDoc.monitoredScores : [],
+        improvedAt: nextDoc?.skill === gapSkill && nextDoc.status === 'improved' && nextDoc.improvedAt
+            ? Timestamp.fromDate(nextDoc.improvedAt)
+            : null,
+        lastSkillAverages: averages,
+        updatedAt: Timestamp.fromDate(input.now),
+    }, { merge: true });
+}
+
 export async function getDealershipLeaderboard(dealershipId: string): Promise<DealershipLeaderboardEntry[]> {
     const { auth } = getFirebase();
     if (!dealershipId || dealershipId === 'all') return [];
@@ -1134,6 +1714,476 @@ export async function getDealershipLeaderboard(dealershipId: string): Promise<De
     } catch (e) {
         console.warn('[getDealershipLeaderboard] API error caught:', e);
         return [];
+    }
+}
+
+export async function getDealerFreshUpInsights(dealerId: string): Promise<DealerFreshUpInsights> {
+    const empty: DealerFreshUpInsights = {
+        available: false,
+        periodDays: 30,
+        averageEmpathy: { score: 0, trend: 'stable' },
+        averageListening: { score: 0, trend: 'stable' },
+        averageTrust: { score: 0, trend: 'stable' },
+        averageRelationship: { score: 0, trend: 'stable' },
+        averageClosing: { score: 0, trend: 'stable' },
+        averageUpMeterPeak: 0,
+        upMeterEngagementLabel: 'Customer trust difficult to establish',
+        totalFreshUpSessions: 0,
+        averageConversationLength: 0,
+        skillAlerts: [],
+    };
+
+    if (!dealerId || dealerId === 'all') return empty;
+
+    const { firestore: db } = getFirebase();
+    const now = new Date();
+    const currentStart = subDays(now, 30);
+    const previousStart = subDays(now, 60);
+
+    try {
+        const snap = await getDocs(query(
+            collection(db, 'freshUpSessions'),
+            where('dealerId', '==', dealerId),
+            where('timestamp', '>=', Timestamp.fromDate(previousStart))
+        ));
+
+        const records = snap.docs.map((docSnap) => {
+            const data = docSnap.data() as any;
+            const timestamp = toSafeDate(data.timestamp, new Date(0));
+            return {
+                timestamp,
+                conversationLength: Number(data.conversationLength || 0),
+                scores: {
+                    empathy: Number(data.scores?.empathy || 0),
+                    listening: Number(data.scores?.listening || 0),
+                    trust: Number(data.scores?.trust || 0),
+                    relationship: Number(data.scores?.relationship || 0),
+                    closing: Number(data.scores?.closing || 0),
+                },
+                upMeterPeak: Number(data.upMeter?.peak || 0),
+            };
+        }).filter((entry) => entry.timestamp.getTime() > 0);
+
+        const current = records.filter((entry) => entry.timestamp >= currentStart);
+        const previous = records.filter((entry) => entry.timestamp >= previousStart && entry.timestamp < currentStart);
+
+        const summarize = (items: typeof current) => {
+            if (!items.length) {
+                return {
+                    empathy: 0,
+                    listening: 0,
+                    trust: 0,
+                    relationship: 0,
+                    closing: 0,
+                    upMeterPeak: 0,
+                    conversationLength: 0,
+                };
+            }
+            const totals = items.reduce((acc, item) => {
+                acc.empathy += item.scores.empathy;
+                acc.listening += item.scores.listening;
+                acc.trust += item.scores.trust;
+                acc.relationship += item.scores.relationship;
+                acc.closing += item.scores.closing;
+                acc.upMeterPeak += item.upMeterPeak;
+                acc.conversationLength += item.conversationLength;
+                return acc;
+            }, {
+                empathy: 0,
+                listening: 0,
+                trust: 0,
+                relationship: 0,
+                closing: 0,
+                upMeterPeak: 0,
+                conversationLength: 0,
+            });
+            const count = items.length;
+            return {
+                empathy: totals.empathy / count,
+                listening: totals.listening / count,
+                trust: totals.trust / count,
+                relationship: totals.relationship / count,
+                closing: totals.closing / count,
+                upMeterPeak: totals.upMeterPeak / count,
+                conversationLength: totals.conversationLength / count,
+            };
+        };
+
+        const currentSummary = summarize(current);
+        const previousSummary = summarize(previous);
+
+        const insights: DealerFreshUpInsights = {
+            available: current.length > 0,
+            periodDays: 30,
+            averageEmpathy: {
+                score: roundToTenth(currentSummary.empathy),
+                trend: asMetricTrend(currentSummary.empathy, previousSummary.empathy),
+            },
+            averageListening: {
+                score: roundToTenth(currentSummary.listening),
+                trend: asMetricTrend(currentSummary.listening, previousSummary.listening),
+            },
+            averageTrust: {
+                score: roundToTenth(currentSummary.trust),
+                trend: asMetricTrend(currentSummary.trust, previousSummary.trust),
+            },
+            averageRelationship: {
+                score: roundToTenth(currentSummary.relationship),
+                trend: asMetricTrend(currentSummary.relationship, previousSummary.relationship),
+            },
+            averageClosing: {
+                score: roundToTenth(currentSummary.closing),
+                trend: asMetricTrend(currentSummary.closing, previousSummary.closing),
+            },
+            averageUpMeterPeak: roundToTenth(currentSummary.upMeterPeak),
+            upMeterEngagementLabel: getEngagementLabel(currentSummary.upMeterPeak),
+            totalFreshUpSessions: current.length,
+            averageConversationLength: roundToTenth(currentSummary.conversationLength),
+            skillAlerts: [],
+        };
+
+        const scoreChecks: Array<{ skill: DealerFreshUpSkillAlert['skill']; score: number }> = [
+            { skill: 'Empathy', score: currentSummary.empathy },
+            { skill: 'Listening', score: currentSummary.listening },
+            { skill: 'Trust Building', score: currentSummary.trust },
+            { skill: 'Relationship Building', score: currentSummary.relationship },
+            { skill: 'Closing Ability', score: currentSummary.closing },
+        ];
+        insights.skillAlerts = scoreChecks
+            .filter((entry) => entry.score < 50)
+            .map((entry) => ({
+                skill: entry.skill,
+                recommendation: FRESH_UP_ALERT_RECOMMENDATIONS[entry.skill],
+            }));
+
+        return insights;
+    } catch (error) {
+        console.warn('[getDealerFreshUpInsights] Failed to load insights', { dealerId, error });
+        return empty;
+    }
+}
+
+export async function getWeeklyFreshUpDigests(input: {
+    entityType?: WeeklyFreshUpDigestEntityType;
+    entityId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    includeSandboxData?: boolean;
+    latestOnly?: boolean;
+    ensureCurrentWeek?: boolean;
+    limit?: number;
+}): Promise<{ records: WeeklyFreshUpDigestRecord[]; latest: WeeklyFreshUpDigestRecord | null }> {
+    const empty = { records: [] as WeeklyFreshUpDigestRecord[], latest: null as WeeklyFreshUpDigestRecord | null };
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) return empty;
+
+    try {
+        const idToken = await currentUser.getIdToken(true);
+        const params = new URLSearchParams();
+        if (input.entityType) params.set('entityType', input.entityType);
+        if (input.entityId) params.set('entityId', input.entityId);
+        if (input.dateFrom) params.set('dateFrom', input.dateFrom);
+        if (input.dateTo) params.set('dateTo', input.dateTo);
+        if (input.includeSandboxData) params.set('includeSandboxData', 'true');
+        if (input.latestOnly) params.set('latest', 'true');
+        if (input.ensureCurrentWeek) params.set('ensureCurrentWeek', 'true');
+        if (input.limit && Number.isFinite(input.limit)) params.set('limit', String(Math.max(1, input.limit)));
+
+        const response = await fetch(`/api/admin/fresh-up-weekly-digest?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${idToken}`,
+            },
+        });
+        if (!response.ok) return empty;
+
+        const payload = await response.json();
+        const recordsRaw = Array.isArray(payload?.records) ? payload.records : [];
+        const records = recordsRaw.map((row: any) => ({
+            digestId: String(row.digestId || ''),
+            entityType: (String(row.entityType || 'platform') as WeeklyFreshUpDigestEntityType),
+            entityId: String(row.entityId || ''),
+            entityName: String(row.entityName || ''),
+            weekStart: row.weekStart ? new Date(row.weekStart) : new Date(0),
+            weekEnd: row.weekEnd ? new Date(row.weekEnd) : new Date(0),
+            headline: String(row.headline || ''),
+            keyInsights: Array.isArray(row.keyInsights) ? row.keyInsights.map((item: unknown) => String(item)) : [],
+            recommendedAction: String(row.recommendedAction || ''),
+            narrativeSummary: row.narrativeSummary ? String(row.narrativeSummary) : '',
+            metricsSnapshot: row.metricsSnapshot && typeof row.metricsSnapshot === 'object' ? row.metricsSnapshot as Record<string, unknown> : {},
+            createdAt: row.createdAt ? new Date(row.createdAt) : new Date(0),
+            environment: String(row.environment || 'production') === 'sandbox' ? 'sandbox' : 'production',
+        })) as WeeklyFreshUpDigestRecord[];
+
+        return {
+            records,
+            latest: records[0] || null,
+        };
+    } catch (error) {
+        console.warn('[getWeeklyFreshUpDigests] Failed to fetch weekly digests', error);
+        return empty;
+    }
+}
+
+export async function getFreshUpRiskRadar(input: {
+    riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+    riskType?: string;
+    dealerId?: string;
+    consultantId?: string;
+    archetype?: string;
+    concern?: string;
+    version?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    isActive?: boolean;
+    includeSandboxData?: boolean;
+}): Promise<FreshUpRiskRadarRecord[]> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) return [];
+    try {
+        const token = await currentUser.getIdToken(true);
+        const params = new URLSearchParams();
+        if (input.riskLevel) params.set('riskLevel', input.riskLevel);
+        if (input.riskType) params.set('riskType', input.riskType);
+        if (input.dealerId) params.set('dealer', input.dealerId);
+        if (input.consultantId) params.set('consultant', input.consultantId);
+        if (input.archetype) params.set('archetype', input.archetype);
+        if (input.concern) params.set('concern', input.concern);
+        if (input.version) params.set('version', input.version);
+        if (input.dateFrom) params.set('dateFrom', input.dateFrom);
+        if (input.dateTo) params.set('dateTo', input.dateTo);
+        if (typeof input.isActive === 'boolean') params.set('isActive', String(input.isActive));
+        if (input.includeSandboxData) params.set('environment', 'sandbox');
+
+        const response = await fetch(`/api/admin/fresh-up-risk-radar?${params.toString()}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        if (!response.ok) return [];
+        const payload = await response.json();
+        const rows = Array.isArray(payload?.risks) ? payload.risks : [];
+        return rows.map((row: any) => ({
+            riskId: String(row.riskId || ''),
+            riskType: String(row.riskType || ''),
+            entityType: String(row.entityType || ''),
+            entityId: String(row.entityId || ''),
+            entityName: String(row.entityName || ''),
+            riskLevel: (String(row.riskLevel || 'low') as FreshUpRiskRadarRecord['riskLevel']),
+            confidenceLevel: (String(row.confidenceLevel || 'low') as FreshUpRiskRadarRecord['confidenceLevel']),
+            timeRange: String(row.timeRange || ''),
+            message: String(row.message || ''),
+            recommendedAction: String(row.recommendedAction || ''),
+            supportingMetrics: row.supportingMetrics && typeof row.supportingMetrics === 'object' ? row.supportingMetrics as Record<string, unknown> : {},
+            createdAt: row.createdAt ? new Date(row.createdAt) : new Date(0),
+            resolvedAt: row.resolvedAt ? new Date(row.resolvedAt) : undefined,
+            isActive: row.isActive !== false,
+            environment: String(row.environment || 'production') === 'sandbox' ? 'sandbox' : 'production',
+        }));
+    } catch (error) {
+        console.warn('[getFreshUpRiskRadar] Failed to load risk radar', error);
+        return [];
+    }
+}
+
+export async function getFreshUpCommandCenter(input: {
+    entityMode: 'dealer' | 'consultant' | 'platform' | 'version';
+    entityId?: string;
+    comparisonEntityId?: string;
+    filters?: {
+        dateFrom?: string;
+        dateTo?: string;
+        dealerId?: string;
+        userId?: string;
+        freshUpVersionId?: string;
+        environment?: 'sandbox' | 'production';
+        includeSandboxData?: boolean;
+    };
+}): Promise<FreshUpCommandCenterResult | null> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
+    try {
+        const token = await currentUser.getIdToken(true);
+        const response = await fetch('/api/admin/fresh-up-command-center', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                entityMode: input.entityMode,
+                entityId: input.entityId,
+                comparisonEntityId: input.comparisonEntityId,
+                filters: {
+                    includeSandboxData: false,
+                    ...(input.filters || {}),
+                },
+            }),
+        });
+        if (!response.ok) return null;
+        const payload = await response.json();
+        return payload as FreshUpCommandCenterResult;
+    } catch (error) {
+        console.warn('[getFreshUpCommandCenter] Failed to load command center', error);
+        return null;
+    }
+}
+
+export async function getFreshUpCoachingInsight(input: {
+    entityType: 'consultant' | 'dealer' | 'team' | 'platform';
+    entityId?: string;
+    includeResolved?: boolean;
+    includeSandboxData?: boolean;
+    limit?: number;
+}): Promise<FreshUpCoachingInsight[]> {
+    const { auth } = getFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser) return [];
+    try {
+        const token = await currentUser.getIdToken(true);
+        const params = new URLSearchParams();
+        params.set('entityType', input.entityType);
+        if (input.entityId) params.set('entityId', input.entityId);
+        if (input.includeResolved) params.set('includeResolved', 'true');
+        if (input.includeSandboxData) params.set('includeSandboxData', 'true');
+        if (input.limit && Number.isFinite(input.limit)) params.set('limit', String(Math.max(1, input.limit)));
+
+        const response = await fetch(`/api/admin/fresh-up-coaching-intelligence?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        if (!response.ok) return [];
+        const payload = await response.json();
+        const rows = Array.isArray(payload?.records) ? payload.records : [];
+        return rows.map((row: any) => ({
+            coachingId: String(row.coachingId || ''),
+            entityType: String(row.entityType || 'consultant') as FreshUpCoachingInsight['entityType'],
+            entityId: String(row.entityId || ''),
+            entityName: String(row.entityName || ''),
+            priorityLevel: String(row.priorityLevel || 'low') as FreshUpCoachingInsight['priorityLevel'],
+            priorityScore: Number(row.priorityScore || 0),
+            coachingTopic: String(row.coachingTopic || ''),
+            message: String(row.message || ''),
+            supportingEvidence: String(row.supportingEvidence || ''),
+            recommendedPractice: String(row.recommendedPractice || ''),
+            suggestedAutoForgeModule: String(row.suggestedAutoForgeModule || ''),
+            createdAt: row.createdAt ? new Date(row.createdAt) : new Date(0),
+            resolvedAt: row.resolvedAt ? new Date(row.resolvedAt) : undefined,
+            environment: String(row.environment || 'production') === 'sandbox' ? 'sandbox' : 'production',
+        })) as FreshUpCoachingInsight[];
+    } catch (error) {
+        console.warn('[getFreshUpCoachingInsight] Failed to load coaching insight', error);
+        return [];
+    }
+}
+
+export async function getAdaptiveCoachingRecommendation(userId: string): Promise<AdaptiveCoachingRecommendation | null> {
+    if (!userId || isTouringUser(userId)) return null;
+
+    const { firestore: db } = getFirebase();
+    const now = new Date();
+    try {
+        const recommendationRef = doc(db, 'adaptiveCoachingRecommendations', userId);
+        const recommendationSnap = await getDoc(recommendationRef);
+        const currentDoc = normalizeAdaptiveDoc(
+            recommendationSnap.exists() ? recommendationSnap.data() as Record<string, unknown> : undefined,
+            userId
+        );
+
+        const { averages, sessionCount } = await calculateAdaptiveAveragesFromFreshUps(db, userId);
+        if (sessionCount === 0) return null;
+
+        const gapSkill = pickLowestGapSkill(averages);
+        if (!gapSkill) return null;
+
+        const suggestion = ADAPTIVE_LESSON_MAP[gapSkill];
+        const nowTs = Timestamp.fromDate(now);
+        let effectiveDoc = currentDoc;
+
+        const generatedAtMs = currentDoc?.generatedAt?.getTime() ?? 0;
+        const withinCooldown = generatedAtMs > 0
+            && ((now.getTime() - generatedAtMs) < (ADAPTIVE_RECOMMENDATION_COOLDOWN_HOURS * 60 * 60 * 1000));
+        const shouldCreateNew =
+            !currentDoc
+            || currentDoc.skill !== gapSkill
+            || generatedAtMs <= 0
+            || !withinCooldown;
+
+        if (shouldCreateNew) {
+            await setDoc(recommendationRef, {
+                userId,
+                dealerId: currentDoc?.dealerId || '',
+                status: 'active',
+                skill: gapSkill,
+                baselineScore: averages[gapSkill],
+                generatedAt: nowTs,
+                recommendation: {
+                    title: suggestion.recommendedLessonTitle,
+                    estimatedMinutes: suggestion.estimatedMinutes,
+                    associatedTrait: suggestion.associatedTrait,
+                },
+                assignmentSource: currentDoc?.assignmentSource || 'engine',
+                moduleType: currentDoc?.moduleType || 'lesson',
+                lessonCompletedAt: null,
+                monitoringRemaining: ADAPTIVE_MONITORING_WINDOW,
+                monitoredScores: [],
+                improvedAt: null,
+                lastSkillAverages: averages,
+                updatedAt: nowTs,
+            }, { merge: true });
+
+            effectiveDoc = {
+                userId,
+                dealerId: currentDoc?.dealerId || '',
+                status: 'active',
+                skill: gapSkill,
+                baselineScore: averages[gapSkill],
+                generatedAt: now,
+                recommendation: {
+                    title: suggestion.recommendedLessonTitle,
+                    estimatedMinutes: suggestion.estimatedMinutes,
+                    associatedTrait: suggestion.associatedTrait,
+                },
+                assignmentSource: currentDoc?.assignmentSource || 'engine',
+                moduleType: currentDoc?.moduleType || 'lesson',
+                lessonCompletedAt: null,
+                monitoringRemaining: ADAPTIVE_MONITORING_WINDOW,
+                monitoredScores: [],
+                improvedAt: null,
+                lastSkillAverages: averages,
+            };
+        } else {
+            await setDoc(recommendationRef, {
+                lastSkillAverages: averages,
+                updatedAt: nowTs,
+            }, { merge: true });
+        }
+
+        if (!effectiveDoc) return null;
+        const currentSuggestion = ADAPTIVE_LESSON_MAP[effectiveDoc.skill];
+
+        return {
+            skill: effectiveDoc.skill,
+            skillLabel: currentSuggestion.skillLabel,
+            averageScore: Math.round((averages[effectiveDoc.skill] || 0) * 10) / 10,
+            recommendedLessonTitle: effectiveDoc.recommendation.title,
+            estimatedMinutes: effectiveDoc.recommendation.estimatedMinutes,
+            associatedTrait: effectiveDoc.recommendation.associatedTrait,
+            status: effectiveDoc.status,
+            generatedAt: effectiveDoc.generatedAt && effectiveDoc.generatedAt.getTime() > 0 ? effectiveDoc.generatedAt : null,
+            lessonCompletedAt: effectiveDoc.lessonCompletedAt && effectiveDoc.lessonCompletedAt.getTime() > 0 ? effectiveDoc.lessonCompletedAt : null,
+            monitoringRemaining: effectiveDoc.monitoringRemaining,
+            improvedAt: effectiveDoc.improvedAt && effectiveDoc.improvedAt.getTime() > 0 ? effectiveDoc.improvedAt : null,
+            coachingMessage: buildAdaptiveCoachingMessage(currentSuggestion.skillLabel),
+        };
+    } catch (error) {
+        console.warn('[getAdaptiveCoachingRecommendation] Failed to load recommendation', { userId, error });
+        return null;
     }
 }
 
@@ -1244,6 +2294,11 @@ export async function createUniqueRecommendedTestingLesson(
 
 export async function getLessonById(lessonId: string, userId?: string): Promise<Lesson | null> {
     const { firestore: db } = getFirebase();
+    if (lessonId === FRESH_UP_LESSON_ID) {
+        const user = userId ? await getUserById(userId) : null;
+        const lessonRole = user && user.role !== 'Owner' && user.role !== 'Admin' ? user.role : 'Sales Consultant';
+        return buildFreshUpLesson(lessonRole as LessonRole);
+    }
     const starterLesson = getStarterLessonById(lessonId);
     if (starterLesson) return starterLesson;
     if (isTouringUser(userId) || lessonId.startsWith('tour-')) {
@@ -1418,6 +2473,7 @@ export async function getConsultantActivity(userId: string): Promise<LessonLog[]
                 ...data,
                 id: doc.id,
                 timestamp: toSafeDate(data.timestamp, new Date(0)),
+                startedAt: data.startedAt ? toSafeDate(data.startedAt, new Date(0)) : undefined,
             };
         })
         .filter(log => log.timestamp.getTime() > 0)
@@ -1770,6 +2826,7 @@ export async function getDailyLessonLimits(userId: string): Promise<{ recommende
     const logs = await getConsultantActivity(userId);
     const todayLogs = logs.filter((log) => (
         isToday(log.timestamp) &&
+        log.activitySource !== 'fresh-up' &&
         log.activitySource !== 'ppp' &&
         log.activitySource !== 'saas-ppp'
     ));
@@ -1788,16 +2845,79 @@ export async function logLessonCompletion(data: {
     trainedTrait?: string;
     coachSummary?: string;
     recommendedNextFocus?: string;
-}): Promise<{ updatedUser: User, newBadges: Badge[] } & LessonCompletionDetails> {
+    activitySource?: LessonLog['activitySource'];
+    startedAt?: Date;
+    completionStatus?: LessonLog['completionStatus'];
+    conversationLength?: number;
+    messagesSent?: number;
+    aiResponseCount?: number;
+    upMeterStart?: number;
+    upMeterPeak?: number;
+    upMeterEnd?: number;
+    outcome?: LessonLog['outcome'];
+    outcomeTag?: LessonLog['outcomeTag'];
+    freshUpId?: string;
+    characterName?: string;
+    coachingTag?: LessonLog['coachingTag'];
+    summaryTag?: LessonLog['summaryTag'];
+    sprocketCoachingLine?: string;
+    difficulty?: number;
+    sourceType?: LessonLog['sourceType'];
+    personalityType?: string;
+    buyingStage?: string;
+    primaryConcern?: string;
+    secondaryConcern?: string;
+    communicationStyle?: string;
+    vehicleInterest?: string;
+    difficultyLevel?: string;
+    startingEmotionalState?: string;
+    endingEmotionalState?: string;
+    finalCustomerResponse?: string;
+    endingType?: LessonLog['endingType'];
+    recommendedNextStep?: LessonLog['recommendedNextStep'];
+    trustShift?: number;
+    archetypeId?: string;
+    archetypeName?: string;
+    archetypeCategory?: LessonLog['archetypeCategory'];
+    humorLevel?: 0 | 1 | 2 | 3;
+    guardrailFlags?: string[];
+    contentValidationPassed?: boolean;
+    validationFailureReasons?: string[];
+    skillWeightMultiplier?: number;
+    sandboxMode?: boolean;
+    saveSessionToLiveAnalytics?: boolean;
+    memoryDebugState?: Record<string, unknown>;
+    scoringDebugState?: Record<string, unknown>;
+    scenarioGenerationDetails?: Record<string, unknown>;
+    freshUpVersionId?: string;
+    freshUpVersionName?: string;
+    isExperimental?: boolean;
+    environment?: 'sandbox' | 'production';
+}): Promise<{ updatedUser: User, newBadges: Badge[], freshUpSessionStored?: boolean, freshUpSessionId?: string } & LessonCompletionDetails> {
     const { firestore: db } = getFirebase();
     const severity = normalizeSeverity(data.severity);
     const normalizedRatings = normalizeRatings(data.ratings, data.scores);
     const normalizedScores = toLegacyScores(normalizedRatings);
     const flags = normalizeFlags(data.flags);
     const isBaselineAssessment = String(data.lessonId || '').startsWith('baseline-');
-    const sanitizedXpDelta = sanitizeXpDelta(data.xpGained, severity);
+    const activitySource = data.activitySource ?? (isFreshUpLessonInput(data) ? 'fresh-up' : 'core');
+    const skillWeightMultiplier = getSkillWeightMultiplier({ ...data, activitySource });
+    const freshUpOutcomeTag = isFreshUpLessonInput(data)
+        ? resolveFreshUpOutcomeTag({
+            explicitOutcomeTag: data.outcomeTag,
+            outcome: data.outcome,
+            coachingTag: data.coachingTag,
+            summaryTag: data.summaryTag,
+            severity,
+        })
+        : undefined;
+    const sanitizedXpDelta = sanitizeXpDelta(
+        data.xpGained,
+        severity,
+        activitySource === 'fresh-up' ? FRESH_UP_MAX_XP : MAX_NORMAL_XP_AWARD
+    );
     const xpDelta = (!isBaselineAssessment && severity === 'normal' && sanitizedXpDelta === 0)
-        ? 10
+        ? (activitySource === 'fresh-up' ? FRESH_UP_MIN_XP : 10)
         : sanitizedXpDelta;
 
     if (isTouringUser(data.userId)) {
@@ -1806,9 +2926,12 @@ export async function logLessonCompletion(data: {
         if (!user) throw new Error('Tour user not found');
 
         const now = new Date();
+        const priorLogs = tour.lessonLogs
+            .filter((log) => log.userId === data.userId)
+            .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
         let statsResult: ReturnType<typeof applyTourRollingStatsUpdate>;
         if (isBaselineAssessment) {
-            const currentStats = user.stats || buildDefaultUserStats(now);
+            const currentStats = (user.stats ?? buildDefaultUserStats(now)) as Partial<UserStats>;
             const nextStats: User['stats'] = {
                 empathy: { score: normalizedRatings.empathy, lastUpdated: now },
                 listening: { score: normalizedRatings.listening, lastUpdated: now },
@@ -1846,10 +2969,18 @@ export async function logLessonCompletion(data: {
                 ? buildStatsSeedFromLegacyScores(data.scores, Timestamp.fromDate(now))
                 : user.stats;
 
-            statsResult = applyTourRollingStatsUpdate(seededStats, normalizedRatings, now);
+            statsResult = applyTourRollingStatsUpdate(seededStats, normalizedRatings, now, skillWeightMultiplier);
             user.stats = statsResult.nextStats;
         }
         user.xp = computeNextXp(user.xp, xpDelta, severity);
+        Object.assign(user, buildNextFreshUpState({
+            user,
+            now,
+            priorLogs,
+            ratings: normalizedRatings,
+            activitySource,
+            lessonId: data.lessonId,
+        }));
 
         const scoreDelta = {
             empathy: statsResult.after.empathy - statsResult.before.empathy,
@@ -1859,11 +2990,14 @@ export async function logLessonCompletion(data: {
             closing: statsResult.after.closing - statsResult.before.closing,
             relationshipBuilding: statsResult.after.relationship - statsResult.before.relationship,
         };
+        const dealerId = user.dealershipIds?.[0] || user.selfDeclaredDealershipId;
 
+        // Fresh Up logging keeps explicit metric deltas for future dealer/character analytics.
         const newTourLog: LessonLog = {
             logId: `tour-log-${data.userId}-${now.getTime()}`,
             timestamp: now,
             userId: data.userId,
+            dealerId,
             lessonId: data.lessonId,
             stepResults: { final: 'pass' },
             xpGained: xpDelta,
@@ -1879,9 +3013,52 @@ export async function logLessonCompletion(data: {
             trainedTrait: data.trainedTrait,
             coachSummary: data.coachSummary,
             recommendedNextFocus: data.recommendedNextFocus,
-            activitySource: 'core',
+            activitySource,
             scoreDelta,
             isRecommended: data.isRecommended,
+            startedAt: data.startedAt,
+            completionStatus: data.completionStatus ?? 'completed',
+            conversationLength: data.conversationLength,
+            outcome: data.outcome,
+            outcomeTag: freshUpOutcomeTag,
+            freshUpId: data.freshUpId,
+            characterName: data.characterName,
+            coachingTag: data.coachingTag,
+            summaryTag: data.summaryTag,
+            sprocketCoachingLine: data.sprocketCoachingLine,
+            difficulty: data.difficulty,
+            sourceType: data.sourceType,
+            personalityType: data.personalityType,
+            buyingStage: data.buyingStage,
+            primaryConcern: data.primaryConcern,
+            secondaryConcern: data.secondaryConcern,
+            communicationStyle: data.communicationStyle,
+            vehicleInterestLabel: data.vehicleInterest,
+            difficultyLevel: data.difficultyLevel,
+            startingEmotionalState: data.startingEmotionalState,
+            endingEmotionalState: data.endingEmotionalState,
+            finalCustomerResponse: data.finalCustomerResponse,
+            endingType: data.endingType,
+            recommendedNextStep: data.recommendedNextStep,
+            trustShift: data.trustShift,
+            archetypeId: data.archetypeId,
+            archetypeName: data.archetypeName,
+            archetypeCategory: data.archetypeCategory,
+            humorLevel: data.humorLevel,
+            guardrailFlags: Array.isArray(data.guardrailFlags) ? data.guardrailFlags : undefined,
+            contentValidationPassed: typeof data.contentValidationPassed === 'boolean' ? data.contentValidationPassed : undefined,
+            validationFailureReasons: Array.isArray(data.validationFailureReasons) ? data.validationFailureReasons : undefined,
+            skillWeightMultiplier,
+            freshUpVersionId: data.freshUpVersionId,
+            freshUpVersionName: data.freshUpVersionName,
+            isExperimental: typeof data.isExperimental === 'boolean' ? data.isExperimental : undefined,
+            environment: data.environment,
+            empathyDelta: scoreDelta.empathy,
+            listeningDelta: scoreDelta.listening,
+            trustDelta: scoreDelta.trust,
+            followUpDelta: scoreDelta.followUp,
+            closingDelta: scoreDelta.closing,
+            relationshipDelta: scoreDelta.relationshipBuilding,
         };
         tour.lessonLogs.push(newTourLog);
 
@@ -1952,6 +3129,8 @@ export async function logLessonCompletion(data: {
 
     const user = await getUserById(data.userId);
     if (!user) throw new Error('User not found');
+    const priorLogs = await getConsultantActivity(data.userId);
+    const dealerId = user.dealershipIds?.[0] || user.selfDeclaredDealershipId;
 
     const batch = writeBatch(db);
     const logRef = doc(collection(db, `users/${data.userId}/lessonLogs`));
@@ -1960,6 +3139,7 @@ export async function logLessonCompletion(data: {
         logId: logRef.id,
         timestamp: Timestamp.fromDate(new Date()),
         userId: data.userId,
+        dealerId,
         lessonId: data.lessonId,
         xpGained: xpDelta,
         isRecommended: data.isRecommended,
@@ -1968,8 +3148,121 @@ export async function logLessonCompletion(data: {
         ratings: normalizedRatings,
         severity,
         flags,
-        activitySource: 'core',
+        activitySource,
+        completionStatus: data.completionStatus ?? 'completed',
+        skillWeightMultiplier,
     };
+    if (data.startedAt instanceof Date) {
+        newLogData.startedAt = Timestamp.fromDate(data.startedAt);
+    }
+    if (typeof data.conversationLength === 'number' && Number.isFinite(data.conversationLength)) {
+        newLogData.conversationLength = Math.max(0, Math.round(data.conversationLength));
+    }
+    if (typeof data.outcome === 'string') {
+        newLogData.outcome = data.outcome;
+    }
+    if (typeof freshUpOutcomeTag === 'string') {
+        newLogData.outcomeTag = freshUpOutcomeTag;
+    }
+    if (typeof data.messagesSent === 'number' && Number.isFinite(data.messagesSent)) {
+        newLogData.messagesSent = Math.max(0, Math.round(data.messagesSent));
+    }
+    if (typeof data.aiResponseCount === 'number' && Number.isFinite(data.aiResponseCount)) {
+        newLogData.aiResponseCount = Math.max(0, Math.round(data.aiResponseCount));
+    }
+    if (typeof data.freshUpId === 'string' && data.freshUpId.trim().length > 0) {
+        newLogData.freshUpId = data.freshUpId;
+    }
+    if (typeof data.characterName === 'string' && data.characterName.trim().length > 0) {
+        newLogData.characterName = data.characterName;
+    }
+    if (typeof data.coachingTag === 'string' && data.coachingTag.trim().length > 0) {
+        newLogData.coachingTag = data.coachingTag;
+    }
+    if (typeof data.summaryTag === 'string' && data.summaryTag.trim().length > 0) {
+        newLogData.summaryTag = data.summaryTag;
+    }
+    if (typeof data.sprocketCoachingLine === 'string' && data.sprocketCoachingLine.trim().length > 0) {
+        newLogData.sprocketCoachingLine = data.sprocketCoachingLine;
+    }
+    if (typeof data.difficulty === 'number' && Number.isFinite(data.difficulty)) {
+        newLogData.difficulty = Math.max(1, Math.round(data.difficulty));
+    }
+    if (data.sourceType === 'procedural' || data.sourceType === 'signature') {
+        newLogData.sourceType = data.sourceType;
+    }
+    if (typeof data.personalityType === 'string' && data.personalityType.trim().length > 0) {
+        newLogData.personalityType = data.personalityType;
+    }
+    if (typeof data.buyingStage === 'string' && data.buyingStage.trim().length > 0) {
+        newLogData.buyingStage = data.buyingStage;
+    }
+    if (typeof data.primaryConcern === 'string' && data.primaryConcern.trim().length > 0) {
+        newLogData.primaryConcern = data.primaryConcern;
+    }
+    if (typeof data.secondaryConcern === 'string' && data.secondaryConcern.trim().length > 0) {
+        newLogData.secondaryConcern = data.secondaryConcern;
+    }
+    if (typeof data.communicationStyle === 'string' && data.communicationStyle.trim().length > 0) {
+        newLogData.communicationStyle = data.communicationStyle;
+    }
+    if (typeof data.vehicleInterest === 'string' && data.vehicleInterest.trim().length > 0) {
+        newLogData.vehicleInterestLabel = data.vehicleInterest;
+    }
+    if (typeof data.difficultyLevel === 'string' && data.difficultyLevel.trim().length > 0) {
+        newLogData.difficultyLevel = data.difficultyLevel;
+    }
+    if (typeof data.startingEmotionalState === 'string' && data.startingEmotionalState.trim().length > 0) {
+        newLogData.startingEmotionalState = data.startingEmotionalState;
+    }
+    if (typeof data.endingEmotionalState === 'string' && data.endingEmotionalState.trim().length > 0) {
+        newLogData.endingEmotionalState = data.endingEmotionalState;
+    }
+    if (typeof data.finalCustomerResponse === 'string' && data.finalCustomerResponse.trim().length > 0) {
+        newLogData.finalCustomerResponse = data.finalCustomerResponse;
+    }
+    if (typeof data.endingType === 'string' && data.endingType.trim().length > 0) {
+        newLogData.endingType = data.endingType;
+    }
+    if (typeof data.recommendedNextStep === 'string' && data.recommendedNextStep.trim().length > 0) {
+        newLogData.recommendedNextStep = data.recommendedNextStep;
+    }
+    if (typeof data.trustShift === 'number' && Number.isFinite(data.trustShift)) {
+        newLogData.trustShift = Math.round(data.trustShift);
+    }
+    if (typeof data.archetypeId === 'string' && data.archetypeId.trim().length > 0) {
+        newLogData.archetypeId = data.archetypeId;
+    }
+    if (typeof data.archetypeName === 'string' && data.archetypeName.trim().length > 0) {
+        newLogData.archetypeName = data.archetypeName;
+    }
+    if (typeof data.archetypeCategory === 'string' && data.archetypeCategory.trim().length > 0) {
+        newLogData.archetypeCategory = data.archetypeCategory;
+    }
+    if (typeof data.humorLevel === 'number' && Number.isFinite(data.humorLevel)) {
+        newLogData.humorLevel = Math.max(0, Math.min(3, Math.round(data.humorLevel)));
+    }
+    if (Array.isArray(data.guardrailFlags) && data.guardrailFlags.length > 0) {
+        newLogData.guardrailFlags = data.guardrailFlags.map((flag) => String(flag));
+    }
+    if (typeof data.contentValidationPassed === 'boolean') {
+        newLogData.contentValidationPassed = data.contentValidationPassed;
+    }
+    if (Array.isArray(data.validationFailureReasons) && data.validationFailureReasons.length > 0) {
+        newLogData.validationFailureReasons = data.validationFailureReasons.map((reason) => String(reason));
+    }
+    if (typeof data.freshUpVersionId === 'string' && data.freshUpVersionId.trim().length > 0) {
+        newLogData.freshUpVersionId = data.freshUpVersionId;
+    }
+    if (typeof data.freshUpVersionName === 'string' && data.freshUpVersionName.trim().length > 0) {
+        newLogData.freshUpVersionName = data.freshUpVersionName;
+    }
+    if (typeof data.isExperimental === 'boolean') {
+        newLogData.isExperimental = data.isExperimental;
+    }
+    if (data.environment === 'sandbox' || data.environment === 'production') {
+        newLogData.environment = data.environment;
+    }
     if (typeof data.trainedTrait === 'string' && data.trainedTrait.trim().length > 0) {
         newLogData.trainedTrait = data.trainedTrait;
     }
@@ -1980,7 +3273,7 @@ export async function logLessonCompletion(data: {
         newLogData.recommendedNextFocus = data.recommendedNextFocus;
     }
 
-    const userLogs = await getConsultantActivity(data.userId);
+    const userLogs = priorLogs;
     const userBadgeDocs = await getDocs(collection(db, `users/${data.userId}/earnedBadges`));
     const userBadgeIds = userBadgeDocs.docs.map(d => d.id as BadgeId);
     
@@ -2041,8 +3334,17 @@ export async function logLessonCompletion(data: {
         );
     }
 
+    const nextFreshUpState = buildNextFreshUpState({
+        user,
+        now: new Date(),
+        priorLogs,
+        ratings: normalizedRatings,
+        activitySource,
+        lessonId: data.lessonId,
+    });
+
     batch.set(logRef, newLogData);
-    batch.set(doc(db, 'users', data.userId), { xp: newXp }, { merge: true });
+    batch.set(doc(db, 'users', data.userId), { xp: newXp, ...nextFreshUpState }, { merge: true });
 
     try {
         await batch.commit();
@@ -2056,6 +3358,8 @@ export async function logLessonCompletion(data: {
     }
 
     let statChanges: LessonCompletionDetails['statChanges'];
+    let freshUpSessionStored = false;
+    let freshUpSessionId: string | undefined;
 
     try {
         if (isBaselineAssessment) {
@@ -2107,7 +3411,7 @@ export async function logLessonCompletion(data: {
                 },
             };
         } else {
-            const rollingResult = await updateRollingStats(data.userId, normalizedRatings);
+            const rollingResult = await updateRollingStats(data.userId, normalizedRatings, { weightMultiplier: skillWeightMultiplier });
             statChanges = {
                 empathy: {
                     before: rollingResult.before.empathy,
@@ -2158,8 +3462,122 @@ export async function logLessonCompletion(data: {
                     closing: statChanges.closing.delta,
                     relationshipBuilding: statChanges.relationshipBuilding.delta,
                 },
+                empathyDelta: statChanges.empathy.delta,
+                listeningDelta: statChanges.listening.delta,
+                trustDelta: statChanges.trust.delta,
+                followUpDelta: statChanges.followUp.delta,
+                closingDelta: statChanges.closing.delta,
+                relationshipDelta: statChanges.relationshipBuilding.delta,
             });
         }
+
+        if (isFreshUpLessonInput(data) && (data.completionStatus ?? 'completed') === 'completed') {
+            const writeToSandboxCollection = data.sandboxMode === true;
+            const writeToLiveCollection = !writeToSandboxCollection || data.saveSessionToLiveAnalytics === true;
+            const sandboxSessionRef = writeToSandboxCollection ? doc(collection(db, 'freshUpSandboxSessions')) : null;
+            const liveSessionRef = writeToLiveCollection ? doc(collection(db, 'freshUpSessions')) : null;
+            const upMeterStart = Math.max(0, Math.min(100, Math.round(Number(data.upMeterStart ?? 35))));
+            const upMeterEnd = Math.max(0, Math.min(100, Math.round(Number(data.upMeterEnd ?? upMeterStart))));
+            const upMeterPeak = Math.max(
+                upMeterStart,
+                upMeterEnd,
+                Math.max(0, Math.min(100, Math.round(Number(data.upMeterPeak ?? upMeterEnd))))
+            );
+            const nowDate = new Date();
+            const basePayload = {
+                userId: data.userId,
+                dealerId,
+                scenarioId: data.freshUpId ?? data.lessonId,
+                scenarioName: data.characterName ?? 'Fresh Up',
+                sourceType: data.sourceType ?? 'signature',
+                timestamp: Timestamp.fromDate(nowDate),
+                conversationLength: Math.max(0, Math.round(Number(data.conversationLength ?? 0))),
+                messagesSent: Math.max(0, Math.round(Number(data.messagesSent ?? 0))),
+                aiResponses: Math.max(0, Math.round(Number(data.aiResponseCount ?? 0))),
+                personalityType: data.personalityType ?? '',
+                buyingStage: data.buyingStage ?? '',
+                primaryConcern: data.primaryConcern ?? '',
+                secondaryConcern: data.secondaryConcern ?? '',
+                communicationStyle: data.communicationStyle ?? '',
+                vehicleInterest: data.vehicleInterest ?? '',
+                difficultyLevel: data.difficultyLevel ?? '',
+                startingEmotionalState: data.startingEmotionalState ?? '',
+                endingEmotionalState: data.endingEmotionalState ?? '',
+                finalCustomerResponse: data.finalCustomerResponse ?? '',
+                endingType: data.endingType ?? '',
+                recommendedNextStep: data.recommendedNextStep ?? '',
+                trustShift: Number.isFinite(Number(data.trustShift)) ? Math.round(Number(data.trustShift)) : 0,
+                archetypeId: data.archetypeId ?? '',
+                archetypeName: data.archetypeName ?? '',
+                archetypeCategory: data.archetypeCategory ?? '',
+                humorLevel: Number.isFinite(Number(data.humorLevel)) ? Math.max(0, Math.min(3, Math.round(Number(data.humorLevel)))) : 0,
+                guardrailFlags: Array.isArray(data.guardrailFlags) ? data.guardrailFlags.map((flag) => String(flag)) : [],
+                contentValidationPassed: typeof data.contentValidationPassed === 'boolean' ? data.contentValidationPassed : true,
+                validationFailureReasons: Array.isArray(data.validationFailureReasons) ? data.validationFailureReasons.map((reason) => String(reason)) : [],
+                freshUpVersionId: data.freshUpVersionId ?? '',
+                freshUpVersionName: data.freshUpVersionName ?? '',
+                isExperimental: typeof data.isExperimental === 'boolean' ? data.isExperimental : false,
+                environment: data.environment === 'sandbox' || data.environment === 'production'
+                    ? data.environment
+                    : (writeToSandboxCollection ? 'sandbox' : 'production'),
+                scores: {
+                    empathy: normalizedRatings.empathy,
+                    listening: normalizedRatings.listening,
+                    trust: normalizedRatings.trust,
+                    relationship: normalizedRatings.relationship,
+                    closing: normalizedRatings.closing,
+                },
+                xpAwarded: xpDelta,
+                upMeter: {
+                    start: upMeterStart,
+                    end: upMeterEnd,
+                    peak: upMeterPeak,
+                },
+                outcomeTag: freshUpOutcomeTag ?? 'Lost Momentum',
+                statBonuses: {
+                    empathyBonus: statChanges.empathy.delta,
+                    listeningBonus: statChanges.listening.delta,
+                    trustBonus: statChanges.trust.delta,
+                    relationshipBonus: statChanges.relationshipBuilding.delta,
+                    closingBonus: statChanges.closing.delta,
+                },
+                ...(writeToSandboxCollection ? { isSandbox: true } : {}),
+                ...(data.memoryDebugState ? { memoryDebugState: data.memoryDebugState } : {}),
+                ...(data.scoringDebugState ? { scoringDebugState: data.scoringDebugState } : {}),
+                ...(data.scenarioGenerationDetails ? { scenarioGenerationDetails: data.scenarioGenerationDetails } : {}),
+            };
+
+            if (sandboxSessionRef) {
+                await setDoc(sandboxSessionRef, {
+                    sessionId: sandboxSessionRef.id,
+                    ...basePayload,
+                });
+            }
+            if (liveSessionRef) {
+                await setDoc(liveSessionRef, {
+                    sessionId: liveSessionRef.id,
+                    ...basePayload,
+                });
+            }
+
+            freshUpSessionStored = true;
+            freshUpSessionId = sandboxSessionRef?.id ?? liveSessionRef?.id;
+        }
+
+        // Adaptive Coaching Engine updates after each completed lesson:
+        // - marks recommended lesson completion
+        // - tracks next 3 Fresh Ups for post-training improvement
+        // - refreshes recommendation when a sub-60 skill gap persists.
+        await updateAdaptiveCoachingAfterLesson({
+            db,
+            userId: data.userId,
+            dealerId,
+            activitySource,
+            completionStatus: data.completionStatus ?? 'completed',
+            trainedTrait: data.trainedTrait,
+            ratings: normalizedRatings,
+            now: new Date(),
+        });
     } catch (error) {
         console.error('[logLessonCompletion] Failed to update rolling stats', {
             userId: data.userId,
@@ -2174,6 +3592,8 @@ export async function logLessonCompletion(data: {
     return {
         updatedUser,
         newBadges: newlyAwardedBadges,
+        freshUpSessionStored,
+        freshUpSessionId,
         severity,
         ratingsUsed: normalizedRatings,
         statChanges,

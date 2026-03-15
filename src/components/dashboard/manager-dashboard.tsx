@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
-import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData } from '@/lib/data.client';
+import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData, getFreshUpCommandCenter, type FreshUpCommandCenterResult } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
 import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ListChecks, ChevronRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -405,6 +405,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [dealerLeadershipData, setDealerLeadershipData] = useState<DealerLeadershipResponse | null>(null);
   const [dealerLeadershipLoading, setDealerLeadershipLoading] = useState(false);
   const [dealerLeadershipError, setDealerLeadershipError] = useState<string | null>(null);
+  const [commandCenter, setCommandCenter] = useState<FreshUpCommandCenterResult | null>(null);
+  const [commandCenterLoading, setCommandCenterLoading] = useState(false);
   const router = useRouter();
   const canViewAllStores = ['Admin', 'Developer'].includes(user.role);
   const canViewAssignedStoresAggregate = !canViewAllStores && (user.dealershipIds?.length ?? 0) > 1;
@@ -530,6 +532,17 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
           setNeedsBaselineAssessment(baselineRequired);
           setShowBaselineAssessment(baselineRequired);
+
+          setCommandCenterLoading(true);
+          const commandCenterResult = await getFreshUpCommandCenter({
+            entityMode: scopedDealershipId === 'all' ? 'platform' : 'dealer',
+            entityId: scopedDealershipId === 'all' ? undefined : scopedDealershipId,
+            filters: {
+              includeSandboxData: false,
+              dealerId: scopedDealershipId === 'all' ? undefined : scopedDealershipId,
+            },
+          });
+          setCommandCenter(commandCenterResult);
       } catch (error) {
           console.warn("Dashboard partially failed to load team data:", error);
           setPppFeatureEnabled(false);
@@ -540,6 +553,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               description: 'Some administrative data could not be retrieved at this time.',
           });
       } finally {
+          setCommandCenterLoading(false);
           setLoading(false);
       }
   }, [user, isTouring, toast, canViewAllStores, canViewAssignedStoresAggregate]);
@@ -1042,6 +1056,113 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           actionLoading={isRecalculatingDealership}
           hideInternalToggle 
         />
+      </section>
+
+      <section>
+        <Card className={dashboardFeatureCardClass}>
+          <CardHeader>
+            <CardTitle>CX Command Center</CardTitle>
+            <CardDescription>
+              Leadership briefing view combining digest, risks, goals, alerts, performance, and coaching priority.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {commandCenterLoading ? (
+              <Skeleton className="h-20 w-full" />
+            ) : !commandCenter ? (
+              <p className="text-sm text-muted-foreground">Command Center data is not available yet for this scope.</p>
+            ) : (
+              <>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-semibold">Weekly Digest Summary</p>
+                  <p className="mt-1 text-sm">{commandCenter.weeklyDigestSummary.headline}</p>
+                  {commandCenter.weeklyDigestSummary.topInsights.slice(0, 3).map((line, index) => (
+                    <p key={`cc-weekly-${index}`} className="mt-1 text-xs text-muted-foreground">• {line}</p>
+                  ))}
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-md border p-3">
+                    <p className="text-xs font-semibold">Active Risks</p>
+                    <p className="text-xs text-muted-foreground mt-1">{commandCenter.activeRiskRadarSummary.totalActiveRisks} active</p>
+                    {commandCenter.activeRiskRadarSummary.topRisks.slice(0, 2).map((risk) => (
+                      <p key={risk.riskId} className="mt-1 text-xs text-muted-foreground">• {risk.riskType.replace(/_/g, ' ')} ({risk.riskLevel})</p>
+                    ))}
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <p className="text-xs font-semibold">Goals</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Active {commandCenter.goalsAndTargetsSummary.activeGoals} • At Risk {commandCenter.goalsAndTargetsSummary.atRisk}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      On Track {commandCenter.goalsAndTargetsSummary.onTrack} • Stalled {commandCenter.goalsAndTargetsSummary.stalled}
+                    </p>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <p className="text-xs font-semibold">Alerts</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Total {commandCenter.activeAlertsSummary.totalActiveAlerts} • High {commandCenter.activeAlertsSummary.highSeverityAlerts}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Goal {commandCenter.activeAlertsSummary.goalRelatedAlerts} • Version {commandCenter.activeAlertsSummary.versionRelatedAlerts}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-semibold">Coaching Intelligence</p>
+                  {commandCenter.coachingIntelligence ? (
+                    <>
+                      <p className="mt-1 text-sm text-muted-foreground">{commandCenter.coachingIntelligence.message}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Supporting Evidence:</span> {commandCenter.coachingIntelligence.supportingEvidence}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Recommended Practice:</span> {commandCenter.coachingIntelligence.recommendedPractice}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Suggested AutoForge:</span> {commandCenter.coachingIntelligence.suggestedAutoForgeModule}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-1 text-sm text-muted-foreground">{commandCenter.coachingPrioritySummary}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Recommended AutoForge:</span> {commandCenter.autoForgeRecommendationSummary.module}
+                      </p>
+                    </>
+                  )}
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-semibold">Fresh Up Performance Snapshot</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Sessions {commandCenter.freshUpPerformanceSnapshot.totalFreshUpSessions} • Up Meter Peak {commandCenter.freshUpPerformanceSnapshot.averageUpMeterPeak} • Trust Shift {commandCenter.freshUpPerformanceSnapshot.averageTrustShift}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Emp {commandCenter.freshUpPerformanceSnapshot.averageEmpathy} • Lis {commandCenter.freshUpPerformanceSnapshot.averageListening} • Trust {commandCenter.freshUpPerformanceSnapshot.averageTrust}
+                  </p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-semibold">Trend + Benchmark Highlights</p>
+                  {commandCenter.trendHighlights.slice(0, 3).map((trend, index) => (
+                    <p key={`cc-trend-${index}`} className="mt-1 text-xs text-muted-foreground">
+                      • {trend.label}: {trend.delta > 0 ? '+' : ''}{trend.delta}
+                    </p>
+                  ))}
+                  {commandCenter.benchmarkSnapshot.highlights.slice(0, 2).map((highlight, index) => (
+                    <p key={`cc-bench-${index}`} className="mt-1 text-xs text-muted-foreground">
+                      • {highlight.metricName}: {highlight.difference > 0 ? '+' : ''}{highlight.difference}
+                    </p>
+                  ))}
+                </div>
+                {commandCenter.narrativeSummary && (
+                  <div className="rounded-md border bg-muted/20 p-3">
+                    <p className="text-xs font-semibold">Leadership Narrative</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{commandCenter.narrativeSummary.narrative}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       {showTodaysLessonsCard && (
