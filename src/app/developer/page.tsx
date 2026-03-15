@@ -55,6 +55,7 @@ import { evaluateFreshUpPromotionSafety, getFreshUpReleaseState, getFreshUpRelea
 import { getAisInteractionLabel } from '@/lib/ais-role-adaptive';
 import { interpretAisScore, type AisMetricName } from '@/lib/ais-score-interpretation';
 import { getRoleLabels, resolveRoleLabelKeyFromAisRoleType } from '@/config/roleLabels';
+import { CONVERSATION_TEMPO_PROFILES } from '@/config/conversationTempoProfiles';
 
 type DashboardMode = 'role_based' | 'single_user';
 type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'operations' | 'sandbox' | 'danger';
@@ -319,6 +320,10 @@ const QA_ARCHETYPE_CATEGORY_OPTIONS: Array<{ value: FreshUpArchetypeCategory; la
   { value: 'emotional', label: 'Emotional' },
   { value: 'unusual', label: 'Unusual' },
 ];
+const SANDBOX_TEMPO_OPTIONS = CONVERSATION_TEMPO_PROFILES.map((profile) => ({
+  value: profile.tempoId,
+  label: profile.name,
+}));
 
 function clampScore(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -413,6 +418,7 @@ export default function DeveloperPage() {
     communicationStyle: 'random',
     forceProfileIdOrName: '',
     forceArchetypeIdOrName: '',
+    forceTempoIdOrName: '',
     startingUpMeter: 35,
     memoryDebugMode: false,
     scoringDebugMode: false,
@@ -427,6 +433,7 @@ export default function DeveloperPage() {
     personalityPool: ['analytical', 'friendly', 'skeptical', 'impatient', 'overwhelmed', 'excited', 'defensive'],
     communicationStylePool: ['talkative', 'reserved', 'direct', 'sarcastic', 'story-driven', 'cautious', 'rapid-fire questions'],
     moodPool: ['cautious', 'curious', 'stressed', 'excited', 'guarded', 'frustrated', 'optimistic'],
+    tempoPool: CONVERSATION_TEMPO_PROFILES.map((profile) => profile.tempoId),
     archetypeCategoryPool: ['friendly', 'curious', 'funny', 'analytical', 'skeptical', 'budget_focused', 'high_stakes', 'family_complex', 'emotional', 'unusual'],
   });
   const [isRunningQAMatrix, setIsRunningQAMatrix] = useState(false);
@@ -539,6 +546,9 @@ export default function DeveloperPage() {
     }
     if (freshUpSandboxConfig.forceArchetypeIdOrName && freshUpSandboxConfig.forceArchetypeIdOrName.trim().length > 0) {
       params.set('sandboxForceArchetype', freshUpSandboxConfig.forceArchetypeIdOrName.trim());
+    }
+    if (freshUpSandboxConfig.forceTempoIdOrName && freshUpSandboxConfig.forceTempoIdOrName.trim().length > 0) {
+      params.set('sandboxForceTempo', freshUpSandboxConfig.forceTempoIdOrName.trim());
     }
     router.push(`/lesson/${FRESH_UP_LESSON_ID}?${params.toString()}`);
   }, [freshUpSandboxConfig, router, sandboxVersionId]);
@@ -1512,7 +1522,7 @@ export default function DeveloperPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Force Character / Scenario (Optional)</Label>
                 <Input
@@ -1528,6 +1538,21 @@ export default function DeveloperPage() {
                   onChange={(event) => setFreshUpSandboxConfig((prev) => ({ ...prev, forceArchetypeIdOrName: event.target.value }))}
                   placeholder="e.g. funny-dad-joke-machine or archetype name"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Force Tempo (Optional)</Label>
+                <Select
+                  value={freshUpSandboxConfig.forceTempoIdOrName || ''}
+                  onValueChange={(value) => setFreshUpSandboxConfig((prev) => ({ ...prev, forceTempoIdOrName: value === 'none' ? '' : value }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Any tempo profile" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Any tempo profile</SelectItem>
+                    {SANDBOX_TEMPO_OPTIONS.map((item) => (
+                      <SelectItem key={`tempo-${item.value}`} value={item.value}>{item.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -1815,6 +1840,20 @@ export default function DeveloperPage() {
                         ))}
                       </div>
                     </div>
+                    <div className="rounded-md border p-3 lg:col-span-2">
+                      <p className="mb-2 text-sm font-medium">Tempo Profile Pool</p>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        {SANDBOX_TEMPO_OPTIONS.map((option) => (
+                          <label key={`qa-tempo-${option.value}`} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={qaConfig.tempoPool.includes(option.value)}
+                              onCheckedChange={() => setQaConfig((prev) => ({ ...prev, tempoPool: togglePoolValue(prev.tempoPool, option.value) }))}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
                   <Button type="button" onClick={handleRunFreshUpQAMatrix} disabled={isRunningQAMatrix || !qaMatrixEnabledForSelectedVersion}>
@@ -1946,6 +1985,9 @@ export default function DeveloperPage() {
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   Archetype: {selectedQASession.customerProfile.archetypeName} ({selectedQASession.customerProfile.archetypeCategory}) · Humor {selectedQASession.customerProfile.humorLevel}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Tempo: {selectedQASession.customerProfile.conversationTempoName || 'Steady'} ({selectedQASession.customerProfile.conversationTempoId || 'steady'})
                                 </p>
                               </div>
                               <div>

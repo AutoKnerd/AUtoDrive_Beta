@@ -376,6 +376,44 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
 
     return { mostCommon, strongest, weakest, highestTrustDrop, mostLikelyToStall };
   }, [activity]);
+  const tempoIntelligence = useMemo(() => {
+    const rows = activity.filter((log) => log.activitySource === 'fresh-up');
+    if (rows.length === 0) return null;
+
+    const grouped = new Map<string, { count: number; trustTotal: number; trustShiftTotal: number; stallCount: number }>();
+    for (const row of rows) {
+      const key = row.conversationTempoName || row.roleAdjustedTempoLabel || row.conversationTempoId || 'Unknown Tempo';
+      const current = grouped.get(key) || { count: 0, trustTotal: 0, trustShiftTotal: 0, stallCount: 0 };
+      current.count += 1;
+      current.trustTotal += Number.isFinite(row.trust) ? row.trust : 0;
+      current.trustShiftTotal += Number.isFinite(row.trustShift) ? Number(row.trustShift) : 0;
+      if (
+        row.endingType === 'stalled_conversation'
+        || row.endingType === 'trust_break'
+        || row.outcomeTag === 'Lost Momentum'
+        || row.outcomeTag === 'Conversation Breakdown'
+      ) {
+        current.stallCount += 1;
+      }
+      grouped.set(key, current);
+    }
+
+    const metrics = Array.from(grouped.entries()).map(([name, values]) => ({
+      name,
+      count: values.count,
+      avgTrust: values.count > 0 ? values.trustTotal / values.count : 0,
+      avgTrustShift: values.count > 0 ? values.trustShiftTotal / values.count : 0,
+      stallRate: values.count > 0 ? values.stallCount / values.count : 0,
+    }));
+
+    const mostCommon = metrics.slice().sort((a, b) => b.count - a.count)[0] || null;
+    const strongest = metrics.slice().sort((a, b) => b.avgTrust - a.avgTrust)[0] || null;
+    const weakest = metrics.slice().sort((a, b) => a.avgTrust - b.avgTrust)[0] || null;
+    const highestTrustDrop = metrics.slice().sort((a, b) => a.avgTrustShift - b.avgTrustShift)[0] || null;
+    const mostLikelyToStall = metrics.slice().sort((a, b) => b.stallRate - a.stallRate)[0] || null;
+
+    return { mostCommon, strongest, weakest, highestTrustDrop, mostLikelyToStall };
+  }, [activity]);
 
   const formatTrait = (trait: CxTrait | null) => {
     if (!trait) return 'Not enough data';
@@ -631,6 +669,30 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
       )}
     </div>
   );
+  const tempoIntelligenceCard = (
+    <div className="rounded-md border p-3 md:col-span-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-semibold text-foreground">Tempo Intelligence</span>
+        <span className="text-xs text-muted-foreground">Manager summary</span>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-4 w-10/12" />
+        </div>
+      ) : !tempoIntelligence ? (
+        <p className="text-sm text-muted-foreground">Not enough tempo activity yet.</p>
+      ) : (
+        <div className="space-y-1 text-xs text-muted-foreground">
+          <p><span className="font-semibold text-foreground">Most common:</span> {tempoIntelligence.mostCommon?.name || 'Not enough data'}</p>
+          <p><span className="font-semibold text-foreground">Strongest:</span> {tempoIntelligence.strongest?.name || 'Not enough data'}</p>
+          <p><span className="font-semibold text-foreground">Weakest:</span> {tempoIntelligence.weakest?.name || 'Not enough data'}</p>
+          <p><span className="font-semibold text-foreground">Highest trust drop:</span> {tempoIntelligence.highestTrustDrop?.name || 'Not enough data'}</p>
+          <p><span className="font-semibold text-foreground">Most likely to stall:</span> {tempoIntelligence.mostLikelyToStall?.name || 'Not enough data'}</p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -746,6 +808,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                     {weeklyDigestCard}
                     {riskRadarCard}
                     {archetypeIntelligenceCard}
+                    {tempoIntelligenceCard}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">Manager Coaching Recommendation:</span> {managerCoachingRecommendation}
@@ -788,6 +851,7 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
                       {weeklyDigestCard}
                       {riskRadarCard}
                       {archetypeIntelligenceCard}
+                      {tempoIntelligenceCard}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         <span className="font-semibold text-foreground">Manager Coaching Recommendation:</span> {managerCoachingRecommendation}

@@ -10,6 +10,7 @@ import { getSignatureFreshUpScenarios } from '@/lib/fresh-up-signature';
 import { mergeFreshUpValidationResults, validateFreshUpEndingGuardrails, validateFreshUpOpeningGuardrails } from '@/lib/fresh-up-guardrails';
 import type { FreshUpFeatureToggles } from '@/lib/fresh-up-release';
 import { getRoleExchangeTarget } from '@/config/roleToneProfiles';
+import { CONVERSATION_TEMPO_PROFILES, pickConversationTempoProfile } from '@/config/conversationTempoProfiles';
 
 export type FreshUpQASimulationConfig = {
   sessionsToRun: number;
@@ -20,6 +21,7 @@ export type FreshUpQASimulationConfig = {
   personalityPool: string[];
   communicationStylePool: string[];
   moodPool: string[];
+  tempoPool: string[];
   archetypeCategoryPool: FreshUpArchetypeCategory[];
   freshUpVersionId?: string;
   freshUpVersionName?: string;
@@ -117,6 +119,7 @@ const ALL_PRIMARY_CONCERNS = ['price', 'trade value', 'monthly payment', 'reliab
 const ALL_PERSONALITIES = ['analytical', 'friendly', 'skeptical', 'impatient', 'overwhelmed', 'excited', 'defensive'];
 const ALL_COMMUNICATION_STYLES = ['talkative', 'reserved', 'direct', 'sarcastic', 'story-driven', 'cautious', 'rapid-fire questions'];
 const ALL_MOODS = ['cautious', 'curious', 'stressed', 'excited', 'guarded', 'frustrated', 'optimistic'];
+const ALL_TEMPO_IDS = CONVERSATION_TEMPO_PROFILES.map((profile) => profile.tempoId);
 const FAILURE_FLAG_MAP: Record<string, string> = {
   unrealistic_dialogue: 'unrealistic dialogue',
   conversation_dead_end: 'conversation dead end',
@@ -150,6 +153,32 @@ function chooseBySeed<T>(items: T[], seed: number): T {
 
 function hashSeed(value: string): number {
   return [...value].reduce((sum, char) => ((sum << 5) - sum) + char.charCodeAt(0), 0) || 1;
+}
+
+function withResolvedTempoProfile(input: {
+  profile: FreshUpProfile;
+  roleType: FreshUpProfile['roleType'];
+  forceTempoIdOrName: string;
+  seedInput: string;
+}): FreshUpProfile {
+  const roleType = input.roleType ?? 'sales';
+  const selectedTempo = pickConversationTempoProfile({
+    roleType,
+    seedInput: input.seedInput,
+    personalityType: input.profile.personalityType,
+    primaryConcern: input.profile.primaryConcern,
+    communicationStyle: input.profile.communicationStyle,
+    emotionalState: input.profile.emotionalState,
+    forcedTempoIdOrName: input.forceTempoIdOrName,
+  });
+  return {
+    ...input.profile,
+    conversationTempoId: selectedTempo.tempoId,
+    conversationTempoName: selectedTempo.name,
+    roleAdjustedTempoLabel: selectedTempo.roleAdjustedTempoLabel,
+    tempoConfidence: selectedTempo.tempoConfidence,
+    tempoBehaviorFlags: selectedTempo.tempoBehaviorFlags,
+  };
 }
 
 function buildBaselineConsultantResponse(input: {
@@ -238,7 +267,9 @@ function generateProfileForSimulation(input: {
   const personalities = safePool(input.config.personalityPool, ALL_PERSONALITIES);
   const styles = safePool(input.config.communicationStylePool, ALL_COMMUNICATION_STYLES);
   const moods = safePool(input.config.moodPool, ALL_MOODS);
+  const tempos = safePool(input.config.tempoPool, ALL_TEMPO_IDS);
   const archetypeCategories = (input.config.archetypeCategoryPool?.length ?? 0) > 0 ? input.config.archetypeCategoryPool : undefined;
+  const tempoId = chooseBySeed(tempos, seed + 6);
   const difficulty = input.config.difficultyRange === 'mixed'
     ? chooseBySeed(['easy', 'medium', 'hard'], seed + 7)
     : input.config.difficultyRange;
@@ -264,17 +295,30 @@ function generateProfileForSimulation(input: {
       return true;
     });
     const signaturePool = candidates.length > 0 ? candidates : getSignatureFreshUpScenarios();
-    return chooseBySeed(signaturePool, seed + 13);
+    const selectedSignature = chooseBySeed(signaturePool, seed + 13);
+    return withResolvedTempoProfile({
+      profile: selectedSignature,
+      roleType: selectedSignature.roleType ?? 'sales',
+      forceTempoIdOrName: tempoId,
+      seedInput: `${input.runId}:${input.index}:signature-tempo`,
+    });
   }
 
-  return generateProceduralFreshUpCustomer(`${input.runId}:${input.index}`, {
+  const procedural = generateProceduralFreshUpCustomer(`${input.runId}:${input.index}`, {
     difficultyLevel: difficulty as 'easy' | 'medium' | 'hard',
     vehicleInterest: chooseBySeed(vehicles, seed + 1),
     primaryConcern: chooseBySeed(concerns, seed + 2),
     personalityType: chooseBySeed(personalities, seed + 3),
     communicationStyle: chooseBySeed(styles, seed + 4),
     emotionalState: chooseBySeed(moods, seed + 5),
+    forceTempoIdOrName: tempoId,
     archetypeCategoryFilter: archetypeCategories,
+  });
+  return withResolvedTempoProfile({
+    profile: procedural,
+    roleType: procedural.roleType ?? 'sales',
+    forceTempoIdOrName: tempoId,
+    seedInput: `${input.runId}:${input.index}:procedural-tempo`,
   });
 }
 
@@ -589,6 +633,11 @@ export async function storeFreshUpQATestRun(input: {
       archetypeName: session.customerProfile.archetypeName,
       archetypeCategory: session.customerProfile.archetypeCategory,
       humorLevel: session.customerProfile.humorLevel,
+      conversationTempoId: session.customerProfile.conversationTempoId ?? '',
+      conversationTempoName: session.customerProfile.conversationTempoName ?? '',
+      roleAdjustedTempoLabel: session.customerProfile.roleAdjustedTempoLabel ?? '',
+      tempoConfidence: session.customerProfile.tempoConfidence ?? 0,
+      tempoBehaviorFlags: Array.isArray(session.customerProfile.tempoBehaviorFlags) ? session.customerProfile.tempoBehaviorFlags : [],
       openingMessage: session.openingMessage,
       conversationTranscript: session.conversationTranscript,
       upMeterStart: session.upMeterStart,

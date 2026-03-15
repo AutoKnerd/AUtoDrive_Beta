@@ -2885,6 +2885,11 @@ export async function logLessonCompletion(data: {
     roleAdjustedArchetypeLabel?: string;
     archetypeConfidence?: number;
     archetypeBehaviorFlags?: string[];
+    conversationTempoId?: string;
+    conversationTempoName?: string;
+    roleAdjustedTempoLabel?: string;
+    tempoConfidence?: number;
+    tempoBehaviorFlags?: string[];
     guardrailFlags?: string[];
     contentValidationPassed?: boolean;
     validationFailureReasons?: string[];
@@ -3061,6 +3066,11 @@ export async function logLessonCompletion(data: {
             roleAdjustedArchetypeLabel: data.roleAdjustedArchetypeLabel,
             archetypeConfidence: data.archetypeConfidence,
             archetypeBehaviorFlags: Array.isArray(data.archetypeBehaviorFlags) ? data.archetypeBehaviorFlags : undefined,
+            conversationTempoId: data.conversationTempoId,
+            conversationTempoName: data.conversationTempoName,
+            roleAdjustedTempoLabel: data.roleAdjustedTempoLabel,
+            tempoConfidence: data.tempoConfidence,
+            tempoBehaviorFlags: Array.isArray(data.tempoBehaviorFlags) ? data.tempoBehaviorFlags : undefined,
             guardrailFlags: Array.isArray(data.guardrailFlags) ? data.guardrailFlags : undefined,
             contentValidationPassed: typeof data.contentValidationPassed === 'boolean' ? data.contentValidationPassed : undefined,
             validationFailureReasons: Array.isArray(data.validationFailureReasons) ? data.validationFailureReasons : undefined,
@@ -3296,6 +3306,21 @@ export async function logLessonCompletion(data: {
     }
     if (Array.isArray(data.archetypeBehaviorFlags) && data.archetypeBehaviorFlags.length > 0) {
         newLogData.archetypeBehaviorFlags = data.archetypeBehaviorFlags.map((flag) => String(flag));
+    }
+    if (typeof data.conversationTempoId === 'string' && data.conversationTempoId.trim().length > 0) {
+        newLogData.conversationTempoId = data.conversationTempoId;
+    }
+    if (typeof data.conversationTempoName === 'string' && data.conversationTempoName.trim().length > 0) {
+        newLogData.conversationTempoName = data.conversationTempoName;
+    }
+    if (typeof data.roleAdjustedTempoLabel === 'string' && data.roleAdjustedTempoLabel.trim().length > 0) {
+        newLogData.roleAdjustedTempoLabel = data.roleAdjustedTempoLabel;
+    }
+    if (typeof data.tempoConfidence === 'number' && Number.isFinite(data.tempoConfidence)) {
+        newLogData.tempoConfidence = Math.max(0, Math.min(1, Number(data.tempoConfidence.toFixed(2))));
+    }
+    if (Array.isArray(data.tempoBehaviorFlags) && data.tempoBehaviorFlags.length > 0) {
+        newLogData.tempoBehaviorFlags = data.tempoBehaviorFlags.map((flag) => String(flag));
     }
     if (Array.isArray(data.guardrailFlags) && data.guardrailFlags.length > 0) {
         newLogData.guardrailFlags = data.guardrailFlags.map((flag) => String(flag));
@@ -3577,6 +3602,11 @@ export async function logLessonCompletion(data: {
                 roleAdjustedArchetypeLabel: data.roleAdjustedArchetypeLabel ?? '',
                 archetypeConfidence: Number.isFinite(Number(data.archetypeConfidence)) ? Math.max(0, Math.min(1, Number(data.archetypeConfidence))) : 0,
                 archetypeBehaviorFlags: Array.isArray(data.archetypeBehaviorFlags) ? data.archetypeBehaviorFlags.map((flag) => String(flag)) : [],
+                conversationTempoId: data.conversationTempoId ?? '',
+                conversationTempoName: data.conversationTempoName ?? '',
+                roleAdjustedTempoLabel: data.roleAdjustedTempoLabel ?? '',
+                tempoConfidence: Number.isFinite(Number(data.tempoConfidence)) ? Math.max(0, Math.min(1, Number(data.tempoConfidence))) : 0,
+                tempoBehaviorFlags: Array.isArray(data.tempoBehaviorFlags) ? data.tempoBehaviorFlags.map((flag) => String(flag)) : [],
                 guardrailFlags: Array.isArray(data.guardrailFlags) ? data.guardrailFlags.map((flag) => String(flag)) : [],
                 contentValidationPassed: typeof data.contentValidationPassed === 'boolean' ? data.contentValidationPassed : true,
                 validationFailureReasons: Array.isArray(data.validationFailureReasons) ? data.validationFailureReasons.map((reason) => String(reason)) : [],

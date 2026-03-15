@@ -38,6 +38,7 @@ export default function LessonPage() {
         communicationStyle: (searchParams.get('sandboxCommunicationStyle') as FreshUpSandboxConfig['communicationStyle']) || 'random',
         forceProfileIdOrName: searchParams.get('sandboxForceProfile') || undefined,
         forceArchetypeIdOrName: searchParams.get('sandboxForceArchetype') || undefined,
+        forceTempoIdOrName: searchParams.get('sandboxForceTempo') || undefined,
         startingUpMeter: Number.isFinite(parsedStartingUpMeter) ? Math.max(0, Math.min(100, Math.round(parsedStartingUpMeter))) : 35,
         memoryDebugMode: searchParams.get('sandboxMemoryDebug') === 'true',
         scoringDebugMode: searchParams.get('sandboxScoringDebug') === 'true',

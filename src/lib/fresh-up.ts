@@ -5,6 +5,7 @@ import { createFreshUpMemoryState, updateFreshUpMemoryState } from '@/lib/fresh-
 import { generateProceduralFreshUpCustomer } from '@/lib/fresh-up-procedural';
 import { getSignatureFreshUpScenarioById, getSignatureFreshUpScenarios } from '@/lib/fresh-up-signature';
 import { adaptFreshUpProfileToRole, getAisInteractionLabel, getRoleAwareCustomScenario, resolveAisRoleType } from '@/lib/ais-role-adaptive';
+import { applyTempoMeterAdjustment } from '@/config/conversationTempoProfiles';
 
 export const FRESH_UP_LESSON_ID = 'fresh-up';
 export const FRESH_UP_SKILL_WEIGHT = 1.5;
@@ -441,6 +442,50 @@ export function evaluateFreshUpResponse(input: {
     const positives = [empathyHit, listeningHit, trustHit, relationshipHit, closingHit].filter(Boolean).length;
     meterDelta = positives > 0 ? 3 : 0;
   }
+
+  const clarityHit = hasAny(text, [
+    'to be clear',
+    'step by step',
+    'let me summarize',
+    'timeline',
+    'in stock',
+    'fitment',
+    'contract',
+    'what happens next',
+    'recap',
+  ]);
+  const anchorHit = hasAny(text, [
+    'back to what matters',
+    'main priority',
+    'based on what you said',
+    'to keep this focused',
+    'let me anchor this',
+  ]);
+  const vagueHit = hasAny(text, [
+    'probably',
+    'kind of',
+    'sort of',
+    'we will see',
+    'just trust me',
+  ]);
+  const tempoAdjustment = applyTempoMeterAdjustment({
+    tempoId: input.profile?.conversationTempoId,
+    roleType: input.profile?.roleType,
+    currentMeter: input.currentMeter,
+    baseDelta: meterDelta,
+    trustHit,
+    empathyHit,
+    listeningHit,
+    closingHit,
+    strongDiscovery,
+    trustBreakthrough,
+    minorMistake,
+    majorTrustBreak,
+    clarityHit,
+    anchorHit,
+    vagueHit,
+  });
+  meterDelta += tempoAdjustment;
 
   let nextMemoryState: FreshUpMemoryState | undefined;
   let momentumDelta = meterDelta;

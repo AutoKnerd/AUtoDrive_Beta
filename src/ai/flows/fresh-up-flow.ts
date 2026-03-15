@@ -38,6 +38,11 @@ const FreshUpProfileSchema = z.object({
   roleAdjustedArchetypeLabel: z.string().optional(),
   archetypeConfidence: z.number().optional(),
   archetypeBehaviorFlags: z.array(z.string()).optional(),
+  conversationTempoId: z.string().optional(),
+  conversationTempoName: z.string().optional(),
+  roleAdjustedTempoLabel: z.string().optional(),
+  tempoConfidence: z.number().optional(),
+  tempoBehaviorFlags: z.array(z.string()).optional(),
   conversationPrompt: z.string(),
   scenarioPrompt: z.string().optional(),
   customerType: z.string(),
@@ -167,6 +172,10 @@ Customer profile:
 - Role-adjusted archetype label: {{profile.roleAdjustedArchetypeLabel}}
 - Archetype confidence: {{profile.archetypeConfidence}}
 - Archetype behavior flags: {{#each profile.archetypeBehaviorFlags}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+- Conversation tempo: {{profile.conversationTempoName}} ({{profile.conversationTempoId}})
+- Role-adjusted tempo label: {{profile.roleAdjustedTempoLabel}}
+- Tempo confidence: {{profile.tempoConfidence}}
+- Tempo behavior flags: {{#each profile.tempoBehaviorFlags}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
 - Vehicle interest: {{profile.vehicleInterest}}
 - Personality tone: {{profile.personalityTone}}
 - Primary concern: {{profile.primaryConcern}}

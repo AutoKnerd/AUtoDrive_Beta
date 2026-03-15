@@ -40,6 +40,7 @@ import { AIS_ROLE_LANGUAGE_VERSION, adaptFreshUpProfileToRole, getAisInteraction
 import { getAisScoreBand, interpretAisScore } from '@/lib/ais-score-interpretation';
 import { getRoleLabels, resolveRoleLabelKeyFromAisRoleType, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 import { getRoleToneProfile, getRoleTurnTargets } from '@/config/roleToneProfiles';
+import { pickConversationTempoProfile } from '@/config/conversationTempoProfiles';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -281,6 +282,24 @@ function outcomeMeaning(tag: NonNullable<LessonCompletionResponse['outcomeTag']>
   return 'The conversation became difficult to recover, and customer confidence dropped.';
 }
 
+function buildTempoCoachingLine(roleType: AisRoleType, profile: FreshUpProfile | null): string {
+  const tempoId = String(profile?.conversationTempoId || '').toLowerCase();
+  if (!tempoId) return '';
+  if (tempoId === 'urgent') {
+    if (roleType === 'service') return 'This guest needed calm efficiency; tighter timeline clarity would preserve momentum.';
+    if (roleType === 'parts') return 'This customer needed quick stock and ETA confirmation to stay confident.';
+    if (roleType === 'fi') return 'This buyer needed concise, easy-to-follow explanations to maintain confidence.';
+    return 'This customer moved fast; clearer structure early would keep pace without losing direction.';
+  }
+  if (tempoId === 'slow-warm-up') return 'This customer opened gradually; steady reassurance would unlock stronger momentum later.';
+  if (tempoId === 'scattered') return 'This customer drifted between topics; stronger anchoring language would keep progress on track.';
+  if (tempoId === 'deliberate') return 'This customer needed measured detail; step-by-step clarity supports confidence.';
+  if (tempoId === 'fast-talker') return 'This customer offered a lot quickly; brief recaps help keep direction and trust.';
+  if (tempoId === 'cautious-stop-start') return 'This customer needed pause-and-confirm moments before next-step movement.';
+  if (tempoId === 'emotional-swell') return 'This customer tempo shifted with emotion; consistent empathy keeps momentum stable.';
+  return '';
+}
+
 function normalizeLooseValue(value: string | null | undefined): string {
   return String(value || '').trim().toLowerCase();
 }
@@ -289,6 +308,41 @@ function pickBySeed<T>(items: T[], seedInput: string): T | null {
   if (!items.length) return null;
   const seed = [...seedInput].reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return items[Math.abs(seed) % items.length] ?? null;
+}
+
+function withResolvedTempoProfile(input: {
+  profile: FreshUpProfile;
+  roleType: AisRoleType;
+  forceTempoIdOrName?: string;
+  seedInput: string;
+}): FreshUpProfile;
+function withResolvedTempoProfile(input: {
+  profile: FreshUpProfile | null;
+  roleType: AisRoleType;
+  forceTempoIdOrName?: string;
+  seedInput: string;
+}): FreshUpProfile | null {
+  if (!input.profile) return null;
+  if (input.profile.conversationTempoId && (!input.forceTempoIdOrName || input.forceTempoIdOrName.trim().length === 0)) {
+    return input.profile;
+  }
+  const selectedTempo = pickConversationTempoProfile({
+    roleType: input.roleType,
+    seedInput: input.seedInput,
+    personalityType: input.profile.personalityType,
+    primaryConcern: input.profile.primaryConcern,
+    communicationStyle: input.profile.communicationStyle,
+    emotionalState: input.profile.emotionalState,
+    forcedTempoIdOrName: input.forceTempoIdOrName,
+  });
+  return {
+    ...input.profile,
+    conversationTempoId: selectedTempo.tempoId,
+    conversationTempoName: selectedTempo.name,
+    roleAdjustedTempoLabel: selectedTempo.roleAdjustedTempoLabel,
+    tempoConfidence: selectedTempo.tempoConfidence,
+    tempoBehaviorFlags: selectedTempo.tempoBehaviorFlags,
+  };
 }
 
 function resolveSandboxFreshUpProfile(input: {
@@ -318,18 +372,31 @@ function resolveSandboxFreshUpProfile(input: {
       || normalizeLooseValue(scenario.scenarioName) === normalizedForce
       || normalizeLooseValue(scenario.customerName) === normalizedForce
     ));
-    if (forced) return adaptFreshUpProfileToRole(forced, input.roleType);
-    if (normalizedForce.startsWith('proc-') && proceduralEnabled) {
-      return generateProceduralFreshUpCustomer(normalizedForce, {
+    if (forced) {
+      return withResolvedTempoProfile({
+        profile: adaptFreshUpProfileToRole(forced, input.roleType),
         roleType: input.roleType,
-        consultantLevel: effectiveConsultantLevel,
-        forceArchetypeIdOrName: input.config.forceArchetypeIdOrName,
-        difficultyLevel: input.config.difficulty !== 'random' ? input.config.difficulty : undefined,
-        vehicleInterest: input.config.vehicleInterest !== 'random' ? input.config.vehicleInterest : undefined,
-        primaryConcern: input.config.primaryConcern !== 'random' ? input.config.primaryConcern : undefined,
-        emotionalState: input.config.startingMood !== 'random' ? input.config.startingMood : undefined,
-        personalityType: input.config.personalityType !== 'random' ? input.config.personalityType : undefined,
-        communicationStyle: input.config.communicationStyle !== 'random' ? input.config.communicationStyle : undefined,
+        forceTempoIdOrName: input.config.forceTempoIdOrName,
+        seedInput: `${input.userId}:${input.lessonId}:forced-signature`,
+      });
+    }
+    if (normalizedForce.startsWith('proc-') && proceduralEnabled) {
+      return withResolvedTempoProfile({
+        profile: generateProceduralFreshUpCustomer(normalizedForce, {
+          roleType: input.roleType,
+          consultantLevel: effectiveConsultantLevel,
+          forceArchetypeIdOrName: input.config.forceArchetypeIdOrName,
+          forceTempoIdOrName: input.config.forceTempoIdOrName,
+          difficultyLevel: input.config.difficulty !== 'random' ? input.config.difficulty : undefined,
+          vehicleInterest: input.config.vehicleInterest !== 'random' ? input.config.vehicleInterest : undefined,
+          primaryConcern: input.config.primaryConcern !== 'random' ? input.config.primaryConcern : undefined,
+          emotionalState: input.config.startingMood !== 'random' ? input.config.startingMood : undefined,
+          personalityType: input.config.personalityType !== 'random' ? input.config.personalityType : undefined,
+          communicationStyle: input.config.communicationStyle !== 'random' ? input.config.communicationStyle : undefined,
+        }),
+        roleType: input.roleType,
+        forceTempoIdOrName: input.config.forceTempoIdOrName,
+        seedInput: `${input.userId}:${input.lessonId}:forced-procedural`,
       });
     }
   }
@@ -356,38 +423,62 @@ function resolveSandboxFreshUpProfile(input: {
       return true;
     });
     if (filtered.length === 0 && input.config.forceArchetypeIdOrName && input.config.forceArchetypeIdOrName.trim().length > 0) {
-      return generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}:forced-archetype-fallback`, {
+      return withResolvedTempoProfile({
+        profile: generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}:forced-archetype-fallback`, {
+          roleType: input.roleType,
+          consultantLevel: effectiveConsultantLevel,
+          forceArchetypeIdOrName: input.config.forceArchetypeIdOrName,
+          forceTempoIdOrName: input.config.forceTempoIdOrName,
+          difficultyLevel: input.config.difficulty !== 'random' ? input.config.difficulty : undefined,
+          vehicleInterest: input.config.vehicleInterest !== 'random' ? input.config.vehicleInterest : undefined,
+          primaryConcern: input.config.primaryConcern !== 'random' ? input.config.primaryConcern : undefined,
+          emotionalState: input.config.startingMood !== 'random' ? input.config.startingMood : undefined,
+          personalityType: input.config.personalityType !== 'random' ? input.config.personalityType : undefined,
+          communicationStyle: input.config.communicationStyle !== 'random' ? input.config.communicationStyle : undefined,
+        }),
+        roleType: input.roleType,
+        forceTempoIdOrName: input.config.forceTempoIdOrName,
+        seedInput: `${input.userId}:${input.lessonId}:forced-archetype-fallback`,
+      });
+    }
+    const signature = pickBySeed(filtered.length > 0 ? filtered : signatureScenarios, `${input.userId}:${input.lessonId}:${Date.now()}`);
+    if (signature) {
+      return withResolvedTempoProfile({
+        profile: adaptFreshUpProfileToRole(signature, input.roleType),
+        roleType: input.roleType,
+        forceTempoIdOrName: input.config.forceTempoIdOrName,
+        seedInput: `${input.userId}:${input.lessonId}:signature`,
+      });
+    }
+  }
+
+  if (proceduralEnabled) {
+    return withResolvedTempoProfile({
+      profile: generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}`, {
         roleType: input.roleType,
         consultantLevel: effectiveConsultantLevel,
         forceArchetypeIdOrName: input.config.forceArchetypeIdOrName,
+        forceTempoIdOrName: input.config.forceTempoIdOrName,
         difficultyLevel: input.config.difficulty !== 'random' ? input.config.difficulty : undefined,
         vehicleInterest: input.config.vehicleInterest !== 'random' ? input.config.vehicleInterest : undefined,
         primaryConcern: input.config.primaryConcern !== 'random' ? input.config.primaryConcern : undefined,
         emotionalState: input.config.startingMood !== 'random' ? input.config.startingMood : undefined,
         personalityType: input.config.personalityType !== 'random' ? input.config.personalityType : undefined,
         communicationStyle: input.config.communicationStyle !== 'random' ? input.config.communicationStyle : undefined,
-      });
-    }
-    const signature = pickBySeed(filtered.length > 0 ? filtered : signatureScenarios, `${input.userId}:${input.lessonId}:${Date.now()}`);
-    if (signature) return adaptFreshUpProfileToRole(signature, input.roleType);
-  }
-
-  if (proceduralEnabled) {
-    return generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}`, {
+      }),
       roleType: input.roleType,
-      consultantLevel: effectiveConsultantLevel,
-      forceArchetypeIdOrName: input.config.forceArchetypeIdOrName,
-      difficultyLevel: input.config.difficulty !== 'random' ? input.config.difficulty : undefined,
-      vehicleInterest: input.config.vehicleInterest !== 'random' ? input.config.vehicleInterest : undefined,
-      primaryConcern: input.config.primaryConcern !== 'random' ? input.config.primaryConcern : undefined,
-      emotionalState: input.config.startingMood !== 'random' ? input.config.startingMood : undefined,
-      personalityType: input.config.personalityType !== 'random' ? input.config.personalityType : undefined,
-      communicationStyle: input.config.communicationStyle !== 'random' ? input.config.communicationStyle : undefined,
+      forceTempoIdOrName: input.config.forceTempoIdOrName,
+      seedInput: `${input.userId}:${input.lessonId}:procedural`,
     });
   }
 
   const signatures = signatureScenarios.length > 0 ? signatureScenarios : [pickFreshUpProfile(input.userId, [], undefined, input.roleType)];
-  return adaptFreshUpProfileToRole((signatures[Math.abs(Date.now()) % signatures.length] ?? signatures[0]), input.roleType);
+  return withResolvedTempoProfile({
+    profile: adaptFreshUpProfileToRole((signatures[Math.abs(Date.now()) % signatures.length] ?? signatures[0]), input.roleType),
+    roleType: input.roleType,
+    forceTempoIdOrName: input.config.forceTempoIdOrName,
+    seedInput: `${input.userId}:${input.lessonId}:fallback-signature`,
+  });
 }
 
 async function pickFreshUpProfileWithToggles(input: {
@@ -402,17 +493,29 @@ async function pickFreshUpProfileWithToggles(input: {
   const signatureEnabled = input.toggles.enableSignatureScenarios !== false;
   const effectiveConsultantLevel = input.toggles.enableDifficultyDistribution === false ? undefined : input.consultantLevel;
   if (proceduralEnabled && !signatureEnabled) {
-    return generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}`, {
+    return withResolvedTempoProfile({
+      profile: generateProceduralFreshUpCustomer(`${input.userId}:${input.lessonId}:${Date.now()}`, {
+        roleType: input.roleType,
+        consultantLevel: effectiveConsultantLevel,
+      }),
       roleType: input.roleType,
-      consultantLevel: effectiveConsultantLevel,
+      seedInput: `${input.userId}:${input.lessonId}:procedural-only`,
     });
   }
   if (!proceduralEnabled && signatureEnabled) {
     const signatures = getSignatureFreshUpScenarios();
     const seed = [...`${input.userId}:${input.lessonId}:${input.history.length}`].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    return adaptFreshUpProfileToRole((signatures[Math.abs(seed % signatures.length)] ?? signatures[0]), input.roleType);
+    return withResolvedTempoProfile({
+      profile: adaptFreshUpProfileToRole((signatures[Math.abs(seed % signatures.length)] ?? signatures[0]), input.roleType),
+      roleType: input.roleType,
+      seedInput: `${input.userId}:${input.lessonId}:signature-only:${seed}`,
+    });
   }
-  return pickFreshUpProfile(input.userId, input.history, effectiveConsultantLevel, input.roleType);
+  return withResolvedTempoProfile({
+    profile: pickFreshUpProfile(input.userId, input.history, effectiveConsultantLevel, input.roleType),
+    roleType: input.roleType,
+    seedInput: `${input.userId}:${input.lessonId}:mixed:${input.history.length}`,
+  });
 }
 
 function hasDebugAccess(input: {
@@ -487,7 +590,12 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
     ? (Number.isFinite(configuredStartMeter) ? clampUpMeter(configuredStartMeter) : FRESH_UP_SESSION_START_METER)
     : FRESH_UP_SESSION_START_METER;
   const sessionOpeningRef = useRef<string>('');
-  const freshUpProfile = useRef<FreshUpProfile | null>(getFreshUpProfileById(freshUpProfileId, aisRoleType));
+  const freshUpProfile = useRef<FreshUpProfile | null>(withResolvedTempoProfile({
+    profile: getFreshUpProfileById(freshUpProfileId, aisRoleType),
+    roleType: aisRoleType,
+    forceTempoIdOrName: freshUpSandboxConfig?.forceTempoIdOrName,
+    seedInput: `${lesson.lessonId}:${freshUpProfileId || 'default'}:${aisRoleType}:initial`,
+  }));
   const startedAtRef = useRef<Date | null>(null);
   const freshUpMeterRef = useRef<{ start: number; current: number; peak: number }>({
     start: sessionStartMeter,
@@ -600,7 +708,8 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       concernCategory: freshUpProfile.current?.primaryConcern,
       archetypeContext: freshUpProfile.current?.archetypeCategory,
     });
-    return `${interpretation.feedbackLine} ${interpretation.coachingExample}`;
+    const tempoLine = buildTempoCoachingLine(aisRoleType, freshUpProfile.current);
+    return `${interpretation.feedbackLine} ${interpretation.coachingExample}${tempoLine ? ` ${tempoLine}` : ''}`;
   };
 
   function buildFreshUpCompletionSummary(
@@ -633,7 +742,12 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
 
   async function requestLessonResponse(history: Message[], userMessage: string) {
     if (!freshUpProfile.current && isFreshUp) {
-      freshUpProfile.current = getFreshUpProfileById(freshUpProfileId, aisRoleType);
+      freshUpProfile.current = withResolvedTempoProfile({
+        profile: getFreshUpProfileById(freshUpProfileId, aisRoleType),
+        roleType: aisRoleType,
+        forceTempoIdOrName: freshUpSandboxConfig?.forceTempoIdOrName,
+        seedInput: `${lesson.lessonId}:${freshUpProfileId || 'default'}:${aisRoleType}:request`,
+      });
       if (!freshUpProfile.current && user && freshUpSandboxConfig?.enabled) {
         freshUpProfile.current = resolveSandboxFreshUpProfile({
           config: freshUpSandboxConfig,
@@ -919,6 +1033,11 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
             roleAdjustedArchetypeLabel: freshUpProfile.current?.roleAdjustedArchetypeLabel,
             archetypeConfidence: freshUpProfile.current?.archetypeConfidence,
             archetypeBehaviorFlags: freshUpProfile.current?.archetypeBehaviorFlags,
+            conversationTempoId: freshUpProfile.current?.conversationTempoId,
+            conversationTempoName: freshUpProfile.current?.conversationTempoName,
+            roleAdjustedTempoLabel: freshUpProfile.current?.roleAdjustedTempoLabel,
+            tempoConfidence: freshUpProfile.current?.tempoConfidence,
+            tempoBehaviorFlags: freshUpProfile.current?.tempoBehaviorFlags,
             guardrailFlags: mergedGuardrails.guardrailFlags,
             contentValidationPassed: mergedGuardrails.contentValidationPassed,
             validationFailureReasons: mergedGuardrails.validationFailureReasons,
@@ -969,6 +1088,11 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                   roleAdjustedArchetypeLabel: freshUpProfile.current.roleAdjustedArchetypeLabel,
                   archetypeConfidence: freshUpProfile.current.archetypeConfidence,
                   archetypeBehaviorFlags: freshUpProfile.current.archetypeBehaviorFlags,
+                  conversationTempoId: freshUpProfile.current.conversationTempoId,
+                  conversationTempoName: freshUpProfile.current.conversationTempoName,
+                  roleAdjustedTempoLabel: freshUpProfile.current.roleAdjustedTempoLabel,
+                  tempoConfidence: freshUpProfile.current.tempoConfidence,
+                  tempoBehaviorFlags: freshUpProfile.current.tempoBehaviorFlags,
                   personalityType: freshUpProfile.current.personalityType,
                   buyingStage: freshUpProfile.current.buyingStage,
                 primaryConcern: freshUpProfile.current.primaryConcern,
@@ -1057,6 +1181,11 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                     roleAdjustedArchetypeLabel: freshUpProfile.current.roleAdjustedArchetypeLabel,
                     archetypeConfidence: freshUpProfile.current.archetypeConfidence,
                     archetypeBehaviorFlags: freshUpProfile.current.archetypeBehaviorFlags,
+                    conversationTempoId: freshUpProfile.current.conversationTempoId,
+                    conversationTempoName: freshUpProfile.current.conversationTempoName,
+                    roleAdjustedTempoLabel: freshUpProfile.current.roleAdjustedTempoLabel,
+                    tempoConfidence: freshUpProfile.current.tempoConfidence,
+                    tempoBehaviorFlags: freshUpProfile.current.tempoBehaviorFlags,
                     personalityType: freshUpProfile.current.personalityType,
                     buyingStage: freshUpProfile.current.buyingStage,
                     primaryConcern: freshUpProfile.current.primaryConcern,
@@ -1353,6 +1482,9 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
       }
       if (freshUpSandboxConfig.forceArchetypeIdOrName && freshUpSandboxConfig.forceArchetypeIdOrName.trim().length > 0) {
         params.set('sandboxForceArchetype', freshUpSandboxConfig.forceArchetypeIdOrName.trim());
+      }
+      if (freshUpSandboxConfig.forceTempoIdOrName && freshUpSandboxConfig.forceTempoIdOrName.trim().length > 0) {
+        params.set('sandboxForceTempo', freshUpSandboxConfig.forceTempoIdOrName.trim());
       }
       router.push(`/lesson/${lesson.lessonId}?${params.toString()}`);
       return;

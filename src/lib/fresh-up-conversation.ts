@@ -163,6 +163,26 @@ function applyArchetypeOpeningStyle(base: string, profile: FreshUpProfile): stri
   return base;
 }
 
+function applyTempoOpeningStyle(base: string, profile: FreshUpProfile): string {
+  const tempoId = String(profile.conversationTempoId || '').toLowerCase();
+  if (tempoId === 'slow-warm-up') return `${base.split('.').slice(0, 1).join('.').trim()}. I am just trying to get a feel for this right now.`;
+  if (tempoId === 'fast-talker') return `${base} I have looked at a few options already, so I am trying to sort this quickly and clearly.`;
+  if (tempoId === 'urgent') return `${base.split('.').slice(0, 1).join('.').trim()}. I do not have much time, so what do I actually need to know first?`;
+  if (tempoId === 'scattered') return `${base} I am also juggling a few other things right now, so I might jump around a bit.`;
+  if (tempoId === 'cautious-stop-start') return `${base} I might need to pause and double-check as we go.`;
+  if (tempoId === 'deliberate') return `${base} I usually make decisions carefully, so I may ask a few extra detail questions.`;
+  if (tempoId === 'emotional-swell') return `${base} I can be fine one minute and stressed the next, so clear guidance helps.`;
+  return base;
+}
+
+function resolveTempoSentenceLimit(profile: FreshUpProfile): number {
+  const tempoId = String(profile.conversationTempoId || '').toLowerCase();
+  if (tempoId === 'slow-warm-up' || tempoId === 'urgent') return 2;
+  if (tempoId === 'fast-talker' || tempoId === 'scattered') return 3;
+  if (tempoId === 'cautious-stop-start') return 2;
+  return 3;
+}
+
 function toSentenceLimit(text: string, max = 3): string {
   const parts = text
     .split('.')
@@ -189,10 +209,12 @@ export function generateFreshUpOpening(profile: FreshUpProfile, roleType: AisRol
   opening = applyCommunicationStyle(opening, profile.communicationStyle, profile.primaryConcern, roleType);
   opening = applyEmotion(opening, profile.emotionalState);
   opening = applyArchetypeOpeningStyle(opening, profile);
+  opening = applyTempoOpeningStyle(opening, profile);
+  const maxSentences = resolveTempoSentenceLimit(profile);
 
   return {
     sprocketLine: pick(getRoleAwareSprocketOpeners(roleType), seed),
-    customerOpening: toSentenceLimit(opening, 3),
+    customerOpening: toSentenceLimit(opening, maxSentences),
   };
 }
 

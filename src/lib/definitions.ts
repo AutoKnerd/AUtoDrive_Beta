@@ -305,6 +305,11 @@ export type FreshUpProfile = {
   roleAdjustedArchetypeLabel?: string;
   archetypeConfidence?: number;
   archetypeBehaviorFlags?: string[];
+  conversationTempoId?: string;
+  conversationTempoName?: string;
+  roleAdjustedTempoLabel?: string;
+  tempoConfidence?: number;
+  tempoBehaviorFlags?: string[];
   winCondition: string;
   failurePattern: string;
   coachingTag: FreshUpTag;
@@ -422,6 +427,7 @@ export type FreshUpSandboxConfig = {
   communicationStyle: 'talkative' | 'reserved' | 'direct' | 'sarcastic' | 'story-driven' | 'cautious' | 'rapid-fire questions' | 'random';
   forceProfileIdOrName?: string;
   forceArchetypeIdOrName?: string;
+  forceTempoIdOrName?: string;
   startingUpMeter: number;
   memoryDebugMode: boolean;
   scoringDebugMode: boolean;
@@ -492,6 +498,11 @@ export type LessonLog = {
   roleAdjustedArchetypeLabel?: string;
   archetypeConfidence?: number;
   archetypeBehaviorFlags?: string[];
+  conversationTempoId?: string;
+  conversationTempoName?: string;
+  roleAdjustedTempoLabel?: string;
+  tempoConfidence?: number;
+  tempoBehaviorFlags?: string[];
   guardrailFlags?: string[];
   contentValidationPassed?: boolean;
   validationFailureReasons?: string[];
