@@ -121,5 +121,26 @@ service cloud.firestore {
       allow create: if false;
       allow update, delete: if hasAnyRole(['Admin', 'Developer']);
     }
+
+    match /sprocket_sessions/{sessionId} {
+      allow read: if hasAnyRole(['Admin', 'Developer']);
+      allow create, update, delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if hasAnyRole(['Admin', 'Developer']);
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /sprocket_leads/{leadId} {
+      allow read: if hasAnyRole(['Admin', 'Developer']);
+      allow update: if hasAnyRole(['Admin', 'Developer']);
+      allow create, delete: if false;
+    }
+
+    match /dealer_pipeline/{leadId} {
+      allow read, create, update: if hasAnyRole(['Admin', 'Developer']);
+      allow delete: if false;
+    }
   }
 }

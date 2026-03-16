@@ -38,6 +38,7 @@ import { AssignDealershipsForm } from '@/components/admin/assign-dealerships-for
 import { ManageDealershipForm } from '@/components/admin/ManageDealershipForm';
 import { EditUserForm } from '@/components/admin/edit-user-form';
 import { PppProtocolSettings } from '@/components/admin/ppp-protocol-settings';
+import { SprocketActivityPanel } from '@/components/developer/sprocket-activity-panel';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -450,6 +451,7 @@ export default function DeveloperPage() {
   const [releaseLoading, setReleaseLoading] = useState(false);
   const [releaseBusy, setReleaseBusy] = useState(false);
   const [freshUpTestingControlsOpen, setFreshUpTestingControlsOpen] = useState(false);
+  const [watchlistOpen, setWatchlistOpen] = useState(false);
   const [scoreInterpretationTest, setScoreInterpretationTest] = useState<{
     roleType: FreshUpSandboxConfig['roleType'];
     metricName: AisMetricName;
@@ -1139,81 +1141,94 @@ export default function DeveloperPage() {
   };
 
   const renderWatchlistCard = () => (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>New Users Watchlist</CardTitle>
-        <CardDescription>
-          Live list of newest users for welcome email follow-up.
-          {lastRefreshedAt ? ` Last refreshed ${lastRefreshedAt.toLocaleTimeString()}.` : ''}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {dataLoading ? (
-          <Spinner />
-        ) : filteredNewestUsers.length === 0 && newestUsers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No users found.</p>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="new-users-start-date">Start Date</Label>
-                <Input
-                  id="new-users-start-date"
-                  type="date"
-                  value={exportStartDate}
-                  onChange={(event) => setExportStartDate(event.target.value)}
-                  className="w-[180px]"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="new-users-end-date">End Date</Label>
-                <Input
-                  id="new-users-end-date"
-                  type="date"
-                  value={exportEndDate}
-                  onChange={(event) => setExportEndDate(event.target.value)}
-                  className="w-[180px]"
-                />
-              </div>
-              <Button variant="outline" onClick={() => { setExportStartDate(''); setExportEndDate(''); }}>
-                Clear Range
-              </Button>
-              <Button onClick={handleExportNewUsers} disabled={isExportingUsers || filteredNewestUsers.length === 0}>
-                <Download className="mr-2 h-4 w-4" />
-                {isExportingUsers ? 'Exporting...' : 'Export Excel'}
-              </Button>
+    <Collapsible open={watchlistOpen} onOpenChange={setWatchlistOpen}>
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>New Users Watchlist</CardTitle>
+              <CardDescription>
+                Live list of newest users for welcome email follow-up.
+                {lastRefreshedAt ? ` Last refreshed ${lastRefreshedAt.toLocaleTimeString()}.` : ''}
+              </CardDescription>
             </div>
-
-            {filteredNewestUsers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No users found in this date range.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Joined</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Dealer Affiliation</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredNewestUsers.map((candidate) => (
-                    <TableRow key={candidate.userId}>
-                      <TableCell>{candidate.memberSince ? new Date(candidate.memberSince).toLocaleDateString() : '-'}</TableCell>
-                      <TableCell className="font-medium">{candidate.name || 'New User'}</TableCell>
-                      <TableCell>{candidate.email}</TableCell>
-                      <TableCell>{getWatchlistRoleLabel(candidate) || '-'}</TableCell>
-                      <TableCell>{getAffiliationLabel(candidate)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="outline" size="sm">
+                {watchlistOpen ? 'Collapse' : 'Expand'}
+              </Button>
+            </CollapsibleTrigger>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent>
+            {dataLoading ? (
+              <Spinner />
+            ) : filteredNewestUsers.length === 0 && newestUsers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No users found.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="new-users-start-date">Start Date</Label>
+                    <Input
+                      id="new-users-start-date"
+                      type="date"
+                      value={exportStartDate}
+                      onChange={(event) => setExportStartDate(event.target.value)}
+                      className="w-[180px]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="new-users-end-date">End Date</Label>
+                    <Input
+                      id="new-users-end-date"
+                      type="date"
+                      value={exportEndDate}
+                      onChange={(event) => setExportEndDate(event.target.value)}
+                      className="w-[180px]"
+                    />
+                  </div>
+                  <Button variant="outline" onClick={() => { setExportStartDate(''); setExportEndDate(''); }}>
+                    Clear Range
+                  </Button>
+                  <Button onClick={handleExportNewUsers} disabled={isExportingUsers || filteredNewestUsers.length === 0}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {isExportingUsers ? 'Exporting...' : 'Export Excel'}
+                  </Button>
+                </div>
+
+                {filteredNewestUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No users found in this date range.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Joined</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Dealer Affiliation</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredNewestUsers.map((candidate) => (
+                        <TableRow key={candidate.userId}>
+                          <TableCell>{candidate.memberSince ? new Date(candidate.memberSince).toLocaleDateString() : '-'}</TableCell>
+                          <TableCell className="font-medium">{candidate.name || 'New User'}</TableCell>
+                          <TableCell>{candidate.email}</TableCell>
+                          <TableCell>{getWatchlistRoleLabel(candidate) || '-'}</TableCell>
+                          <TableCell>{getAffiliationLabel(candidate)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 
   const renderSandbox = () => (
@@ -2382,6 +2397,7 @@ export default function DeveloperPage() {
     return (
       <div className="space-y-6">
         {(activeSection === 'operations') && renderWatchlistCard()}
+        {activeSection === 'operations' && <SprocketActivityPanel />}
         {activeSection !== 'operations' && (
           <Card>
             <CardHeader>
