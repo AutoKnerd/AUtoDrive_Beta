@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
 
 function normalizeConsultant(value: string | null): string {
   return (value || '').trim().toLowerCase();
@@ -12,16 +14,47 @@ function normalizeConsultant(value: string | null): string {
 
 export default function DemoPage() {
   const [consultant, setConsultant] = useState('');
+  const pathname = usePathname();
+  const router = useRouter();
+  const { login } = useAuth();
 
   const signupHref = useMemo(() => {
     if (!consultant) return '/signup';
-    return `/signup?consultant=${encodeURIComponent(consultant)}`;
+    return `/join/${encodeURIComponent(consultant)}`;
   }, [consultant]);
 
   useEffect(() => {
-    const fromUrl = normalizeConsultant(new URLSearchParams(window.location.search).get('consultant'));
-    setConsultant(fromUrl);
-  }, []);
+    const searchParams = new URLSearchParams(window.location.search);
+    const fromQuery = normalizeConsultant(searchParams.get('consultant'));
+    const fromPath = normalizeConsultant(pathname.startsWith('/demo/') ? pathname.slice('/demo/'.length) : '');
+    const fromTourStorage = normalizeConsultant(localStorage.getItem('tourConsultant'));
+    const resolved = fromPath || fromQuery || fromTourStorage;
+    setConsultant(resolved);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (localStorage.getItem('tourMode') !== 'true') return;
+
+    const tourConsultant = normalizeConsultant(localStorage.getItem('tourConsultant'));
+    if (tourConsultant) {
+      localStorage.setItem('consultant_referral', tourConsultant);
+    }
+
+    // Force guided tour to open when the demo dashboard loads.
+    localStorage.removeItem('sprocketTourComplete');
+    localStorage.removeItem('sprocketTourComplete_tour-consultant');
+    localStorage.setItem('sprocketTourStep_tour-consultant', '0');
+    sessionStorage.removeItem('tourWelcomeSeen_Sales Consultant');
+
+    void (async () => {
+      try {
+        await login('consultant.demo@autodrive.com', 'readyplayer1');
+        router.replace('/');
+      } finally {
+        localStorage.removeItem('tourMode');
+      }
+    })();
+  }, [login, router]);
 
   useEffect(() => {
     if (!consultant) return;

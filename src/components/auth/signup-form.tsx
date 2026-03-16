@@ -71,7 +71,11 @@ export function SignupForm() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const consultant = params.get('consultant')?.trim().toLowerCase();
+    const fromQuery = params.get('consultant')?.trim().toLowerCase() || '';
+    const fromPath = window.location.pathname.startsWith('/join/')
+      ? window.location.pathname.slice('/join/'.length).trim().toLowerCase()
+      : '';
+    const consultant = fromPath || fromQuery;
     if (consultant) {
       localStorage.setItem('consultant_referral', consultant);
     }

@@ -352,7 +352,7 @@ export default function AdminConsultantsPage() {
           ) : (
             <div className="space-y-4">
               {filteredConsultants.map((consultant) => {
-                const referralLink = `${baseUrl}/signup?consultant=${encodeURIComponent(consultant.referralCode)}`;
+                const referralLink = `${baseUrl}/join/${encodeURIComponent(consultant.referralCode)}`;
                 const dashboardLink = `${baseUrl}/consultant/${encodeURIComponent(consultant.referralCode)}`;
                 const isEditing = editingId === consultant.id;
 

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConsultantSidebar } from '@/components/consultant/consultant-sidebar';
@@ -49,10 +50,14 @@ export default function ConsultantDealerOutreachPage() {
   const [aiTone, setAiTone] = useState<'professional' | 'friendly' | 'direct' | 'urgent'>('professional');
   const [generatingChannel, setGeneratingChannel] = useState<'email' | 'linkedin' | 'text' | null>(null);
 
-  const marketingBaseUrl = 'https://autodrivecx.com';
-  const dealerInviteLink = `${marketingBaseUrl}/signup?consultant=${encodeURIComponent(consultantId)}&role=dealer`;
-  const demoLink = `${marketingBaseUrl}/demo?consultant=${encodeURIComponent(consultantId)}`;
-  const referralLink = `${marketingBaseUrl}/signup?consultant=${encodeURIComponent(consultantId)}`;
+  const marketingBaseUrl = useMemo(() => {
+    if (typeof window === 'undefined') return 'https://autodrivecx.com';
+    return window.location.origin;
+  }, []);
+  const dealerInviteLink = `${marketingBaseUrl}/join/${encodeURIComponent(consultantId)}`;
+  const demoLink = `${marketingBaseUrl}/demo/${encodeURIComponent(consultantId)}`;
+  const tourLink = `${marketingBaseUrl}/tour/${encodeURIComponent(consultantId)}`;
+  const referralLink = `${marketingBaseUrl}/join/${encodeURIComponent(consultantId)}`;
 
   const defaultEmailTemplate = useMemo(() => {
     return `Subject: Quick invite to AutoDriveCX for your dealership team
@@ -175,6 +180,12 @@ ${toDisplayName(consultantId)}`;
   async function openDemo() {
     await trackEvent('referral_click', 'open_demo');
     window.open(demoLink, '_blank', 'noopener,noreferrer');
+    await loadMetrics();
+  }
+
+  async function openTour() {
+    await trackEvent('share', 'open_tour');
+    window.open(tourLink, '_blank', 'noopener,noreferrer');
     await loadMetrics();
   }
 
@@ -306,6 +317,20 @@ ${toDisplayName(consultantId)}`;
                         <p className="text-xs text-muted-foreground">Demo → Trial Conversion Rate</p>
                         <p className="mt-1 text-xl font-semibold">{demoConversionRate.toLocaleString('en-US')}%</p>
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Dealer Guided Tour</CardTitle>
+                    <CardDescription>Invite dealers to watch the AutoDriveCX walkthrough before starting a trial.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Input value={tourLink} readOnly />
+                    <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => copyText(tourLink, 'share', 'copy_tour_link')}>Copy Tour Link</Button>
+                      <Button variant="outline" onClick={openTour}>Open Tour</Button>
                     </div>
                   </CardContent>
                 </Card>

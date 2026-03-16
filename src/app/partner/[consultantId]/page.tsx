@@ -23,7 +23,7 @@ export default async function PartnerLandingPage({
   const normalizedConsultantId = (consultantId || '').trim().toLowerCase();
   const consultant = await getConsultantByReferralCode(normalizedConsultantId);
   const consultantName = consultant?.name || toDisplayName(normalizedConsultantId);
-  const signupHref = `/signup?consultant=${encodeURIComponent(normalizedConsultantId)}`;
+  const signupHref = `/join/${encodeURIComponent(normalizedConsultantId)}`;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl items-center px-4 py-10">
