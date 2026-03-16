@@ -17,6 +17,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         const queryConsultant = (new URLSearchParams(window.location.search).get('consultant') || '').trim().toLowerCase();
         const pathConsultant = (
             pathname.startsWith('/join/') ? pathname.slice('/join/'.length) :
+            pathname.startsWith('/signup/') ? pathname.slice('/signup/'.length) :
             pathname.startsWith('/demo/') ? pathname.slice('/demo/'.length) :
             pathname.startsWith('/tour/') ? pathname.slice('/tour/'.length) :
             ''

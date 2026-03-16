@@ -39,12 +39,12 @@ export function buildConsultantOutreachLink(type: ConsultantOutreachLinkType, co
   const encodedSlug = encodeURIComponent(normalizedSlug);
 
   if (type === 'dealerReferral') {
-    return `${getPublicReferralBaseUrl()}?consultant=${encodedSlug}`;
+    return `${getPublicReferralBaseUrl()}/r/${encodedSlug}`;
   }
 
   if (type === 'singleUser') {
-    return `${getAppBaseUrl()}/signup?consultant=${encodedSlug}`;
+    return `${getAppBaseUrl()}/signup/${encodedSlug}`;
   }
 
-  return `${getAppBaseUrl()}/demo/${encodedSlug}?tour=true`;
+  return `${getAppBaseUrl()}/tour/${encodedSlug}`;
 }
