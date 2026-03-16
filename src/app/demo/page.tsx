@@ -29,7 +29,17 @@ export default function DemoPage() {
     const fromPath = normalizeConsultant(pathname.startsWith('/demo/') ? pathname.slice('/demo/'.length) : '');
     const fromTourStorage = normalizeConsultant(localStorage.getItem('tourConsultant'));
     const resolved = fromPath || fromQuery || fromTourStorage;
+    const shouldStartTour = ['1', 'true', 'yes'].includes((searchParams.get('tour') || '').trim().toLowerCase());
+
     setConsultant(resolved);
+
+    if (shouldStartTour) {
+      if (resolved) {
+        localStorage.setItem('tourConsultant', resolved);
+        localStorage.setItem('consultant_referral', resolved);
+      }
+      localStorage.setItem('tourMode', 'true');
+    }
   }, [pathname]);
 
   useEffect(() => {

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ConsultantSidebar } from '@/components/consultant/consultant-sidebar';
 import { useConsultantRouteAccess } from '@/hooks/use-consultant-route-access';
 import { generateOutreachTemplate } from '@/ai/flows/generate-outreach-template-flow';
+import { buildConsultantOutreachLink } from '@/lib/consultant-share-links';
 
 type MarketingMetrics = {
   consultant_id: string;
@@ -50,14 +51,10 @@ export default function ConsultantDealerOutreachPage() {
   const [aiTone, setAiTone] = useState<'professional' | 'friendly' | 'direct' | 'urgent'>('professional');
   const [generatingChannel, setGeneratingChannel] = useState<'email' | 'linkedin' | 'text' | null>(null);
 
-  const marketingBaseUrl = useMemo(() => {
-    if (typeof window === 'undefined') return 'https://autodrivecx.com';
-    return window.location.origin;
-  }, []);
-  const dealerInviteLink = `${marketingBaseUrl}/join/${encodeURIComponent(consultantId)}`;
-  const demoLink = `${marketingBaseUrl}/demo/${encodeURIComponent(consultantId)}`;
-  const tourLink = `${marketingBaseUrl}/tour/${encodeURIComponent(consultantId)}`;
-  const referralLink = `${marketingBaseUrl}/join/${encodeURIComponent(consultantId)}`;
+  const dealerInviteLink = useMemo(() => buildConsultantOutreachLink('dealerReferral', consultantId), [consultantId]);
+  const singleUserLink = useMemo(() => buildConsultantOutreachLink('singleUser', consultantId), [consultantId]);
+  const guidedDemoLink = useMemo(() => buildConsultantOutreachLink('guidedDemo', consultantId), [consultantId]);
+  const referralLink = dealerInviteLink;
 
   const defaultEmailTemplate = useMemo(() => {
     return `Subject: Quick invite to AutoDriveCX for your dealership team
@@ -69,20 +66,23 @@ I wanted to invite you to try AutoDriveCX for your dealership.
 Dealer signup link:
 ${dealerInviteLink}
 
-If you want a quick preview first, here is the demo:
-${demoLink}
+Single user signup link:
+${singleUserLink}
+
+Guided demo link:
+${guidedDemoLink}
 
 Best,
 ${toDisplayName(consultantId)}`;
-  }, [consultantId, dealerInviteLink, demoLink]);
+  }, [consultantId, dealerInviteLink, singleUserLink, guidedDemoLink]);
 
   const defaultLinkedInTemplate = useMemo(() => {
-    return `Dealership leaders: if you want stronger customer conversations and better execution consistency, check out AutoDriveCX.\n\nDealer signup: ${dealerInviteLink}\n\n#automotive #dealership #customerservice`;
-  }, [dealerInviteLink]);
+    return `Dealership leaders: if you want stronger customer conversations and better execution consistency, check out AutoDriveCX.\n\nReferral link: ${dealerInviteLink}\nSingle-user signup: ${singleUserLink}\nGuided demo: ${guidedDemoLink}\n\n#automotive #dealership #customerservice`;
+  }, [dealerInviteLink, singleUserLink, guidedDemoLink]);
 
   const defaultTextMessageTemplate = useMemo(() => {
-    return `Here’s the AutoDriveCX dealer signup link I mentioned: ${dealerInviteLink}`;
-  }, [dealerInviteLink]);
+    return `Here are the AutoDriveCX links: referral ${dealerInviteLink} | single user ${singleUserLink} | guided demo ${guidedDemoLink}`;
+  }, [dealerInviteLink, singleUserLink, guidedDemoLink]);
   const [emailTemplate, setEmailTemplate] = useState('');
   const [linkedInTemplate, setLinkedInTemplate] = useState('');
   const [textMessageTemplate, setTextMessageTemplate] = useState('');
@@ -179,13 +179,13 @@ ${toDisplayName(consultantId)}`;
 
   async function openDemo() {
     await trackEvent('referral_click', 'open_demo');
-    window.open(demoLink, '_blank', 'noopener,noreferrer');
+    window.open(singleUserLink, '_blank', 'noopener,noreferrer');
     await loadMetrics();
   }
 
   async function openTour() {
     await trackEvent('share', 'open_tour');
-    window.open(tourLink, '_blank', 'noopener,noreferrer');
+    window.open(guidedDemoLink, '_blank', 'noopener,noreferrer');
     await loadMetrics();
   }
 
@@ -199,7 +199,7 @@ ${toDisplayName(consultantId)}`;
         consultantName: consultantDisplayName || toDisplayName(consultantId),
         consultantId,
         dealerInviteLink,
-        demoLink,
+        demoLink: guidedDemoLink,
         criteria: aiCriteria.trim() || undefined,
       });
 
@@ -299,14 +299,14 @@ ${toDisplayName(consultantId)}`;
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Dealer Demo Link</CardTitle>
-                    <CardDescription>Invite dealers to preview before starting trial.</CardDescription>
+                    <CardTitle>Single User Link</CardTitle>
+                    <CardDescription>Direct single-user signup link for app access.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{demoLink}</p>
+                    <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{singleUserLink}</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => copyText(demoLink, 'share', 'copy_demo_link')}>Copy Demo Link</Button>
-                      <Button variant="outline" onClick={openDemo}>Open Demo</Button>
+                      <Button onClick={() => copyText(singleUserLink, 'share', 'copy_single_user_link')}>Copy Single User Link</Button>
+                      <Button variant="outline" onClick={openDemo}>Open Single User Link</Button>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-md border p-3">
@@ -323,14 +323,14 @@ ${toDisplayName(consultantId)}`;
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Dealer Guided Tour</CardTitle>
-                    <CardDescription>Invite dealers to watch the AutoDriveCX walkthrough before starting a trial.</CardDescription>
+                    <CardTitle>Guided Demo Link</CardTitle>
+                    <CardDescription>Launch the in-app guided demo walkthrough.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Input value={tourLink} readOnly />
+                    <Input value={guidedDemoLink} readOnly />
                     <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => copyText(tourLink, 'share', 'copy_tour_link')}>Copy Tour Link</Button>
-                      <Button variant="outline" onClick={openTour}>Open Tour</Button>
+                      <Button onClick={() => copyText(guidedDemoLink, 'share', 'copy_guided_demo_link')}>Copy Guided Demo Link</Button>
+                      <Button variant="outline" onClick={openTour}>Open Guided Demo</Button>
                     </div>
                   </CardContent>
                 </Card>
