@@ -57,9 +57,10 @@ import { getAisInteractionLabel } from '@/lib/ais-role-adaptive';
 import { interpretAisScore, type AisMetricName } from '@/lib/ais-score-interpretation';
 import { getRoleLabels, resolveRoleLabelKeyFromAisRoleType } from '@/config/roleLabels';
 import { CONVERSATION_TEMPO_PROFILES } from '@/config/conversationTempoProfiles';
+import { buildConsultantOutreachLink } from '@/lib/consultant-share-links';
 
 type DashboardMode = 'role_based' | 'single_user';
-type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'operations' | 'sandbox' | 'danger';
+type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'tour_emails' | 'operations' | 'sandbox' | 'danger';
 type ToolId =
   | 'create_user'
   | 'edit_user'
@@ -93,6 +94,12 @@ type AkPayoutRecord = {
 type AkPayoutResponse = {
   records: AkPayoutRecord[];
 };
+type SignalMapperUnlockRow = {
+  email: string;
+  firstUnlockedAt: string;
+  lastUnlockedAt: string;
+  count: number;
+};
 
 const LIVE_CX_TRAITS: Array<{ key: LiveCxTrait; label: string }> = [
   { key: 'empathy', label: 'Empathy' },
@@ -118,6 +125,7 @@ const SECTION_LABELS: Record<SectionId, string> = {
   organizations: 'Organizations',
   features: 'Programs & Features',
   consultants: 'AK Consultants',
+  tour_emails: 'Unlock Emails',
   operations: 'Operations',
   sandbox: 'Sandbox',
   danger: 'Danger Zone',
@@ -129,6 +137,7 @@ const SECTION_DESCRIPTIONS: Record<SectionId, string> = {
   organizations: 'Manage dealerships, groups, and billing settings.',
   features: 'Configure PPP and controlled feature rollouts.',
   consultants: 'Consultant subscription dashboards and Stripe-backed sales endpoints.',
+  tour_emails: 'Captured emails from Signal Mapper free-tool unlock submissions.',
   operations: 'Watchlists, exports, and diagnostics.',
   sandbox: 'Safe preview tools for impersonation and CX simulation.',
   danger: 'High-risk operations with explicit confirmation.',
@@ -140,6 +149,7 @@ const SECTION_ICONS: Record<SectionId, ComponentType<{ className?: string }>> = 
   organizations: Building2,
   features: Settings2,
   consultants: BarChart3,
+  tour_emails: Users,
   operations: Activity,
   sandbox: FlaskConical,
   danger: AlertTriangle,
@@ -405,6 +415,9 @@ export default function DeveloperPage() {
   const [consultantMetricsError, setConsultantMetricsError] = useState<string | null>(null);
   const [consultantMetricsLastRefreshedAt, setConsultantMetricsLastRefreshedAt] = useState<Date | null>(null);
   const [consultantCommissionDueById, setConsultantCommissionDueById] = useState<Record<string, number>>({});
+  const [signalMapperUnlocks, setSignalMapperUnlocks] = useState<SignalMapperUnlockRow[]>([]);
+  const [signalMapperUnlocksLoading, setSignalMapperUnlocksLoading] = useState(false);
+  const [signalMapperUnlocksError, setSignalMapperUnlocksError] = useState<string | null>(null);
   const [freshUpSandboxConfig, setFreshUpSandboxConfig] = useState<FreshUpSandboxConfig>({
     enabled: false,
     roleType: 'random',
@@ -884,11 +897,50 @@ export default function DeveloperPage() {
     }
   }, [originalUser, firebaseAuth]);
 
+  const loadSignalMapperUnlocks = useCallback(async () => {
+    if (!originalUser || (originalUser.role !== 'Admin' && originalUser.role !== 'Developer')) {
+      return;
+    }
+
+    setSignalMapperUnlocksLoading(true);
+    setSignalMapperUnlocksError(null);
+    try {
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required for unlock email metrics.');
+      }
+      const token = await fbUser.getIdToken(true);
+      const response = await fetch('/api/admin/signal-mapper-unlocks', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.error || 'Failed to load unlock emails.');
+      }
+
+      const rows = Array.isArray(payload?.records) ? payload.records : [];
+      setSignalMapperUnlocks(rows as SignalMapperUnlockRow[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load unlock emails.';
+      setSignalMapperUnlocksError(message);
+    } finally {
+      setSignalMapperUnlocksLoading(false);
+    }
+  }, [firebaseAuth, originalUser]);
+
   useEffect(() => {
     if (activeSection === 'consultants') {
       void loadConsultantMetrics();
     }
   }, [activeSection, loadConsultantMetrics]);
+
+  useEffect(() => {
+    if (activeSection === 'tour_emails') {
+      void loadSignalMapperUnlocks();
+    }
+  }, [activeSection, loadSignalMapperUnlocks]);
 
   useEffect(() => {
     if (!loading && (!user || (originalUser?.role !== 'Developer' && originalUser?.role !== 'Admin'))) {
@@ -1123,6 +1175,42 @@ export default function DeveloperPage() {
       });
     }
   }, [tempProSignupUrl, toast]);
+
+  const handleCopyGuidedDemoLink = useCallback(async (url: string) => {
+    try {
+      if (typeof window === 'undefined') return;
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: 'Link copied',
+        description: 'Guided demo URL copied to clipboard.',
+      });
+    } catch (error) {
+      console.error('Failed to copy guided demo URL:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Copy failed',
+        description: 'Could not copy the guided demo link.',
+      });
+    }
+  }, [toast]);
+
+  const handleCopyValue = useCallback(async (value: string, successDescription: string) => {
+    try {
+      if (typeof window === 'undefined') return;
+      await navigator.clipboard.writeText(value);
+      toast({
+        title: 'Copied',
+        description: successDescription,
+      });
+    } catch (error) {
+      console.error('Failed to copy value:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Copy failed',
+        description: 'Could not copy to clipboard.',
+      });
+    }
+  }, [toast]);
 
   if (
     loading ||
@@ -2207,6 +2295,7 @@ export default function DeveloperPage() {
     const salesReportHref = `/consultant/${encodeURIComponent(normalizedConsultantId)}/sales-report`;
     const dealerPipelineHref = `/consultant/${encodeURIComponent(normalizedConsultantId)}/dealer-pipeline`;
     const customersHref = `/consultant/${encodeURIComponent(normalizedConsultantId)}/customers`;
+    const guidedDemoShareHref = buildConsultantOutreachLink('guidedDemo', normalizedConsultantId);
 
     const openConsultantDashboard = () => {
       if (!quickAccessConsultantId) return;
@@ -2277,6 +2366,29 @@ export default function DeveloperPage() {
               <Button variant="outline" onClick={openConsultantCustomers}>
                 Open Customers
               </Button>
+            </div>
+          </div>
+          <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <p className="text-sm font-medium">Public Guided Tour Link</p>
+            <p className="text-xs text-muted-foreground">
+              Share this link externally to launch the guided demo role selector.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => void handleCopyGuidedDemoLink(guidedDemoShareHref)}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Link
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => window.open(guidedDemoShareHref, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Open
+              </Button>
+            </div>
+            <div className="rounded bg-muted px-3 py-2 text-xs break-all">
+              {guidedDemoShareHref}
             </div>
           </div>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -2381,7 +2493,86 @@ export default function DeveloperPage() {
             <p><span className="font-medium">Sales Report:</span> {salesReportHref}</p>
             <p><span className="font-medium">Dealer Pipeline:</span> {dealerPipelineHref}</p>
             <p><span className="font-medium">Customers:</span> {customersHref}</p>
+            <p><span className="font-medium">Guided Tour (Public):</span> {guidedDemoShareHref}</p>
           </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderTourEmails = () => {
+    const allEmailsBlock = signalMapperUnlocks
+      .map((entry) => entry.email)
+      .join('\n');
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Signal Mapper Unlock Emails</CardTitle>
+          <CardDescription>
+            Real emails submitted in the free Signal Mapper unlock form.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={signalMapperUnlocks.length === 0}
+              onClick={() => void handleCopyValue(allEmailsBlock, 'All unlock emails copied.')}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy All Emails
+            </Button>
+            <Button type="button" variant="outline" onClick={() => void loadSignalMapperUnlocks()} disabled={signalMapperUnlocksLoading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
+
+          {signalMapperUnlocksError && (
+            <p className="text-sm text-red-500">{signalMapperUnlocksError}</p>
+          )}
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Email</TableHead>
+                <TableHead>Latest Unlock</TableHead>
+                <TableHead>Count</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {signalMapperUnlocksLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-sm text-muted-foreground">Loading unlock emails...</TableCell>
+                </TableRow>
+              ) : signalMapperUnlocks.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-sm text-muted-foreground">No unlock emails captured yet.</TableCell>
+                </TableRow>
+              ) : signalMapperUnlocks.map((entry) => (
+                <TableRow key={entry.email}>
+                  <TableCell className="font-mono text-xs">{entry.email}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{new Date(entry.lastUnlockedAt).toLocaleString()}</TableCell>
+                  <TableCell>{entry.count}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleCopyValue(entry.email, 'Unlock email copied.')}
+                      >
+                        Copy Email
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     );
@@ -2390,6 +2581,7 @@ export default function DeveloperPage() {
   const renderMainSection = () => {
     if (activeSection === 'overview') return renderOverview();
     if (activeSection === 'consultants') return renderConsultants();
+    if (activeSection === 'tour_emails') return renderTourEmails();
     if (activeSection === 'sandbox') return renderSandbox();
 
     const sectionTools = TOOLS.filter((tool) => tool.section === activeSection || (activeSection === 'danger' && tool.id === 'remove'));

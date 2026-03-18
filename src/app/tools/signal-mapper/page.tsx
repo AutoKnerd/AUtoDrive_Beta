@@ -331,7 +331,7 @@ export default function SignalMapperPage() {
     }
   };
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     const email = unlockEmail.trim().toLowerCase();
     const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!isValidEmail) {
@@ -349,6 +349,17 @@ export default function SignalMapperPage() {
     };
     setUnlockRecord(record);
     localStorage.setItem(EMAIL_GATE_STORAGE_KEY, JSON.stringify(record));
+    try {
+      await fetch('/api/tools/signal-mapper-unlocks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+    } catch (captureError) {
+      console.error('[SignalMapper] Failed to capture unlock email:', captureError);
+    }
     toast({
       title: 'Tool unlocked',
       description: 'You can now use the Customer Signal Funnel.',
@@ -428,7 +439,7 @@ export default function SignalMapperPage() {
                     />
                   </div>
                 </div>
-                <Button className="w-full bg-[#00f2ff] text-[#121111] hover:bg-[#00f2ff]/90 font-bold" onClick={handleUnlock}>
+                <Button className="w-full bg-[#00f2ff] text-[#121111] hover:bg-[#00f2ff]/90 font-bold" onClick={() => void handleUnlock()}>
                   Unlock Free Tool
                 </Button>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
