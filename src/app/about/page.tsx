@@ -113,6 +113,11 @@ export default function AboutPage() {
               </div>
             </Button>
           </div>
+          <div className="mt-5 pt-5 border-t border-white/10">
+            <Button asChild variant="outline" className="w-full border-white/20 bg-white/5 hover:bg-white/10 text-white">
+              <Link href="/signup">Sign Up</Link>
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -150,8 +155,8 @@ export default function AboutPage() {
                     {isTouring ? <Spinner className="text-[#121111]" /> : 'Show Me How I Sell More'}
                   </Button>
                 </TourDialog>
-                <Button asChild variant="outline" className="bg-white/5 backdrop-blur-md text-white px-8 py-7 rounded-xl font-bold text-lg uppercase tracking-wider border border-white/20 hover:bg-white/10 hover:text-white transition-all">
-                  <Link href="/login">Sign In</Link>
+                <Button asChild variant="outline" className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-md text-white px-8 py-7 rounded-xl font-black text-lg uppercase tracking-wider border border-[#00f2ff]/35 hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 hover:text-white transition-all shadow-[0_0_20px_rgba(0,242,255,0.2)]">
+                  <Link href="/signup">Sign Up</Link>
                 </Button>
               </div>
             </div>
@@ -430,12 +435,15 @@ export default function AboutPage() {
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap gap-3">
               <TourDialog>
                 <Button className="bg-[#00f2ff] hover:bg-[#00f2ff]/90 text-[#121111] px-8 py-6 rounded-xl font-black uppercase tracking-wider">
                   Show Me How I Improve Daily
                 </Button>
               </TourDialog>
+              <Button asChild variant="outline" className="px-8 py-6 rounded-xl font-black uppercase tracking-wider border-[#00f2ff]/35 bg-gradient-to-r from-white/10 to-white/5 text-white hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 hover:text-white h-auto shadow-[0_0_16px_rgba(0,242,255,0.18)]">
+                <Link href="/signup">Sign Up</Link>
+              </Button>
             </div>
           </div>
         </section>
@@ -464,11 +472,16 @@ export default function AboutPage() {
                     </li>
                   ))}
                 </ul>
-                <TourDialog>
-                  <Button variant="ghost" className="text-white hover:text-[#00f2ff] hover:bg-transparent border-b-2 border-[#00f2ff] rounded-none px-0 pb-1 font-bold uppercase tracking-widest text-xs h-auto relative z-10">
-                    Show Me My Sales Plan
+                <div className="flex flex-wrap gap-3 relative z-10">
+                  <TourDialog>
+                    <Button variant="outline" className="h-10 px-4 rounded-lg border border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white font-bold uppercase tracking-widest text-xs">
+                      Show Me My Sales Plan
+                    </Button>
+                  </TourDialog>
+                  <Button asChild variant="outline" className="h-10 px-4 rounded-lg border border-[#00f2ff]/35 bg-gradient-to-r from-white/10 to-white/5 text-white hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 text-xs font-black uppercase tracking-widest shadow-[0_0_14px_rgba(0,242,255,0.15)]">
+                    <Link href="/signup">Sign Up</Link>
                   </Button>
-                </TourDialog>
+                </div>
               </div>
 
               {/* Executive Block */}
@@ -490,11 +503,16 @@ export default function AboutPage() {
                     </li>
                   ))}
                 </ul>
-                <TourDialog>
-                  <Button variant="ghost" className="text-white hover:text-[#3488ba] hover:bg-transparent border-b-2 border-[#3488ba] rounded-none px-0 pb-1 font-bold uppercase tracking-widest text-xs h-auto relative z-10">
-                    Show Me The Coaching View
+                <div className="flex flex-wrap gap-3 relative z-10">
+                  <TourDialog>
+                    <Button variant="outline" className="h-10 px-4 rounded-lg border border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white font-bold uppercase tracking-widest text-xs">
+                      Show Me The Coaching View
+                    </Button>
+                  </TourDialog>
+                  <Button asChild variant="outline" className="h-10 px-4 rounded-lg border border-[#00f2ff]/35 bg-gradient-to-r from-white/10 to-white/5 text-white hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 text-xs font-black uppercase tracking-widest shadow-[0_0_14px_rgba(0,242,255,0.15)]">
+                    <Link href="/signup">Sign Up</Link>
                   </Button>
-                </TourDialog>
+                </div>
               </div>
 
             </div>
@@ -554,12 +572,15 @@ export default function AboutPage() {
             <p className="text-slate-400 text-xl md:text-2xl mb-16 max-w-2xl mx-auto font-medium">
               The elite performance platform for sales consultants who refuse to settle for average.
             </p>
-            <div className="flex flex-col items-center gap-10">
+            <div className="flex flex-wrap justify-center items-center gap-4">
               <TourDialog>
                 <Button className="bg-[#00f2ff] hover:bg-[#00f2ff]/90 text-[#121111] px-14 py-8 rounded-2xl font-black text-xl lg:text-2xl uppercase tracking-[0.2em] transition-all hover:scale-105 shadow-[0_0_50px_rgba(0,242,255,0.5)] h-auto" disabled={isTouring}>
                    {isTouring ? <Spinner className="text-[#121111]" /> : 'Show Me How I Sell More'}
                 </Button>
               </TourDialog>
+              <Button asChild variant="outline" className="px-10 py-8 rounded-2xl font-black text-xl uppercase tracking-[0.12em] border-[#00f2ff]/35 bg-gradient-to-r from-white/10 to-white/5 text-white hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 hover:text-white h-auto shadow-[0_0_22px_rgba(0,242,255,0.2)]">
+                <Link href="/signup">Sign Up</Link>
+              </Button>
             </div>
           </div>
         </section>
