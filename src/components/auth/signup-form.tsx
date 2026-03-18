@@ -138,7 +138,7 @@ export function SignupForm() {
         </p>
         <CardTitle className="text-center text-2xl font-semibold tracking-tight text-white">Create your Pro account</CardTitle>
         <p className="text-center text-sm font-semibold text-emerald-200">30-day free trial</p>
-        <p className="text-center text-sm text-slate-300">Then $50/month. Cancel anytime.</p>
+        <p className="text-center text-sm text-slate-300">Then $12.99/month. Cancel anytime.</p>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
