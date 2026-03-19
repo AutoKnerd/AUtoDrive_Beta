@@ -152,7 +152,7 @@ export default function AboutPage() {
               <div className="flex flex-wrap gap-4 items-center">
                 <TourDialog>
                   <Button className="bg-[#00f2ff] hover:bg-[#00f2ff]/80 text-[#121111] px-8 py-7 rounded-xl font-black text-lg uppercase tracking-wider shadow-[0_0_20px_rgba(0,242,255,0.4)] transition-all hover:scale-105" disabled={isTouring}>
-                    {isTouring ? <Spinner className="text-[#121111]" /> : 'Show Me How I Sell More'}
+                    {isTouring ? <Spinner className="text-[#121111]" /> : 'See How It Works'}
                   </Button>
                 </TourDialog>
                 <Button asChild variant="outline" className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-md text-white px-8 py-7 rounded-xl font-black text-lg uppercase tracking-wider border border-[#00f2ff]/35 hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 hover:text-white transition-all shadow-[0_0_20px_rgba(0,242,255,0.2)]">
@@ -575,7 +575,7 @@ export default function AboutPage() {
             <div className="flex flex-wrap justify-center items-center gap-4">
               <TourDialog>
                 <Button className="bg-[#00f2ff] hover:bg-[#00f2ff]/90 text-[#121111] px-14 py-8 rounded-2xl font-black text-xl lg:text-2xl uppercase tracking-[0.2em] transition-all hover:scale-105 shadow-[0_0_50px_rgba(0,242,255,0.5)] h-auto" disabled={isTouring}>
-                   {isTouring ? <Spinner className="text-[#121111]" /> : 'Show Me How I Sell More'}
+                   {isTouring ? <Spinner className="text-[#121111]" /> : 'See How It Works'}
                 </Button>
               </TourDialog>
               <Button asChild variant="outline" className="px-10 py-8 rounded-2xl font-black text-xl uppercase tracking-[0.12em] border-[#00f2ff]/35 bg-gradient-to-r from-white/10 to-white/5 text-white hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 hover:text-white h-auto shadow-[0_0_22px_rgba(0,242,255,0.2)]">
