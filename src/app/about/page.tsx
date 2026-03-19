@@ -317,16 +317,32 @@ export default function AboutPage() {
                   <p className="text-slate-400 max-w-xs mb-8 text-sm leading-relaxed">
                     Simulate tough pricing, trade-in, and finance objections in a zero-risk environment before facing a real customer.
                   </p>
-                  <div className="w-full bg-white/[0.03] backdrop-blur-md rounded-2xl p-5 border border-white/5 shadow-xl">
+                  <div className="w-full h-[190px] bg-white/[0.03] backdrop-blur-md rounded-2xl p-6 border border-white/5 shadow-xl relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-b from-[#00f2ff]/5 via-transparent to-transparent pointer-events-none"></div>
                     <div className="flex gap-2 mb-3">
                       <div className="h-2.5 w-2.5 rounded-full bg-red-500/50"></div>
                       <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/50"></div>
                       <div className="h-2.5 w-2.5 rounded-full bg-green-500/50"></div>
                     </div>
-                    <div className="text-left font-mono text-[11px] text-[#00f2ff]/80 leading-relaxed">
-                      &gt; ANALYZING_TONE... <br />
-                      &gt; OBJECTION_DETECTED: "Too expensive" <br />
-                      &gt; SUGGESTING_REBUTTAL_V4...
+                    <div className="text-left font-mono text-[11px] text-[#00f2ff]/80 leading-relaxed space-y-2 relative z-10">
+                      <div className="flex items-center gap-2">
+                        <span>&gt; ANALYZING_TONE</span>
+                        <span className="text-[#00f2ff] animate-pulse">...</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span>&gt; OBJECTION_DETECTED: &quot;Too expensive&quot;</span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#00f2ff] animate-pulse" style={{ animationDelay: '250ms' }}></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span>&gt; SUGGESTING_REBUTTAL_V4</span>
+                        <span className="text-[#00f2ff] animate-pulse" style={{ animationDelay: '500ms' }}>...</span>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className="h-full w-2/5 bg-gradient-to-r from-transparent via-[#00f2ff]/80 to-transparent"
+                          style={{ animation: 'terminalLoad 1.35s ease-in-out infinite' }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -340,16 +356,47 @@ export default function AboutPage() {
                   <p className="text-slate-400 max-w-xs mb-8 text-sm leading-relaxed">
                     Receive exact behavioral corrections on tonality and transparency to fix leaks in your communication.
                   </p>
-                  <div className="w-full bg-white/[0.03] backdrop-blur-md rounded-2xl p-6 border border-white/5 shadow-xl">
-                    <div className="space-y-4">
-                      <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-[#00f2ff] w-3/4 shadow-[0_0_10px_rgba(0,242,255,0.8)]"></div>
+                  <div className="w-full h-[190px] bg-white/[0.03] backdrop-blur-md rounded-2xl p-6 border border-white/5 shadow-xl relative overflow-hidden">
+                    <div
+                      className="absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-[#00f2ff]/15 to-transparent blur-sm pointer-events-none"
+                      style={{ animation: 'pulse 1.9s ease-in-out infinite' }}
+                    ></div>
+                    <div className="space-y-4 relative z-10">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-slate-400">
+                          <span>Tonality</span>
+                          <span className="text-[#00f2ff]">75%</span>
+                        </div>
+                        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#00f2ff] w-3/4 shadow-[0_0_10px_rgba(0,242,255,0.8)]"
+                            style={{ animation: 'feedbackFillOne 3s ease-in-out infinite' }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-[#3488ba] w-1/2"></div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-slate-400">
+                          <span>Transparency</span>
+                          <span className="text-[#3488ba]">50%</span>
+                        </div>
+                        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#3488ba] w-1/2"
+                            style={{ animation: 'feedbackFillTwo 3.3s ease-in-out infinite', animationDelay: '220ms' }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-[#00f2ff]/50 w-full"></div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-slate-400">
+                          <span>Trust Clarity</span>
+                          <span className="text-[#5dd8de]">100%</span>
+                        </div>
+                        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#00f2ff]/50 w-full"
+                            style={{ animation: 'feedbackFillThree 2.85s ease-in-out infinite', animationDelay: '420ms' }}
+                          ></div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -364,8 +411,16 @@ export default function AboutPage() {
                   <p className="text-slate-400 max-w-xs mb-8 text-sm leading-relaxed">
                     Track your own mastery clearly and, if you lead others, coach from the same performance signals.
                   </p>
-                  <div className="w-full bg-white/[0.03] backdrop-blur-md rounded-2xl p-8 border border-white/5 shadow-xl flex justify-center items-center">
-                    <div className="h-16 w-16 rounded-full border-4 border-[#00f2ff]/20 border-t-[#00f2ff] shadow-[0_0_15px_rgba(0,242,255,0.3)] animate-spin [animation-duration:3s]"></div>
+                  <div className="w-full h-[190px] bg-white/[0.03] backdrop-blur-md rounded-2xl p-6 border border-white/5 shadow-xl flex justify-center items-center relative overflow-hidden">
+                    <div className="relative h-44 w-44 flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-full border border-[#00f2ff]/10"></div>
+                      <div className="absolute inset-0 rounded-full border border-[#00f2ff]/10" style={{ animation: 'radarPulse 2.3s ease-out infinite' }}></div>
+                      <div className="absolute inset-[18px] rounded-full border border-[#00f2ff]/20"></div>
+                      <div className="absolute inset-[36px] rounded-full border border-[#00f2ff]/30"></div>
+                      <div className="absolute left-1/2 top-1/2 h-[1px] w-16 -translate-y-1/2 origin-left bg-gradient-to-r from-[#00f2ff]/90 to-transparent" style={{ animation: 'radarSweep 2.4s linear infinite' }}></div>
+                      <div className="absolute h-2.5 w-2.5 rounded-full bg-[#00f2ff] shadow-[0_0_14px_rgba(0,242,255,0.9)] translate-x-10 translate-y-6 animate-pulse"></div>
+                      <div className="absolute h-24 w-24 rounded-full border-4 border-[#00f2ff]/15 border-t-[#00f2ff] shadow-[0_0_18px_rgba(0,242,255,0.35)]"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -437,11 +492,11 @@ export default function AboutPage() {
 
             <div className="pt-2 flex flex-wrap gap-3">
               <TourDialog>
-                <Button className="bg-[#00f2ff] hover:bg-[#00f2ff]/90 text-[#121111] px-8 py-6 rounded-xl font-black uppercase tracking-wider">
+                <Button className="h-14 bg-[#00f2ff] hover:bg-[#00f2ff]/90 text-[#121111] px-8 rounded-xl font-black uppercase tracking-wider">
                   Show Me How I Improve Daily
                 </Button>
               </TourDialog>
-              <Button asChild variant="outline" className="px-8 py-6 rounded-xl font-black uppercase tracking-wider border-[#00f2ff]/35 bg-gradient-to-r from-white/10 to-white/5 text-white hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 hover:text-white h-auto shadow-[0_0_16px_rgba(0,242,255,0.18)]">
+              <Button asChild variant="outline" className="h-14 px-8 rounded-xl font-black uppercase tracking-wider border-[#00f2ff]/35 bg-gradient-to-r from-white/10 to-white/5 text-white hover:from-[#00f2ff]/20 hover:to-[#3488ba]/20 hover:text-white shadow-[0_0_16px_rgba(0,242,255,0.18)]">
                 <Link href="/signup">Sign Up</Link>
               </Button>
             </div>
@@ -585,6 +640,33 @@ export default function AboutPage() {
           </div>
         </section>
       </main>
+      <style jsx global>{`
+        @keyframes terminalLoad {
+          0%, 100% { transform: translateX(-30%); opacity: 0.45; }
+          50% { transform: translateX(120%); opacity: 1; }
+        }
+        @keyframes feedbackFillOne {
+          0%, 100% { width: 66%; }
+          50% { width: 82%; }
+        }
+        @keyframes feedbackFillTwo {
+          0%, 100% { width: 42%; }
+          50% { width: 58%; }
+        }
+        @keyframes feedbackFillThree {
+          0%, 100% { width: 88%; opacity: 0.7; }
+          50% { width: 100%; opacity: 1; }
+        }
+        @keyframes radarSweep {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes radarPulse {
+          0% { transform: scale(0.9); opacity: 0.2; }
+          70% { transform: scale(1.05); opacity: 0.45; }
+          100% { transform: scale(1.12); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
