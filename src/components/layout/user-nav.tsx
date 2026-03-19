@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, User as UserIcon, MessageSquare, CreditCard, Undo2, Home, BarChart3 } from 'lucide-react';
+import { LogOut, User as UserIcon, MessageSquare, CreditCard, Undo2, Home, BarChart3, Zap } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AvatarSoundRing } from '@/components/profile/avatar-sound-ring';
 import { cn } from '@/lib/utils';
@@ -273,6 +273,10 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
             <DropdownMenuItem onSelect={() => router.push('/scorecard')}>
                 <CreditCard className="mr-2 h-4 w-4" />
                 <span>Score Card</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => router.push('/tools/signal-mapper')}>
+                <Zap className="mr-2 h-4 w-4" />
+                <span>Signal Mapper Tool</span>
             </DropdownMenuItem>
             {consultantReferralCode && (
               <>
