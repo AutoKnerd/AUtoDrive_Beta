@@ -78,6 +78,8 @@ export type User = {
   name: string;
   email: string;
   role: UserRole;
+  tier?: 'free' | 'pro';
+  toolAccessLevel?: number;
   signupRoleInterest?: UserRole;
   dealershipIds: string[];
   avatarUrl: string;
