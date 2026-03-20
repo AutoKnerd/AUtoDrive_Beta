@@ -9,7 +9,7 @@ import * as z from 'zod';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import { createIndividualCheckoutSessionUrl } from '@/app/actions/stripe';
-import { getConsultant, parseConsultantFromURL, storeConsultant } from '@/lib/consultant-referral';
+import { getConsultant, parseConsultantFromURL, setAttribution, touchAttribution } from '@/lib/consultant-referral';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +54,7 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 export function SignupForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [didCaptureEmailEntry, setDidCaptureEmailEntry] = useState(false);
   const router = useRouter();
   const firebaseAuth = useFirebaseAuth();
   const { publicSignup } = useAuth();
@@ -72,14 +73,35 @@ export function SignupForm() {
 
   useEffect(() => {
     const fromUrl = parseConsultantFromURL(`${window.location.pathname}${window.location.search}`);
-    if (fromUrl) storeConsultant(fromUrl);
+    if (fromUrl) {
+      setAttribution({
+        consultant_id: fromUrl,
+        engagement_type: 'weak',
+        engagement_event: 'page_visit',
+        timestamp: Date.now(),
+      });
+    }
+
+    touchAttribution('medium', 'signup_started');
   }, []);
+
+  const emailValue = form.watch('email');
+
+  useEffect(() => {
+    if (didCaptureEmailEntry) return;
+    const value = String(emailValue || '').trim();
+    if (!value.includes('@') || !value.includes('.')) return;
+
+    touchAttribution('medium', 'email_entered');
+    setDidCaptureEmailEntry(true);
+  }, [didCaptureEmailEntry, emailValue]);
 
   async function onSubmit(data: SignupFormValues) {
     setIsSubmitting(true);
     try {
       const consultant = getConsultant() || undefined;
       await publicSignup(data.name, data.email, data.password, data.role as UserRole, consultant);
+      touchAttribution('strong', 'signup_completed');
 
       const fbUser = firebaseAuth.currentUser;
       if (!fbUser) {
@@ -94,6 +116,7 @@ export function SignupForm() {
       });
 
       try {
+        touchAttribution('strong', 'payment_started');
         const checkout = await createIndividualCheckoutSessionUrl(idToken, 'monthly', getConsultant() || undefined);
         if (!checkout.ok) {
           throw new Error(checkout.message);

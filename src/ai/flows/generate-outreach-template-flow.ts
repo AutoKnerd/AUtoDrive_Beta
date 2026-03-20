@@ -8,11 +8,11 @@ const OutreachToneSchema = z.enum(['professional', 'friendly', 'direct', 'urgent
 
 const GenerateOutreachTemplateInputSchema = z.object({
   channel: OutreachChannelSchema,
+  format: z.string().min(1),
   tone: OutreachToneSchema,
   consultantName: z.string().min(1),
   consultantId: z.string().min(1),
-  dealerInviteLink: z.string().url(),
-  demoLink: z.string().url(),
+  primaryLink: z.string().url(),
   criteria: z.string().max(1200).optional(),
 });
 
@@ -65,11 +65,7 @@ Hi,
 
 I wanted to share AutoDriveCX for dealership teams that want stronger customer execution and consistency.${criteriaLine}
 
-Dealer signup link:
-${input.dealerInviteLink}
-
-Demo:
-${input.demoLink}
+${input.primaryLink}
 
 Best,
 ${consultant}`;
@@ -84,8 +80,7 @@ ${consultant}`;
           ? 'AutoDriveCX helps dealership teams improve customer execution consistency.'
           : 'Dealership teams using AutoDriveCX build stronger execution consistency.';
     return `${opener}${criteria ? `\n\nFocus: ${criteria}` : ''}
-\nDealer signup: ${input.dealerInviteLink}
-\nDemo: ${input.demoLink}
+\n${input.primaryLink}
 \n#automotive #dealership #customerservice`;
   }
 
@@ -96,7 +91,7 @@ ${consultant}`;
       : input.tone === 'direct'
         ? 'AutoDriveCX signup link:'
         : 'Sharing this:';
-  return `${textPrefix} AutoDriveCX dealer signup: ${input.dealerInviteLink}${criteria ? ` | Focus: ${criteria}` : ''}`;
+  return `${textPrefix} ${input.primaryLink}${criteria ? ` | Focus: ${criteria}` : ''}`;
 }
 
 const generateOutreachTemplatePrompt = ai.definePrompt({
@@ -106,11 +101,11 @@ const generateOutreachTemplatePrompt = ai.definePrompt({
   prompt: `You write high-performing outreach copy for dealership software consultants.
 
 Channel: {{channel}}
+Message format: {{format}}
 Tone: {{tone}}
 Consultant name: {{consultantName}}
 Consultant referral code: {{consultantId}}
-Dealer signup link (must include exactly once): {{dealerInviteLink}}
-Demo link (optional, include at most once): {{demoLink}}
+Primary link (must include exactly once): {{primaryLink}}
 Criteria from consultant:
 {{criteria}}
 
@@ -121,6 +116,7 @@ Rules:
 - Include a clear CTA.
 - Preserve exact URLs, do not alter them.
 - Do not mention internal systems or AI.
+- Shape the writing style to the selected Message format.
 
 Channel-specific requirements:
 - email: include a concise Subject line on first line as "Subject: ...", then the email body. Keep body under 170 words.

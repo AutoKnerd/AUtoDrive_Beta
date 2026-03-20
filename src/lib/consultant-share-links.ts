@@ -1,5 +1,5 @@
 export type ConsultantShareLinkType = 'join' | 'demo' | 'tour';
-export type ConsultantOutreachLinkType = 'dealerReferral' | 'singleUser' | 'guidedDemo';
+export type ConsultantOutreachLinkType = 'dealerReferral' | 'singleUser' | 'guidedDemo' | 'about' | 'tools';
 
 function trimTrailingSlashes(value: string): string {
   return value.replace(/\/+$/, '');
@@ -19,7 +19,7 @@ export function getConsultantShareBaseUrl(): string {
 }
 
 export function buildConsultantShareLink(type: ConsultantShareLinkType, consultantSlug: string): string {
-  const normalizedSlug = String(consultantSlug || '').trim().toLowerCase();
+  const normalizedSlug = String(consultantSlug || '').trim();
   const encodedSlug = encodeURIComponent(normalizedSlug);
   const path = `/${type}/${encodedSlug}`;
   const baseUrl = getConsultantShareBaseUrl();
@@ -35,7 +35,7 @@ function getAppBaseUrl(): string {
 }
 
 export function buildConsultantOutreachLink(type: ConsultantOutreachLinkType, consultantSlug: string): string {
-  const normalizedSlug = String(consultantSlug || '').trim().toLowerCase();
+  const normalizedSlug = String(consultantSlug || '').trim();
   const encodedSlug = encodeURIComponent(normalizedSlug);
 
   if (type === 'dealerReferral') {
@@ -44,6 +44,14 @@ export function buildConsultantOutreachLink(type: ConsultantOutreachLinkType, co
 
   if (type === 'singleUser') {
     return `${getAppBaseUrl()}/signup/${encodedSlug}`;
+  }
+
+  if (type === 'about') {
+    return `${getAppBaseUrl()}/about/${encodedSlug}`;
+  }
+
+  if (type === 'tools') {
+    return `${getAppBaseUrl()}/tools/${encodedSlug}`;
   }
 
   return `${getAppBaseUrl()}/tour/${encodedSlug}`;

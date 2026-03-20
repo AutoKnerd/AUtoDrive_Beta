@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Footer } from '@/components/layout/footer';
 import { TourFooter } from '@/components/layout/tour-footer';
 import { usePathname } from 'next/navigation';
-import { parseConsultantFromURL, storeConsultant } from '@/lib/consultant-referral';
+import { parseConsultantFromURL, setAttribution } from '@/lib/consultant-referral';
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
     const { isTouring, loading } = useAuth();
@@ -17,7 +17,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const resolved = parseConsultantFromURL(`${pathname}${window.location.search}`);
         if (!resolved) return;
-        storeConsultant(resolved);
+        setAttribution({
+            consultant_id: resolved,
+            engagement_type: 'weak',
+            engagement_event: 'page_visit',
+            timestamp: Date.now(),
+        });
     }, [pathname]);
 
     return (

@@ -5,13 +5,14 @@ import { useParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConsultantSidebar } from '@/components/consultant/consultant-sidebar';
 import { useConsultantRouteAccess } from '@/hooks/use-consultant-route-access';
 import { generateOutreachTemplate } from '@/ai/flows/generate-outreach-template-flow';
 import { buildConsultantOutreachLink } from '@/lib/consultant-share-links';
+import { resolveConsultant } from '@/lib/consultant-referral';
+import { Sparkles } from 'lucide-react';
 
 type MarketingMetrics = {
   consultant_id: string;
@@ -23,6 +24,36 @@ type MarketingMetrics = {
   demo_conversions: number;
 };
 
+type MessageFormat =
+  | 'email_cold_outreach'
+  | 'email_follow_up'
+  | 'email_post_meeting_recap'
+  | 'linkedin_post'
+  | 'linkedin_dm'
+  | 'text_message'
+  | 're_engagement_message'
+  | 'appointment_request'
+  | 'value_first_intro'
+  | 'quick_check_in';
+
+const FORMAT_OPTIONS: Array<{
+  value: MessageFormat;
+  label: string;
+  channel: 'email' | 'linkedin' | 'text';
+  tone: 'professional' | 'friendly' | 'direct' | 'urgent';
+}> = [
+  { value: 'email_cold_outreach', label: 'Email (Cold Outreach)', channel: 'email', tone: 'professional' },
+  { value: 'email_follow_up', label: 'Email (Follow-Up)', channel: 'email', tone: 'friendly' },
+  { value: 'email_post_meeting_recap', label: 'Email (Post-Meeting Recap)', channel: 'email', tone: 'professional' },
+  { value: 'linkedin_post', label: 'LinkedIn Post', channel: 'linkedin', tone: 'professional' },
+  { value: 'linkedin_dm', label: 'LinkedIn DM', channel: 'linkedin', tone: 'direct' },
+  { value: 'text_message', label: 'Text Message', channel: 'text', tone: 'direct' },
+  { value: 're_engagement_message', label: 'Re-Engagement Message', channel: 'text', tone: 'friendly' },
+  { value: 'appointment_request', label: 'Appointment Request', channel: 'email', tone: 'direct' },
+  { value: 'value_first_intro', label: 'Value-First Intro', channel: 'linkedin', tone: 'professional' },
+  { value: 'quick_check_in', label: 'Quick Check-In', channel: 'text', tone: 'friendly' },
+];
+
 function toDisplayName(value: string) {
   return value
     .split(/[-_\s]+/)
@@ -33,7 +64,7 @@ function toDisplayName(value: string) {
 
 export default function ConsultantDealerOutreachPage() {
   const params = useParams<{ id: string }>();
-  const consultantId = (params.id || '').toLowerCase();
+  const consultantId = String(params.id || '').trim().toLowerCase();
   const {
     isAuthorized,
     isChecking,
@@ -48,56 +79,26 @@ export default function ConsultantDealerOutreachPage() {
   const [error, setError] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [aiCriteria, setAiCriteria] = useState('');
-  const [aiTone, setAiTone] = useState<'professional' | 'friendly' | 'direct' | 'urgent'>('professional');
-  const [generatingChannel, setGeneratingChannel] = useState<'email' | 'linkedin' | 'text' | null>(null);
+  const [selectedFormat, setSelectedFormat] = useState<MessageFormat>('email_cold_outreach');
+  const [generatedMessage, setGeneratedMessage] = useState('');
+  const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
 
-  const dealerInviteLink = useMemo(() => buildConsultantOutreachLink('dealerReferral', consultantId), [consultantId]);
-  const singleUserLink = useMemo(() => buildConsultantOutreachLink('singleUser', consultantId), [consultantId]);
-  const guidedDemoLink = useMemo(() => buildConsultantOutreachLink('guidedDemo', consultantId), [consultantId]);
-  const referralLink = dealerInviteLink;
+  const consultantCode = useMemo(() => {
+    const resolvedFromRoute = resolveConsultant(consultantId);
+    const resolvedFromMapped = resolveConsultant(mappedReferralCode || '');
+    return resolvedFromMapped?.code || resolvedFromRoute?.code || consultantId;
+  }, [consultantId, mappedReferralCode]);
 
-  const defaultEmailTemplate = useMemo(() => {
-    return `Subject: Quick invite to AutoDriveCX for your dealership team
+  const dealerInviteLink = useMemo(() => buildConsultantOutreachLink('dealerReferral', consultantCode), [consultantCode]);
+  const singleUserLink = useMemo(() => buildConsultantOutreachLink('singleUser', consultantCode), [consultantCode]);
+  const guidedDemoLink = useMemo(() => buildConsultantOutreachLink('guidedDemo', consultantCode), [consultantCode]);
+  const aboutLink = useMemo(() => buildConsultantOutreachLink('about', consultantCode), [consultantCode]);
+  const toolsLink = useMemo(() => buildConsultantOutreachLink('tools', consultantCode), [consultantCode]);
 
-Hi,
-
-I wanted to invite you to try AutoDriveCX for your dealership.
-
-Dealer signup link:
-${dealerInviteLink}
-
-Single user signup link:
-${singleUserLink}
-
-Guided demo link:
-${guidedDemoLink}
-
-Best,
-${toDisplayName(consultantId)}`;
-  }, [consultantId, dealerInviteLink, singleUserLink, guidedDemoLink]);
-
-  const defaultLinkedInTemplate = useMemo(() => {
-    return `Dealership leaders: if you want stronger customer conversations and better execution consistency, check out AutoDriveCX.\n\nReferral link: ${dealerInviteLink}\nSingle-user signup: ${singleUserLink}\nGuided demo: ${guidedDemoLink}\n\n#automotive #dealership #customerservice`;
-  }, [dealerInviteLink, singleUserLink, guidedDemoLink]);
-
-  const defaultTextMessageTemplate = useMemo(() => {
-    return `Here are the AutoDriveCX links: referral ${dealerInviteLink} | single user ${singleUserLink} | guided demo ${guidedDemoLink}`;
-  }, [dealerInviteLink, singleUserLink, guidedDemoLink]);
-  const [emailTemplate, setEmailTemplate] = useState('');
-  const [linkedInTemplate, setLinkedInTemplate] = useState('');
-  const [textMessageTemplate, setTextMessageTemplate] = useState('');
-
-  useEffect(() => {
-    setEmailTemplate(defaultEmailTemplate);
-  }, [defaultEmailTemplate]);
-
-  useEffect(() => {
-    setLinkedInTemplate(defaultLinkedInTemplate);
-  }, [defaultLinkedInTemplate]);
-
-  useEffect(() => {
-    setTextMessageTemplate(defaultTextMessageTemplate);
-  }, [defaultTextMessageTemplate]);
+  const selectedFormatConfig = useMemo(
+    () => FORMAT_OPTIONS.find((option) => option.value === selectedFormat) || FORMAT_OPTIONS[0],
+    [selectedFormat]
+  );
 
   useEffect(() => {
     if (isAdmin && consultantId) {
@@ -113,7 +114,7 @@ ${toDisplayName(consultantId)}`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          consultant_id: consultantId,
+          consultant_id: consultantCode.toLowerCase(),
           event_type: eventType,
           source,
         }),
@@ -128,7 +129,7 @@ ${toDisplayName(consultantId)}`;
     setError(null);
 
     try {
-      const response = await fetch(`/api/consultant-marketing-metrics?id=${encodeURIComponent(consultantId)}`);
+      const response = await fetch(`/api/consultant-marketing-metrics?id=${encodeURIComponent(consultantCode.toLowerCase())}`);
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error || 'Failed to load outreach metrics.');
@@ -143,7 +144,7 @@ ${toDisplayName(consultantId)}`;
   }
 
   useEffect(() => {
-    if (consultantId && isAuthorized) {
+    if (consultantCode && isAuthorized) {
       void loadMetrics();
       return;
     }
@@ -151,7 +152,7 @@ ${toDisplayName(consultantId)}`;
     if (!isChecking) {
       setIsLoadingMetrics(false);
     }
-  }, [consultantId, isAuthorized, isChecking]);
+  }, [consultantCode, isAuthorized, isChecking]);
 
   async function copyText(text: string, eventType: string, source: string) {
     try {
@@ -169,14 +170,6 @@ ${toDisplayName(consultantId)}`;
     await loadMetrics();
   }
 
-  async function sendEmailInvite() {
-    const subject = encodeURIComponent('AutoDriveCX dealer invite');
-    const body = encodeURIComponent(emailTemplate);
-    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
-    await trackEvent('email_invite', 'mailto');
-    await loadMetrics();
-  }
-
   async function openDemo() {
     await trackEvent('referral_click', 'open_demo');
     window.open(singleUserLink, '_blank', 'noopener,noreferrer');
@@ -189,18 +182,48 @@ ${toDisplayName(consultantId)}`;
     await loadMetrics();
   }
 
-  async function generateTemplate(channel: 'email' | 'linkedin' | 'text') {
+  async function openAboutPage() {
+    await trackEvent('share', 'open_about');
+    window.open(aboutLink, '_blank', 'noopener,noreferrer');
+    await loadMetrics();
+  }
+
+  async function openToolsPage() {
+    await trackEvent('share', 'open_tools');
+    window.open(toolsLink, '_blank', 'noopener,noreferrer');
+    await loadMetrics();
+  }
+
+  async function generateTemplate() {
     setTemplateError(null);
-    setGeneratingChannel(channel);
+    setIsGeneratingMessage(true);
     try {
+      const baseInstruction = `Write a ${selectedFormatConfig.label} message for a dealership decision maker introducing AutoDriveCX. The message should be clear, conversational, and focused on improving customer experience and consistency in dealership performance. Include a soft call-to-action using this link: ${aboutLink}.`;
+      const formatRequirements =
+        selectedFormatConfig.channel === 'email'
+          ? 'Output requirements: include a Subject line, use short paragraphs, and include a clear CTA.'
+          : selectedFormatConfig.value === 'linkedin_post'
+            ? 'Output requirements: hook in the first line, then 2-4 short paragraphs with light formatting.'
+            : selectedFormatConfig.value === 'linkedin_dm' || selectedFormatConfig.channel === 'text'
+              ? 'Output requirements: keep it short, direct, conversational, and avoid fluff.'
+              : 'Output requirements: keep it practical, concise, and action-focused.';
+      const engagementRequirements =
+        selectedFormatConfig.value === 'email_follow_up' || selectedFormatConfig.value === 're_engagement_message' || selectedFormatConfig.value === 'quick_check_in'
+          ? 'Acknowledge prior contact and provide a light nudge, not a pushy close.'
+          : '';
+      const criteriaInstruction = aiCriteria.trim() ? `Additional criteria from consultant: ${aiCriteria.trim()}` : '';
+      const promptCriteria = [baseInstruction, formatRequirements, engagementRequirements, criteriaInstruction]
+        .filter(Boolean)
+        .join('\n\n');
+
       const generated = await generateOutreachTemplate({
-        channel,
-        tone: aiTone,
+        channel: selectedFormatConfig.channel,
+        format: selectedFormatConfig.label,
+        tone: selectedFormatConfig.tone,
         consultantName: consultantDisplayName || toDisplayName(consultantId),
-        consultantId,
-        dealerInviteLink,
-        demoLink: guidedDemoLink,
-        criteria: aiCriteria.trim() || undefined,
+        consultantId: consultantCode.toLowerCase(),
+        primaryLink: aboutLink,
+        criteria: promptCriteria,
       });
 
       const content = generated.content.trim();
@@ -208,16 +231,14 @@ ${toDisplayName(consultantId)}`;
         throw new Error('AI returned empty content. Please try different criteria.');
       }
 
-      if (channel === 'email') setEmailTemplate(content);
-      if (channel === 'linkedin') setLinkedInTemplate(content);
-      if (channel === 'text') setTextMessageTemplate(content);
+      setGeneratedMessage(content);
 
-      await trackEvent('share', `ai_generate_${channel}`);
+      await trackEvent('share', `ai_generate_${selectedFormatConfig.value}`);
     } catch (generationError) {
       const message = generationError instanceof Error ? generationError.message : 'Unable to generate template.';
       setTemplateError(message);
     } finally {
-      setGeneratingChannel(null);
+      setIsGeneratingMessage(false);
     }
   }
 
@@ -226,8 +247,6 @@ ${toDisplayName(consultantId)}`;
   const dealerTrials = metrics?.signups ?? 0;
   const activeDealerAccounts = metrics?.conversions ?? 0;
   const conversionRate = metrics?.conversion_rate ?? 0;
-  const demoVisits = metrics?.demo_visits ?? 0;
-  const demoConversionRate = demoVisits > 0 ? ((metrics?.demo_conversions ?? 0) / demoVisits) * 100 : 0;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -266,143 +285,137 @@ ${toDisplayName(consultantId)}`;
               <>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Invite a Dealer</CardTitle>
-                    <CardDescription>Primary action: invite dealerships to start their trial.</CardDescription>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-cyan-400" />
+                      Your Share Link
+                    </CardTitle>
+                    <CardDescription>Send this link to introduce AutoDriveCX to dealerships</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{dealerInviteLink}</p>
+                    <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{aboutLink}</p>
+                    <p className="text-xs text-muted-foreground">
+                      This page explains what AutoDriveCX does and how it improves dealership performance.
+                    </p>
                     <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => copyText(dealerInviteLink, 'referral_click', 'copy_invite_link')}>Copy Invite Link</Button>
-                      <Button variant="outline" onClick={openDealerSignup}>Open Dealer Signup</Button>
-                      <Button variant="outline" onClick={sendEmailInvite}>Send Email Invite</Button>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Dealer Clicks</p>
-                        <p className="mt-1 text-xl font-semibold">{dealerClicks}</p>
-                      </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Dealer Trials Started</p>
-                        <p className="mt-1 text-xl font-semibold">{dealerTrials}</p>
-                      </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Active Dealer Accounts</p>
-                        <p className="mt-1 text-xl font-semibold">{activeDealerAccounts}</p>
-                      </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Conversion Rate</p>
-                        <p className="mt-1 text-xl font-semibold">{conversionRate.toLocaleString('en-US')}%</p>
-                      </div>
+                      <Button onClick={() => copyText(aboutLink, 'share', 'copy_about_link_primary')}>Copy Link</Button>
+                      <Button variant="outline" onClick={openAboutPage}>Open</Button>
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Single User Link</CardTitle>
-                    <CardDescription>Direct single-user signup link for app access.</CardDescription>
+                    <CardTitle>Advanced Links</CardTitle>
+                    <CardDescription>Optional alternatives when you need to skip the guided flow.</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{singleUserLink}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => copyText(singleUserLink, 'share', 'copy_single_user_link')}>Copy Single User Link</Button>
-                      <Button variant="outline" onClick={openDemo}>Open Single User Link</Button>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Demo Visits</p>
-                        <p className="mt-1 text-xl font-semibold">{demoVisits}</p>
+                  <CardContent>
+                    <details className="group rounded-md border">
+                      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium">
+                        <span className="group-open:hidden">Show Advanced Options</span>
+                        <span className="hidden group-open:inline">Hide Advanced Options</span>
+                      </summary>
+                      <div className="space-y-5 border-t px-4 py-4">
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Guided Demo Experience</p>
+                          <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{guidedDemoLink}</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => copyText(guidedDemoLink, 'share', 'copy_guided_demo_link')}>Copy Link</Button>
+                            <Button variant="outline" onClick={openTour}>Open</Button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Direct Signup (skip demo)</p>
+                          <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{singleUserLink}</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => copyText(singleUserLink, 'share', 'copy_single_user_link')}>Copy Link</Button>
+                            <Button variant="outline" onClick={openDemo}>Open</Button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Tools Access</p>
+                          <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{toolsLink}</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => copyText(toolsLink, 'share', 'copy_tools_link')}>Copy Link</Button>
+                            <Button variant="outline" onClick={openToolsPage}>Open</Button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">About Page</p>
+                          <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{aboutLink}</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => copyText(aboutLink, 'share', 'copy_about_link')}>Copy Link</Button>
+                            <Button variant="outline" onClick={openAboutPage}>Open</Button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Dealer Referral Link</p>
+                          <p className="rounded-md border bg-muted/40 p-3 text-sm break-all">{dealerInviteLink}</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => copyText(dealerInviteLink, 'referral_click', 'copy_invite_link')}>Copy Link</Button>
+                            <Button variant="outline" onClick={openDealerSignup}>Open</Button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Demo → Trial Conversion Rate</p>
-                        <p className="mt-1 text-xl font-semibold">{demoConversionRate.toLocaleString('en-US')}%</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Guided Demo Link</CardTitle>
-                    <CardDescription>Launch the in-app guided demo walkthrough.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Input value={guidedDemoLink} readOnly />
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => copyText(guidedDemoLink, 'share', 'copy_guided_demo_link')}>Copy Guided Demo Link</Button>
-                      <Button variant="outline" onClick={openTour}>Open Guided Demo</Button>
-                    </div>
+                    </details>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
                     <CardTitle>Outreach Templates</CardTitle>
-                    <CardDescription>Copy-ready templates with your referral attribution baked in. Use AI to generate variations.</CardDescription>
+                    <CardDescription>Format-driven AI generator with your consultant link inserted automatically.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-5">
-                    <div className="rounded-md border p-4 space-y-3">
-                      <p className="text-sm font-medium">AI Prompt Criteria</p>
-                      <Textarea
-                        value={aiCriteria}
-                        onChange={(event) => setAiCriteria(event.target.value)}
-                        rows={3}
-                        placeholder="Optional: audience, offer, pain points, objections, campaign goal, or seasonal context..."
-                      />
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="w-48">
-                          <Select value={aiTone} onValueChange={(value) => setAiTone(value as 'professional' | 'friendly' | 'direct' | 'urgent')}>
+                    <div className="rounded-md border p-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">AI Prompt Criteria</p>
+                          <Textarea
+                            value={aiCriteria}
+                            onChange={(event) => setAiCriteria(event.target.value)}
+                            rows={4}
+                            placeholder="Optional: audience, offer, pain points, objections, campaign goal, or seasonal context..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Message Format</p>
+                          <Select value={selectedFormat} onValueChange={(value) => setSelectedFormat(value as MessageFormat)}>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select tone" />
+                              <SelectValue placeholder="Select message format" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="professional">Professional</SelectItem>
-                              <SelectItem value="friendly">Friendly</SelectItem>
-                              <SelectItem value="direct">Direct</SelectItem>
-                              <SelectItem value="urgent">Urgent</SelectItem>
+                              {FORMAT_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        <p className="text-xs text-muted-foreground">AI keeps your dealer signup and demo links in every variation.</p>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-sm font-medium">Email Invite Template</p>
-                      <Textarea value={emailTemplate} onChange={(event) => setEmailTemplate(event.target.value)} rows={8} />
+                      <p className="text-sm font-medium">Generated Message</p>
+                      <Textarea
+                        value={generatedMessage}
+                        onChange={(event) => setGeneratedMessage(event.target.value)}
+                        rows={10}
+                        placeholder="Select a format and click Generate."
+                      />
                       <div className="flex flex-wrap gap-2">
-                        <Button onClick={() => copyText(emailTemplate, 'email_invite', 'copy_email')}>Copy Email</Button>
-                        <Button variant="outline" onClick={sendEmailInvite}>
-                          Open Email
+                        <Button onClick={() => void generateTemplate()} disabled={isGeneratingMessage}>
+                          {isGeneratingMessage ? 'Generating…' : 'Generate'}
                         </Button>
-                        <Button variant="outline" onClick={() => void generateTemplate('email')} disabled={generatingChannel !== null}>
-                          {generatingChannel === 'email' ? 'Generating…' : 'Generate Email Variant'}
+                        <Button variant="outline" onClick={() => void generateTemplate()} disabled={isGeneratingMessage}>
+                          Regenerate
                         </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">LinkedIn Post Template</p>
-                      <Textarea value={linkedInTemplate} onChange={(event) => setLinkedInTemplate(event.target.value)} rows={4} />
-                      <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => copyText(linkedInTemplate, 'share', 'copy_linkedin_post')}>
-                          Copy LinkedIn Post
-                        </Button>
-                        <Button variant="outline" onClick={() => void generateTemplate('linkedin')} disabled={generatingChannel !== null}>
-                          {generatingChannel === 'linkedin' ? 'Generating…' : 'Generate LinkedIn Variant'}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Text Message Template</p>
-                      <Textarea value={textMessageTemplate} onChange={(event) => setTextMessageTemplate(event.target.value)} rows={3} />
-                      <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => copyText(textMessageTemplate, 'share', 'copy_text_message')}>
-                          Copy Text Message
-                        </Button>
-                        <Button variant="outline" onClick={() => void generateTemplate('text')} disabled={generatingChannel !== null}>
-                          {generatingChannel === 'text' ? 'Generating…' : 'Generate Text Variant'}
+                        <Button
+                          variant="outline"
+                          onClick={() => copyText(generatedMessage, 'share', 'copy_generated_message')}
+                          disabled={!generatedMessage.trim()}
+                        >
+                          Copy
                         </Button>
                       </div>
                     </div>
@@ -410,7 +423,7 @@ ${toDisplayName(consultantId)}`;
                     {templateError && <p className="text-sm text-red-500">{templateError}</p>}
 
                     <p className="text-xs text-muted-foreground">
-                      Base referral link used in templates: {referralLink}
+                      Base about link used in templates: {aboutLink}
                     </p>
                   </CardContent>
                 </Card>

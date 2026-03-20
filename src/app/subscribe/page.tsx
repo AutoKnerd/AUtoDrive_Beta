@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { createIndividualCheckoutSessionUrl } from '@/app/actions/stripe';
 import { requiresIndividualCheckout } from '@/lib/billing/access';
 import { CreditCard } from 'lucide-react';
-import { getConsultant, parseConsultantFromURL, storeConsultant } from '@/lib/consultant-referral';
+import { getConsultant, parseConsultantFromURL, setAttribution, touchAttribution } from '@/lib/consultant-referral';
 
 export default function SubscribePage() {
   const { user, loading } = useAuth();
@@ -24,7 +24,14 @@ export default function SubscribePage() {
 
   useEffect(() => {
     const consultant = parseConsultantFromURL(`${window.location.pathname}${window.location.search}`);
-    if (consultant) storeConsultant(consultant);
+    if (consultant) {
+      setAttribution({
+        consultant_id: consultant,
+        engagement_type: 'weak',
+        engagement_event: 'page_visit',
+        timestamp: Date.now(),
+      });
+    }
 
     if (!loading && user && !requiresIndividualCheckout(user)) {
       router.push('/');
@@ -40,6 +47,7 @@ export default function SubscribePage() {
       }
 
       const idToken = await fbUser.getIdToken(true);
+      touchAttribution('strong', 'payment_started');
       const checkout = await createIndividualCheckoutSessionUrl(idToken, 'monthly', getConsultant() || undefined);
       if (!checkout.ok) {
         throw new Error(checkout.message);

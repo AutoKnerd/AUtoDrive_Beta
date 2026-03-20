@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowRight, Shield, User } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
-import { resolveConsultant, storeConsultant } from '@/lib/consultant-referral';
+import { resolveConsultant, setAttribution, touchAttribution } from '@/lib/consultant-referral';
 
 export default function TourConsultantLauncherPage() {
   const params = useParams<{ consultantId: string }>();
@@ -25,13 +25,19 @@ export default function TourConsultantLauncherPage() {
   useEffect(() => {
     if (consultantId) {
       localStorage.setItem('tourConsultant', consultantId);
-      storeConsultant(consultantId);
+      setAttribution({
+        consultant_id: consultantId,
+        engagement_type: 'weak',
+        engagement_event: 'page_visit',
+        timestamp: Date.now(),
+      });
     }
   }, [consultantId]);
 
   async function startTour(role: 'consultant' | 'manager') {
     setIsTouring(true);
     localStorage.setItem('tourMode', 'true');
+    touchAttribution('medium', 'tour_started');
 
     const email = role === 'consultant' ? 'consultant.demo@autodrive.com' : 'manager.demo@autodrive.com';
     const roleName = role === 'consultant' ? 'Team Member' : 'Leader';

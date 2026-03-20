@@ -17,6 +17,7 @@ import { useAuth as useFirebaseAuth } from '@/firebase';
 import { hasActiveSubscriptionStatus } from '@/lib/billing/access';
 import type { BillingSubscriptionStatus, UserRole } from '@/lib/definitions';
 import { cn } from '@/lib/utils';
+import { touchAttribution } from '@/lib/consultant-referral';
 import {
   canAccessTool,
   ctaForFeaturedTool,
@@ -322,6 +323,7 @@ export default function ToolsPage() {
     setShowEmailGate(false);
     openTool(featuredTool);
     setIsEmailSubmitting(false);
+    touchAttribution('medium', 'email_entered');
 
     toast({
       title: 'Tool unlocked',
@@ -383,6 +385,7 @@ export default function ToolsPage() {
       }
 
       setShowAccountSuccess(true);
+      touchAttribution('strong', 'signup_completed');
 
       toast({
         title: 'Free account created',
