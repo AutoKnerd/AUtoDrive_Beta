@@ -3,6 +3,7 @@ import type { ToolboxAccountSession, ToolboxSavedEntry, ToolboxUserState } from 
 const UNLOCK_STATE_KEY = 'toolboxUnlockStateV1';
 const ACCOUNT_SESSION_KEY = 'toolboxAccountSessionV1';
 const TEMP_DRAFTS_KEY = 'toolboxTempDraftsV1';
+const FULL_TOOL_HANDOFF_KEY = 'toolboxFullToolHandoffV1';
 
 type UnlockState = {
   userState: Extract<ToolboxUserState, 'email_unlocked'>;
@@ -11,6 +12,7 @@ type UnlockState = {
 };
 
 type TempDrafts = Record<string, { content: string; createdAt: string }>;
+type FullToolHandoff = Record<string, { payload: unknown; createdAt: string }>;
 
 function canUseStorage(): boolean {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
@@ -100,4 +102,30 @@ export function exportTempDraftsAsEntries(): ToolboxSavedEntry[] {
     content: value.content,
     createdAt: value.createdAt,
   }));
+}
+
+export function writeFullToolHandoff(toolId: string, payload: unknown): void {
+  if (!canUseStorage()) return;
+  const handoff = parseJson<FullToolHandoff>(localStorage.getItem(FULL_TOOL_HANDOFF_KEY)) || {};
+  handoff[toolId] = {
+    payload,
+    createdAt: new Date().toISOString(),
+  };
+  localStorage.setItem(FULL_TOOL_HANDOFF_KEY, JSON.stringify(handoff));
+}
+
+export function readFullToolHandoff<T = unknown>(toolId: string): T | null {
+  if (!canUseStorage()) return null;
+  const handoff = parseJson<FullToolHandoff>(localStorage.getItem(FULL_TOOL_HANDOFF_KEY)) || {};
+  const row = handoff[toolId];
+  if (!row) return null;
+  return (row.payload as T) || null;
+}
+
+export function clearFullToolHandoff(toolId: string): void {
+  if (!canUseStorage()) return;
+  const handoff = parseJson<FullToolHandoff>(localStorage.getItem(FULL_TOOL_HANDOFF_KEY)) || {};
+  if (!handoff[toolId]) return;
+  delete handoff[toolId];
+  localStorage.setItem(FULL_TOOL_HANDOFF_KEY, JSON.stringify(handoff));
 }

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import type { SignalMapperFullPrefill } from '@/lib/tools/signal-mapper-micro';
 import {
   Zap,
   User,
@@ -171,6 +173,42 @@ export default function SignalMapperPage() {
     } catch {
       localStorage.removeItem(EMAIL_GATE_STORAGE_KEY);
     }
+  }, []);
+
+  useEffect(() => {
+    const handoff = readFullToolHandoff<{ source?: string; prefill?: SignalMapperFullPrefill }>('signal-mapper');
+    const prefill = handoff?.prefill;
+    if (!prefill) return;
+
+    setCustomerInfo((current) => ({
+      ...current,
+      concerns: current.concerns || prefill.realConcern || prefill.customerUnsaid,
+      mustHaves: current.mustHaves || prefill.tryingToSolve,
+      tradeNotes: current.tradeNotes || prefill.notes,
+    }));
+
+    setSignals((current) => {
+      if (!Array.isArray(current) || current.length === 0) return current;
+      const next = [...current];
+      next[0] = {
+        ...next[0],
+        whatSaid: next[0].whatSaid || prefill.customerSaying,
+        whyMatters: next[0].whyMatters || prefill.customerUnsaid,
+      };
+      return next;
+    });
+
+    setDemoBuilder((current) => ({
+      ...current,
+      top3: current.top3 || prefill.whatToShow,
+    }));
+
+    setRecommendation((current) => ({
+      ...current,
+      nextStep: current.nextStep || prefill.whatToSayNext,
+    }));
+
+    clearFullToolHandoff('signal-mapper');
   }, []);
 
   const mappedSignalCount = useMemo(

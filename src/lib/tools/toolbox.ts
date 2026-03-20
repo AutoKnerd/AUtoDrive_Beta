@@ -7,6 +7,7 @@ export type ToolConfig = {
   name: string;
   description: string;
   access: ToolAccessTier;
+  hasFullVersion: boolean;
   isFeatured: boolean;
   createdAt: string;
 };
@@ -32,6 +33,7 @@ const TOOL_SEED: Omit<ToolConfig, 'isFeatured'>[] = [
     name: 'Signal Mapper',
     description: 'Hear what they mean, then turn it into a close.',
     access: 'free',
+    hasFullVersion: true,
     createdAt: '2026-03-20T09:00:00.000Z',
   },
   {
@@ -39,6 +41,7 @@ const TOOL_SEED: Omit<ToolConfig, 'isFeatured'>[] = [
     name: 'Objection Reframe',
     description: 'Turn hesitation into a clear next step. Fast.',
     access: 'free',
+    hasFullVersion: false,
     createdAt: '2026-03-13T09:00:00.000Z',
   },
   {
@@ -46,6 +49,7 @@ const TOOL_SEED: Omit<ToolConfig, 'isFeatured'>[] = [
     name: 'Follow-Up Cadence Builder',
     description: 'Turn one conversation into a 7-day follow-up plan.',
     access: 'free',
+    hasFullVersion: false,
     createdAt: '2026-03-06T09:00:00.000Z',
   },
   {
@@ -53,6 +57,7 @@ const TOOL_SEED: Omit<ToolConfig, 'isFeatured'>[] = [
     name: 'Handoff Script Optimizer',
     description: 'Create smooth handoffs with zero drop-off.',
     access: 'premium',
+    hasFullVersion: false,
     createdAt: '2026-02-27T09:00:00.000Z',
   },
   {
@@ -60,6 +65,7 @@ const TOOL_SEED: Omit<ToolConfig, 'isFeatured'>[] = [
     name: 'Deal Recovery Planner',
     description: 'Restart stalled deals with a clear re-engagement plan.',
     access: 'premium',
+    hasFullVersion: false,
     createdAt: '2026-02-20T09:00:00.000Z',
   },
   {
@@ -67,6 +73,7 @@ const TOOL_SEED: Omit<ToolConfig, 'isFeatured'>[] = [
     name: 'Loyalty Loop Designer',
     description: 'Design post-sale moments that keep them coming back.',
     access: 'premium',
+    hasFullVersion: false,
     createdAt: '2026-02-13T09:00:00.000Z',
   },
 ];
