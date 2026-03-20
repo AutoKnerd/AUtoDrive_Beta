@@ -30,8 +30,8 @@ export function SaveAccountModal({ open, email, loading = false, onOpenChange, o
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Save your work</DialogTitle>
-          <DialogDescription>Create your free account to save this session and reopen your recent work.</DialogDescription>
+          <DialogTitle>Save your progress and unlock more tools</DialogTitle>
+          <DialogDescription>Create your free account to keep going</DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -52,7 +52,7 @@ export function SaveAccountModal({ open, email, loading = false, onOpenChange, o
 
           <DialogFooter>
             <Button type="submit" disabled={loading || password.length < 8}>
-              {loading ? 'Creating...' : 'Create Free Account'}
+              {loading ? 'Creating...' : 'Continue'}
             </Button>
           </DialogFooter>
         </form>

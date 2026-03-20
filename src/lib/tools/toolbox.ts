@@ -101,10 +101,19 @@ export function isRecentTool(tool: ToolConfig, tools: ToolConfig[], recentCount 
 
 export function canAccessTool(userState: ToolboxUserState, tool: ToolConfig, tools: ToolConfig[]): boolean {
   if (userState === 'paid_account') return true;
-  if (tool.access === 'premium') return false;
   if (userState === 'visitor') return false;
-  if (userState === 'email_unlocked') return true;
-  if (userState === 'free_account') return true;
+
+  if (userState === 'email_unlocked') {
+    return tool.isFeatured === true;
+  }
+
+  if (userState === 'free_account') {
+    if (tool.access === 'premium') return false;
+
+    const sortedByDate = [...tools].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const toolIndex = sortedByDate.findIndex((entry) => entry.id === tool.id);
+    return toolIndex >= 0 && toolIndex < 3;
+  }
 
   return false;
 }

@@ -276,8 +276,13 @@ export default function ToolsPage() {
     const hasAccess = canAccessTool(userState, tool, tools);
 
     if (!hasAccess) {
-      if (tool.access === 'free' && userState === 'visitor') {
+      if (userState === 'visitor') {
         setShowEmailGate(true);
+        return;
+      }
+
+      if (userState === 'email_unlocked') {
+        setShowSaveGate(true);
         return;
       }
 
@@ -290,6 +295,11 @@ export default function ToolsPage() {
   }
 
   function handleInlineUpgradeClick(context?: string) {
+    if (userState === 'email_unlocked') {
+      setShowSaveGate(true);
+      return;
+    }
+
     setUpgradeContextMessage(context);
     setShowUpgradeModal(true);
   }
