@@ -9,10 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowRight, Shield, User } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
-
-function normalizeConsultant(value: string | null | undefined): string {
-  return String(value || '').trim().toLowerCase();
-}
+import { resolveConsultant, storeConsultant } from '@/lib/consultant-referral';
 
 export default function TourConsultantLauncherPage() {
   const params = useParams<{ consultantId: string }>();
@@ -20,12 +17,15 @@ export default function TourConsultantLauncherPage() {
   const { login } = useAuth();
   const { toast } = useToast();
   const [isTouring, setIsTouring] = useState(false);
-  const consultantId = useMemo(() => normalizeConsultant(params.consultantId), [params.consultantId]);
+  const consultantId = useMemo(() => {
+    const resolved = resolveConsultant(params.consultantId || '');
+    return resolved ? resolved.code : '';
+  }, [params.consultantId]);
 
   useEffect(() => {
     if (consultantId) {
       localStorage.setItem('tourConsultant', consultantId);
-      localStorage.setItem('consultant_referral', consultantId);
+      storeConsultant(consultantId);
     }
   }, [consultantId]);
 

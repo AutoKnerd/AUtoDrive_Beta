@@ -106,7 +106,7 @@ function resolvePaidTier(input: {
 export default function ToolsPage() {
   const { toast } = useToast();
   const firebaseAuth = useFirebaseAuth();
-  const { user, firebaseUser, loading, login, logout, publicSignup, setUser } = useAuth();
+  const { user, firebaseUser, loading, login, publicSignup, setUser } = useAuth();
 
   const [guestUserState, setGuestUserState] = useState<'visitor' | 'email_unlocked'>('visitor');
   const [unlockEmail, setUnlockEmail] = useState('');
@@ -507,29 +507,15 @@ export default function ToolsPage() {
       <div className="relative z-10">
         <Header />
 
-        {!loading && (
+        {!loading && !isAuthenticated && (
           <div className="pointer-events-none absolute right-4 top-3 z-40 flex items-center gap-2 md:right-6">
-            {isAuthenticated && (
-              <span className="hidden text-xs text-[#9db0cb] md:inline">{user?.email || firebaseUser?.email || 'Account'}</span>
-            )}
-            {!isAuthenticated ? (
-              <a
-                href="https://app.autodrivecx.com/login"
-                className="pointer-events-auto uppercase tracking-[0.08em] hover:brightness-110"
-                style={mainSiteLoginButtonStyle}
-              >
-                LOG IN
-              </a>
-            ) : (
-              <button
-                type="button"
-                className="pointer-events-auto uppercase tracking-[0.08em] hover:brightness-110"
-                style={mainSiteLoginButtonStyle}
-                onClick={() => logout('/tools')}
-              >
-                SIGN OUT
-              </button>
-            )}
+            <a
+              href="https://app.autodrivecx.com/login"
+              className="pointer-events-auto uppercase tracking-[0.08em] hover:brightness-110"
+              style={mainSiteLoginButtonStyle}
+            >
+              LOG IN
+            </a>
           </div>
         )}
 

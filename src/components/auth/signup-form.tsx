@@ -9,6 +9,7 @@ import * as z from 'zod';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import { createIndividualCheckoutSessionUrl } from '@/app/actions/stripe';
+import { getConsultant, parseConsultantFromURL, storeConsultant } from '@/lib/consultant-referral';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,25 +71,14 @@ export function SignupForm() {
   });
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = params.get('consultant')?.trim().toLowerCase() || '';
-    const fromJoinPath = window.location.pathname.startsWith('/join/')
-      ? window.location.pathname.slice('/join/'.length).trim().toLowerCase()
-      : '';
-    const fromSignupPath = window.location.pathname.startsWith('/signup/')
-      ? window.location.pathname.slice('/signup/'.length).trim().toLowerCase()
-      : '';
-    const fromPath = fromJoinPath || fromSignupPath;
-    const consultant = fromPath || fromQuery;
-    if (consultant) {
-      localStorage.setItem('consultant_referral', consultant);
-    }
+    const fromUrl = parseConsultantFromURL(`${window.location.pathname}${window.location.search}`);
+    if (fromUrl) storeConsultant(fromUrl);
   }, []);
 
   async function onSubmit(data: SignupFormValues) {
     setIsSubmitting(true);
     try {
-      const consultant = localStorage.getItem('consultant_referral')?.trim().toLowerCase() || undefined;
+      const consultant = getConsultant() || undefined;
       await publicSignup(data.name, data.email, data.password, data.role as UserRole, consultant);
 
       const fbUser = firebaseAuth.currentUser;
@@ -104,8 +94,7 @@ export function SignupForm() {
       });
 
       try {
-        const consultant = localStorage.getItem('consultant_referral')?.trim().toLowerCase();
-        const checkout = await createIndividualCheckoutSessionUrl(idToken, 'monthly', consultant || undefined);
+        const checkout = await createIndividualCheckoutSessionUrl(idToken, 'monthly', getConsultant() || undefined);
         if (!checkout.ok) {
           throw new Error(checkout.message);
         }

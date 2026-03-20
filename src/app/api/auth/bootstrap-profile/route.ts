@@ -3,6 +3,7 @@ import { adminInitErrorMessage, getAdminAuth, getAdminDb } from '@/firebase/admi
 import { buildDefaultPppState } from '@/lib/ppp/state';
 import { buildDefaultSaasPppState } from '@/lib/saas-ppp/state';
 import type { User, UserRole } from '@/lib/definitions';
+import { resolveConsultant } from '@/lib/consultant-referral';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,8 +33,9 @@ function normalizeName(value?: string | null): string {
 }
 
 function normalizeConsultantReferral(value?: string | null): string | undefined {
-  const normalized = String(value || '').trim().toLowerCase();
-  return normalized || undefined;
+  const resolved = resolveConsultant(value || '');
+  if (resolved) return resolved.code;
+  return undefined;
 }
 
 type Decoded = {

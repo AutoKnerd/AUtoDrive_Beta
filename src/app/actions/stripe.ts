@@ -8,6 +8,7 @@ import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { BillingSubscriptionStatus, Dealership, DealershipBillingTier, User } from '@/lib/definitions';
 import { BILLING_PRICING } from '@/lib/billing/tiers';
 import { DEFAULT_TRIAL_DAYS } from '@/lib/billing/trial';
+import { resolveConsultant } from '@/lib/consultant-referral';
 
 type BillingCycle = 'monthly' | 'annual';
 
@@ -197,7 +198,8 @@ async function createIndividualSessionUrl(
   const customerId = await ensureUserCustomer(userId, user);
   const profileConsultantValue = (user.consultant_referral || '').trim().toLowerCase();
   const passedConsultantValue = (consultant || '').trim().toLowerCase();
-  const consultantValue = profileConsultantValue || passedConsultantValue;
+  const resolvedConsultant = resolveConsultant(profileConsultantValue || passedConsultantValue);
+  const consultantValue = resolvedConsultant?.code || 'direct';
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -211,14 +213,16 @@ async function createIndividualSessionUrl(
       firebaseUserId: userId,
       billingScope: 'individual',
       billingCycle,
-      ...(consultantValue ? { consultant: consultantValue, referral_source: 'consultant_link' } : {}),
+      consultant: consultantValue,
+      ...(consultantValue !== 'direct' ? { referral_source: 'consultant_link' } : {}),
     },
     subscription_data: {
       trial_period_days: trialDays,
       metadata: {
         firebaseUserId: userId,
         billingScope: 'individual',
-        ...(consultantValue ? { consultant: consultantValue, referral_source: 'consultant_link' } : {}),
+        consultant: consultantValue,
+        ...(consultantValue !== 'direct' ? { referral_source: 'consultant_link' } : {}),
       },
     },
   });

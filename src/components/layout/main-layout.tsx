@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Footer } from '@/components/layout/footer';
 import { TourFooter } from '@/components/layout/tour-footer';
 import { usePathname } from 'next/navigation';
+import { parseConsultantFromURL, storeConsultant } from '@/lib/consultant-referral';
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
     const { isTouring, loading } = useAuth();
@@ -14,17 +15,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     const showTourFooter = isTouring && pathname !== '/login' && pathname !== '/register';
 
     useEffect(() => {
-        const queryConsultant = (new URLSearchParams(window.location.search).get('consultant') || '').trim().toLowerCase();
-        const pathConsultant = (
-            pathname.startsWith('/join/') ? pathname.slice('/join/'.length) :
-            pathname.startsWith('/signup/') ? pathname.slice('/signup/'.length) :
-            pathname.startsWith('/demo/') ? pathname.slice('/demo/'.length) :
-            pathname.startsWith('/tour/') ? pathname.slice('/tour/'.length) :
-            ''
-        ).trim().toLowerCase();
-        const consultant = pathConsultant || queryConsultant;
-        if (!consultant) return;
-        localStorage.setItem('consultant_referral', consultant);
+        const resolved = parseConsultantFromURL(`${pathname}${window.location.search}`);
+        if (!resolved) return;
+        storeConsultant(resolved);
     }, [pathname]);
 
     return (
