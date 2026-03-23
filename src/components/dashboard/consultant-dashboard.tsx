@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { isToday } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership, LessonRole, ThemePreference } from '@/lib/definitions';
-import { managerialRoles } from '@/lib/definitions';
 import {
   getLessons,
   getConsultantActivity,
@@ -19,14 +18,12 @@ import {
   getSaasPppAccessForUser,
   updateUser,
   getDealershipLeaderboard,
-  getAdaptiveCoachingRecommendation,
   getFreshUpCoachingInsight,
   type DealershipLeaderboardEntry,
-  type AdaptiveCoachingRecommendation,
   type FreshUpCoachingInsight,
 } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
-import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
+import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, LucideIcon, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
@@ -54,7 +51,8 @@ import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 import { SprocketFirstLoginTour } from './sprocket-first-login-tour';
-import { evaluateUpMeterState, FRESH_UP_LESSON_ID, getUpMeterProgress, pickFreshUpProfile } from '@/lib/fresh-up';
+import { TodayActionCard } from './today-action-card';
+import { evaluateUpMeterState, getUpMeterProgress, pickFreshUpProfile } from '@/lib/fresh-up';
 import { resolveAisRoleType } from '@/lib/ais-role-adaptive';
 import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 
@@ -63,16 +61,6 @@ interface ConsultantDashboardProps {
   sprocketTourPreviewNonce?: number;
   isSprocketTourSandboxPreview?: boolean;
 }
-
-type DealerSalespersonDashboardResponse = {
-  dealership_name: string;
-  today_mission: {
-    title: string;
-    description: string;
-  };
-  training_streak: number;
-  skill_score: number;
-};
 
 const SteeringWheelIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -86,8 +74,6 @@ const SteeringWheelIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 const dashboardFeatureCardClass =
   'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
-const dashboardDisabledButtonClass =
-  'w-full border-border bg-muted/70 text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50';
 const SPROCKET_TOUR_COMPLETE_KEY = 'sprocketTourComplete';
 
 function normalizeScore(value: unknown): number | null {
@@ -105,6 +91,15 @@ const DEFAULT_CX_SCORES: CxScoreSnapshot = {
   followUp: 70,
   closing: 68,
   relationshipBuilding: 85,
+};
+
+const CX_TRAIT_LABELS: Record<CxTrait, string> = {
+  empathy: 'Empathy',
+  listening: 'Listening',
+  trust: 'Trust',
+  followUp: 'Follow Up',
+  closing: 'Closing',
+  relationshipBuilding: 'Relationship',
 };
 
 function scoreSnapshotFromUserStats(user: User): CxScoreSnapshot | null {
@@ -311,7 +306,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [canRetakeRecommendedTesting, setCanRetakeRecommendedTesting] = useState(false);
   const [canUseNewRecommendedTesting, setCanUseNewRecommendedTesting] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
-  const { isTouring, setUser, firebaseUser } = useAuth();
+  const { isTouring, setUser } = useAuth();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
   const [showSprocketTour, setShowSprocketTour] = useState(false);
   const [sprocketTourStep, setSprocketTourStep] = useState(0);
@@ -326,10 +321,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
   const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
   const [dealershipLeaderboard, setDealershipLeaderboard] = useState<DealershipLeaderboardEntry[]>([]);
-  const [dealerMissionData, setDealerMissionData] = useState<DealerSalespersonDashboardResponse | null>(null);
-  const [dealerMissionLoading, setDealerMissionLoading] = useState(false);
-  const [dealerMissionError, setDealerMissionError] = useState<string | null>(null);
-  const [adaptiveRecommendation, setAdaptiveRecommendation] = useState<AdaptiveCoachingRecommendation | null>(null);
   const [coachingInsight, setCoachingInsight] = useState<FreshUpCoachingInsight | null>(null);
   const router = useRouter();
   const { toast } = useToast();
@@ -342,7 +333,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
     return Array.from(new Set(ids));
   }, [user.dealershipIds, user.selfDeclaredDealershipId]);
   const hasDealershipContext = scopedDealershipIds.length > 0;
-  const canShowDealerMission = hasDealershipContext && !managerialRoles.includes(user.role);
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
   const sprocketTourCompleteKeyForUser = `${SPROCKET_TOUR_COMPLETE_KEY}_${user.userId}`;
@@ -392,7 +382,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
       setLoading(true);
       try {
         const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
-        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges, pppAccessEnabled, saasPppAccessEnabled, fetchedAdaptiveRecommendation, fetchedCoachingInsights] = await Promise.all([
+        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges, pppAccessEnabled, saasPppAccessEnabled, fetchedCoachingInsights] = await Promise.all([
           getLessons(lessonRole, user.userId),
           getConsultantActivity(user.userId),
           getDailyLessonLimits(user.userId),
@@ -401,7 +391,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           getEarnedBadgesByUserId(user.userId),
           getPppAccessForUser(user).catch(() => false),
           getSaasPppAccessForUser(user).catch(() => false),
-          getAdaptiveCoachingRecommendation(user.userId).catch(() => null),
           getFreshUpCoachingInsight({
             entityType: 'consultant',
             entityId: user.userId,
@@ -437,7 +426,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
         setBadges(fetchedBadges);
         setPppFeatureEnabled(pppAccessEnabled === true);
         setSaasPppFeatureEnabled(saasPppAccessEnabled === true);
-        setAdaptiveRecommendation(fetchedAdaptiveRecommendation);
         setCoachingInsight(fetchedCoachingInsights[0] || null);
         const hasBaselineLog = fetchedActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
         const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
@@ -475,7 +463,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
         setIsPaused(false);
         setPppFeatureEnabled(false);
         setSaasPppFeatureEnabled(false);
-        setAdaptiveRecommendation(null);
         setCoachingInsight(null);
         setDealershipLeaderboard([]);
         toast({
@@ -495,52 +482,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
       active = false;
     };
   }, [user, isTouring, refreshKey, scopedDealershipIds, toast]);
-
-  useEffect(() => {
-    let active = true;
-
-    if (!canShowDealerMission || !firebaseUser) {
-      setDealerMissionData(null);
-      setDealerMissionLoading(false);
-      setDealerMissionError(null);
-      return () => {
-        active = false;
-      };
-    }
-    const authUser = firebaseUser;
-
-    async function loadDealerMission() {
-      setDealerMissionLoading(true);
-      setDealerMissionError(null);
-      try {
-        const token = await authUser.getIdToken(true);
-        const response = await fetch('/api/dealer/me', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload?.message || 'Failed to load dealer mission.');
-        }
-        if (!active) return;
-        setDealerMissionData(payload as DealerSalespersonDashboardResponse);
-      } catch (error) {
-        if (!active) return;
-        setDealerMissionData(null);
-        setDealerMissionError(error instanceof Error ? error.message : 'Failed to load dealer mission.');
-      } finally {
-        if (active) {
-          setDealerMissionLoading(false);
-        }
-      }
-    }
-
-    void loadDealerMission();
-    return () => {
-      active = false;
-    };
-  }, [canShowDealerMission, firebaseUser, refreshKey]);
 
   useEffect(() => {
     if (isTouring) {
@@ -746,16 +687,18 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
   const upMeterProgress = getUpMeterProgress(freshUpMeter);
 
-  const adaptiveLessonStartHref = useMemo(() => {
-    if (!adaptiveRecommendation) return null;
-    const scopedLessons = lessons.filter((lesson) => lesson.associatedTrait === adaptiveRecommendation.associatedTrait);
-    const candidate = scopedLessons.find((lesson) => lesson.role === user.role)
-      || scopedLessons.find((lesson) => lesson.role === 'global')
-      || scopedLessons[0]
-      || availableRecommendedLesson;
-    if (!candidate) return null;
-    return `/lesson/${candidate.lessonId}${candidate.lessonId === availableRecommendedLesson?.lessonId ? '?recommended=true' : ''}`;
-  }, [adaptiveRecommendation, lessons, user.role, availableRecommendedLesson]);
+  const todayActionLessonHref = useMemo(() => {
+    if (!availableRecommendedLesson || lessonLimits.recommendedTaken) return null;
+    return `/lesson/${availableRecommendedLesson.lessonId}?recommended=true`;
+  }, [availableRecommendedLesson, lessonLimits.recommendedTaken]);
+
+  const todayActionSkills = useMemo(() => {
+    if (!recommendedLessonQueue?.length) return [];
+    const uniqueTraits = Array.from(
+      new Set(recommendedLessonQueue.map((lesson) => lesson.associatedTrait).filter(Boolean))
+    ) as CxTrait[];
+    return uniqueTraits.slice(0, 2).map((trait) => CX_TRAIT_LABELS[trait]);
+  }, [recommendedLessonQueue]);
 
   const assignedCard = (
     <Card className={cn(
@@ -914,6 +857,13 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
             </Alert>
         )}
 
+        <section className="space-y-3">
+          <TodayActionCard
+            lessonHref={todayActionLessonHref}
+            improvementSkills={todayActionSkills}
+          />
+        </section>
+
         <section className="space-y-3" data-sprocket-tour="level-xp">
              {loading ? <Skeleton className="h-24 w-full" /> : (
                 <div>
@@ -974,71 +924,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           />
         </section>
 
-        {canShowDealerMission && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold text-foreground">Dealer Focus</h2>
-            <Card className={dashboardFeatureCardClass}>
-              <CardHeader>
-                <CardTitle>Today&apos;s Dealer Mission</CardTitle>
-                <CardDescription>
-                  {dealerMissionData?.dealership_name || 'Dealership'} performance sync.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {dealerMissionLoading ? (
-                  <Skeleton className="h-20 w-full" />
-                ) : dealerMissionError ? (
-                  <p className="text-sm text-muted-foreground">{dealerMissionError}</p>
-                ) : dealerMissionData ? (
-                  <>
-                    <div className="rounded-lg border p-4">
-                      <p className="text-lg font-semibold">{dealerMissionData.today_mission.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{dealerMissionData.today_mission.description}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                      <div className="rounded-lg border p-3">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Training Streak</p>
-                        <p className="mt-2 text-xl font-semibold">{dealerMissionData.training_streak}</p>
-                      </div>
-                      <div className="rounded-lg border p-3">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Skill Score</p>
-                        <p className="mt-2 text-xl font-semibold">{dealerMissionData.skill_score}</p>
-                      </div>
-                      <div className="col-span-2 md:col-span-1">
-                        {availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
-                          <Link
-                            href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`}
-                            className={cn("h-full w-full", buttonVariants({ className: "h-full w-full font-semibold" }))}
-                          >
-                            Recommended Lesson
-                          </Link>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled
-                            className="h-full w-full font-semibold"
-                          >
-                            {availableRecommendedLesson ? (
-                              <>
-                                <CheckCircle className="mr-2 h-4 w-4" /> Completed for today
-                              </>
-                            ) : (
-                              'No lesson available'
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No dealer mission data available yet.</p>
-                )}
-              </CardContent>
-            </Card>
-          </section>
-        )}
-
         <section className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Card className={cn(dashboardFeatureCardClass, 'md:col-span-2')}>
@@ -1068,52 +953,10 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                         Next customer: <span className="font-medium text-foreground">{freshUpProfile.characterName}</span> · {freshUpProfile.customerType}
                       </p>
                     </div>
-                    <Link
-                      href={`/lesson/${FRESH_UP_LESSON_ID}?freshUp=true&profileId=${encodeURIComponent(freshUpProfile.freshUpId)}`}
-                      className={cn(
-                        "w-full text-black hover:text-black lesson-ready-pulse",
-                        buttonVariants({
-                          className: 'w-full font-semibold bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]',
-                        })
-                      )}
-                    >
-                      {interactionLabel}
-                    </Link>
                   </>
                 ) : null}
               </CardContent>
             </Card>
-
-            {adaptiveRecommendation && (
-              <Card className={dashboardFeatureCardClass}>
-                <CardHeader>
-                  <CardTitle>Coaching Opportunity</CardTitle>
-                  <CardDescription>{adaptiveRecommendation.coachingMessage}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Recommended Lesson: <span className="font-medium text-foreground">{adaptiveRecommendation.recommendedLessonTitle}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Estimated Time: <span className="font-medium text-foreground">{adaptiveRecommendation.estimatedMinutes} minutes</span>
-                  </p>
-                  {adaptiveRecommendation.status === 'improved' && (
-                    <p className="text-sm text-emerald-600">
-                      {`Improved: your recent ${interactionLabel} trend is up by 10+ points in this focus area.`}
-                    </p>
-                  )}
-                  {adaptiveLessonStartHref ? (
-                    <Link href={adaptiveLessonStartHref} className={cn(buttonVariants({ className: 'w-full font-semibold' }))}>
-                      Start Lesson
-                    </Link>
-                  ) : (
-                    <Button type="button" variant="outline" disabled className={dashboardDisabledButtonClass}>
-                      Lesson unavailable
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            )}
             {coachingInsight && (
               <Card className={dashboardFeatureCardClass}>
                 <CardHeader>
@@ -1193,7 +1036,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Total XP / Level</TableHead>
-                        <TableHead className="text-right">Recommended</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1201,19 +1043,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                         <TableRow key={row.userId}>
                           <TableCell className="font-medium">{index + 1}. {row.name}</TableCell>
                           <TableCell>{row.totalXp.toLocaleString()} XP / Level {row.level}</TableCell>
-                          <TableCell className="text-right">
-                            <span className="inline-flex items-center gap-2" title={row.readinessLabel}>
-                              <span
-                                className={cn(
-                                  'h-2.5 w-2.5 rounded-full',
-                                  row.readiness === 'green' && 'bg-emerald-500',
-                                  row.readiness === 'yellow' && 'bg-amber-400',
-                                  row.readiness === 'red' && 'bg-red-500'
-                                )}
-                              />
-                              <span className="text-xs text-muted-foreground">{row.readinessLabel}</span>
-                            </span>
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
