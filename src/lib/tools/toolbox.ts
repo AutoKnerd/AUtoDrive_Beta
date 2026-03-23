@@ -53,6 +53,22 @@ const TOOL_SEED: Omit<ToolConfig, 'isFeatured'>[] = [
     createdAt: '2026-03-06T09:00:00.000Z',
   },
   {
+    id: 'consistency-leak-finder',
+    name: 'Consistency Leak Finder',
+    description: 'Find process gaps and standardize your next customer interaction.',
+    access: 'free',
+    hasFullVersion: true,
+    createdAt: '2026-03-25T09:00:00.000Z',
+  },
+  {
+    id: 'price-presentation',
+    name: 'Price Presentation Planner',
+    description: 'Structure your price presentation before approaching the customer.',
+    access: 'free',
+    hasFullVersion: true,
+    createdAt: '2026-03-24T09:00:00.000Z',
+  },
+  {
     id: 'handoff-script',
     name: 'Handoff Script Optimizer',
     description: 'Create smooth handoffs with zero drop-off.',
