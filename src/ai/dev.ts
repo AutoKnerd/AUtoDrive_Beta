@@ -7,3 +7,4 @@ import './flows/saas-ppp-lesson-flow';
 import './flows/suggest-scenario-flow';
 import './flows/tour-guide-flow';
 import './flows/generate-outreach-template-flow';
+import './flows/consistency-leak-sprocket-flow';

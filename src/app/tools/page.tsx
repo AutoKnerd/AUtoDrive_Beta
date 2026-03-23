@@ -92,6 +92,8 @@ function badgeText(label: 'Free' | 'Recent' | 'Premium'): string {
 
 function buildToolRoute(toolId: string): string | null {
   if (toolId === 'signal-mapper') return '/tools/signal-mapper';
+  if (toolId === 'price-presentation') return '/tools/price-presentation';
+  if (toolId === 'consistency-leak-finder') return '/tools/consistency-leak-finder';
   return null;
 }
 
@@ -143,7 +145,6 @@ export default function ToolsPage() {
   const [showFeaturedCompletionPrompt, setShowFeaturedCompletionPrompt] = useState(false);
   const [dismissedFeaturedCompletionPrompt, setDismissedFeaturedCompletionPrompt] = useState(false);
   const [dismissedReturnBanner, setDismissedReturnBanner] = useState(false);
-  const [signalMapperStep, setSignalMapperStep] = useState(0);
 
   const [activeFilter, setActiveFilter] = useState<'All Tools' | 'Free Tools' | 'Recent Tools' | 'Premium Tools'>('All Tools');
   const filters: Array<'All Tools' | 'Free Tools' | 'Recent Tools' | 'Premium Tools'> = [
@@ -271,12 +272,6 @@ export default function ToolsPage() {
 
     return () => window.clearTimeout(timer);
   }, [activeTool, dismissedFeaturedCompletionPrompt, featuredTool.id, isPaidUser, showFeaturedCompletionPrompt]);
-
-  useEffect(() => {
-    if (activeTool?.id !== 'signal-mapper') {
-      setSignalMapperStep(0);
-    }
-  }, [activeTool?.id]);
 
   function formatLastEdited(value: string): string {
     const date = new Date(value);
@@ -558,10 +553,6 @@ export default function ToolsPage() {
     handleDraftChange(activeTool.id, nextDraft);
   }
 
-  function goSignalMapperStep(delta: number) {
-    setSignalMapperStep((current) => Math.min(4, Math.max(0, current + delta)));
-  }
-
   function handleOpenFullTool(tool: ToolConfig) {
     if (!tool.hasFullVersion) return;
     const route = buildToolRoute(tool.id);
@@ -576,6 +567,11 @@ export default function ToolsPage() {
           prefill: buildSignalMapperFullPrefillFromMicro(parsed),
         });
       }
+    } else {
+      writeFullToolHandoff(tool.id, {
+        source: 'tools_micro',
+        draft: drafts[tool.id] || '',
+      });
     }
   }
 
@@ -886,24 +882,12 @@ export default function ToolsPage() {
 
                       <CardContent className="space-y-4 pt-5">
                         {activeTool.id === 'signal-mapper' ? (
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-[#9eb3d1]">
-                                <span>
-                                  Step {signalMapperStep + 1} of 5
-                                </span>
-                                <span>{Math.round(((signalMapperStep + 1) / 5) * 100)}%</span>
-                              </div>
-                              <div className="h-2 overflow-hidden rounded-full bg-[#102036]">
-                                <div className="h-full bg-[#76ff8f] transition-all" style={{ width: `${Math.round(((signalMapperStep + 1) / 5) * 100)}%` }} />
-                              </div>
-                            </div>
-
+                          <div className="mx-auto w-full max-w-3xl space-y-4">
                             <Card className="border-[#2a3f5f] bg-[#0a1527]">
-                              <CardContent className="space-y-4 p-4 md:p-5">
-                                {signalMapperStep === 0 && (
-                                  <div className="space-y-4">
-                                    <p className="text-sm font-semibold text-[#edf5ff]">Customer Snapshot</p>
+                              <CardContent className="space-y-5 p-4 md:p-5">
+                                <div className="space-y-4">
+                                  <p className="text-sm font-semibold text-[#edf5ff]">Customer Snapshot</p>
+                                  <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
                                       <p className="text-xs font-medium text-[#9eb3d1]">Customer Name</p>
                                       <Textarea
@@ -920,20 +904,20 @@ export default function ToolsPage() {
                                         className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
                                       />
                                     </div>
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">Emotional Tone</p>
-                                      <Textarea
-                                        value={signalMapperDraft.emotionalTone}
-                                        onChange={(event) => handleSignalMapperFieldChange('emotionalTone', event.target.value)}
-                                        className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
                                   </div>
-                                )}
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-medium text-[#9eb3d1]">Emotional Tone</p>
+                                    <Textarea
+                                      value={signalMapperDraft.emotionalTone}
+                                      onChange={(event) => handleSignalMapperFieldChange('emotionalTone', event.target.value)}
+                                      className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                    />
+                                  </div>
+                                </div>
 
-                                {signalMapperStep === 1 && (
-                                  <div className="space-y-4">
-                                    <p className="text-sm font-semibold text-[#edf5ff]">Signals</p>
+                                <div className="space-y-4 rounded-lg border border-[#21375a] bg-[#0c1a30] p-4">
+                                  <p className="text-sm font-semibold text-[#edf5ff]">Customer Signals</p>
+                                  <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
                                       <p className="text-xs font-medium text-[#9eb3d1]">What are they saying?</p>
                                       <Textarea
@@ -951,11 +935,11 @@ export default function ToolsPage() {
                                       />
                                     </div>
                                   </div>
-                                )}
+                                </div>
 
-                                {signalMapperStep === 2 && (
-                                  <div className="space-y-4">
-                                    <p className="text-sm font-semibold text-[#edf5ff]">Interpretation</p>
+                                <div className="space-y-4 rounded-lg border border-[#21375a] bg-[#0c1a30] p-4">
+                                  <p className="text-sm font-semibold text-[#edf5ff]">What it actually means</p>
+                                  <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
                                       <p className="text-xs font-medium text-[#9eb3d1]">What's the real concern?</p>
                                       <Textarea
@@ -973,11 +957,11 @@ export default function ToolsPage() {
                                       />
                                     </div>
                                   </div>
-                                )}
+                                </div>
 
-                                {signalMapperStep === 3 && (
-                                  <div className="space-y-4">
-                                    <p className="text-sm font-semibold text-[#edf5ff]">Action Plan</p>
+                                <div className="space-y-4 rounded-lg border border-[#21375a] bg-[#0c1a30] p-4">
+                                  <p className="text-sm font-semibold text-[#edf5ff]">What to do next</p>
+                                  <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
                                       <p className="text-xs font-medium text-[#9eb3d1]">What should I show?</p>
                                       <Textarea
@@ -995,50 +979,39 @@ export default function ToolsPage() {
                                       />
                                     </div>
                                   </div>
-                                )}
+                                </div>
 
-                                {signalMapperStep === 4 && (
-                                  <div className="space-y-2">
-                                    <p className="text-sm font-semibold text-[#edf5ff]">Wrap-Up</p>
-                                    <p className="text-sm text-[#a7b7d1]">Your Working Notes</p>
-                                    <Textarea
-                                      value={signalMapperDraft.notes}
-                                      onChange={(event) => handleSignalMapperFieldChange('notes', event.target.value)}
-                                      placeholder="Capture extra context, objections, and wording that worked."
-                                      className="min-h-28 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                    />
-                                  </div>
-                                )}
+                                <div className="space-y-2">
+                                  <p className="text-sm font-semibold text-[#edf5ff]">Your Working Notes</p>
+                                  <Textarea
+                                    value={signalMapperDraft.notes}
+                                    onChange={(event) => handleSignalMapperFieldChange('notes', event.target.value)}
+                                    placeholder="Capture extra context, objections, and wording that worked."
+                                    className="min-h-28 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                  />
+                                </div>
                               </CardContent>
                             </Card>
 
-                            <div className="sticky bottom-0 z-10 border-t border-[#223857] bg-[#0d192c]/95 p-3 backdrop-blur">
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="outline"
-                                  className="h-11 flex-1 border-[#2f445f] bg-transparent text-[#dbe7fb] hover:bg-[#1a2d49]"
-                                  disabled={signalMapperStep === 0}
-                                  onClick={() => goSignalMapperStep(-1)}
-                                >
-                                  Back
-                                </Button>
-                                {signalMapperStep < 4 ? (
-                                  <Button
-                                    className="h-11 flex-1 bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]"
-                                    onClick={() => goSignalMapperStep(1)}
-                                  >
-                                    Next
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    className="h-11 flex-1 bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
-                                    onClick={handleSaveCurrentWork}
-                                    disabled={isSavingEntry}
-                                  >
-                                    {isSavingEntry ? 'Saving...' : 'Save My Work'}
-                                  </Button>
-                                )}
-                              </div>
+                            <div className="flex items-center justify-end">
+                              <Button
+                                className="h-11 bg-[#76ff8f] px-5 font-semibold text-[#0d1d11] hover:bg-[#92ffa7]"
+                                onClick={handleSaveCurrentWork}
+                                disabled={isSavingEntry}
+                              >
+                                <Save className="mr-2 h-4 w-4" />
+                                {isSavingEntry ? 'Saving...' : 'Save My Work'}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : activeTool.id === 'consistency-leak-finder' ? (
+                          <div className="mx-auto w-full max-w-4xl">
+                            <div className="overflow-hidden rounded-xl border border-[#2c3f5f] bg-[#081323]">
+                              <iframe
+                                src="/tools/consistency-leak-finder"
+                                title="Consistency Leak Finder"
+                                className="h-[78vh] min-h-[900px] w-full bg-[#081323]"
+                              />
                             </div>
                           </div>
                         ) : (
@@ -1055,7 +1028,7 @@ export default function ToolsPage() {
                           </>
                         )}
 
-                        {activeTool.id !== 'signal-mapper' && (
+                        {activeTool.id !== 'signal-mapper' && activeTool.id !== 'consistency-leak-finder' && (
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="space-y-1">
                               <p className="text-sm font-semibold text-[#f6fbff]">Don't lose your work.</p>
