@@ -1,4 +1,7 @@
 export type SignalMapperMicroDraft = {
+  customerName: string;
+  currentVehicle: string;
+  emotionalTone: string;
   saying: string;
   unsaid: string;
   concern: string;
@@ -9,6 +12,9 @@ export type SignalMapperMicroDraft = {
 };
 
 export type SignalMapperFullPrefill = {
+  customerName: string;
+  currentVehicle: string;
+  emotionalTone: string;
   customerSaying: string;
   customerUnsaid: string;
   realConcern: string;
@@ -20,6 +26,9 @@ export type SignalMapperFullPrefill = {
 
 const SIGNAL_MAPPER_MICRO_HEADER = 'Signal Mapper Workspace';
 const SIGNAL_MAPPER_LABELS = {
+  customerName: 'Customer Name',
+  currentVehicle: 'Current Vehicle',
+  emotionalTone: 'Emotional Tone',
   saying: 'What are they saying?',
   unsaid: 'What are they not saying?',
   concern: "What's the real concern?",
@@ -31,6 +40,9 @@ const SIGNAL_MAPPER_LABELS = {
 
 export function emptySignalMapperMicroDraft(): SignalMapperMicroDraft {
   return {
+    customerName: '',
+    currentVehicle: '',
+    emotionalTone: '',
     saying: '',
     unsaid: '',
     concern: '',
@@ -48,8 +60,8 @@ function findSectionValue(source: string, label: string, nextLabel?: string): st
 
   const from = start + marker.length;
   const to = nextLabel ? source.indexOf(`${nextLabel}\n`, from) : -1;
-  if (to === -1) return source.slice(from).trim();
-  return source.slice(from, to).trim();
+  const rawValue = to === -1 ? source.slice(from) : source.slice(from, to);
+  return rawValue.replace(/\r/g, '').replace(/\n+$/, '');
 }
 
 export function parseSignalMapperMicroDraft(rawDraft: string): SignalMapperMicroDraft {
@@ -59,6 +71,9 @@ export function parseSignalMapperMicroDraft(rawDraft: string): SignalMapperMicro
   }
 
   return {
+    customerName: findSectionValue(source, SIGNAL_MAPPER_LABELS.customerName, SIGNAL_MAPPER_LABELS.currentVehicle),
+    currentVehicle: findSectionValue(source, SIGNAL_MAPPER_LABELS.currentVehicle, SIGNAL_MAPPER_LABELS.emotionalTone),
+    emotionalTone: findSectionValue(source, SIGNAL_MAPPER_LABELS.emotionalTone, SIGNAL_MAPPER_LABELS.saying),
     saying: findSectionValue(source, SIGNAL_MAPPER_LABELS.saying, SIGNAL_MAPPER_LABELS.unsaid),
     unsaid: findSectionValue(source, SIGNAL_MAPPER_LABELS.unsaid, SIGNAL_MAPPER_LABELS.concern),
     concern: findSectionValue(source, SIGNAL_MAPPER_LABELS.concern, SIGNAL_MAPPER_LABELS.solving),
@@ -73,26 +88,35 @@ export function buildSignalMapperMicroDraft(input: SignalMapperMicroDraft): stri
   return [
     SIGNAL_MAPPER_MICRO_HEADER,
     '',
+    SIGNAL_MAPPER_LABELS.customerName,
+    input.customerName,
+    '',
+    SIGNAL_MAPPER_LABELS.currentVehicle,
+    input.currentVehicle,
+    '',
+    SIGNAL_MAPPER_LABELS.emotionalTone,
+    input.emotionalTone,
+    '',
     SIGNAL_MAPPER_LABELS.saying,
-    input.saying.trim(),
+    input.saying,
     '',
     SIGNAL_MAPPER_LABELS.unsaid,
-    input.unsaid.trim(),
+    input.unsaid,
     '',
     SIGNAL_MAPPER_LABELS.concern,
-    input.concern.trim(),
+    input.concern,
     '',
     SIGNAL_MAPPER_LABELS.solving,
-    input.solving.trim(),
+    input.solving,
     '',
     SIGNAL_MAPPER_LABELS.show,
-    input.show.trim(),
+    input.show,
     '',
     SIGNAL_MAPPER_LABELS.sayNext,
-    input.sayNext.trim(),
+    input.sayNext,
     '',
     SIGNAL_MAPPER_LABELS.notes,
-    input.notes.trim(),
+    input.notes,
   ].join('\n');
 }
 
@@ -102,6 +126,9 @@ export function hasSignalMapperMicroContent(input: SignalMapperMicroDraft): bool
 
 export function buildSignalMapperFullPrefillFromMicro(input: SignalMapperMicroDraft): SignalMapperFullPrefill {
   return {
+    customerName: input.customerName.trim(),
+    currentVehicle: input.currentVehicle.trim(),
+    emotionalTone: input.emotionalTone.trim(),
     customerSaying: input.saying.trim(),
     customerUnsaid: input.unsaid.trim(),
     realConcern: input.concern.trim(),
@@ -111,4 +138,3 @@ export function buildSignalMapperFullPrefillFromMicro(input: SignalMapperMicroDr
     notes: input.notes.trim(),
   };
 }
-

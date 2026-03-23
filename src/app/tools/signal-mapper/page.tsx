@@ -7,23 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
 import type { SignalMapperFullPrefill } from '@/lib/tools/signal-mapper-micro';
 import {
-  Zap,
-  User,
   CheckCircle2,
-  MessageSquare,
-  Car,
-  Navigation,
-  ClipboardCheck,
   Copy,
   RotateCcw,
   Save,
-  Target,
-  ArrowRight,
   Mail,
   Lock,
 } from 'lucide-react';
@@ -107,24 +98,24 @@ const initialSelfCheck = {
 
 const funnelStages = [
   {
-    label: '1. Intake',
-    hint: 'Capture customer context',
+    label: '1. Customer Snapshot',
+    hint: 'Capture the baseline context',
   },
   {
-    label: '2. Signal Map',
-    hint: 'Translate what they said',
+    label: '2. Needs & Signals',
+    hint: 'Map needs and exact wording',
   },
   {
-    label: '3. Demo Plan',
-    hint: 'Build a targeted walkthrough',
+    label: '3. Interpretation',
+    hint: 'Define what it means',
   },
   {
-    label: '4. Test Drive',
-    hint: 'Handle concerns and shifts',
+    label: '4. Demo Plan',
+    hint: 'Plan what to show and highlight',
   },
   {
     label: '5. Recommendation',
-    hint: 'Land next step confidently',
+    hint: 'Set the next best step',
   },
 ];
 
@@ -182,6 +173,9 @@ export default function SignalMapperPage() {
 
     setCustomerInfo((current) => ({
       ...current,
+      name: current.name || prefill.customerName,
+      currentVehicle: current.currentVehicle || prefill.currentVehicle,
+      emotionalTone: current.emotionalTone || prefill.emotionalTone,
       concerns: current.concerns || prefill.realConcern || prefill.customerUnsaid,
       mustHaves: current.mustHaves || prefill.tryingToSolve,
       tradeNotes: current.tradeNotes || prefill.notes,
@@ -229,15 +223,6 @@ export default function SignalMapperPage() {
     if (testDrive.reaction.trim()) score += 1;
     if (recommendation.vehicle.trim() && recommendation.nextStep.trim()) score += 1;
     return Math.round((score / 5) * 100);
-  }, [customerInfo.name, mappedSignalCount, demoBuilder.top3, testDrive.reaction, recommendation.vehicle, recommendation.nextStep]);
-
-  const nextBestAction = useMemo(() => {
-    if (!customerInfo.name.trim()) return 'Start with customer name and current vehicle.';
-    if (mappedSignalCount < 5) return 'Capture at least 5 meaningful customer signals before demoing.';
-    if (!demoBuilder.top3.trim()) return 'Define the top 3 demo moments before the walkaround.';
-    if (!testDrive.reaction.trim()) return 'Log test drive reaction to uncover objections.';
-    if (!recommendation.vehicle.trim() || !recommendation.nextStep.trim()) return 'Set recommendation and clear next step to move the deal.';
-    return 'You are ready to present numbers and move to commitment.';
   }, [customerInfo.name, mappedSignalCount, demoBuilder.top3, testDrive.reaction, recommendation.vehicle, recommendation.nextStep]);
 
   const buildSummary = () => {
@@ -424,7 +409,6 @@ export default function SignalMapperPage() {
   };
 
   const inputClass = 'bg-white/50 dark:bg-[#121111] border-slate-200 dark:border-white/10 dark:text-slate-100 focus-visible:ring-[#00f2ff]/50';
-  const sectionTitleClass = 'text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-slate-100 mb-6';
 
   if (!unlockRecord) {
     return (
@@ -491,536 +475,211 @@ export default function SignalMapperPage() {
     );
   }
 
+  const currentStep = funnelStages[activeStage];
+  const progressPercent = Math.round(((activeStage + 1) / funnelStages.length) * 100);
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#0a0a0c] font-sans">
       <Header />
-
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
-          <Card className="shadow-sm rounded-2xl border-[#00f2ff]/20">
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div className="space-y-2">
-                  <h1 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-                    Customer Signal Funnel
-                  </h1>
-                  <p className="text-slate-600 dark:text-slate-400 text-base md:text-lg">
-                    Guided process from discovery to next step, with a built-in pipeline snapshot so this works even without a CRM.
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Unlocked as {unlockRecord.email}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    className="border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10"
-                    onClick={handleClear}
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" /> Clear
-                  </Button>
-                  <Button className="bg-[#00f2ff] text-[#121111] hover:bg-[#00f2ff]/90 font-bold" onClick={handleCopySummary}>
-                    <Copy className="w-4 h-4 mr-2" /> Copy Full Notes
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10"
-                    onClick={handleChangeEmail}
-                  >
-                    Change Email
-                  </Button>
-                </div>
+      <main className="mx-auto w-full max-w-3xl flex-1 space-y-5 px-4 py-4 pb-28 md:px-6 md:py-8 md:pb-8">
+        <Card className="rounded-2xl border-[#00f2ff]/25 bg-white dark:bg-[#101317]">
+          <CardHeader className="space-y-3 pb-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Signal Mapper</CardTitle>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Unlocked as {unlockRecord.email}</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-lg rounded-2xl bg-gradient-to-br from-[#00f2ff]/10 via-white to-slate-50 dark:from-[#00f2ff]/10 dark:to-[#121111] border-[#00f2ff]/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-extrabold flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-[#00c5d1]" /> Funnel Health
-                </span>
-                <span className="text-[#00c5d1]">{completionPercent}%</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="h-2 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
-                <div className="h-full bg-[#00f2ff] transition-all" style={{ width: `${completionPercent}%` }} />
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleClear}>
+                  <RotateCcw className="mr-2 h-4 w-4" /> Clear
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleCopySummary}>
+                  <Copy className="mr-2 h-4 w-4" /> Copy Notes
+                </Button>
               </div>
-              <p className="text-sm text-slate-700 dark:text-slate-300">{nextBestAction}</p>
-              <Button className="w-full bg-[#121111] text-white hover:bg-black" onClick={handleSaveSnapshot}>
-                <Save className="w-4 h-4 mr-2" /> Save Pipeline Snapshot
-              </Button>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Saved snapshots stay on this device so you can track active opportunities without external tools.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="border-l-4 border-l-[#00f2ff] bg-gradient-to-r from-[#00f2ff]/5 to-transparent dark:bg-[#00f2ff]/5 shadow-sm rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-widest text-[#00f2ff] flex items-center gap-2">
-              <Zap className="h-4 w-4" /> Funnel Stages
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
-              {funnelStages.map((stage, idx) => (
-                <button
-                  key={stage.label}
-                  type="button"
-                  onClick={() => setActiveStage(idx)}
-                  className={`text-left border rounded-xl p-3 transition-colors ${
-                    activeStage === idx
-                      ? 'bg-[#00f2ff]/20 border-[#00c5d1] text-slate-900 dark:text-white'
-                      : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-[#00f2ff]/40'
-                  }`}
-                >
-                  <p className="text-xs font-extrabold tracking-wide">{stage.label}</p>
-                  <p className="text-xs mt-1 opacity-80">{stage.hint}</p>
-                </button>
-              ))}
             </div>
-          </CardContent>
-        </Card>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                <span>
+                  Step {activeStage + 1} of {funnelStages.length}
+                </span>
+                <span>{currentStep.label}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                <div className="h-full bg-[#00f2ff] transition-all" style={{ width: `${progressPercent}%` }} />
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{currentStep.hint}</p>
+            </div>
+          </CardHeader>
 
-        <section>
-          <h2 className={sectionTitleClass}>
-            <User className="h-5 w-5 text-[#3488ba]" /> Stage 1: Customer Snapshot
-          </h2>
-          <Card className="shadow-sm dark:bg-[#121111]/80 dark:border-white/5 rounded-2xl overflow-hidden backdrop-blur-md">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CardContent className="space-y-4">
+            {activeStage === 0 && (
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="customer-name">Customer Name</Label>
-                  <Input
-                    id="customer-name"
-                    name="name"
-                    value={customerInfo.name}
-                    onChange={handleCustomerInfoChange}
-                    className={inputClass}
-                    placeholder="First & Last Name"
-                  />
+                  <Input id="customer-name" name="name" value={customerInfo.name} onChange={handleCustomerInfoChange} className={inputClass} placeholder="First and last name" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="customer-vehicle">Current Vehicle</Label>
-                  <Input
-                    id="customer-vehicle"
-                    name="currentVehicle"
-                    value={customerInfo.currentVehicle}
-                    onChange={handleCustomerInfoChange}
-                    className={inputClass}
-                    placeholder="Year, Make, Model"
-                  />
+                  <Input id="customer-vehicle" name="currentVehicle" value={customerInfo.currentVehicle} onChange={handleCustomerInfoChange} className={inputClass} placeholder="Year, make, model" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="customer-emotion">Emotional Tone</Label>
-                  <Input
-                    id="customer-emotion"
-                    name="emotionalTone"
-                    value={customerInfo.emotionalTone}
-                    onChange={handleCustomerInfoChange}
-                    className={inputClass}
-                    placeholder="e.g. Stressed, Excited, Guarded"
-                  />
+                  <Input id="customer-emotion" name="emotionalTone" value={customerInfo.emotionalTone} onChange={handleCustomerInfoChange} className={inputClass} placeholder="Confident, unsure, stressed, excited..." />
                 </div>
+              </div>
+            )}
 
-                <div className="space-y-2 md:col-span-3">
-                  <Label htmlFor="customer-household">Household / Family Notes</Label>
-                  <Textarea
-                    id="customer-household"
-                    name="household"
-                    value={customerInfo.household}
-                    onChange={handleCustomerInfoChange}
-                    className={inputClass}
-                    placeholder="Who rides in the car? Pets? Kids?"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="customer-driving">Driving Habits</Label>
-                  <Textarea
-                    id="customer-driving"
-                    name="drivingHabits"
-                    value={customerInfo.drivingHabits}
-                    onChange={handleCustomerInfoChange}
-                    className={inputClass}
-                    placeholder="Commute length, road trips, mostly city?"
-                  />
-                </div>
+            {activeStage === 1 && (
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="customer-must-haves">Must-Haves</Label>
-                  <Textarea
-                    id="customer-must-haves"
-                    name="mustHaves"
-                    value={customerInfo.mustHaves}
-                    onChange={handleCustomerInfoChange}
-                    className={inputClass}
-                    placeholder="Non-negotiables..."
-                  />
+                  <Textarea id="customer-must-haves" name="mustHaves" value={customerInfo.mustHaves} onChange={handleCustomerInfoChange} className={inputClass} placeholder="What matters most to them?" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customer-nice-haves">Nice-to-Haves</Label>
-                  <Textarea
-                    id="customer-nice-haves"
-                    name="niceToHaves"
-                    value={customerInfo.niceToHaves}
-                    onChange={handleCustomerInfoChange}
-                    className={inputClass}
-                    placeholder="Wants but doesn't need..."
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="customer-concerns">Concerns / Hesitations</Label>
-                  <Textarea
-                    id="customer-concerns"
-                    name="concerns"
-                    value={customerInfo.concerns}
-                    onChange={handleCustomerInfoChange}
-                    className={inputClass}
-                    placeholder="Budget, size, fuel economy?"
-                  />
+                  <Textarea id="customer-concerns" name="concerns" value={customerInfo.concerns} onChange={handleCustomerInfoChange} className={inputClass} placeholder="Budget, trust, timing, fit..." />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customer-trade">Trade Notes</Label>
+                  <Label htmlFor="signal-0-said">What they said</Label>
                   <Textarea
-                    id="customer-trade"
-                    name="tradeNotes"
-                    value={customerInfo.tradeNotes}
-                    onChange={handleCustomerInfoChange}
+                    id="signal-0-said"
+                    value={signals[0]?.whatSaid || ''}
+                    onChange={(e) => updateSignal(0, 'whatSaid', e.target.value)}
                     className={inputClass}
-                    placeholder="Condition, payoff?"
+                    placeholder="Capture exact wording."
                   />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </section>
+            )}
 
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className={sectionTitleClass} style={{ marginBottom: 0 }}>
-              <MessageSquare className="h-5 w-5 text-[#00f2ff]" /> Stage 2: Key Customer Signals
-            </h2>
-            <span className="text-sm font-medium text-slate-500 bg-slate-200 dark:bg-white/10 px-3 py-1 rounded-full">
-              {mappedSignalCount}/7 mapped (target 5+)
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {signals.map((signal, idx) => (
-              <Card
-                key={idx}
-                className="relative shadow-sm dark:bg-[#121111]/80 dark:border-white/5 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#00f2ff]/50"
-              >
-                <div className="absolute top-0 left-0 bottom-0 w-1 md:w-1.5 bg-gradient-to-b from-slate-200 to-slate-100 dark:from-white/10 dark:to-white/5 opacity-50" />
-                <CardContent className="p-0">
-                  <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x border-l border-transparent dark:divide-white/5">
-                    <div className="flex-1 p-3 md:p-4 bg-slate-50 dark:bg-white/[0.02]">
-                      <Label htmlFor={`signal-${idx}-said`} className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">
-                        What they said
-                      </Label>
-                      <Input
-                        id={`signal-${idx}-said`}
-                        value={signal.whatSaid}
-                        onChange={(e) => updateSignal(idx, 'whatSaid', e.target.value)}
-                        className="border-0 bg-transparent shadow-none px-0 h-8 focus-visible:ring-0 rounded-none dark:text-slate-200"
-                        placeholder="Their exact words..."
-                      />
-                    </div>
-                    <div className="flex-1 p-3 md:p-4">
-                      <Label htmlFor={`signal-${idx}-why`} className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">
-                        Why it matters
-                      </Label>
-                      <Input
-                        id={`signal-${idx}-why`}
-                        value={signal.whyMatters}
-                        onChange={(e) => updateSignal(idx, 'whyMatters', e.target.value)}
-                        className="border-0 bg-transparent shadow-none px-0 h-8 focus-visible:ring-0 rounded-none dark:text-slate-200"
-                        placeholder="Underlying need..."
-                      />
-                    </div>
-                    <div className="flex-1 p-3 md:p-4">
-                      <Label htmlFor={`signal-${idx}-feature`} className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">
-                        Matching feature
-                      </Label>
-                      <Input
-                        id={`signal-${idx}-feature`}
-                        value={signal.matchingFeature}
-                        onChange={(e) => updateSignal(idx, 'matchingFeature', e.target.value)}
-                        className="border-0 bg-transparent shadow-none px-0 h-8 focus-visible:ring-0 rounded-none dark:text-slate-200"
-                        placeholder="Product solution..."
-                      />
-                    </div>
-                    <div className="flex-1 p-3 md:p-4 bg-[#00f2ff]/5">
-                      <Label
-                        htmlFor={`signal-${idx}-bringup`}
-                        className="text-[10px] uppercase tracking-wider text-[#00f2ff] font-bold mb-1 block"
-                      >
-                        How I will bring it up
-                      </Label>
-                      <Input
-                        id={`signal-${idx}-bringup`}
-                        value={signal.howToBringUp}
-                        onChange={(e) => updateSignal(idx, 'howToBringUp', e.target.value)}
-                        className="border-0 bg-transparent shadow-none px-0 h-8 focus-visible:ring-0 rounded-none dark:text-slate-200 placeholder:text-[#00f2ff]/40"
-                        placeholder='"You mentioned earlier..."'
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <h2 className={sectionTitleClass}>
-            <Car className="h-5 w-5 text-[#3488ba]" /> Stage 3: Demo Builder
-          </h2>
-          <Card className="shadow-sm dark:bg-[#121111]/80 dark:border-white/5 rounded-2xl">
-            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="demo-top3">Top 3 things to show first</Label>
-                <Textarea
-                  id="demo-top3"
-                  value={demoBuilder.top3}
-                  onChange={(e) => setDemoBuilder({ ...demoBuilder, top3: e.target.value })}
-                  className={inputClass}
-                  placeholder={'1. ...\n2. ...\n3. ...'}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="demo-problem">What problem this vehicle solves</Label>
-                <Textarea
-                  id="demo-problem"
-                  value={demoBuilder.problemSolved}
-                  onChange={(e) => setDemoBuilder({ ...demoBuilder, problemSolved: e.target.value })}
-                  className={inputClass}
-                  placeholder="Saves gas, fits car seats, more reliable..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="demo-lifestyle">What lifestyle fit to highlight</Label>
-                <Textarea
-                  id="demo-lifestyle"
-                  value={demoBuilder.lifestyleFit}
-                  onChange={(e) => setDemoBuilder({ ...demoBuilder, lifestyleFit: e.target.value })}
-                  className={inputClass}
-                  placeholder="Matches their active weekend routine..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="demo-avoid" className="text-red-500 dark:text-red-400">
-                  What to avoid over-explaining
-                </Label>
-                <Textarea
-                  id="demo-avoid"
-                  value={demoBuilder.avoidOverExplaining}
-                  onChange={(e) => setDemoBuilder({ ...demoBuilder, avoidOverExplaining: e.target.value })}
-                  className={inputClass.replace('focus-visible:ring-[#00f2ff]/50', 'focus-visible:ring-red-500/50')}
-                  placeholder="Don't bury them in specs they never asked for"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section>
-          <h2 className={sectionTitleClass}>
-            <Navigation className="h-5 w-5 text-[#00f2ff]" /> Stage 4: Test Drive Debrief
-          </h2>
-
-          <div className="bg-[#3488ba]/10 border border-[#3488ba]/30 rounded-xl p-5 mb-6 shadow-inner">
-            <p className="font-bold text-[#3488ba] dark:text-[#3488ba] text-lg lg:text-xl text-center">
-              "How did the test drive feel versus what you expected?"
-            </p>
-          </div>
-
-          <Card className="shadow-sm dark:bg-[#121111]/80 dark:border-white/5 rounded-2xl">
-            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="drive-reaction">Customer reaction</Label>
-                <Input
-                  id="drive-reaction"
-                  value={testDrive.reaction}
-                  onChange={(e) => setTestDrive({ ...testDrive, reaction: e.target.value })}
-                  className={inputClass}
-                  placeholder="What was the first thing they said?"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="drive-shift">Surprise / positive shift</Label>
-                <Input
-                  id="drive-shift"
-                  value={testDrive.surprise}
-                  onChange={(e) => setTestDrive({ ...testDrive, surprise: e.target.value })}
-                  className={inputClass}
-                  placeholder="They loved the quiet ride..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="drive-concern">Remaining concern</Label>
-                <Input
-                  id="drive-concern"
-                  value={testDrive.remainingConcern}
-                  onChange={(e) => setTestDrive({ ...testDrive, remainingConcern: e.target.value })}
-                  className={inputClass}
-                  placeholder="Felt a little big to park..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="drive-next">Best next question</Label>
-                <Input
-                  id="drive-next"
-                  value={testDrive.nextQuestion}
-                  onChange={(e) => setTestDrive({ ...testDrive, nextQuestion: e.target.value })}
-                  className={inputClass}
-                  placeholder='"Is the size something you can get used to?"'
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section>
-          <h2 className={sectionTitleClass}>
-            <ClipboardCheck className="h-5 w-5 text-[#00f2ff]" /> Stage 5: Recommendation Summary
-          </h2>
-          <Card className="shadow-lg border-[#00f2ff]/20 dark:bg-[#121111]/90 rounded-2xl relative overflow-hidden">
-            <div className="absolute right-0 top-0 h-full w-1 bg-[#00f2ff]" />
-            <CardContent className="p-6 md:p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {activeStage === 2 && (
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="recommend-vehicle" className="text-[#00f2ff]">
-                    Recommended vehicle
-                  </Label>
+                  <Label htmlFor="signal-0-why">What it actually means</Label>
+                  <Textarea
+                    id="signal-0-why"
+                    value={signals[0]?.whyMatters || ''}
+                    onChange={(e) => updateSignal(0, 'whyMatters', e.target.value)}
+                    className={inputClass}
+                    placeholder="What is beneath the words?"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="demo-problem">What problem they are solving</Label>
+                  <Textarea
+                    id="demo-problem"
+                    value={demoBuilder.problemSolved}
+                    onChange={(e) => setDemoBuilder({ ...demoBuilder, problemSolved: e.target.value })}
+                    className={inputClass}
+                    placeholder="Define the practical outcome they want."
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeStage === 3 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="demo-top3">What to show</Label>
+                  <Textarea
+                    id="demo-top3"
+                    value={demoBuilder.top3}
+                    onChange={(e) => setDemoBuilder({ ...demoBuilder, top3: e.target.value })}
+                    className={inputClass}
+                    placeholder={'1. ...\n2. ...\n3. ...'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="demo-highlight">What to highlight</Label>
+                  <Textarea
+                    id="demo-highlight"
+                    value={demoBuilder.lifestyleFit}
+                    onChange={(e) => setDemoBuilder({ ...demoBuilder, lifestyleFit: e.target.value })}
+                    className={inputClass}
+                    placeholder="Tie features to their daily reality."
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeStage === 4 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="recommend-vehicle">Recommended vehicle</Label>
                   <Input
                     id="recommend-vehicle"
                     value={recommendation.vehicle}
                     onChange={(e) => setRecommendation({ ...recommendation, vehicle: e.target.value })}
                     className={inputClass}
-                    placeholder="Year, Make, Model, Trim"
+                    placeholder="Year, make, model, trim"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="recommend-why">Why it fits this customer</Label>
-                  <Input
-                    id="recommend-why"
-                    value={recommendation.whyFits}
-                    onChange={(e) => setRecommendation({ ...recommendation, whyFits: e.target.value })}
-                    className={inputClass}
-                    placeholder="Solves their X need while keeping their Y want."
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="recommend-confidence">Confidence statement I will use</Label>
-                  <Textarea
-                    id="recommend-confidence"
-                    value={recommendation.confidenceStatement}
-                    onChange={(e) => setRecommendation({ ...recommendation, confidenceStatement: e.target.value })}
-                    className={inputClass}
-                    placeholder='"Based on what you told me about your commute and family... this is the right fit for you."'
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="recommend-next">Next best step</Label>
                   <Input
                     id="recommend-next"
                     value={recommendation.nextStep}
                     onChange={(e) => setRecommendation({ ...recommendation, nextStep: e.target.value })}
                     className={inputClass}
-                    placeholder="Sit at desk, run trade appraisal, secure commitment..."
+                    placeholder="Desk, appraisal, worksheet, commitment..."
                   />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </section>
+            )}
+          </CardContent>
+        </Card>
 
-        <section className="pt-2">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
-            <Card className="shadow-sm dark:bg-[#121111]/80 dark:border-white/5 rounded-2xl">
-              <CardContent className="p-6 space-y-6">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white">Consultant Self-Check</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left bg-slate-100 dark:bg-white/5 p-6 rounded-3xl">
-                  {[
-                    { id: 'askedEnough', label: 'I asked enough questions' },
-                    { id: 'listened', label: 'I listened without interrupting' },
-                    { id: 'usedWordsBack', label: 'I used their words back to them' },
-                    { id: 'personalized', label: 'I personalized the demo' },
-                    { id: 'stayedCalm', label: 'I slowed down and stayed calm' },
-                    { id: 'earnedRight', label: 'I earned the right to present numbers' },
-                  ].map((check) => (
-                    <div
-                      key={check.id}
-                      className="flex items-center space-x-3 bg-white dark:bg-[#121111] p-4 rounded-xl shadow-sm border border-slate-200 dark:border-white/5 transition-colors hover:border-[#00f2ff]/30"
-                    >
-                      <Checkbox
-                        id={check.id}
-                        checked={selfCheck[check.id as keyof typeof selfCheck]}
-                        onCheckedChange={(c) => setSelfCheck({ ...selfCheck, [check.id]: !!c })}
-                        className="h-5 w-5 data-[state=checked]:bg-[#00f2ff] data-[state=checked]:text-[#121111]"
-                      />
-                      <Label htmlFor={check.id} className="cursor-pointer font-medium w-full block">
-                        {check.label}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    className="bg-[#00f2ff] hover:bg-[#00f2ff]/90 text-[#121111] font-bold px-8 py-5 text-base rounded-xl"
-                    onClick={handleSaveSnapshot}
-                  >
-                    Save to Pipeline
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-slate-300 dark:border-white/10"
-                    onClick={() => setActiveStage(Math.min(activeStage + 1, funnelStages.length - 1))}
-                  >
-                    Next Funnel Stage <ArrowRight className="w-4 h-4 ml-2" />
+        <Card className="rounded-2xl border-slate-200 dark:border-white/10 bg-white/70 dark:bg-[#121111]/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-lg">Pipeline Snapshots</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pipelineHistory.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                No saved opportunities yet. Save your first snapshot to track follow-ups without a CRM.
+              </p>
+            ) : (
+              pipelineHistory.slice(0, 3).map((item) => (
+                <div key={item.id} className="rounded-xl border border-slate-200 dark:border-white/10 p-3 space-y-2">
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{item.customerName}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">{new Date(item.createdAt).toLocaleString()}</p>
+                  <p className="text-xs text-slate-700 dark:text-slate-300">Next: {item.nextStep || 'N/A'}</p>
+                  <Button size="sm" variant="outline" className="w-full border-slate-300 dark:border-white/10" onClick={() => handleCopySnapshot(item.summary)}>
+                    <Copy className="w-3.5 h-3.5 mr-2" /> Copy Snapshot
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-slate-200 dark:border-white/10 bg-white/70 dark:bg-[#121111]/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">Pipeline Snapshots</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {pipelineHistory.length === 0 ? (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    No saved opportunities yet. Save your first snapshot to track follow-ups without a CRM.
-                  </p>
-                ) : (
-                  pipelineHistory.slice(0, 5).map((item) => (
-                    <div key={item.id} className="rounded-xl border border-slate-200 dark:border-white/10 p-3 space-y-2">
-                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{item.customerName}</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-400">{new Date(item.createdAt).toLocaleString()}</p>
-                      <p className="text-xs text-slate-700 dark:text-slate-300">{item.stage}</p>
-                      <p className="text-xs text-slate-700 dark:text-slate-300">Vehicle: {item.recommendationVehicle || 'N/A'}</p>
-                      <p className="text-xs text-slate-700 dark:text-slate-300">Next: {item.nextStep || 'N/A'}</p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full border-slate-300 dark:border-white/10"
-                        onClick={() => handleCopySnapshot(item.summary)}
-                      >
-                        <Copy className="w-3.5 h-3.5 mr-2" /> Copy Snapshot
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </section>
+              ))
+            )}
+          </CardContent>
+        </Card>
       </main>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur dark:border-white/10 dark:bg-[#0f1217]/95">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
+          <Button
+            variant="outline"
+            className="h-12 flex-1 border-slate-300 text-base dark:border-white/10"
+            disabled={activeStage === 0}
+            onClick={() => setActiveStage((prev) => Math.max(prev - 1, 0))}
+          >
+            Back
+          </Button>
+
+          {activeStage < funnelStages.length - 1 ? (
+            <Button
+              className="h-12 flex-1 bg-[#00f2ff] text-base font-bold text-[#121111] hover:bg-[#00f2ff]/90"
+              onClick={() => setActiveStage((prev) => Math.min(prev + 1, funnelStages.length - 1))}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button className="h-12 flex-1 bg-[#00f2ff] text-base font-bold text-[#121111] hover:bg-[#00f2ff]/90" onClick={handleSaveSnapshot}>
+              <Save className="mr-2 h-4 w-4" /> Save to Pipeline
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

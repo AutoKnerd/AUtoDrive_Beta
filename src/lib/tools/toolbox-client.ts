@@ -47,9 +47,9 @@ export async function createToolboxFreeAccount(input: {
   return parseApiResponse<{ tier: 'free' | 'pro'; toolAccessLevel: number }>(response);
 }
 
-export async function upgradeToolboxAccount(input: {
+export async function syncToolboxPaidStatus(input: {
   idToken: string;
-}): Promise<ApiResult<{ tier: 'pro'; toolAccessLevel: number }>> {
+}): Promise<ApiResult<{ tier: 'free' | 'pro'; toolAccessLevel: number; isPaid: boolean }>> {
   const response = await fetch('/api/tools/toolbox-account', {
     method: 'POST',
     headers: {
@@ -57,11 +57,11 @@ export async function upgradeToolboxAccount(input: {
       Authorization: `Bearer ${input.idToken}`,
     },
     body: JSON.stringify({
-      action: 'upgrade_to_paid',
+      action: 'sync_paid_status',
     }),
   });
 
-  return parseApiResponse<{ tier: 'pro'; toolAccessLevel: number }>(response);
+  return parseApiResponse<{ tier: 'free' | 'pro'; toolAccessLevel: number; isPaid: boolean }>(response);
 }
 
 export async function saveToolboxEntry(input: {

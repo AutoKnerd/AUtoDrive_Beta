@@ -18,8 +18,8 @@ type BootstrapBody = {
   localEntries?: ToolboxSavedEntry[];
 };
 
-type UpgradeBody = {
-  action: 'upgrade_to_paid';
+type SyncPaidStatusBody = {
+  action: 'sync_paid_status';
 };
 
 function normalizeTier(user: Partial<User> & { tier?: 'free' | 'pro' }): 'free' | 'pro' {
@@ -90,7 +90,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'upgrade_to_paid') {
-      return await handleUpgradeToPaid(auth, body as UpgradeBody);
+      return NextResponse.json(
+        {
+          ok: false,
+          message: 'Direct upgrade is disabled. Complete payment through checkout first.',
+          code: 'PAYMENT_REQUIRED',
+        },
+        { status: 402 }
+      );
+    }
+
+    if (action === 'sync_paid_status') {
+      return await handleSyncPaidStatus(auth, body as SyncPaidStatusBody);
     }
 
     return NextResponse.json({ ok: false, message: 'Unsupported action.' }, { status: 400 });
@@ -121,17 +132,16 @@ async function handleBootstrapFree(auth: AuthContext, body: BootstrapBody) {
   return NextResponse.json({ ok: true, tier: targetTier, toolAccessLevel }, { status: 200 });
 }
 
-async function handleUpgradeToPaid(auth: AuthContext, _body: UpgradeBody) {
-  const toolAccessLevel = 999;
+async function handleSyncPaidStatus(auth: AuthContext, _body: SyncPaidStatusBody) {
+  const detectedTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' });
+  const isPaid = detectedTier === 'pro';
+  const toolAccessLevel = isPaid ? 999 : 3;
 
-  await getAdminDb().collection('users').doc(auth.uid).set(
-    {
-      tier: 'pro',
-      toolAccessLevel,
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true }
-  );
+  await getAdminDb().collection('users').doc(auth.uid).set({
+    tier: detectedTier,
+    toolAccessLevel,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
 
-  return NextResponse.json({ ok: true, tier: 'pro', toolAccessLevel }, { status: 200 });
+  return NextResponse.json({ ok: true, tier: detectedTier, toolAccessLevel, isPaid }, { status: 200 });
 }

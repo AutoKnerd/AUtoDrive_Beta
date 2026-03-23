@@ -52,13 +52,14 @@ import {
   createToolboxFreeAccount,
   fetchToolboxEntries,
   saveToolboxEntry,
-  upgradeToolboxAccount,
+  syncToolboxPaidStatus,
 } from '@/lib/tools/toolbox-client';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOOLBOX_DEFAULT_ROLE: UserRole = 'Sales Consultant';
 const SECOND_TOOL_PROMPT_DELAY_MS = 6000;
 const FEATURED_COMPLETION_DELAY_MS = 45000;
+const TOOLBOX_UPGRADE_URL = 'https://app.autodrivecx.com/signup';
 
 const mainSiteLoginButtonStyle: CSSProperties = {
   fontSize: '12px',
@@ -133,7 +134,6 @@ export default function ToolsPage() {
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [isSavingEntry, setIsSavingEntry] = useState(false);
   const [didAuthBootstrap, setDidAuthBootstrap] = useState(false);
-  const [forceProTier, setForceProTier] = useState(false);
   const [showAccountSuccess, setShowAccountSuccess] = useState(false);
 
   const [upgradeContextMessage, setUpgradeContextMessage] = useState<string | undefined>(undefined);
@@ -143,6 +143,7 @@ export default function ToolsPage() {
   const [showFeaturedCompletionPrompt, setShowFeaturedCompletionPrompt] = useState(false);
   const [dismissedFeaturedCompletionPrompt, setDismissedFeaturedCompletionPrompt] = useState(false);
   const [dismissedReturnBanner, setDismissedReturnBanner] = useState(false);
+  const [signalMapperStep, setSignalMapperStep] = useState(0);
 
   const [activeFilter, setActiveFilter] = useState<'All Tools' | 'Free Tools' | 'Recent Tools' | 'Premium Tools'>('All Tools');
   const filters: Array<'All Tools' | 'Free Tools' | 'Recent Tools' | 'Premium Tools'> = [
@@ -155,7 +156,7 @@ export default function ToolsPage() {
   const isPaidUser = resolvePaidTier({
     tier: user?.tier,
     subscriptionStatus: user?.subscriptionStatus,
-  }) || forceProTier;
+  });
 
   const userState: ToolboxUserState = isAuthenticated
     ? (isPaidUser ? 'paid_account' : 'free_account')
@@ -245,7 +246,6 @@ export default function ToolsPage() {
   useEffect(() => {
     if (!firebaseUser) {
       setDidAuthBootstrap(false);
-      setForceProTier(false);
     }
   }, [firebaseUser]);
 
@@ -271,6 +271,12 @@ export default function ToolsPage() {
 
     return () => window.clearTimeout(timer);
   }, [activeTool, dismissedFeaturedCompletionPrompt, featuredTool.id, isPaidUser, showFeaturedCompletionPrompt]);
+
+  useEffect(() => {
+    if (activeTool?.id !== 'signal-mapper') {
+      setSignalMapperStep(0);
+    }
+  }, [activeTool?.id]);
 
   function formatLastEdited(value: string): string {
     const date = new Date(value);
@@ -418,40 +424,64 @@ export default function ToolsPage() {
   }
 
   async function handleUpgrade() {
-    if (!firebaseUser) {
-      toast({ title: 'Sign in required', description: 'Sign in first to upgrade your toolbox access.' });
+    if (!firebaseUser || !isAuthenticated) {
+      setShowUpgradeModal(false);
+      setShowSaveGate(true);
       return;
     }
 
-    setIsUpgradeSubmitting(true);
+    if (isPaidUser) {
+      setShowUpgradeModal(false);
+      return;
+    }
 
-    try {
-      const idToken = await firebaseUser.getIdToken(true);
-      const result = await upgradeToolboxAccount({ idToken });
-      if (!result.ok) throw new Error(result.message);
+    console.info('[Toolbox] unlock_click', { source: 'upgrade_modal', state: userState });
+    setIsUpgradeSubmitting(true);
+    window.open(TOOLBOX_UPGRADE_URL, '_blank', 'noopener,noreferrer');
+    toast({
+      title: 'Complete payment to unlock Pro',
+      description: 'Finish checkout, then return here. We will unlock tools as soon as payment is confirmed.',
+    });
+    setIsUpgradeSubmitting(false);
+  }
+
+  useEffect(() => {
+    if (!showUpgradeModal || !firebaseUser || isPaidUser) return;
+    const currentUser = firebaseUser;
+
+    let cancelled = false;
+
+    async function syncPaidStatus() {
+      const idToken = await currentUser.getIdToken(true);
+      const result = await syncToolboxPaidStatus({ idToken });
+      if (!result.ok || cancelled) return;
+      if (!result.data.isPaid) return;
 
       if (user) {
         setUser({
           ...user,
-          tier: 'pro',
+          tier: result.data.tier,
           toolAccessLevel: result.data.toolAccessLevel,
         });
       }
-      setForceProTier(true);
+
+      console.info('[Toolbox] upgrade_confirmed', { state: userState });
       setShowUpgradeModal(false);
       setUpgradeContextMessage(undefined);
-
       toast({ title: 'Upgrade complete', description: 'All tools are now unlocked on this account.' });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Upgrade failed',
-        description: error?.message || 'Please try again.',
-      });
-    } finally {
-      setIsUpgradeSubmitting(false);
     }
-  }
+
+    console.info('[Toolbox] paywall_open', { state: userState });
+    void syncPaidStatus();
+    const interval = window.setInterval(() => {
+      void syncPaidStatus();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [firebaseUser, isPaidUser, showUpgradeModal, toast, user, userState, setUser]);
 
   async function handleSaveCurrentWork() {
     if (!activeTool) return;
@@ -526,6 +556,10 @@ export default function ToolsPage() {
       [field]: value,
     });
     handleDraftChange(activeTool.id, nextDraft);
+  }
+
+  function goSignalMapperStep(delta: number) {
+    setSignalMapperStep((current) => Math.min(4, Math.max(0, current + delta)));
   }
 
   function handleOpenFullTool(tool: ToolConfig) {
@@ -853,86 +887,158 @@ export default function ToolsPage() {
                       <CardContent className="space-y-4 pt-5">
                         {activeTool.id === 'signal-mapper' ? (
                           <div className="space-y-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-[#9eb3d1]">
+                                <span>
+                                  Step {signalMapperStep + 1} of 5
+                                </span>
+                                <span>{Math.round(((signalMapperStep + 1) / 5) * 100)}%</span>
+                              </div>
+                              <div className="h-2 overflow-hidden rounded-full bg-[#102036]">
+                                <div className="h-full bg-[#76ff8f] transition-all" style={{ width: `${Math.round(((signalMapperStep + 1) / 5) * 100)}%` }} />
+                              </div>
+                            </div>
+
                             <Card className="border-[#2a3f5f] bg-[#0a1527]">
-                              <CardHeader className="pb-3">
-                                <CardTitle className="text-base text-[#edf5ff]">Customer Signals</CardTitle>
-                              </CardHeader>
-                              <CardContent className="grid gap-3 md:grid-cols-2">
-                                <div className="space-y-2">
-                                  <p className="text-xs font-medium text-[#9eb3d1]">What are they saying?</p>
-                                  <Textarea
-                                    value={signalMapperDraft.saying}
-                                    onChange={(event) => handleSignalMapperFieldChange('saying', event.target.value)}
-                                    className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <p className="text-xs font-medium text-[#9eb3d1]">What are they not saying?</p>
-                                  <Textarea
-                                    value={signalMapperDraft.unsaid}
-                                    onChange={(event) => handleSignalMapperFieldChange('unsaid', event.target.value)}
-                                    className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                  />
-                                </div>
+                              <CardContent className="space-y-4 p-4 md:p-5">
+                                {signalMapperStep === 0 && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm font-semibold text-[#edf5ff]">Customer Snapshot</p>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">Customer Name</p>
+                                      <Textarea
+                                        value={signalMapperDraft.customerName}
+                                        onChange={(event) => handleSignalMapperFieldChange('customerName', event.target.value)}
+                                        className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">Current Vehicle</p>
+                                      <Textarea
+                                        value={signalMapperDraft.currentVehicle}
+                                        onChange={(event) => handleSignalMapperFieldChange('currentVehicle', event.target.value)}
+                                        className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">Emotional Tone</p>
+                                      <Textarea
+                                        value={signalMapperDraft.emotionalTone}
+                                        onChange={(event) => handleSignalMapperFieldChange('emotionalTone', event.target.value)}
+                                        className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {signalMapperStep === 1 && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm font-semibold text-[#edf5ff]">Signals</p>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">What are they saying?</p>
+                                      <Textarea
+                                        value={signalMapperDraft.saying}
+                                        onChange={(event) => handleSignalMapperFieldChange('saying', event.target.value)}
+                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">What are they not saying?</p>
+                                      <Textarea
+                                        value={signalMapperDraft.unsaid}
+                                        onChange={(event) => handleSignalMapperFieldChange('unsaid', event.target.value)}
+                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {signalMapperStep === 2 && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm font-semibold text-[#edf5ff]">Interpretation</p>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">What's the real concern?</p>
+                                      <Textarea
+                                        value={signalMapperDraft.concern}
+                                        onChange={(event) => handleSignalMapperFieldChange('concern', event.target.value)}
+                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">What are they trying to solve?</p>
+                                      <Textarea
+                                        value={signalMapperDraft.solving}
+                                        onChange={(event) => handleSignalMapperFieldChange('solving', event.target.value)}
+                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {signalMapperStep === 3 && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm font-semibold text-[#edf5ff]">Action Plan</p>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">What should I show?</p>
+                                      <Textarea
+                                        value={signalMapperDraft.show}
+                                        onChange={(event) => handleSignalMapperFieldChange('show', event.target.value)}
+                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-[#9eb3d1]">What should I say next?</p>
+                                      <Textarea
+                                        value={signalMapperDraft.sayNext}
+                                        onChange={(event) => handleSignalMapperFieldChange('sayNext', event.target.value)}
+                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {signalMapperStep === 4 && (
+                                  <div className="space-y-2">
+                                    <p className="text-sm font-semibold text-[#edf5ff]">Wrap-Up</p>
+                                    <p className="text-sm text-[#a7b7d1]">Your Working Notes</p>
+                                    <Textarea
+                                      value={signalMapperDraft.notes}
+                                      onChange={(event) => handleSignalMapperFieldChange('notes', event.target.value)}
+                                      placeholder="Capture extra context, objections, and wording that worked."
+                                      className="min-h-28 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
+                                    />
+                                  </div>
+                                )}
                               </CardContent>
                             </Card>
 
-                            <Card className="border-[#2a3f5f] bg-[#0a1527]">
-                              <CardHeader className="pb-3">
-                                <CardTitle className="text-base text-[#edf5ff]">What it actually means</CardTitle>
-                              </CardHeader>
-                              <CardContent className="grid gap-3 md:grid-cols-2">
-                                <div className="space-y-2">
-                                  <p className="text-xs font-medium text-[#9eb3d1]">What's the real concern?</p>
-                                  <Textarea
-                                    value={signalMapperDraft.concern}
-                                    onChange={(event) => handleSignalMapperFieldChange('concern', event.target.value)}
-                                    className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <p className="text-xs font-medium text-[#9eb3d1]">What are they trying to solve?</p>
-                                  <Textarea
-                                    value={signalMapperDraft.solving}
-                                    onChange={(event) => handleSignalMapperFieldChange('solving', event.target.value)}
-                                    className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                  />
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            <Card className="border-[#2a3f5f] bg-[#0a1527]">
-                              <CardHeader className="pb-3">
-                                <CardTitle className="text-base text-[#edf5ff]">What to do next</CardTitle>
-                              </CardHeader>
-                              <CardContent className="grid gap-3 md:grid-cols-2">
-                                <div className="space-y-2">
-                                  <p className="text-xs font-medium text-[#9eb3d1]">What should I show?</p>
-                                  <Textarea
-                                    value={signalMapperDraft.show}
-                                    onChange={(event) => handleSignalMapperFieldChange('show', event.target.value)}
-                                    className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <p className="text-xs font-medium text-[#9eb3d1]">What should I say next?</p>
-                                  <Textarea
-                                    value={signalMapperDraft.sayNext}
-                                    onChange={(event) => handleSignalMapperFieldChange('sayNext', event.target.value)}
-                                    className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                  />
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            <div className="space-y-2 pt-1">
-                              <p className="text-sm font-semibold text-[#f6fbff]">Your Working Notes</p>
-                              <Textarea
-                                value={signalMapperDraft.notes}
-                                onChange={(event) => handleSignalMapperFieldChange('notes', event.target.value)}
-                                placeholder="Capture extra context, objections, and wording that worked."
-                                className="min-h-28 border-[#2c3f5f] bg-[#0a1527] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                              />
+                            <div className="sticky bottom-0 z-10 border-t border-[#223857] bg-[#0d192c]/95 p-3 backdrop-blur">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  className="h-11 flex-1 border-[#2f445f] bg-transparent text-[#dbe7fb] hover:bg-[#1a2d49]"
+                                  disabled={signalMapperStep === 0}
+                                  onClick={() => goSignalMapperStep(-1)}
+                                >
+                                  Back
+                                </Button>
+                                {signalMapperStep < 4 ? (
+                                  <Button
+                                    className="h-11 flex-1 bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]"
+                                    onClick={() => goSignalMapperStep(1)}
+                                  >
+                                    Next
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    className="h-11 flex-1 bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
+                                    onClick={handleSaveCurrentWork}
+                                    disabled={isSavingEntry}
+                                  >
+                                    {isSavingEntry ? 'Saving...' : 'Save My Work'}
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ) : (
@@ -949,23 +1055,25 @@ export default function ToolsPage() {
                           </>
                         )}
 
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-[#f6fbff]">Don't lose your work.</p>
-                            <p className="text-xs text-[#9db0cb]">
-                              Create a free account to save your progress and come back anytime.
-                            </p>
-                          </div>
+                        {activeTool.id !== 'signal-mapper' && (
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-[#f6fbff]">Don't lose your work.</p>
+                              <p className="text-xs text-[#9db0cb]">
+                                Create a free account to save your progress and come back anytime.
+                              </p>
+                            </div>
 
-                          <Button
-                            onClick={handleSaveCurrentWork}
-                            disabled={isSavingEntry}
-                            className="bg-[#76ff8f] font-semibold text-[#0d1d11] hover:bg-[#92ffa7]"
-                          >
-                            <Save className="mr-2 h-4 w-4" />
-                            {isSavingEntry ? 'Saving...' : 'Save My Work'}
-                          </Button>
-                        </div>
+                            <Button
+                              onClick={handleSaveCurrentWork}
+                              disabled={isSavingEntry}
+                              className="bg-[#76ff8f] font-semibold text-[#0d1d11] hover:bg-[#92ffa7]"
+                            >
+                              <Save className="mr-2 h-4 w-4" />
+                              {isSavingEntry ? 'Saving...' : 'Save My Work'}
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   )}
