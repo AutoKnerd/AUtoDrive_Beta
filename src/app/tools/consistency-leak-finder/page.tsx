@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -158,7 +158,7 @@ async function runFastAction<T>(action: Promise<T>, timeoutMs = 1800): Promise<T
   return null;
 }
 
-export default function ConsistencyLeakFinderPage() {
+function ConsistencyLeakFinderPageContent() {
   const { toast } = useToast();
   const { user, firebaseUser } = useAuth();
   const searchParams = useSearchParams();
@@ -542,6 +542,14 @@ export default function ConsistencyLeakFinderPage() {
 
       <style dangerouslySetInnerHTML={{ __html: 'body { overscroll-behavior-y: none; } .pb-safe { padding-bottom: max(0px, env(safe-area-inset-bottom)); }' }} />
     </div>
+  );
+}
+
+export default function ConsistencyLeakFinderPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <ConsistencyLeakFinderPageContent />
+    </Suspense>
   );
 }
 
