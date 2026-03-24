@@ -80,6 +80,10 @@ export type User = {
   role: UserRole;
   tier?: 'free' | 'pro';
   toolAccessLevel?: number;
+  hasAutoDriveCX?: boolean;
+  toolboxAccountEmail?: string;
+  toolboxAccountRole?: UserRole;
+  toolboxToolsUsedCount?: number;
   signupRoleInterest?: UserRole;
   dealershipIds: string[];
   avatarUrl: string;

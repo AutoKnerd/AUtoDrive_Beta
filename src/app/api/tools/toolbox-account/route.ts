@@ -3,6 +3,7 @@ import type { ToolboxSavedEntry } from '@/lib/tools/toolbox';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import { hasActiveSubscriptionStatus } from '@/lib/billing/access';
 import type { User } from '@/lib/definitions';
+import { getUserEntitlements, normalizeLegacyToolboxRole, type ToolboxCapturedRole } from '@/lib/tools/entitlements';
 import { validateEntryPayload } from '@/lib/tools/toolbox-server';
 
 export const runtime = 'nodejs';
@@ -16,6 +17,11 @@ type AuthContext = {
 type BootstrapBody = {
   action: 'bootstrap_free';
   localEntries?: ToolboxSavedEntry[];
+  toolsUsedCount?: number;
+  accountProfile?: {
+    email?: string;
+    role?: ToolboxCapturedRole;
+  } | null;
 };
 
 type SyncPaidStatusBody = {
@@ -114,11 +120,17 @@ async function handleBootstrapFree(auth: AuthContext, body: BootstrapBody) {
   const currentTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' });
   const targetTier = currentTier === 'pro' ? 'pro' : 'free';
   const toolAccessLevel = targetTier === 'pro' ? 999 : 3;
+  const normalizedToolsUsedCount = Math.max(0, Math.floor(Number(body?.toolsUsedCount || 0)));
+  const capturedEmail = String(body?.accountProfile?.email || '').trim().toLowerCase();
+  const capturedRole = normalizeLegacyToolboxRole(body?.accountProfile?.role);
 
   await getAdminDb().collection('users').doc(auth.uid).set(
     {
       tier: targetTier,
       toolAccessLevel,
+      ...(capturedEmail ? { toolboxAccountEmail: capturedEmail } : {}),
+      toolboxAccountRole: capturedRole,
+      toolboxToolsUsedCount: normalizedToolsUsedCount,
       updatedAt: new Date().toISOString(),
     },
     { merge: true }
@@ -129,13 +141,21 @@ async function handleBootstrapFree(auth: AuthContext, body: BootstrapBody) {
     await migrateLocalEntries(auth.uid, localEntries);
   }
 
-  return NextResponse.json({ ok: true, tier: targetTier, toolAccessLevel }, { status: 200 });
+  const entitlements = getUserEntitlements({
+    hasAccount: true,
+    hasPaidAccess: targetTier === 'pro',
+    hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+    toolsUsedCount: normalizedToolsUsedCount,
+  });
+
+  return NextResponse.json({ ok: true, tier: targetTier, toolAccessLevel, entitlements }, { status: 200 });
 }
 
 async function handleSyncPaidStatus(auth: AuthContext, _body: SyncPaidStatusBody) {
   const detectedTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' });
   const isPaid = detectedTier === 'pro';
   const toolAccessLevel = isPaid ? 999 : 3;
+  const toolsUsedCount = Number(auth.user.toolboxToolsUsedCount || 0);
 
   await getAdminDb().collection('users').doc(auth.uid).set({
     tier: detectedTier,
@@ -143,5 +163,12 @@ async function handleSyncPaidStatus(auth: AuthContext, _body: SyncPaidStatusBody
     updatedAt: new Date().toISOString(),
   }, { merge: true });
 
-  return NextResponse.json({ ok: true, tier: detectedTier, toolAccessLevel, isPaid }, { status: 200 });
+  const entitlements = getUserEntitlements({
+    hasAccount: true,
+    hasPaidAccess: isPaid,
+    hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+    toolsUsedCount,
+  });
+
+  return NextResponse.json({ ok: true, tier: detectedTier, toolAccessLevel, isPaid, entitlements }, { status: 200 });
 }

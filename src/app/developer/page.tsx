@@ -415,6 +415,9 @@ export default function DeveloperPage() {
   const [consultantMetricsError, setConsultantMetricsError] = useState<string | null>(null);
   const [consultantMetricsLastRefreshedAt, setConsultantMetricsLastRefreshedAt] = useState<Date | null>(null);
   const [consultantCommissionDueById, setConsultantCommissionDueById] = useState<Record<string, number>>({});
+  const [giftTargetUserId, setGiftTargetUserId] = useState<string>('');
+  const [isGiftingToolbox, setIsGiftingToolbox] = useState(false);
+  const [isRevertingToolbox, setIsRevertingToolbox] = useState(false);
   const [signalMapperUnlocks, setSignalMapperUnlocks] = useState<SignalMapperUnlockRow[]>([]);
   const [signalMapperUnlocksLoading, setSignalMapperUnlocksLoading] = useState(false);
   const [signalMapperUnlocksError, setSignalMapperUnlocksError] = useState<string | null>(null);
@@ -481,6 +484,10 @@ export default function DeveloperPage() {
   const sandboxDealershipStorageKey = useMemo(
     () => `managerDashboard:selectedDealershipId:${originalUser?.userId || user?.userId || 'sandbox'}`,
     [originalUser?.userId, user?.userId]
+  );
+  const giftableUsers = useMemo(
+    () => [...manageableUsers].sort((a, b) => a.name.localeCompare(b.name)),
+    [manageableUsers]
   );
 
   useEffect(() => {
@@ -929,6 +936,102 @@ export default function DeveloperPage() {
       setSignalMapperUnlocksLoading(false);
     }
   }, [firebaseAuth, originalUser]);
+
+  const giftToolboxAccess = useCallback(async () => {
+    if (!giftTargetUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a user first',
+        description: 'Choose a user to gift full Tool Shop access.',
+      });
+      return;
+    }
+
+    try {
+      setIsGiftingToolbox(true);
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required to gift Tool Shop access.');
+      }
+      const token = await fbUser.getIdToken(true);
+
+      const response = await fetch('/api/admin/toolbox-gift', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targetUserId: giftTargetUserId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to gift Tool Shop access.');
+      }
+
+      toast({
+        title: 'AutoShop gifted',
+        description: `${payload?.user?.name || 'User'} now has paid Tool Shop + Sprocket + AutoDriveCX.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Gift failed',
+        description: error instanceof Error ? error.message : 'Failed to gift Tool Shop access.',
+      });
+    } finally {
+      setIsGiftingToolbox(false);
+    }
+  }, [firebaseAuth, giftTargetUserId, refreshData, toast]);
+
+  const revertToolboxAccess = useCallback(async () => {
+    if (!giftTargetUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a user first',
+        description: 'Choose a user to revert gifted Tool Shop access.',
+      });
+      return;
+    }
+
+    try {
+      setIsRevertingToolbox(true);
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required to revert Tool Shop access.');
+      }
+      const token = await fbUser.getIdToken(true);
+
+      const response = await fetch('/api/admin/toolbox-gift', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'revert', targetUserId: giftTargetUserId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to revert Tool Shop gift access.');
+      }
+
+      toast({
+        title: 'Gift reverted',
+        description: `${payload?.user?.name || 'User'} restored to pre-gift Tool Shop access.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Revert failed',
+        description: error instanceof Error ? error.message : 'Failed to revert Tool Shop gift access.',
+      });
+    } finally {
+      setIsRevertingToolbox(false);
+    }
+  }, [firebaseAuth, giftTargetUserId, refreshData, toast]);
 
   useEffect(() => {
     if (activeSection === 'consultants') {
@@ -2615,6 +2718,36 @@ export default function DeveloperPage() {
                   </div>
                   <div className="mt-3 rounded bg-muted px-3 py-2 text-xs break-all">
                     {tempProSignupUrl}
+                  </div>
+                </div>
+              )}
+              {activeSection === 'features' && (
+                <div className="mb-6 rounded-md border p-3">
+                  <p className="text-sm font-medium">Gift AutoShop Access</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Grants full Tool Shop access for the selected user, including paid Sprocket and AutoDriveCX personalization.
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <Select value={giftTargetUserId} onValueChange={setGiftTargetUserId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select user to gift" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {giftableUsers.map((candidate) => (
+                          <SelectItem key={candidate.userId} value={candidate.userId}>
+                            {candidate.name} ({candidate.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" onClick={() => void giftToolboxAccess()} disabled={isGiftingToolbox || isRevertingToolbox || !giftTargetUserId}>
+                        {isGiftingToolbox ? <Spinner size="sm" /> : 'Gift AutoShop'}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => void revertToolboxAccess()} disabled={isGiftingToolbox || isRevertingToolbox || !giftTargetUserId}>
+                        {isRevertingToolbox ? <Spinner size="sm" /> : 'Revert Gift'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

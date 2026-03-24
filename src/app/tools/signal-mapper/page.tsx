@@ -2,21 +2,23 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/layout/header';
+import { EmailGateModal } from '@/components/tools/email-gate-modal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { useEntitlements } from '@/hooks/use-entitlements';
+import { resolvePaidAccess, type ToolboxCapturedRole } from '@/lib/tools/entitlements';
+import { captureToolboxUnlockEmail } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
 import type { SignalMapperFullPrefill } from '@/lib/tools/signal-mapper-micro';
 import {
-  CheckCircle2,
   Copy,
   RotateCcw,
   Save,
-  Mail,
-  Lock,
 } from 'lucide-react';
 
 type Signal = {
@@ -38,12 +40,6 @@ type PipelineSnapshot = {
 };
 
 const PIPELINE_STORAGE_KEY = 'signalMapperPipelineV1';
-const EMAIL_GATE_STORAGE_KEY = 'signalMapperEmailUnlockV1';
-
-type UnlockRecord = {
-  email: string;
-  unlockedAt: string;
-};
 
 const createEmptySignal = (): Signal => ({
   whatSaid: '',
@@ -123,6 +119,7 @@ const formatField = (label: string, value: string) => `${label}: ${value.trim() 
 
 export default function SignalMapperPage() {
   const { toast } = useToast();
+  const { user, firebaseUser } = useAuth();
 
   const [customerInfo, setCustomerInfo] = useState(initialCustomerInfo);
   const [signals, setSignals] = useState<Signal[]>(createInitialSignals);
@@ -132,8 +129,23 @@ export default function SignalMapperPage() {
   const [selfCheck, setSelfCheck] = useState(initialSelfCheck);
   const [activeStage, setActiveStage] = useState(0);
   const [pipelineHistory, setPipelineHistory] = useState<PipelineSnapshot[]>([]);
-  const [unlockEmail, setUnlockEmail] = useState('');
-  const [unlockRecord, setUnlockRecord] = useState<UnlockRecord | null>(null);
+  const [showEmailGate, setShowEmailGate] = useState(false);
+  const [isEmailSubmitting, setIsEmailSubmitting] = useState(false);
+
+  const {
+    entitlements,
+    accountProfile,
+    usedToolIds,
+    setLocalAccountProfile,
+    registerToolUsage,
+  } = useEntitlements({
+    isAuthenticated: !!firebaseUser,
+    hasPaidAccess: resolvePaidAccess({
+      tier: user?.tier,
+      subscriptionStatus: user?.subscriptionStatus,
+    }),
+    hasAutoDriveCX: Boolean(user?.hasAutoDriveCX),
+  });
 
   useEffect(() => {
     try {
@@ -151,20 +163,6 @@ export default function SignalMapperPage() {
       });
     }
   }, [toast]);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(EMAIL_GATE_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as UnlockRecord;
-      if (parsed?.email) {
-        setUnlockRecord(parsed);
-        setUnlockEmail(parsed.email);
-      }
-    } catch {
-      localStorage.removeItem(EMAIL_GATE_STORAGE_KEY);
-    }
-  }, []);
 
   useEffect(() => {
     const handoff = readFullToolHandoff<{ source?: string; prefill?: SignalMapperFullPrefill }>('signal-mapper');
@@ -204,6 +202,15 @@ export default function SignalMapperPage() {
 
     clearFullToolHandoff('signal-mapper');
   }, []);
+
+  useEffect(() => {
+    if (!entitlements.hasAccount && entitlements.usage.toolsUsedCount >= 3 && !usedToolIds.includes('signal-mapper')) {
+      return;
+    }
+    registerToolUsage('signal-mapper');
+  }, [entitlements.hasAccount, entitlements.usage.toolsUsedCount, registerToolUsage, usedToolIds]);
+
+  const canOpenTool = entitlements.hasAccount || entitlements.usage.toolsUsedCount < 3 || usedToolIds.includes('signal-mapper');
 
   const mappedSignalCount = useMemo(
     () => signals.filter((s) => Object.values(s).some((v) => v.trim().length > 0)).length,
@@ -354,48 +361,34 @@ export default function SignalMapperPage() {
     }
   };
 
-  const handleUnlock = async () => {
-    const email = unlockEmail.trim().toLowerCase();
+  const handleCaptureAccount = async (input: { email: string; role: ToolboxCapturedRole }) => {
+    const email = input.email.trim().toLowerCase();
     const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!isValidEmail) {
       toast({
         variant: 'destructive',
         title: 'Enter a valid email',
-        description: 'Please provide a valid email to unlock this tool.',
       });
       return;
     }
 
-    const record: UnlockRecord = {
-      email,
-      unlockedAt: new Date().toISOString(),
-    };
-    setUnlockRecord(record);
-    localStorage.setItem(EMAIL_GATE_STORAGE_KEY, JSON.stringify(record));
+    setIsEmailSubmitting(true);
     try {
-      await fetch('/api/tools/signal-mapper-unlocks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-    } catch (captureError) {
-      console.error('[SignalMapper] Failed to capture unlock email:', captureError);
-    }
-    toast({
-      title: 'Tool unlocked',
-      description: 'You can now use the Customer Signal Funnel.',
-    });
-  };
+      const captureResult = await captureToolboxUnlockEmail({ email, role: input.role });
+      if (!captureResult.ok) {
+        console.warn('[SignalMapper] account capture failed:', captureResult.message);
+      }
 
-  const handleChangeEmail = () => {
-    localStorage.removeItem(EMAIL_GATE_STORAGE_KEY);
-    setUnlockRecord(null);
-    toast({
-      title: 'Email reset',
-      description: 'Enter another email to unlock the tool again.',
-    });
+      setLocalAccountProfile({ email, role: input.role });
+      setShowEmailGate(false);
+      toast({
+        title: 'Account captured',
+        description: 'Signal Mapper is unlocked in your free account mode.',
+      });
+      registerToolUsage('signal-mapper');
+    } finally {
+      setIsEmailSubmitting(false);
+    }
   };
 
   const updateSignal = (index: number, field: keyof Signal, value: string) => {
@@ -410,67 +403,48 @@ export default function SignalMapperPage() {
 
   const inputClass = 'bg-white/50 dark:bg-[#121111] border-slate-200 dark:border-white/10 dark:text-slate-100 focus-visible:ring-[#00f2ff]/50';
 
-  if (!unlockRecord) {
+  if (!canOpenTool) {
     return (
       <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#0a0a0c] font-sans">
         <Header />
         <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_420px] gap-6 items-stretch">
+          <div className="grid grid-cols-1 gap-6 items-stretch">
             <Card className="rounded-2xl border-slate-200 dark:border-white/10 shadow-lg bg-gradient-to-br from-white via-[#ecfeff] to-slate-50 dark:from-[#0f1114] dark:via-[#0f1e22] dark:to-[#121111]">
               <CardHeader className="space-y-4">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00c5d1]">Free Sales Tool</p>
                 <CardTitle className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-                  Turn customer conversations into deals in under 2 minutes
+                  Signal Mapper is ready
                 </CardTitle>
                 <p className="text-base text-slate-700 dark:text-slate-300 max-w-2xl">
-                  Use the Customer Signal Funnel to capture needs, map objections, and generate a clean next-step summary without a CRM.
+                  You can use up to 3 tools anonymously. Add email + role to continue opening more tools.
                 </p>
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  'Get a guided 5-stage process from intake to recommendation.',
-                  'Save local pipeline snapshots you can copy into text or email follow-up.',
-                  'Know the next best action instantly with built-in funnel health scoring.',
+                  'Standalone tool value stays unlocked.',
+                  'No password required at this step.',
+                  'Sprocket, cloud save, and history are still paid features.',
                 ].map((line) => (
                   <div key={line} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
-                    <CheckCircle2 className="h-4 w-4 text-[#00c5d1] mt-0.5 shrink-0" />
+                    <span className="mt-1 h-2 w-2 rounded-full bg-[#00c5d1]" />
                     <span>{line}</span>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-[#00f2ff]/30 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-[#00c5d1]" /> Enter Email To Unlock Free Tool
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="unlock-email">Work Email</Label>
-                  <div className="relative">
-                    <Mail className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="unlock-email"
-                      type="email"
-                      value={unlockEmail}
-                      onChange={(e) => setUnlockEmail(e.target.value)}
-                      placeholder="you@dealership.com"
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-                <Button className="w-full bg-[#00f2ff] text-[#121111] hover:bg-[#00f2ff]/90 font-bold" onClick={() => void handleUnlock()}>
-                  Unlock Free Tool
+                <Button className="mt-3 w-full bg-[#00f2ff] text-[#121111] hover:bg-[#00f2ff]/90 font-bold" onClick={() => setShowEmailGate(true)}>
+                  Create Free Account
                 </Button>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Free access. No credit card. No CRM install required.
-                </p>
               </CardContent>
             </Card>
           </div>
         </main>
+        <EmailGateModal
+          open={showEmailGate}
+          loading={isEmailSubmitting}
+          defaultEmail={accountProfile?.email || ''}
+          defaultRole={accountProfile?.role || 'Sales Consultant'}
+          onOpenChange={setShowEmailGate}
+          onSubmit={handleCaptureAccount}
+        />
       </div>
     );
   }
@@ -487,7 +461,9 @@ export default function SignalMapperPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <CardTitle className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Signal Mapper</CardTitle>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Unlocked as {unlockRecord.email}</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                  {entitlements.hasAccount ? `Account mode (${accountProfile?.role || 'Sales Consultant'})` : 'Anonymous mode'}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handleClear}>

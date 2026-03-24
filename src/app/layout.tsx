@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { MainLayout } from '@/components/layout/main-layout';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { ThemeProvider } from '@/context/theme-provider';
 
 
 export const metadata: Metadata = {
@@ -25,15 +26,26 @@ export default function RootLayout({
     (() => {
       const root = document.documentElement;
       const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const storageKey = 'autodrive-theme-mode';
+      const stored = localStorage.getItem(storageKey);
+      const params = new URLSearchParams(window.location.search);
+      const forced = params.get('theme');
+      const forcedMode = forced === 'light' || forced === 'dark' ? forced : null;
+      const mode = forcedMode || (stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system');
       const applyTheme = (isDark) => {
         root.classList.toggle('dark', isDark);
         root.style.colorScheme = isDark ? 'dark' : 'light';
       };
-      applyTheme(media.matches);
+      const resolveIsDark = () => {
+        if (mode === 'dark') return true;
+        if (mode === 'light') return false;
+        return media.matches;
+      };
+      applyTheme(resolveIsDark());
       const onChange = (event) => applyTheme(event.matches);
-      if (typeof media.addEventListener === 'function') {
+      if (mode === 'system' && typeof media.addEventListener === 'function') {
         media.addEventListener('change', onChange);
-      } else if (typeof media.addListener === 'function') {
+      } else if (mode === 'system' && typeof media.addListener === 'function') {
         media.addListener(onChange);
       }
     })();
@@ -47,10 +59,12 @@ export default function RootLayout({
       <body className="antialiased">
           <FirebaseClientProvider>
             <AuthProvider>
-              <MainLayout>
-                  {children}
-              </MainLayout>
-              <Toaster />
+              <ThemeProvider>
+                <MainLayout>
+                    {children}
+                </MainLayout>
+                <Toaster />
+              </ThemeProvider>
             </AuthProvider>
           </FirebaseClientProvider>
       </body>

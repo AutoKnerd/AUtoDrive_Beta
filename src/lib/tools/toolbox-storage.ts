@@ -1,14 +1,25 @@
-import type { ToolboxAccountSession, ToolboxSavedEntry, ToolboxUserState } from '@/lib/tools/toolbox';
+import type { ToolboxAccountSession, ToolboxSavedEntry } from '@/lib/tools/toolbox';
+import type { ToolboxAccountProfile, ToolboxCapturedRole } from '@/lib/tools/entitlements';
+import { isCanonicalUserRole, normalizeLegacyToolboxRole } from '@/lib/tools/entitlements';
+import type { UserRole } from '@/lib/definitions';
 
-const UNLOCK_STATE_KEY = 'toolboxUnlockStateV1';
+const LEGACY_UNLOCK_STATE_KEY = 'toolboxUnlockStateV1';
+const ACCOUNT_PROFILE_KEY = 'toolboxAccountProfileV1';
 const ACCOUNT_SESSION_KEY = 'toolboxAccountSessionV1';
+const TOOL_USAGE_KEY = 'toolboxToolUsageV1';
 const TEMP_DRAFTS_KEY = 'toolboxTempDraftsV1';
 const FULL_TOOL_HANDOFF_KEY = 'toolboxFullToolHandoffV1';
+const RECOMMENDATION_EVENTS_KEY = 'toolboxRecommendationEventsV1';
 
-type UnlockState = {
-  userState: Extract<ToolboxUserState, 'email_unlocked'>;
+type LegacyUnlockState = {
+  userState: 'email_unlocked';
   email: string;
   unlockedAt: string;
+};
+
+type ToolUsageState = {
+  toolIds: string[];
+  updatedAt: string;
 };
 
 type TempDrafts = Record<string, { content: string; createdAt: string }>;
@@ -27,24 +38,114 @@ function parseJson<T>(raw: string | null): T | null {
   }
 }
 
-export function readUnlockState(): UnlockState | null {
+function normalizeEmail(input: string): string {
+  return input.trim().toLowerCase();
+}
+
+function isCapturedRole(value: unknown): value is ToolboxCapturedRole {
+  return isCanonicalUserRole(value);
+}
+
+function readLegacyUnlockState(): LegacyUnlockState | null {
   if (!canUseStorage()) return null;
-  return parseJson<UnlockState>(localStorage.getItem(UNLOCK_STATE_KEY));
+  return parseJson<LegacyUnlockState>(localStorage.getItem(LEGACY_UNLOCK_STATE_KEY));
 }
 
-export function writeUnlockState(email: string): void {
-  if (!canUseStorage()) return;
-  const payload: UnlockState = {
-    userState: 'email_unlocked',
-    email,
-    unlockedAt: new Date().toISOString(),
+export function readAccountProfile(): ToolboxAccountProfile | null {
+  if (!canUseStorage()) return null;
+
+  const profile = parseJson<ToolboxAccountProfile>(localStorage.getItem(ACCOUNT_PROFILE_KEY));
+  if (profile?.email) {
+    return {
+      email: normalizeEmail(profile.email),
+      role: normalizeLegacyToolboxRole(profile.role),
+      capturedAt: profile.capturedAt || new Date().toISOString(),
+    };
+  }
+
+  const legacy = readLegacyUnlockState();
+  if (!legacy?.email) return null;
+
+  const migrated: ToolboxAccountProfile = {
+    email: normalizeEmail(legacy.email),
+    role: 'Sales Consultant',
+    capturedAt: legacy.unlockedAt || new Date().toISOString(),
   };
-  localStorage.setItem(UNLOCK_STATE_KEY, JSON.stringify(payload));
+
+  localStorage.setItem(ACCOUNT_PROFILE_KEY, JSON.stringify(migrated));
+  localStorage.removeItem(LEGACY_UNLOCK_STATE_KEY);
+  return migrated;
 }
 
-export function clearUnlockState(): void {
+export function writeAccountProfile(input: { email: string; role: ToolboxCapturedRole }): ToolboxAccountProfile | null {
+  if (!canUseStorage()) return null;
+
+  const email = normalizeEmail(input.email);
+  if (!email) return null;
+  const normalizedRole = normalizeLegacyToolboxRole(input.role);
+  if (!isCapturedRole(normalizedRole)) return null;
+
+  const payload: ToolboxAccountProfile = {
+    email,
+    role: normalizedRole,
+    capturedAt: new Date().toISOString(),
+  };
+
+  localStorage.setItem(ACCOUNT_PROFILE_KEY, JSON.stringify(payload));
+  return payload;
+}
+
+export function clearAccountProfile(): void {
   if (!canUseStorage()) return;
-  localStorage.removeItem(UNLOCK_STATE_KEY);
+  localStorage.removeItem(ACCOUNT_PROFILE_KEY);
+  localStorage.removeItem(LEGACY_UNLOCK_STATE_KEY);
+}
+
+function readToolUsageState(): ToolUsageState {
+  if (!canUseStorage()) return { toolIds: [], updatedAt: new Date().toISOString() };
+  const parsed = parseJson<ToolUsageState>(localStorage.getItem(TOOL_USAGE_KEY));
+  if (!parsed || !Array.isArray(parsed.toolIds)) {
+    return { toolIds: [], updatedAt: new Date().toISOString() };
+  }
+
+  const deduped = Array.from(new Set(parsed.toolIds.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)));
+  return {
+    toolIds: deduped,
+    updatedAt: parsed.updatedAt || new Date().toISOString(),
+  };
+}
+
+function writeToolUsageState(state: ToolUsageState): void {
+  if (!canUseStorage()) return;
+  localStorage.setItem(TOOL_USAGE_KEY, JSON.stringify(state));
+}
+
+export function getUsedToolIds(): string[] {
+  return readToolUsageState().toolIds;
+}
+
+export function getToolsUsedCount(): number {
+  return readToolUsageState().toolIds.length;
+}
+
+export function markToolUsed(toolId: string): number {
+  const trimmedToolId = String(toolId || '').trim();
+  if (!trimmedToolId) return getToolsUsedCount();
+
+  const current = readToolUsageState();
+  if (current.toolIds.includes(trimmedToolId)) return current.toolIds.length;
+
+  const next: ToolUsageState = {
+    toolIds: [...current.toolIds, trimmedToolId],
+    updatedAt: new Date().toISOString(),
+  };
+  writeToolUsageState(next);
+  return next.toolIds.length;
+}
+
+export function clearToolUsage(): void {
+  if (!canUseStorage()) return;
+  localStorage.removeItem(TOOL_USAGE_KEY);
 }
 
 export function readAccountSession(): ToolboxAccountSession | null {
@@ -128,4 +229,57 @@ export function clearFullToolHandoff(toolId: string): void {
   if (!handoff[toolId]) return;
   delete handoff[toolId];
   localStorage.setItem(FULL_TOOL_HANDOFF_KEY, JSON.stringify(handoff));
+}
+
+export type RecommendationEventType =
+  | 'recommended_tool_shown'
+  | 'recommended_tool_clicked'
+  | 'recommended_tool_dismissed'
+  | 'recommended_tool_ignored';
+
+export type RecommendationEvent = {
+  id: string;
+  type: RecommendationEventType;
+  toolId: string;
+  role?: UserRole;
+  mode?: 'BASIC' | 'ACCOUNT' | 'AUTODRIVECX';
+  intent?: string;
+  createdAt: string;
+  metadata?: Record<string, string | number | boolean>;
+};
+
+function readRecommendationEvents(): RecommendationEvent[] {
+  if (!canUseStorage()) return [];
+  const rows = parseJson<RecommendationEvent[]>(localStorage.getItem(RECOMMENDATION_EVENTS_KEY));
+  if (!Array.isArray(rows)) return [];
+  return rows.filter((row) => row && typeof row.type === 'string' && typeof row.toolId === 'string' && typeof row.createdAt === 'string');
+}
+
+function writeRecommendationEvents(rows: RecommendationEvent[]): void {
+  if (!canUseStorage()) return;
+  localStorage.setItem(RECOMMENDATION_EVENTS_KEY, JSON.stringify(rows.slice(-300)));
+}
+
+export function listRecommendationEvents(): RecommendationEvent[] {
+  return readRecommendationEvents();
+}
+
+export function trackRecommendationEvent(
+  input: Omit<RecommendationEvent, 'id' | 'createdAt'>
+): RecommendationEvent | null {
+  if (!input.toolId || !input.type) return null;
+  const event: RecommendationEvent = {
+    ...input,
+    id: `${input.type}:${input.toolId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+  };
+  const rows = readRecommendationEvents();
+  rows.push(event);
+  writeRecommendationEvents(rows);
+  return event;
+}
+
+export function clearRecommendationEvents(): void {
+  if (!canUseStorage()) return;
+  localStorage.removeItem(RECOMMENDATION_EVENTS_KEY);
 }

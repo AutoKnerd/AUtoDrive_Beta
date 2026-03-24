@@ -1,10 +1,10 @@
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ToolboxSavedEntry } from '@/lib/tools/toolbox';
-import { FREE_ACCOUNT_SAVE_LIMIT } from '@/lib/tools/toolbox';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import { hasActiveSubscriptionStatus } from '@/lib/billing/access';
 import type { User } from '@/lib/definitions';
+import { canAccessFeature, FEATURES, getUserEntitlements } from '@/lib/tools/entitlements';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,6 +51,18 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth(req);
     if (auth instanceof NextResponse) return auth;
+    const entitlements = getUserEntitlements({
+      hasAccount: true,
+      hasPaidAccess: resolveTier(auth.user as User & { tier?: 'free' | 'pro' }) === 'pro',
+      hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+      toolsUsedCount: Number(auth.user.toolboxToolsUsedCount || 0),
+    });
+    if (!canAccessFeature(entitlements, FEATURES.HISTORY)) {
+      return NextResponse.json(
+        { ok: false, message: 'Saved history requires paid Tool Shop access.', code: 'PAYMENT_REQUIRED' },
+        { status: 402 }
+      );
+    }
 
     const limit = Math.min(50, Math.max(1, Number(req.nextUrl.searchParams.get('limit') || 12)));
     const snap = await entryCollection(auth.uid)
@@ -78,21 +90,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'Tool and content are required.' }, { status: 400 });
     }
 
-    const tier = resolveTier(auth.user as User & { tier?: 'free' | 'pro' });
-
-    if (tier === 'free') {
-      const countSnap = await entryCollection(auth.uid).count().get();
-      const totalEntries = Number(countSnap.data().count || 0);
-      if (totalEntries >= FREE_ACCOUNT_SAVE_LIMIT) {
-        return NextResponse.json(
-          {
-            ok: false,
-            message: 'Free account save limit reached.',
-            code: 'SAVE_LIMIT',
-          },
-          { status: 402 }
-        );
-      }
+    const entitlements = getUserEntitlements({
+      hasAccount: true,
+      hasPaidAccess: resolveTier(auth.user as User & { tier?: 'free' | 'pro' }) === 'pro',
+      hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+      toolsUsedCount: Number(auth.user.toolboxToolsUsedCount || 0),
+    });
+    if (!canAccessFeature(entitlements, FEATURES.CLOUD_SAVE)) {
+      return NextResponse.json(
+        { ok: false, message: 'Cloud saves require paid Tool Shop access.', code: 'PAYMENT_REQUIRED' },
+        { status: 402 }
+      );
     }
 
     const entry: ToolboxSavedEntry = {

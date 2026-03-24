@@ -2,9 +2,16 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { ChevronLeft, ExternalLink, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { useEntitlements } from '@/hooks/use-entitlements';
+import { FeatureGate } from '@/components/tools/feature-gate';
+import { FEATURES, resolvePaidAccess, type FeatureGateResult } from '@/lib/tools/entitlements';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { ASSISTANT_AVATAR_SRC } from '@/lib/assistant';
 import {
   practiceConsistencyReset,
   refineConsistencyReset,
@@ -153,6 +160,8 @@ async function runFastAction<T>(action: Promise<T>, timeoutMs = 1800): Promise<T
 
 export default function ConsistencyLeakFinderPage() {
   const { toast } = useToast();
+  const { user, firebaseUser } = useAuth();
+  const searchParams = useSearchParams();
 
   const [isMounted, setIsMounted] = useState(false);
   const [state, setState] = useState<LeakFinderState>(initialState);
@@ -160,6 +169,15 @@ export default function ConsistencyLeakFinderPage() {
   const [isRefining, setIsRefining] = useState(false);
   const [practiceVariants, setPracticeVariants] = useState<PracticeVariants | null>(null);
   const [isPracticing, setIsPracticing] = useState(false);
+
+  const { entitlements } = useEntitlements({
+    isAuthenticated: !!firebaseUser,
+    hasPaidAccess: resolvePaidAccess({
+      tier: user?.tier,
+      subscriptionStatus: user?.subscriptionStatus,
+    }),
+    hasAutoDriveCX: Boolean(user?.hasAutoDriveCX),
+  });
 
   useEffect(() => {
     setIsMounted(true);
@@ -182,6 +200,21 @@ export default function ConsistencyLeakFinderPage() {
       console.error(error);
     }
   }, []);
+
+  useEffect(() => {
+    const forcedTheme = searchParams.get('theme');
+    if (forcedTheme !== 'dark') return;
+    const root = document.documentElement;
+    const hadDark = root.classList.contains('dark');
+    root.classList.add('dark');
+    root.style.colorScheme = 'dark';
+
+    return () => {
+      if (!hadDark) {
+        root.classList.remove('dark');
+      }
+    };
+  }, [searchParams]);
 
   const saveState = useCallback((next: LeakFinderState) => {
     setState(next);
@@ -280,6 +313,33 @@ export default function ConsistencyLeakFinderPage() {
     setPracticeVariants(result || fallback);
     setIsPracticing(false);
   };
+
+  const sprocketButtonClass = 'inline-flex h-10 items-center gap-2 rounded-xl border border-[#00d8e5]/40 bg-[#00f2ff]/10 px-3 text-sm font-bold text-[#007f87] transition-colors hover:bg-[#00f2ff]/20 disabled:opacity-70 dark:text-[#7eeeff]';
+
+  function handleBlockedFeature(gate: FeatureGateResult) {
+    if (gate.gate === 'account') {
+      toast({
+        title: 'Account required',
+        description: 'Add email and role in Tool Shop to use Sprocket.',
+      });
+      window.open('/tools', '_self');
+      return;
+    }
+
+    if (gate.gate === 'paid') {
+      toast({
+        title: 'Upgrade required',
+        description: 'Sprocket is unlocked with paid Tool Shop access.',
+      });
+      window.open(FULL_TOOL_URL, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    toast({
+      title: 'AutoDriveCX required',
+      description: 'This insight needs the AutoDriveCX layer.',
+    });
+  }
 
   if (!isMounted) return null;
 
@@ -384,14 +444,30 @@ export default function ConsistencyLeakFinderPage() {
               <h2 className="text-2xl font-black text-slate-900 dark:text-white">Your Consistency Reset</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">Live output updates as you fill the tool.</p>
             </div>
-            <button
-              type="button"
-              onClick={() => void handleRefineWithSprocket()}
-              disabled={isRefining}
-              className="h-10 rounded-xl border border-[#00d8e5]/40 bg-[#00f2ff]/10 px-3 text-sm font-bold text-[#007f87] transition-colors disabled:opacity-70 dark:text-[#7eeeff]"
+            <FeatureGate
+              feature={FEATURES.SPROCKET}
+              entitlements={entitlements}
+              fallback={(gate) => (
+                <button
+                  type="button"
+                  onClick={() => handleBlockedFeature(gate)}
+                  className={sprocketButtonClass}
+                >
+                  <Image src={ASSISTANT_AVATAR_SRC} alt="Sprocket" width={16} height={16} className="rounded-[4px]" />
+                  Unlock Sprocket
+                </button>
+              )}
             >
-              {isRefining ? 'Refining...' : '✨ Refine with Sprocket'}
-            </button>
+              <button
+                type="button"
+                onClick={() => void handleRefineWithSprocket()}
+                disabled={isRefining}
+                className={sprocketButtonClass}
+              >
+                <Image src={ASSISTANT_AVATAR_SRC} alt="Sprocket" width={16} height={16} className="rounded-[4px]" />
+                {isRefining ? 'Refining...' : 'Refine with Sprocket'}
+              </button>
+            </FeatureGate>
           </div>
 
           <div className="space-y-4">
@@ -408,14 +484,30 @@ export default function ConsistencyLeakFinderPage() {
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0d1728]">
-            <button
-              type="button"
-              onClick={() => void handlePractice()}
-              disabled={isPracticing}
-              className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 transition-colors disabled:opacity-70 dark:border-slate-700 dark:bg-[#101928] dark:text-slate-100"
+            <FeatureGate
+              feature={FEATURES.SPROCKET}
+              entitlements={entitlements}
+              fallback={(gate) => (
+                <button
+                  type="button"
+                  onClick={() => handleBlockedFeature(gate)}
+                  className={sprocketButtonClass}
+                >
+                  <Image src={ASSISTANT_AVATAR_SRC} alt="Sprocket" width={16} height={16} className="rounded-[4px]" />
+                  Unlock Sprocket
+                </button>
+              )}
             >
-              {isPracticing ? 'Preparing...' : '🎤 Practice This'}
-            </button>
+              <button
+                type="button"
+                onClick={() => void handlePractice()}
+                disabled={isPracticing}
+                className={sprocketButtonClass}
+              >
+                <Image src={ASSISTANT_AVATAR_SRC} alt="Sprocket" width={16} height={16} className="rounded-[4px]" />
+                {isPracticing ? 'Preparing...' : 'Practice This'}
+              </button>
+            </FeatureGate>
             {practiceVariants && (
               <div className="space-y-2">
                 <OutputRow label="Softer" value={practiceVariants.softer} />
