@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import { hasActiveSubscriptionStatus } from '@/lib/billing/access';
-import type { User } from '@/lib/definitions';
+import type { BillingSubscriptionStatus, User } from '@/lib/definitions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       toolboxGiftPreviousTier?: 'free' | 'pro';
       toolboxGiftPreviousToolAccessLevel?: number;
       toolboxGiftPreviousHasAutoDriveCX?: boolean;
+      toolboxGiftPreviousSubscriptionStatus?: BillingSubscriptionStatus;
     };
     const nowIso = new Date().toISOString();
 
@@ -69,11 +70,14 @@ export async function POST(req: NextRequest) {
       const restoredAutoDriveCx = typeof target.toolboxGiftPreviousHasAutoDriveCX === 'boolean'
         ? target.toolboxGiftPreviousHasAutoDriveCX
         : false;
+      const restoredSubscriptionStatus = target.toolboxGiftPreviousSubscriptionStatus
+        ?? (restoredTier === 'pro' ? 'active' : (target.subscriptionStatus || 'inactive'));
 
       await targetRef.set({
         tier: restoredTier,
         toolAccessLevel: restoredToolAccessLevel,
         hasAutoDriveCX: restoredAutoDriveCx,
+        subscriptionStatus: restoredSubscriptionStatus,
         toolboxGiftedFullAccess: false,
         toolboxGiftRevertedAt: nowIso,
         toolboxGiftRevertedBy: auth.actorId,
@@ -85,6 +89,7 @@ export async function POST(req: NextRequest) {
         tier: 'pro',
         toolAccessLevel: 999,
         hasAutoDriveCX: true,
+        subscriptionStatus: 'active',
         toolboxGiftedFullAccess: true,
         toolboxGiftedAt: nowIso,
         toolboxGiftedBy: auth.actorId,
@@ -98,6 +103,7 @@ export async function POST(req: NextRequest) {
           ? Number(target.toolAccessLevel)
           : (target.tier === 'pro' ? 999 : 3);
         payload.toolboxGiftPreviousHasAutoDriveCX = Boolean(target.hasAutoDriveCX);
+        payload.toolboxGiftPreviousSubscriptionStatus = target.subscriptionStatus || 'inactive';
       }
 
       await targetRef.set(payload, { merge: true });
