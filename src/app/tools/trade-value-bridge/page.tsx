@@ -436,11 +436,24 @@ export default function TradeValueBridgePage() {
           fallback={(gate) => (
             <Card className="border-[#2f4568] bg-[#0f1c31]">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Layer</CardTitle>
-                <CardDescription className="text-[#9cb0cd]">Deeper trade diagnosis, rewrite, and coaching.</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Insight</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-[#b8c8e2]">{gate.message}</p>
+                                <div className="h-px w-full bg-gradient-to-r from-transparent via-[#2f4568] to-transparent" />
+                <p className="text-sm text-[#d8e6fb]">There's a smarter way to sequence this conversation based on trust signals, urgency, and customer skepticism.</p>
+                <p className="text-sm text-[#c5d6ef]">The system can adapt your wording, proof order, and next move in real time.</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[#8ca5c7]">Unlocked with AutoDriveCX</p>
+                <div className="relative overflow-hidden rounded-xl border border-[#2c4464] bg-[#0b1728]/85 p-3">
+                  <div className="space-y-2 text-sm text-[#c3d5ec] opacity-70 blur-[8px] select-none pointer-events-none">
+                    <p className="font-semibold text-[#f3c46b]">Failure Risk Detected</p>
+                    <p>Customer may delay due to...</p>
+                    <p className="font-semibold text-[#9fe8ff]">Recommended Shift</p>
+                    <p>Lead with...</p>
+                    <p className="font-semibold text-[#9fe8ff]">Next Best Action</p>
+                    <p>Ask: "If this fails..."</p>
+                  </div>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b1728] via-[#0b1728]/90 to-transparent" />
+                </div>
                 <Button
                   className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
                   onClick={() => {
@@ -459,7 +472,7 @@ export default function TradeValueBridgePage() {
           )}
         >
           <Card className="border-[#1f4b66] bg-[#0c2236]">
-            <CardHeader><CardTitle className="flex items-center gap-2 text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Layer</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Insight</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <Button className="h-11 bg-[#00d8e5] text-[#06232b] hover:bg-[#39eaf4]" onClick={() => withUsageTracking(handleRunSprocket)}>
                 Run Sprocket Enhancement
@@ -477,53 +490,7 @@ export default function TradeValueBridgePage() {
           </Card>
         </FeatureGate>
 
-        <FeatureGate
-          feature={FEATURES.AUTODRIVE_CX}
-          entitlements={entitlements}
-          fallback={(gate) => (
-            <Card className="border-[#35556f] bg-[#101f33]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[#9ff5ff]"><BrainCircuit className="h-4 w-4" /> AutoDriveCX Layer</CardTitle>
-                <CardDescription className="text-[#9cb0cd]">Skill-aware trade objection adaptation.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-[#b8c8e2]">{gate.message}</p>
-                <Button
-                  className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
-                  onClick={() => {
-                    if (gate.gate === 'account') {
-                      setShowEmailGate(true);
-                      return;
-                    }
-                    setUpgradeContextMessage(gate.message);
-                    setGateModalType(gate.gate === 'autodrive_cx' ? 'autodrive_cx' : 'paid');
-                  }}
-                >
-                  Unlock AutoDriveCX
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        >
-          <Card className="border-[#2f516f] bg-[#10253b]">
-            <CardHeader><CardTitle className="flex items-center gap-2 text-[#9ff5ff]"><BrainCircuit className="h-4 w-4" /> AutoDriveCX Layer</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="h-11 bg-[#00d8e5] text-[#06232b] hover:bg-[#39eaf4]" onClick={() => withUsageTracking(handleRunAutoDrive)}>
-                Personalize with AutoDriveCX
-              </Button>
-
-              {cxOutput && (
-                <div className="space-y-2 rounded-xl border border-[#2e5872] bg-[#0c1d2f] p-3 text-sm text-[#dce9fb]">
-                  <p><span className="font-semibold text-[#88f3ff]">Why this is tailored:</span> {cxOutput.tailoredReason}</p>
-                  <p><span className="font-semibold text-[#88f3ff]">Adjusted approach:</span> {cxOutput.adjustedApproach}</p>
-                  <p><span className="font-semibold text-[#88f3ff]">Focus skill:</span> {cxOutput.focusSkillTag}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </FeatureGate>
-
-        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
+<Card className="border-[#2b3e5d] bg-[#0f1b30]">
           <CardHeader>
             <CardTitle className="text-lg text-[#f2f7ff]">Saved Local Scenarios</CardTitle>
             <CardDescription className="text-[#9cb0cd]">

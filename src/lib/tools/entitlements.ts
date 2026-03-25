@@ -155,7 +155,7 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
 
   if (feature === FEATURES.SPROCKET) {
     if (!entitlements.hasAccount) {
-      return blocked(feature, 'account', 'first_sprocket_use', 'Add your email and role to continue with Sprocket.');
+      return blocked(feature, 'account', 'first_sprocket_use', 'Create your free account to continue with Sprocket.');
     }
     if (!canAccessFeature(entitlements, feature)) {
       return blocked(feature, 'paid', 'first_sprocket_use', 'Sprocket is included with paid Tool Shop access.');
@@ -184,7 +184,7 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
   }
 
   if (!entitlements.hasAccount) {
-    return blocked(feature, 'account', 'first_cx_insight', 'Add your email and role to continue.');
+    return blocked(feature, 'account', 'first_cx_insight', 'Create your free account to continue.');
   }
 
   if (!entitlements.hasPaidAccess) {

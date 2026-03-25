@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentType } from 'react';
+import dynamic from 'next/dynamic';
 import { ArrowRight, ChevronDown, CheckCircle2, Clock, FolderOpen, HelpCircle, Lock, Save, SlidersHorizontal, Sparkles, Zap } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { EmailGateModal } from '@/components/tools/email-gate-modal';
@@ -37,18 +37,14 @@ import {
   listRecommendationEvents,
   trackRecommendationEvent,
   type RecommendationEvent,
-  clearFullToolHandoff,
   clearTempDrafts,
   exportTempDraftsAsEntries,
   getTempDraft,
-  writeFullToolHandoff,
   writeTempDraft,
 } from '@/lib/tools/toolbox-storage';
 import { FEATURES, resolvePaidAccess, type ToolboxCapturedRole, type ToolboxFeatureKey } from '@/lib/tools/entitlements';
 import {
-  buildSignalMapperFullPrefillFromMicro,
   buildSignalMapperMicroDraft,
-  hasSignalMapperMicroContent,
   parseSignalMapperMicroDraft,
   type SignalMapperMicroDraft,
 } from '@/lib/tools/signal-mapper-micro';
@@ -97,58 +93,57 @@ function ctaLabelForTool(tool: ToolConfig, canAccess: boolean): string {
 }
 
 const TAG_ACCENT_COLORS: Record<string, string> = {
-  'Fast Win': '#76ff8f', // Soft Green
-  'High Impact': '#4dabf7', // Soft Blue
-  'Stuck Deal Fix': '#ff6b6b', // Soft Red
-  'Customer Saver': '#ff6b6b', // Map Customer Saver to Red
-  'Manager Move': '#ae3ec9', // Soft Purple
-  'Confidence Builder': '#15aabf', // Soft Teal
-  'Momentum Booster': '#ff922b', // Soft Orange
+  'Fast Win': '#60B040',
+  'High Impact': '#2888B0',
+  'Stuck Deal Fix': '#6E8E49',
+  'Customer Saver': '#3E8F71',
+  'Manager Move': '#1F6F93',
+  'Confidence Builder': '#2F8F8A',
+  'Momentum Booster': '#4E9D6F',
 };
 
 function getToolAccentColor(tool: ToolConfig): string {
   const tag = getToolConfidenceTag(tool);
-  return TAG_ACCENT_COLORS[tag] || '#76ff8f';
+  return TAG_ACCENT_COLORS[tag] || '#60B040';
 }
 
-function buildToolRoute(toolId: string): string | null {
-  if (toolId === 'pickup-experience-designer') return '/tools/pickup-experience-designer';
-  if (toolId === 'repair-trust-builder') return '/tools/repair-trust-builder';
-  if (toolId === 'wait-experience-coach') return '/tools/wait-experience-coach';
-  if (toolId === 'pressure-drop-planner') return '/tools/pressure-drop-planner';
-  if (toolId === 'clarity-check-builder') return '/tools/clarity-check-builder';
-  if (toolId === 'first-impression-calibrator') return '/tools/first-impression-calibrator';
-  if (toolId === 'consistency-gap-check') return '/tools/consistency-gap-check';
-  if (toolId === 'inventory-substitution-guide') return '/tools/inventory-substitution-guide';
-  if (toolId === 'special-order-confidence-builder') return '/tools/special-order-confidence-builder';
-  if (toolId === 'parts-objection-defuser') return '/tools/parts-objection-defuser';
-  if (toolId === 'mpi-conversation-designer') return '/tools/mpi-conversation-designer';
-  if (toolId === 'upsell-timing-advisor') return '/tools/upsell-timing-advisor';
-  if (toolId === 'waiter-update-flow') return '/tools/waiter-update-flow';
-  if (toolId === 'be-back-conversion-planner') return '/tools/be-back-conversion-planner';
-  if (toolId === 'walkaround-path-builder') return '/tools/walkaround-path-builder';
-  if (toolId === 'payment-comfort-mapper') return '/tools/payment-comfort-mapper';
-  if (toolId === 'buyer-temperature-tracker') return '/tools/buyer-temperature-tracker';
-  if (toolId === 'gross-protection-strategist') return '/tools/gross-protection-strategist';
-  if (toolId === 'team-coaching-converter') return '/tools/team-coaching-converter';
-  if (toolId === 'desk-conversation') return '/tools/desk-conversation';
-  if (toolId === 'declined-work-recovery') return '/tools/declined-work-recovery';
-  if (toolId === 'status-update') return '/tools/status-update';
-  if (toolId === 'repair-approval') return '/tools/repair-approval';
-  if (toolId === 'test-drive-debrief') return '/tools/test-drive-debrief';
-  if (toolId === 'trade-value-bridge') return '/tools/trade-value-bridge';
-  if (toolId === 'commitment-ladder') return '/tools/commitment-ladder';
-  if (toolId === 'next-move-engine') return '/tools/next-move-engine';
-  if (toolId === 'objection-reframe') return '/tools/objection-reframe';
-  if (toolId === 'follow-up-cadence') return '/tools/follow-up-cadence';
-  if (toolId === 'handoff-script') return '/tools/handoff-script';
-  if (toolId === 'deal-recovery') return '/tools/deal-recovery';
-  if (toolId === 'loyalty-loop') return '/tools/loyalty-loop';
-  if (toolId === 'signal-mapper') return '/tools/signal-mapper';
-  if (toolId === 'price-presentation') return '/tools/price-presentation';
-  if (toolId === 'consistency-leak-finder') return '/tools/consistency-leak-finder';
-  return null;
-}
+const INLINE_TOOL_COMPONENTS: Record<string, ComponentType> = {
+  'pickup-experience-designer': dynamic(() => import('@/app/tools/pickup-experience-designer/page'), { ssr: false }),
+  'repair-trust-builder': dynamic(() => import('@/app/tools/repair-trust-builder/page'), { ssr: false }),
+  'wait-experience-coach': dynamic(() => import('@/app/tools/wait-experience-coach/page'), { ssr: false }),
+  'pressure-drop-planner': dynamic(() => import('@/app/tools/pressure-drop-planner/page'), { ssr: false }),
+  'clarity-check-builder': dynamic(() => import('@/app/tools/clarity-check-builder/page'), { ssr: false }),
+  'first-impression-calibrator': dynamic(() => import('@/app/tools/first-impression-calibrator/page'), { ssr: false }),
+  'consistency-gap-check': dynamic(() => import('@/app/tools/consistency-gap-check/page'), { ssr: false }),
+  'inventory-substitution-guide': dynamic(() => import('@/app/tools/inventory-substitution-guide/page'), { ssr: false }),
+  'special-order-confidence-builder': dynamic(() => import('@/app/tools/special-order-confidence-builder/page'), { ssr: false }),
+  'parts-objection-defuser': dynamic(() => import('@/app/tools/parts-objection-defuser/page'), { ssr: false }),
+  'mpi-conversation-designer': dynamic(() => import('@/app/tools/mpi-conversation-designer/page'), { ssr: false }),
+  'upsell-timing-advisor': dynamic(() => import('@/app/tools/upsell-timing-advisor/page'), { ssr: false }),
+  'waiter-update-flow': dynamic(() => import('@/app/tools/waiter-update-flow/page'), { ssr: false }),
+  'be-back-conversion-planner': dynamic(() => import('@/app/tools/be-back-conversion-planner/page'), { ssr: false }),
+  'walkaround-path-builder': dynamic(() => import('@/app/tools/walkaround-path-builder/page'), { ssr: false }),
+  'payment-comfort-mapper': dynamic(() => import('@/app/tools/payment-comfort-mapper/page'), { ssr: false }),
+  'buyer-temperature-tracker': dynamic(() => import('@/app/tools/buyer-temperature-tracker/page'), { ssr: false }),
+  'gross-protection-strategist': dynamic(() => import('@/app/tools/gross-protection-strategist/page'), { ssr: false }),
+  'team-coaching-converter': dynamic(() => import('@/app/tools/team-coaching-converter/page'), { ssr: false }),
+  'desk-conversation': dynamic(() => import('@/app/tools/desk-conversation/page'), { ssr: false }),
+  'declined-work-recovery': dynamic(() => import('@/app/tools/declined-work-recovery/page'), { ssr: false }),
+  'status-update': dynamic(() => import('@/app/tools/status-update/page'), { ssr: false }),
+  'repair-approval': dynamic(() => import('@/app/tools/repair-approval/page'), { ssr: false }),
+  'test-drive-debrief': dynamic(() => import('@/app/tools/test-drive-debrief/page'), { ssr: false }),
+  'trade-value-bridge': dynamic(() => import('@/app/tools/trade-value-bridge/page'), { ssr: false }),
+  'commitment-ladder': dynamic(() => import('@/app/tools/commitment-ladder/page'), { ssr: false }),
+  'next-move-engine': dynamic(() => import('@/app/tools/next-move-engine/page'), { ssr: false }),
+  'objection-reframe': dynamic(() => import('@/app/tools/objection-reframe/page'), { ssr: false }),
+  'follow-up-cadence': dynamic(() => import('@/app/tools/follow-up-cadence/page'), { ssr: false }),
+  'handoff-script': dynamic(() => import('@/app/tools/handoff-script/page'), { ssr: false }),
+  'deal-recovery': dynamic(() => import('@/app/tools/deal-recovery/page'), { ssr: false }),
+  'loyalty-loop': dynamic(() => import('@/app/tools/loyalty-loop/page'), { ssr: false }),
+  'signal-mapper': dynamic(() => import('@/app/tools/signal-mapper/page'), { ssr: false }),
+  'price-presentation': dynamic(() => import('@/app/tools/price-presentation/page'), { ssr: false }),
+  'consistency-leak-finder': dynamic(() => import('@/app/tools/consistency-leak-finder/page'), { ssr: false }),
+};
 
 const SCENARIO_GROUPS = [
   { label: 'Move deals forward', categories: ['Deal Flow'] },
@@ -160,13 +155,33 @@ const SCENARIO_GROUPS = [
 ] as const;
 
 const QUICK_DIAGNOSIS_OPTIONS = [
-  { label: 'Customer said "I need to think about it"', filter: 'Objections', description: 'Break the stall' },
-  { label: 'Deal slowed down', filter: 'Deal Flow', description: 'Get the deal moving again' },
-  { label: 'Objection came up', filter: 'Objections', description: 'Handle the objection' },
-  { label: 'I’m presenting numbers', filter: 'Pricing', description: 'Present numbers cleanly' },
-  { label: 'I need to follow up', filter: 'Follow-Up', description: 'Re-engage this customer' },
-  { label: 'I don’t know what to do next', filter: 'all', description: 'Tell me what to do' },
+  { label: 'Customer is stalling', filter: 'Objections', description: 'Break the stall' },
+  { label: 'Deal lost momentum', filter: 'Deal Flow', description: 'Get it moving again' },
+  { label: 'Customer pushed back', filter: 'Objections', description: 'Handle the objection' },
+  { label: 'I’m at numbers', filter: 'Pricing', description: 'Present cleanly' },
+  { label: 'Need to re-engage', filter: 'Follow-Up', description: 'Reconnect now' },
+  { label: 'Just tell me what to do', filter: 'all', description: 'Show me the move' },
 ] as const;
+type DiagnosisLabel = (typeof QUICK_DIAGNOSIS_OPTIONS)[number]['label'];
+type RoleTypeSelection = 'sales_advisor' | 'manager';
+type RoleDetailSelection = 'Sales Consultant' | 'Service Writer' | 'manager' | 'Service Manager' | 'Finance Manager';
+
+const DIAGNOSIS_TOOL_PRIORITY: Record<DiagnosisLabel, string[]> = {
+  'Customer is stalling': ['objection-reframe', 'signal-mapper', 'parts-objection-defuser'],
+  'Deal lost momentum': ['signal-mapper', 'objection-reframe', 'follow-up-cadence', 'status-update', 'loyalty-loop'],
+  'Customer pushed back': ['objection-reframe', 'parts-objection-defuser', 'signal-mapper'],
+  'I’m at numbers': ['desk-conversation', 'objection-reframe', 'signal-mapper'],
+  'Need to re-engage': ['signal-mapper', 'follow-up-cadence', 'status-update', 'loyalty-loop'],
+  'Just tell me what to do': ['signal-mapper', 'consistency-gap-check', 'objection-reframe'],
+};
+
+const ROLE_DETAIL_TOOL_PRIORITY: Record<RoleDetailSelection, string[]> = {
+  'Sales Consultant': ['objection-reframe', 'signal-mapper', 'follow-up-cadence', 'deal-recovery', 'commitment-ladder', 'next-move-engine'],
+  'Service Writer': ['clarity-check-builder', 'repair-trust-builder', 'repair-approval', 'status-update', 'waiter-update-flow', 'wait-experience-coach'],
+  manager: ['team-coaching-converter', 'desk-conversation', 'consistency-gap-check', 'consistency-leak-finder', 'signal-mapper'],
+  'Service Manager': ['consistency-gap-check', 'team-coaching-converter', 'repair-trust-builder', 'wait-experience-coach', 'status-update'],
+  'Finance Manager': ['price-presentation', 'payment-comfort-mapper', 'objection-reframe', 'clarity-check-builder', 'desk-conversation'],
+};
 
 const TOOL_INTENT_ACTIONS: Record<ToolIntentTag, string> = {
   'Move a deal forward': 'Push this deal forward',
@@ -181,7 +196,7 @@ const TOOL_INTENT_ACTIONS: Record<ToolIntentTag, string> = {
 const TOOL_CONTENT_UPGRADES: Record<string, { triggers: string[]; tag: string; authorityLabel: string; roleDescription: string; bestUsedWhen?: string[] }> = {
   'pickup-experience-designer': {
     bestUsedWhen: ['Delivery day is approaching', 'Customer feels unsure about next steps', 'You want to create a strong final impression'],
-    triggers: ['Customer is asking "what happens next?"', 'Delivery feels rushed or unclear', 'You want to turn this into a referral moment'],
+    triggers: ['Customer is asking what happens next', 'Delivery feels rushed or unclear', 'You want to turn this into a referral moment'],
     tag: 'Confidence Builder',
     authorityLabel: 'Top Performer Move',
     roleDescription: 'Spotlight: Perfect Delivery'
@@ -298,22 +313,28 @@ export default function ToolsPage() {
   const shownRecommendationIdsRef = useRef<Set<string>>(new Set());
   const previousRecommendationIdsRef = useRef<string[]>([]);
   const interactedRecommendationIdsRef = useRef<Set<string>>(new Set());
+  const toolWorkspaceRef = useRef<HTMLElement | null>(null);
+  const lastScrolledToolIdRef = useRef<string | null>(null);
 
   const [didTouchRoleFilter, setDidTouchRoleFilter] = useState(false);
   const [selectedIntentFilter, setSelectedIntentFilter] = useState<ToolIntentTag | null>(null);
   const [isDesktopFilterUI, setIsDesktopFilterUI] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [appliedAccessFilter, setAppliedAccessFilter] = useState<'available' | 'all' | 'free' | 'premium'>('available');
+  const [appliedAccessFilter, setAppliedAccessFilter] = useState<'available' | 'all' | 'free' | 'premium'>('all');
   const [appliedCategoryFilters, setAppliedCategoryFilters] = useState<Array<'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'>>([]);
   const [appliedRoleFilter, setAppliedRoleFilter] = useState<UserRole | 'ALL'>('ALL');
   const [appliedSortBy, setAppliedSortBy] = useState<'recommended' | 'recent' | 'popular'>('recommended');
-  const [draftAccessFilter, setDraftAccessFilter] = useState<'available' | 'all' | 'free' | 'premium'>('available');
+  const [draftAccessFilter, setDraftAccessFilter] = useState<'available' | 'all' | 'free' | 'premium'>('all');
   const [draftCategoryFilters, setDraftCategoryFilters] = useState<Array<'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'>>([]);
   const [draftRoleFilter, setDraftRoleFilter] = useState<UserRole | 'ALL'>('ALL');
   const [draftSortBy, setDraftSortBy] = useState<'recommended' | 'recent' | 'popular'>('recommended');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAllToolsExpanded, setIsAllToolsExpanded] = useState(false);
   const [diagnosisFeedback, setDiagnosisFeedback] = useState<string | null>(null);
+  const [selectedDiagnosis, setSelectedDiagnosis] = useState<DiagnosisLabel | null>(null);
+  const [selectedRoleType, setSelectedRoleType] = useState<RoleTypeSelection | null>(null);
+  const [selectedRoleDetail, setSelectedRoleDetail] = useState<RoleDetailSelection | null>(null);
+  const [isRoleSelectorExpanded, setIsRoleSelectorExpanded] = useState(true);
   const categoryFilters: Array<'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'> = [
     'Deal Flow', 'Objections', 'Follow-Up', 'Pricing', 'CX / Process', 'Manager Tools',
   ];
@@ -397,7 +418,6 @@ export default function ToolsPage() {
   );
   const activeToolId = activeTool?.id ?? null;
   const isWorkspaceMode = !!activeToolId;
-  const isConsistencyWorkspace = activeToolId === 'consistency-leak-finder';
   const embeddedTheme = resolvedTheme === 'light' ? 'light' : 'dark';
   const accountEmail = accountProfile?.email || '';
   const accountRole = accountProfile?.role || 'Sales Consultant';
@@ -459,6 +479,22 @@ export default function ToolsPage() {
     () => new Set(recommendationResult.recommendations.map((row) => row.toolId)),
     [recommendationResult.recommendations]
   );
+  const diagnosisPriorityToolIds = useMemo(
+    () => (selectedDiagnosis ? DIAGNOSIS_TOOL_PRIORITY[selectedDiagnosis] || [] : []),
+    [selectedDiagnosis]
+  );
+  const roleSelectionLabel = useMemo(() => {
+    if (selectedRoleDetail === 'manager') return 'Sales Manager';
+    if (selectedRoleDetail === 'Service Writer') return 'Service Advisor';
+    if (selectedRoleDetail) return selectedRoleDetail;
+    if (selectedRoleType === 'sales_advisor') return 'Sales / Advisor';
+    if (selectedRoleType === 'manager') return 'Manager';
+    return null;
+  }, [selectedRoleDetail, selectedRoleType]);
+  const rolePriorityToolIds = useMemo(
+    () => (selectedRoleDetail ? ROLE_DETAIL_TOOL_PRIORITY[selectedRoleDetail] || [] : []),
+    [selectedRoleDetail]
+  );
   const gridTools = useMemo(() => {
     const byRecommendation = (a: ToolConfig, b: ToolConfig) => {
       const aRecommended = recommendedToolIdSet.has(a.id) ? 1 : 0;
@@ -481,13 +517,36 @@ export default function ToolsPage() {
     };
 
     const sorted = [...visibleTools];
-    if (appliedSortBy === 'recent') return sorted.sort(byRecency);
-    if (appliedSortBy === 'popular') return sorted.sort(byPopularity);
-    return sorted.sort(byRecommendation);
-  }, [appliedSortBy, recommendedToolIdSet, tools, visibleTools]);
+    const baseSorted = appliedSortBy === 'recent'
+      ? sorted.sort(byRecency)
+      : appliedSortBy === 'popular'
+        ? sorted.sort(byPopularity)
+        : sorted.sort(byRecommendation);
+
+    const roleRankByToolId = new Map(rolePriorityToolIds.map((toolId, index) => [toolId, index]));
+    if (!roleRankByToolId.size) return baseSorted;
+
+    // Re-rank after existing filters/sorts: role priority only.
+    // Non-priority tools retain their existing relative order.
+    const originalIndex = new Map(baseSorted.map((tool, index) => [tool.id, index]));
+    return [...baseSorted].sort((a, b) => {
+      const aRoleWeight = roleRankByToolId.has(a.id) ? 1 : 2;
+      const bRoleWeight = roleRankByToolId.has(b.id) ? 1 : 2;
+      if (aRoleWeight !== bRoleWeight) return aRoleWeight - bRoleWeight;
+      if (aRoleWeight === 1) {
+        return (roleRankByToolId.get(a.id) ?? 0) - (roleRankByToolId.get(b.id) ?? 0);
+      }
+
+      return (originalIndex.get(a.id) ?? 0) - (originalIndex.get(b.id) ?? 0);
+    });
+  }, [appliedSortBy, recommendedToolIdSet, rolePriorityToolIds, tools, visibleTools]);
 
   const useRightNowTools = useMemo(() => {
+    const diagnosisTools = diagnosisPriorityToolIds
+      .map((toolId) => tools.find((tool) => tool.id === toolId))
+      .filter((tool): tool is ToolConfig => !!tool);
     const list = [
+      ...diagnosisTools,
       featuredTool,
       recommendedPrimaryTool,
       ...recommendedSecondaryTools.slice(0, 2).map((r) => r.tool),
@@ -498,7 +557,7 @@ export default function ToolsPage() {
       seen.add(t.id);
       return true;
     }).slice(0, 4);
-  }, [featuredTool, recommendedPrimaryTool, recommendedSecondaryTools]);
+  }, [diagnosisPriorityToolIds, featuredTool, recommendedPrimaryTool, recommendedSecondaryTools, tools]);
 
   const recentToolNameForReason = useMemo(() => {
     const recentId = [...sessionOpenedToolIds, ...usedToolIds].reverse().find((id) => tools.some((tool) => tool.id === id));
@@ -542,20 +601,52 @@ export default function ToolsPage() {
   }, []);
 
   useEffect(() => {
-    if (didTouchRoleFilter) return;
-    const defaultRole = user?.role || accountProfile?.role;
-    if (!defaultRole) return;
-    setAppliedRoleFilter(defaultRole);
-    setDraftRoleFilter(defaultRole);
-  }, [accountProfile?.role, didTouchRoleFilter, user?.role]);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
     const syncLayout = () => setIsDesktopFilterUI(window.matchMedia('(min-width: 768px)').matches);
     syncLayout();
     window.addEventListener('resize', syncLayout);
     return () => window.removeEventListener('resize', syncLayout);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedType = window.localStorage.getItem('autodrive_role_type');
+    const storedDetail = window.localStorage.getItem('autodrive_role_detail');
+
+    if (storedType === 'sales_advisor' || storedType === 'manager') {
+      setSelectedRoleType(storedType);
+    }
+    if (
+      storedDetail === 'Sales Consultant' ||
+      storedDetail === 'Service Writer' ||
+      storedDetail === 'manager' ||
+      storedDetail === 'Service Manager' ||
+      storedDetail === 'Finance Manager'
+    ) {
+      setSelectedRoleDetail(storedDetail);
+    }
+    if (storedType || storedDetail) {
+      setIsRoleSelectorExpanded(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (selectedRoleType) {
+      window.localStorage.setItem('autodrive_role_type', selectedRoleType);
+    } else {
+      window.localStorage.removeItem('autodrive_role_type');
+    }
+  }, [selectedRoleType]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (selectedRoleDetail) {
+      window.localStorage.setItem('autodrive_role_detail', selectedRoleDetail);
+    } else {
+      window.localStorage.removeItem('autodrive_role_detail');
+    }
+  }, [selectedRoleDetail]);
 
   useEffect(() => {
     async function loadEntries() {
@@ -658,6 +749,36 @@ export default function ToolsPage() {
     setCxLayerOutput(null);
   }, [activeToolId]);
 
+  useEffect(() => {
+    if (!activeToolId) {
+      lastScrolledToolIdRef.current = null;
+      return;
+    }
+    if (lastScrolledToolIdRef.current === activeToolId) return;
+
+    const scrollWorkspaceToTop = (behavior: ScrollBehavior) => {
+      const workspaceEl = toolWorkspaceRef.current;
+      if (!workspaceEl) return;
+      const stickyHeaderOffset = 80;
+      const top = workspaceEl.getBoundingClientRect().top + window.scrollY - stickyHeaderOffset;
+      window.scrollTo({ top: Math.max(0, top), behavior });
+    };
+
+    const timers = [
+      window.setTimeout(() => scrollWorkspaceToTop('smooth'), 40),
+      window.setTimeout(() => scrollWorkspaceToTop('auto'), 180),
+      window.setTimeout(() => scrollWorkspaceToTop('auto'), 420),
+      window.setTimeout(() => {
+        scrollWorkspaceToTop('auto');
+        lastScrolledToolIdRef.current = activeToolId;
+      }, 760),
+    ];
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [activeToolId]);
+
   function formatLastEdited(value: string): string {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return 'Recently';
@@ -728,13 +849,6 @@ export default function ToolsPage() {
   }
 
   function openToolExperience(tool: ToolConfig) {
-    const route = buildToolRoute(tool.id);
-    if (route) {
-      registerToolUsage(tool.id);
-      window.location.assign(route);
-      return;
-    }
-
     openTool(tool);
   }
 
@@ -804,17 +918,17 @@ export default function ToolsPage() {
   }
 
   function handleClearFilters() {
-    const defaultRole = (user?.role || accountProfile?.role || 'ALL') as UserRole | 'ALL';
-    setDraftAccessFilter('available');
+    setDraftAccessFilter('all');
     setDraftCategoryFilters([]);
-    setDraftRoleFilter(defaultRole);
+    setDraftRoleFilter('ALL');
     setDraftSortBy('recommended');
-    setAppliedAccessFilter('available');
+    setAppliedAccessFilter('all');
     setAppliedCategoryFilters([]);
-    setAppliedRoleFilter(defaultRole);
+    setAppliedRoleFilter('ALL');
     setAppliedSortBy('recommended');
     setDidTouchRoleFilter(false);
     setSelectedIntentFilter(null);
+    setSelectedDiagnosis(null);
     setSearchQuery('');
     setIsFilterPanelOpen(false);
   }
@@ -990,28 +1104,6 @@ export default function ToolsPage() {
       [field]: value,
     });
     handleDraftChange(activeTool.id, nextDraft);
-  }
-
-  function handleOpenFullTool(tool: ToolConfig) {
-    if (!tool.hasFullVersion) return;
-    const route = buildToolRoute(tool.id);
-    if (!route) return;
-
-    clearFullToolHandoff(tool.id);
-    if (tool.id === 'signal-mapper') {
-      const parsed = parseSignalMapperMicroDraft(drafts[tool.id] || '');
-      if (hasSignalMapperMicroContent(parsed)) {
-        writeFullToolHandoff(tool.id, {
-          source: 'tools_micro',
-          prefill: buildSignalMapperFullPrefillFromMicro(parsed),
-        });
-      }
-    } else {
-      writeFullToolHandoff(tool.id, {
-        source: 'tools_micro',
-        draft: drafts[tool.id] || '',
-      });
-    }
   }
 
   function buildSprocketLayerOutput(input: string) {
@@ -1221,71 +1313,198 @@ export default function ToolsPage() {
         )}
 
         <main className="mx-auto w-full max-w-7xl space-y-6 p-4 md:space-y-8 md:p-6 lg:p-8">
-          <section className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <section className="space-y-4 transition-all duration-200">
+            <div
+              className={cn(
+                'flex flex-wrap items-center justify-between gap-3 transition-all duration-200',
+                isWorkspaceMode && 'opacity-60'
+              )}
+            >
               <div className="inline-flex items-center gap-2 rounded-full border border-[#76ff8f]/30 bg-[#111b2d] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9bffac]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#76ff8f]" />
                 New tool drops every week
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div
+              className={cn(
+                'space-y-1 transition-all duration-200',
+                isWorkspaceMode && 'opacity-75'
+              )}
+            >
               {!loading && user && (
                 <p className="text-xs font-medium text-[#c8d8f1]">Welcome back{displayName ? `, ${displayName}` : ''}.</p>
               )}
               <h1 className="text-2xl font-semibold tracking-tight text-[#f6fbff] md:text-4xl">
-                Build a CX system you actually use.
+                Build a system that actually moves deals.
               </h1>
               <p className="text-sm text-[#9db0cb]">
-                Not sure what to do next? <span className="text-[#9bffac] font-medium">Start here.</span>
+                For consultants and managers who want consistent wins.
               </p>
               <p className="text-[11px] text-[#6f84a7] font-medium leading-none">
-                Pick a situation, we’ll guide the next move.
+                Pick what’s happening, we’ll guide your next move.
               </p>
             </div>
 
-            {/* QUICK DIAGNOSIS BAR */}
-            <div className="rounded-xl border border-[#2b3e5d] bg-[#0c1729]/80 p-1 backdrop-blur shadow-xl">
-              <div className="flex flex-col gap-1 p-2">
-                <p className="px-2 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-[#6f84a7]">
-                  What’s happening right now?
-                </p>
-                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {QUICK_DIAGNOSIS_OPTIONS.map((opt) => (
+            <div className="space-y-2">
+              {roleSelectionLabel && !isRoleSelectorExpanded ? (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-200 flex items-center gap-2 px-1 text-[12px]">
+                  <span className="text-[#9db0cb]">Showing tools for:</span>
+                  <span className="font-semibold text-[#e8f1ff]">{roleSelectionLabel}</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsRoleSelectorExpanded(true)}
+                    className="text-[#76ff8f] hover:text-[#92ffa7] underline-offset-4 hover:underline"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2">
+                  <p className="px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#6f84a7]">
+                    Show me tools for:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
                     <button
-                      key={opt.label}
+                      type="button"
                       onClick={() => {
-                        const categories = categoryFilters as string[];
-                        if (opt.filter !== 'all' && categories.includes(opt.filter)) {
-                          setAppliedCategoryFilters([opt.filter as any]);
-                          setAppliedRoleFilter('ALL');
-                          const feedbackMap: Record<string, string> = {
-                            'Objections': 'Tools to break through this objection',
-                            'Deal Flow': 'Best tools to regain momentum',
-                            'Pricing': 'Presentation tools for this deal',
-                            'Follow-Up': 'Here’s how to reconnect this deal',
-                          };
-                          setDiagnosisFeedback(feedbackMap[opt.filter] || `Best next steps for this situation`);
-                        } else {
-                          setDiagnosisFeedback('Best next steps for this situation');
+                        setSelectedRoleType('sales_advisor');
+                        setIsRoleSelectorExpanded(false);
+                        if (selectedRoleDetail === 'manager' || selectedRoleDetail === 'Service Manager' || selectedRoleDetail === 'Finance Manager') {
+                          setSelectedRoleDetail(null);
                         }
-                        setIsAllToolsExpanded(true);
-                        document.getElementById('all-tools-anchor')?.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="flex items-center gap-3 rounded-lg border border-transparent bg-[#111b2d] p-3 text-left transition-all hover:border-[#37507a] hover:bg-[#15243f] active:scale-[0.98]"
+                      className={cn(
+                        'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
+                        selectedRoleType === 'sales_advisor'
+                          ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                          : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
+                      )}
                     >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#1a2d49] text-[#76ff8f]">
-                        {opt.filter === 'all' ? <HelpCircle className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-[#e8f1ff]">{opt.label}</p>
-                        <p className="text-[10px] text-[#9db0cb]">{opt.description}</p>
-                      </div>
+                      Sales / Advisor
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedRoleType('manager');
+                        setIsRoleSelectorExpanded(false);
+                        if (selectedRoleDetail === 'Sales Consultant' || selectedRoleDetail === 'Service Writer') {
+                          setSelectedRoleDetail(null);
+                        }
+                      }}
+                      className={cn(
+                        'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
+                        selectedRoleType === 'manager'
+                          ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                          : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
+                      )}
+                    >
+                      Manager
+                    </button>
+                  </div>
+
+                  {selectedRoleType && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-200 space-y-2 pt-1">
+                      <p className="px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#6f84a7]">
+                        Refine your role:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {(selectedRoleType === 'sales_advisor'
+                          ? ([
+                              { label: 'Sales Consultant', value: 'Sales Consultant' },
+                              { label: 'Service Advisor', value: 'Service Writer' },
+                            ] as const)
+                          : ([
+                              { label: 'Sales Manager', value: 'manager' },
+                              { label: 'Service Manager', value: 'Service Manager' },
+                              { label: 'F&I Manager', value: 'Finance Manager' },
+                            ] as const)
+                        ).map((roleOption) => (
+                          <button
+                            key={roleOption.value}
+                            type="button"
+                            onClick={() => {
+                              setSelectedRoleDetail(roleOption.value);
+                              setIsRoleSelectorExpanded(false);
+                            }}
+                            className={cn(
+                              'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
+                              selectedRoleDetail === roleOption.value
+                                ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                                : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
+                            )}
+                          >
+                            {roleOption.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {!activeTool && (
+              <div className="animate-in fade-in duration-200">
+                {/* QUICK DIAGNOSIS BAR */}
+                <div className="rounded-xl border border-[#2b3e5d] bg-[#0c1729]/80 p-1 backdrop-blur shadow-xl">
+                  <div className="flex flex-col gap-1 p-2">
+                    <div className="flex items-center justify-between gap-2 px-2 pb-2 pt-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#6f84a7]">
+                        What’s happening right now?
+                      </p>
+                      {selectedDiagnosis && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDiagnosis(null);
+                            setDiagnosisFeedback(null);
+                          }}
+                          className="text-[10px] font-semibold text-[#76ff8f] hover:text-[#92ffa7]"
+                        >
+                          Show all tools
+                        </button>
+                      )}
+                    </div>
+                    {selectedDiagnosis && (
+                      <div className="px-2 pb-2 animate-in fade-in duration-200">
+                        <p className="text-[11px] font-semibold text-[#b4ffbf]">
+                          You&apos;re viewing tools for: {selectedDiagnosis}
+                        </p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {QUICK_DIAGNOSIS_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.label}
+                          onClick={() => {
+                            setSelectedDiagnosis(opt.label);
+                            const feedbackByDiagnosis: Record<DiagnosisLabel, string> = {
+                              'Customer is stalling': 'Here’s how to break through this objection',
+                              'Deal lost momentum': 'Let’s get this deal moving again',
+                              'Customer pushed back': 'Here’s how to break through this objection',
+                              'I’m at numbers': 'Best next moves for this situation',
+                              'Need to re-engage': 'Here’s how to re-engage this customer',
+                              'Just tell me what to do': 'Best next moves for this situation',
+                            };
+                            setDiagnosisFeedback(feedbackByDiagnosis[opt.label]);
+                          }}
+                          className="flex items-center gap-3 rounded-lg border border-transparent bg-[#111b2d] p-3 text-left transition-all hover:border-[#37507a] hover:bg-[#15243f] active:scale-[0.98]"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#1a2d49] text-[#76ff8f]">
+                            {opt.filter === 'all' ? <HelpCircle className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-[#e8f1ff]">{opt.label}</p>
+                            <p className="text-[10px] text-[#9db0cb]">{opt.description}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <Button
               variant="outline"
@@ -1365,8 +1584,7 @@ export default function ToolsPage() {
                             </div>
                             <Button
                               size="sm"
-                              variant="ghost"
-                              className="h-8 shrink-0 text-[11px] font-black uppercase tracking-widest text-[#76ff8f] hover:bg-[#1a2d49] active:scale-95 transition-transform"
+                              className="tool-run-cta h-8 shrink-0 px-3 text-[11px] uppercase tracking-widest"
                               onClick={() => {
                                 if (tool) setActiveTool(tool);
                                 setDrafts((current) => ({ ...current, [entry.toolId]: entry.content }));
@@ -1383,10 +1601,18 @@ export default function ToolsPage() {
 
                 {/* 2. Use Right Now */}
                 <section className="space-y-6 pt-2">
+                  {diagnosisFeedback && (
+                    <div className="px-1 animate-in fade-in slide-in-from-left-4 duration-500">
+                      <p className="text-sm font-black text-[#76ff8f] flex items-center gap-3 tracking-wide">
+                        <CheckCircle2 className="h-4 w-4" />
+                        {diagnosisFeedback}
+                      </p>
+                    </div>
+                  )}
                   <p className="px-1 text-xs font-bold uppercase tracking-[0.25em] text-[#76ff8f]">
                     Essential Moves — Use Right Now
                   </p>
-                  <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide md:grid md:grid-cols-2 md:overflow-visible">
+                  <div className="grid gap-4 pb-2 sm:grid-cols-2 lg:gap-6">
                     {useRightNowTools.map((tool) => {
                       const hasAccess = canOpenTool(tool);
                       const accentColor = getToolAccentColor(tool);
@@ -1394,7 +1620,7 @@ export default function ToolsPage() {
                         <Card
                           key={tool.id}
                           className={cn(
-                            'group relative min-w-[300px] shrink-0 overflow-hidden border-[#2b3e5d] bg-[#0f1b30] transition-all duration-300 md:min-w-0',
+                            'group relative w-full overflow-hidden border-[#2b3e5d] bg-[#0f1b30] transition-all duration-300',
                             'shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-opacity-50 hover:border-opacity-100',
                             hasAccess && 'hover:bg-[#15243f] hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.25)]'
                           )}
@@ -1406,12 +1632,12 @@ export default function ToolsPage() {
                           />
                           
                           <CardHeader className="space-y-2 p-5 pb-3">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-start justify-between gap-3">
                               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9bffac]">
                                 {getToolAuthorityLabel(tool)}
                               </p>
                               <Badge 
-                                className="bg-[#070d18] text-white border-none text-[8px] uppercase tracking-widest font-black h-5 px-2"
+                                className="shrink-0 whitespace-nowrap bg-[#070d18] text-white border-none text-[8px] uppercase tracking-widest font-black h-5 px-2"
                                 style={{ borderLeft: `2px solid ${accentColor}` }}
                               >
                                 {getToolConfidenceTag(tool)}
@@ -1445,12 +1671,13 @@ export default function ToolsPage() {
                             <div className="rounded-lg bg-[#070d18]/70 p-4 border border-[#1a2d49] shadow-inner">
                               <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#6f84a7]/80 mb-3 flex items-center gap-2">
                                 <Sparkles className="h-3 w-3 text-[#76ff8f]/60" />
-                                Context Triggers:
+                                You might be here if:
                               </p>
                               <ul className="space-y-2">
                                 {getToolTriggers(tool).map((trigger, i) => (
-                                  <li key={i} className="text-[10px] font-bold text-[#a9bbd8] leading-snug flex items-start gap-2 italic">
-                                    <span>“</span>{trigger}<span>”</span>
+                                  <li key={i} className="text-[10px] font-bold text-[#a9bbd8] leading-snug flex items-start gap-2">
+                                    <span className="mt-1 h-1 w-1 rounded-full bg-[#76ff8f]/70 shrink-0" />
+                                    <span>{trigger}</span>
                                   </li>
                                 ))}
                               </ul>
@@ -1458,13 +1685,13 @@ export default function ToolsPage() {
 
                             <p className="line-clamp-2 text-[12px] font-medium leading-relaxed text-[#869bbd]">{tool.description}</p>
                             
-                            <div className="flex items-center justify-between gap-4 pt-2">
+                            <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                               <Badge variant="outline" className="border-[#2a3f5f] bg-transparent px-2.5 py-0.5 text-[9px] font-black uppercase tracking-tighter text-[#8ea2c1]">
                                 {tool.category}
                               </Badge>
                               <Button
                                 size="sm"
-                                className="h-10 grow bg-[#172845] text-[12px] font-black uppercase tracking-widest text-white hover:bg-[#22375a] active:scale-[0.97] transition-all"
+                                className="tool-run-cta h-10 w-full text-[12px] uppercase tracking-widest sm:w-auto sm:min-w-[180px]"
                                 onClick={() => maybeOpenTool(tool)}
                               >
                                 Run Tool
@@ -1489,8 +1716,17 @@ export default function ToolsPage() {
                         onClick={() => {
                           const isTogglingOff = selectedIntentFilter === intent;
                           setSelectedIntentFilter((prev) => (isTogglingOff ? null : intent));
+                          setSelectedDiagnosis(null);
                           setIsAllToolsExpanded(true);
-                          setDiagnosisFeedback(isTogglingOff ? null : `Showing tools to help you ${TOOL_INTENT_ACTIONS[intent].toLowerCase()}`);
+                          setDiagnosisFeedback(isTogglingOff ? null : ({
+                            'Move a deal forward': 'Let’s get this deal moving again',
+                            'Handle an objection': 'Here’s how to break through this objection',
+                            'Follow up': 'Here’s how to re-engage this customer',
+                            'Present numbers': 'Best next moves for this situation',
+                            'Recover a stalled deal': 'Let’s get this deal moving again',
+                            'Improve consistency': 'Best next moves for this situation',
+                            'Coach the team': 'Best next moves for this situation',
+                          } as Record<ToolIntentTag, string>)[intent]);
                         }}
                         className={cn(
                           'shrink-0 rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.95]',
@@ -1507,72 +1743,76 @@ export default function ToolsPage() {
 
                 {/* 4. Browse All Tools (Collapsed Entry) */}
                 <section className="pt-2" id="all-tools-anchor">
-                  {diagnosisFeedback && (
-                    <div className="mb-4 px-1 animate-in fade-in slide-in-from-left-4 duration-500">
-                      <p className="text-sm font-black text-[#76ff8f] flex items-center gap-3 tracking-wide">
-                        <CheckCircle2 className="h-4 w-4" />
-                        {diagnosisFeedback.toUpperCase()}
-                      </p>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setIsAllToolsExpanded(!isAllToolsExpanded)}
-                    className="flex w-full items-center justify-between rounded-xl border border-[#253956] bg-gradient-to-r from-[#0d182b] to-[#0c1729] p-6 text-left text-sm font-bold text-[#f5f9ff] transition-all hover:border-[#3d5a8a] hover:from-[#11213a] active:scale-[0.99] group shadow-lg"
-                  >
-                     <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1a2d49] text-[#76ff8f] shadow-inner group-hover:scale-110 transition-transform">
-                        <FolderOpen className="h-5 w-5" />
+                  <div className="tool-control-panel rounded-xl border border-[#253956] bg-[#0d182b] p-4 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#11213a]/40 md:p-5">
+                    <button
+                      type="button"
+                      onClick={() => setIsAllToolsExpanded(!isAllToolsExpanded)}
+                      className="group flex w-full items-center justify-between text-left transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="tool-control-panel-icon flex h-9 w-9 items-center justify-center rounded-lg bg-[#1a2d49] text-[#76ff8f]">
+                          <FolderOpen className="h-4.5 w-4.5" />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-base font-bold tracking-tight text-[#f5f9ff]">
+                            Find the right tool fast <span className="text-[#6484b3] font-medium ml-1">({tools.length})</span>
+                          </span>
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-[#6f84a7]">
+                            Search, filter, or jump straight to the right move
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-base tracking-tight">Explore All Tools <span className="text-[#6484b3] font-medium ml-1">({tools.length})</span></span>
-                        <p className="text-[11px] text-[#6f84a7] font-bold uppercase tracking-widest group-hover:text-[#9bffac] transition-colors">
-                          Search or jump to the exact move you need
-                        </p>
-                      </div>
-                    </div>
-                    <ArrowRight className={cn('h-5 w-5 transition-transform duration-300', isAllToolsExpanded && 'rotate-90')} />
-                  </button>
+                      <ArrowRight className={cn('h-5 w-5 text-[#9eb3d1] transition-transform duration-300', isAllToolsExpanded && 'rotate-90')} />
+                    </button>
 
-                  {isAllToolsExpanded && (
-                    <div className="mt-8 space-y-10 animate-in fade-in slide-in-from-top-4 duration-300">
-                      {/* Expanded Top Bar */}
-                      <div className="sticky top-[64px] z-30 flex items-center gap-2 rounded-lg bg-[#070d18]/95 p-2 backdrop-blur md:top-[76px]">
-                        <Input
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Search tools, keywords, skills"
-                          className="h-10 border-[#2c3e5c] bg-[#0f1a2d] text-[#eaf2ff] placeholder:text-[#6f84a7]"
-                        />
-                        {isDesktopFilterUI ? (
-                          <Popover open={isFilterPanelOpen} onOpenChange={handleOpenFiltersPanel}>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="h-10 shrink-0 border-[#2f466a] bg-[#0f1a2d] text-[#d8e4f8]">
-                                <SlidersHorizontal className="mr-2 h-4 w-4" />
-                                Filter
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent align="end" className="w-[360px] border-[#2f466a] bg-[#0e1a30] text-[#dbe7fb]">
-                              {filterPanelContent}
-                            </PopoverContent>
-                          </Popover>
-                        ) : (
-                          <Sheet open={isFilterPanelOpen} onOpenChange={handleOpenFiltersPanel}>
-                            <SheetTrigger asChild>
-                              <Button variant="outline" className="h-10 shrink-0 border-[#2f466a] bg-[#0f1a2d] text-[#d8e4f8]">
-                                <SlidersHorizontal className="mr-2 h-4 w-4" />
-                                Filter
-                              </Button>
-                            </SheetTrigger>
-                            <SheetContent side="bottom" className="max-h-[82vh] overflow-y-auto border-[#2f466a] bg-[#0e1a30] text-[#dbe7fb]">
-                              <SheetHeader>
-                                <SheetTitle className="text-[#f5f9ff]">Filters</SheetTitle>
-                              </SheetHeader>
-                              <div className="mt-4">{filterPanelContent}</div>
-                            </SheetContent>
-                          </Sheet>
-                        )}
-                      </div>
+                    <div className="mt-4 flex items-center gap-1.5 rounded-lg border border-[#233652] bg-[#0f1a2d]/60 p-1.5">
+                      <Input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => {
+                          if (!isAllToolsExpanded) setIsAllToolsExpanded(true);
+                        }}
+                        placeholder="Search tools, keywords, skills"
+                        className="h-10 border-[#2c3e5c] bg-[#0f1a2d] text-[#eaf2ff] placeholder:text-[#6f84a7]"
+                      />
+                      {isDesktopFilterUI ? (
+                        <Popover open={isFilterPanelOpen} onOpenChange={handleOpenFiltersPanel}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="h-10 shrink-0 border-[#2f466a] bg-[#0f1a2d] text-[#d8e4f8]">
+                              <SlidersHorizontal className="mr-2 h-4 w-4" />
+                              Filter
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-[360px] border-[#2f466a] bg-[#0e1a30] text-[#dbe7fb]">
+                            {filterPanelContent}
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <Sheet open={isFilterPanelOpen} onOpenChange={handleOpenFiltersPanel}>
+                          <SheetTrigger asChild>
+                            <Button variant="outline" className="h-10 shrink-0 border-[#2f466a] bg-[#0f1a2d] text-[#d8e4f8]">
+                              <SlidersHorizontal className="mr-2 h-4 w-4" />
+                              Filter
+                            </Button>
+                          </SheetTrigger>
+                          <SheetContent side="bottom" className="max-h-[82vh] overflow-y-auto border-[#2f466a] bg-[#0e1a30] text-[#dbe7fb]">
+                            <SheetHeader>
+                              <SheetTitle className="text-[#f5f9ff]">Filters</SheetTitle>
+                            </SheetHeader>
+                            <div className="mt-4">{filterPanelContent}</div>
+                          </SheetContent>
+                        </Sheet>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    className={cn(
+                      'overflow-hidden transition-all duration-300',
+                      isAllToolsExpanded ? 'mt-8 max-h-[6000px] opacity-100' : 'max-h-0 opacity-0'
+                    )}
+                  >
+                    <div className="space-y-10">
 
                       {/* Tool Grouping by Scenario */}
                       <div className="space-y-12">
@@ -1589,7 +1829,6 @@ export default function ToolsPage() {
                               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 {groupTools.map((tool) => {
                                   const hasAccess = canOpenTool(tool);
-                                  const ctaLabel = ctaLabelForTool(tool, hasAccess);
                                   return (
                                     <Card
                                       key={tool.id}
@@ -1600,30 +1839,40 @@ export default function ToolsPage() {
                                         style={{ backgroundColor: getToolAccentColor(tool), opacity: 0.3 }} 
                                       />
                                       <CardHeader className="p-4 pb-2">
-                                        <div className="flex items-center justify-between mb-1">
+                                        <div className="mb-1 flex items-center justify-between gap-2">
                                           <p className="text-[8px] font-black uppercase tracking-[0.2em] text-[#6484b3]">
-                                            {tool.category}
+                                            {tool.category} • {getToolConfidenceTag(tool)}
                                           </p>
-                                          <Badge className="bg-[#070d18] text-[#90a8cc] border-none text-[7px] font-black uppercase h-4 px-1.5">
-                                            {getToolConfidenceTag(tool)}
-                                          </Badge>
                                         </div>
                                         <CardTitle className="text-sm font-black text-[#f2f8ff] tracking-tight">{tool.name}</CardTitle>
                                       </CardHeader>
                                       <CardContent className="flex flex-1 flex-col space-y-3 p-4 pt-0">
                                         <div className="space-y-1">
                                           <p className="text-[9px] font-black uppercase tracking-widest text-[#76ff8f]/50">
-                                            Usage: 
+                                            Best used when:
                                           </p>
                                           <p className="text-[10px] font-bold text-[#e1ecff] leading-snug">
                                             {tool.recommendedWhen[0]}
                                           </p>
                                         </div>
+                                        <div className="space-y-1.5">
+                                          <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-[#6f84a7]/90">
+                                            You might be here if:
+                                          </p>
+                                          <ul className="space-y-1.5 mt-2">
+                                            {getToolTriggers(tool).slice(0, 2).map((trigger, i) => (
+                                              <li key={i} className="text-[10px] font-bold text-[#a9bbd8] leading-snug flex items-start gap-2">
+                                                <span className="mt-1 h-1 w-1 rounded-full bg-[#76ff8f]/70 shrink-0" />
+                                                <span>{trigger}</span>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
                                         <p className="line-clamp-2 text-[11px] font-medium leading-relaxed text-[#a7b7d1]">{tool.description}</p>
-                                        <div className="mt-auto pt-2">
+                                        <div className="mt-auto pt-3">
                                           <Button
                                             size="sm"
-                                            className="h-8 w-full bg-[#172845] text-[10px] font-black uppercase tracking-widest text-[#e8f1ff] hover:bg-[#22375a] active:scale-95 transition-transform"
+                                            className="tool-run-cta h-8 w-full text-[10px] uppercase tracking-widest"
                                             onClick={() => maybeOpenTool(tool)}
                                           >
                                             Run Tool
@@ -1658,11 +1907,12 @@ export default function ToolsPage() {
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
                 </section>
               </div>
             ) : (
-              <section className="grid gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
+              <section className={cn('grid gap-4', activeTool ? 'grid-cols-1' : 'md:grid-cols-[280px_minmax(0,1fr)]')}>
+                {!activeTool && (
                 <aside className="space-y-3 md:sticky md:top-20 md:h-fit">
                   <Card className="border-[#263b5a] bg-[#0d192c]">
                     <CardHeader className="border-b border-[#203352] bg-[#111f35] py-4">
@@ -1681,31 +1931,21 @@ export default function ToolsPage() {
                     <CardContent className="hidden space-y-2 p-3 md:block">
                       {tools.map((tool) => {
                         const hasAccess = canOpenTool(tool);
-                        const isComingSoonLocked = isConsistencyWorkspace && tool.id !== 'consistency-leak-finder';
                         return (
                           <button
                             key={tool.id}
                             type="button"
                             onClick={() => {
-                              if (isComingSoonLocked) return;
                               maybeOpenTool(tool);
                             }}
-                            disabled={isComingSoonLocked}
                             className={cn(
                               'relative w-full rounded-md border px-3 py-2 text-left transition-colors',
                               activeToolId === tool.id
                                 ? 'border-[#76ff8f]/50 bg-[#14273e] text-[#e9f5ff]'
                                 : 'border-[#2a3f5f] bg-[#0a1527] text-[#b4c7e3] hover:bg-[#12203a]',
-                              !hasAccess && 'opacity-80',
-                              isComingSoonLocked && 'cursor-not-allowed opacity-70'
+                              !hasAccess && 'opacity-80'
                             )}
-                            aria-disabled={isComingSoonLocked}
                           >
-                            {isComingSoonLocked && (
-                              <span className="absolute right-2 top-2 rounded-full border border-[#3f5478] bg-[#1a2d49] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#9eb3d1]">
-                                Coming Soon
-                              </span>
-                            )}
                             <p className="text-sm font-medium">{tool.name}</p>
                             <p className="text-[11px] text-[#8ea2c1]">Standalone Tool</p>
                           </button>
@@ -1719,8 +1959,6 @@ export default function ToolsPage() {
                         onChange={(event) => {
                           const selected = tools.find((tool) => tool.id === event.target.value);
                           if (!selected) return;
-                          const isComingSoonLocked = isConsistencyWorkspace && selected.id !== 'consistency-leak-finder';
-                          if (isComingSoonLocked) return;
                           maybeOpenTool(selected);
                         }}
                       >
@@ -1728,7 +1966,6 @@ export default function ToolsPage() {
                           <option
                             key={tool.id}
                             value={tool.id}
-                            disabled={isConsistencyWorkspace && tool.id !== 'consistency-leak-finder'}
                           >
                             {tool.name} (Tool)
                           </option>
@@ -1744,246 +1981,44 @@ export default function ToolsPage() {
                     </CardContent>
                   </Card>
                 </aside>
+                )}
 
                 <div className="space-y-5">
                   {activeTool && (
-                    <Card className="overflow-hidden border-[#263b5a] bg-[#0d192c]">
-                      <CardHeader className="border-b border-[#203352] bg-[#111f35]">
-                        <CardTitle className="flex items-center justify-between text-xl text-[#edf5ff]">
-                          <span>{activeTool.name}</span>
-                          {activeTool.hasFullVersion && buildToolRoute(activeTool.id) && (
-                            <Button asChild variant="outline" size="sm" className="border-[#2f445f] bg-transparent text-[#dbe7fb] hover:bg-[#1a2d49]">
-                              <Link href={buildToolRoute(activeTool.id) || '#'} onClick={() => handleOpenFullTool(activeTool)}>
-                                Open Full Tool
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                              </Link>
-                            </Button>
-                          )}
-                        </CardTitle>
-                      </CardHeader>
+                    <section
+                      id="tool-workspace-anchor"
+                      ref={toolWorkspaceRef}
+                      className="mx-auto w-full max-w-[1100px] animate-in fade-in duration-200"
+                    >
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-[#9eb3d1] hover:bg-[#1a2d49]"
+                            onClick={() => setActiveTool(null)}
+                          >
+                            ← Back to Toolbox
+                          </Button>
+                        </div>
+                      </div>
 
-                      <CardContent className="space-y-4 pt-5">
-                        {activeTool.id === 'signal-mapper' ? (
-                          <div className="mx-auto w-full max-w-3xl space-y-4">
-                            <Card className="border-[#2a3f5f] bg-[#0a1527]">
-                              <CardContent className="space-y-5 p-4 md:p-5">
-                                <div className="space-y-4">
-                                  <p className="text-sm font-semibold text-[#edf5ff]">Customer Snapshot</p>
-                                  <div className="grid gap-4 md:grid-cols-2">
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">Customer Name</p>
-                                      <Textarea
-                                        value={signalMapperDraft.customerName}
-                                        onChange={(event) => handleSignalMapperFieldChange('customerName', event.target.value)}
-                                        className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">Current Vehicle</p>
-                                      <Textarea
-                                        value={signalMapperDraft.currentVehicle}
-                                        onChange={(event) => handleSignalMapperFieldChange('currentVehicle', event.target.value)}
-                                        className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <p className="text-xs font-medium text-[#9eb3d1]">Emotional Tone</p>
-                                    <Textarea
-                                      value={signalMapperDraft.emotionalTone}
-                                      onChange={(event) => handleSignalMapperFieldChange('emotionalTone', event.target.value)}
-                                      className="min-h-14 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-4 rounded-lg border border-[#21375a] bg-[#0c1a30] p-4">
-                                  <p className="text-sm font-semibold text-[#edf5ff]">Customer Signals</p>
-                                  <div className="grid gap-4 md:grid-cols-2">
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">What are they saying?</p>
-                                      <Textarea
-                                        value={signalMapperDraft.saying}
-                                        onChange={(event) => handleSignalMapperFieldChange('saying', event.target.value)}
-                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">What are they not saying?</p>
-                                      <Textarea
-                                        value={signalMapperDraft.unsaid}
-                                        onChange={(event) => handleSignalMapperFieldChange('unsaid', event.target.value)}
-                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-4 rounded-lg border border-[#21375a] bg-[#0c1a30] p-4">
-                                  <p className="text-sm font-semibold text-[#edf5ff]">What it actually means</p>
-                                  <div className="grid gap-4 md:grid-cols-2">
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">What's the real concern?</p>
-                                      <Textarea
-                                        value={signalMapperDraft.concern}
-                                        onChange={(event) => handleSignalMapperFieldChange('concern', event.target.value)}
-                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">What are they trying to solve?</p>
-                                      <Textarea
-                                        value={signalMapperDraft.solving}
-                                        onChange={(event) => handleSignalMapperFieldChange('solving', event.target.value)}
-                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-4 rounded-lg border border-[#21375a] bg-[#0c1a30] p-4">
-                                  <p className="text-sm font-semibold text-[#edf5ff]">What to do next</p>
-                                  <div className="grid gap-4 md:grid-cols-2">
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">What should I show?</p>
-                                      <Textarea
-                                        value={signalMapperDraft.show}
-                                        onChange={(event) => handleSignalMapperFieldChange('show', event.target.value)}
-                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-medium text-[#9eb3d1]">What should I say next?</p>
-                                      <Textarea
-                                        value={signalMapperDraft.sayNext}
-                                        onChange={(event) => handleSignalMapperFieldChange('sayNext', event.target.value)}
-                                        className="min-h-20 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                  <p className="text-sm font-semibold text-[#edf5ff]">Your Working Notes</p>
-                                  <Textarea
-                                    value={signalMapperDraft.notes}
-                                    onChange={(event) => handleSignalMapperFieldChange('notes', event.target.value)}
-                                    placeholder="Capture extra context, objections, and wording that worked."
-                                    className="min-h-28 border-[#2c3f5f] bg-[#081323] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                                  />
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            <div className="flex items-center justify-end">
-                              <Button
-                                className="h-11 bg-[#76ff8f] px-5 font-semibold text-[#0d1d11] hover:bg-[#92ffa7]"
-                                onClick={handleSaveCurrentWork}
-                                disabled={isSavingEntry}
-                              >
-                                <Save className="mr-2 h-4 w-4" />
-                                {isSavingEntry ? 'Saving...' : 'Save My Work'}
-                              </Button>
+                      {(() => {
+                        const InlineToolComponent = INLINE_TOOL_COMPONENTS[activeTool.id];
+                        if (!InlineToolComponent) {
+                          return (
+                            <div className="rounded-xl border border-dashed border-[#2a3f5f] bg-[#0a1527] p-5 text-sm text-[#a7b7d1]">
+                              This tool is available in full mode only.
                             </div>
+                          );
+                        }
+                        return (
+                          <div className="inline-tool-host workspace-tool-host animate-in fade-in duration-200 [&_header]:hidden">
+                            <InlineToolComponent />
                           </div>
-                        ) : activeTool.id === 'consistency-leak-finder' ? (
-                          <div className="mx-auto w-full max-w-4xl">
-                            <div className="overflow-hidden rounded-xl border border-[#2c3f5f] bg-[#081323]">
-                              <iframe
-                                src={`/tools/consistency-leak-finder?embed=1&theme=${embeddedTheme}`}
-                                title="Consistency Leak Finder"
-                                className="h-[78vh] min-h-[900px] w-full bg-[#081323]"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="text-sm font-semibold text-[#f6fbff]">Your Working Notes</p>
-                            <p className="text-sm text-[#a7b7d1]">Use this while you run the tool. Save it when you're ready.</p>
-
-                            <Textarea
-                              value={activeDraft}
-                              onChange={(event) => handleDraftChange(activeTool.id, event.target.value)}
-                              placeholder="Start building your playbook for this tool..."
-                              className="min-h-40 border-[#2c3f5f] bg-[#0a1527] text-[#d9e3f5] placeholder:text-[#6f84a7]"
-                            />
-                          </>
-                        )}
-
-                        {activeTool.id !== 'signal-mapper' && activeTool.id !== 'consistency-leak-finder' && (
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-[#f6fbff]">Don't lose your work.</p>
-                              <p className="text-xs text-[#9db0cb]">
-                                Cloud save is a paid feature. Free and account users stay local/session-only.
-                              </p>
-                            </div>
-
-                            <Button
-                              onClick={handleSaveCurrentWork}
-                              disabled={isSavingEntry}
-                              className="bg-[#76ff8f] font-semibold text-[#0d1d11] hover:bg-[#92ffa7]"
-                            >
-                              <Save className="mr-2 h-4 w-4" />
-                              {isSavingEntry ? 'Saving...' : 'Save My Work'}
-                            </Button>
-                          </div>
-                        )}
-
-                        {activeTool.id !== 'consistency-leak-finder' && (
-                          <Card className="border-[#2a3f5f] bg-[#0a1527]">
-                            <CardContent className="space-y-4 p-4">
-                              <div className="space-y-1">
-                                <p className="text-sm font-semibold text-[#f6fbff]">Enhancement Layers</p>
-                                <p className="text-xs text-[#9db0cb]">
-                                  Standalone tool output is always available. Sprocket and AutoDriveCX are additive layers.
-                                </p>
-                              </div>
-
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  size="sm"
-                                  className="bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]"
-                                  onClick={() => void handleRunSprocketLayer()}
-                                  disabled={isRunningSprocketLayer}
-                                >
-                                  {isRunningSprocketLayer ? 'Running Sprocket...' : 'Run Sprocket Layer'}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-[#2f445f] bg-transparent text-[#dbe7fb] hover:bg-[#1a2d49]"
-                                  onClick={() => void handleRunAutoDriveCxLayer()}
-                                  disabled={isRunningCxLayer}
-                                >
-                                  {isRunningCxLayer ? 'Running AutoDriveCX...' : 'Run AutoDriveCX Layer'}
-                                </Button>
-                              </div>
-
-                              {sprocketLayerOutput && (
-                                <div className="space-y-2 rounded-lg border border-[#233a5c] bg-[#0b182d] p-3">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#9ec0f1]">Sprocket Layer</p>
-                                  <p className="text-sm text-[#dce9ff]"><span className="font-semibold">Diagnosis:</span> {sprocketLayerOutput.diagnosis}</p>
-                                  <p className="text-sm text-[#dce9ff]"><span className="font-semibold">Rewrite:</span> {sprocketLayerOutput.rewrite}</p>
-                                  <p className="text-sm text-[#dce9ff]"><span className="font-semibold">Coaching:</span> {sprocketLayerOutput.coaching}</p>
-                                  <p className="text-sm text-[#dce9ff]"><span className="font-semibold">Prioritization:</span> {sprocketLayerOutput.prioritization}</p>
-                                  <p className="text-xs text-[#9eb3d1]">Next steps: {sprocketLayerOutput.nextSteps.join(' • ')}</p>
-                                </div>
-                              )}
-
-                              {cxLayerOutput && (
-                                <div className="space-y-2 rounded-lg border border-[#25504a] bg-[#0c231f] p-3">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#9ff7e7]">AutoDriveCX Layer</p>
-                                  <p className="text-sm text-[#dbfff9]"><span className="font-semibold">Insight:</span> {cxLayerOutput.insight}</p>
-                                  <p className="text-sm text-[#dbfff9]"><span className="font-semibold">Personalization:</span> {cxLayerOutput.personalization}</p>
-                                  <p className="text-xs text-[#9de3d8]">Focus: {cxLayerOutput.focus.join(' • ')}</p>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        )}
-                      </CardContent>
-                    </Card>
+                        );
+                      })()}
+                    </section>
                   )}
 
                   {showSecondToolPrompt && !dismissedSecondToolPrompt && !isPaidUser && (

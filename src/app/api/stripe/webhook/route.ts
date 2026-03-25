@@ -28,6 +28,57 @@ function toIsoFromUnix(epochSeconds?: number | null): string | null {
   return new Date(epochSeconds * 1000).toISOString();
 }
 
+function statusGrantsPaidAccess(status: BillingSubscriptionStatus): boolean {
+  return status === 'active' || status === 'trialing' || status === 'past_due';
+}
+
+function isTruthyValue(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
+}
+
+function collectAutoDriveCxPriceIdsFromEnv(): Set<string> {
+  const ids = new Set<string>();
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!/^STRIPE_PRICE_.*AUTODRIVE.*CX/i.test(key)) continue;
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (trimmed) ids.add(trimmed);
+  }
+  return ids;
+}
+
+function subscriptionIncludesAutoDriveCx(subscription: Stripe.Subscription): boolean {
+  const md = subscription.metadata || {};
+
+  if (
+    isTruthyValue(md.hasAutoDriveCX)
+    || isTruthyValue(md.hasAutoDriveCx)
+    || isTruthyValue(md.autodrive_cx)
+    || isTruthyValue(md.autodriveCx)
+  ) {
+    return true;
+  }
+
+  const combinedMetadata = [md.feature, md.features, md.product, md.plan, md.tier]
+    .filter((entry): entry is string => typeof entry === 'string')
+    .join(' ')
+    .toLowerCase();
+  if (combinedMetadata.includes('autodrivecx') || combinedMetadata.includes('autodrive cx') || combinedMetadata.includes('autodrive_cx')) {
+    return true;
+  }
+
+  const autodriveCxPriceIds = collectAutoDriveCxPriceIdsFromEnv();
+  if (!autodriveCxPriceIds.size) return false;
+
+  return subscription.items.data.some((item) => {
+    const priceId = typeof item.price?.id === 'string' ? item.price.id : '';
+    return priceId ? autodriveCxPriceIds.has(priceId) : false;
+  });
+}
+
 async function updateUserByCustomerId(customerId: string, patch: Record<string, unknown>): Promise<boolean> {
   const adminDb = getAdminDb();
   const usersSnap = await adminDb
@@ -221,6 +272,12 @@ async function handleSubscriptionLifecycleEvent(subscription: Stripe.Subscriptio
   const userPatch: Record<string, unknown> = {
     subscriptionStatus: mappedStatus,
   };
+
+  if (subscriptionIncludesAutoDriveCx(subscription) && statusGrantsPaidAccess(mappedStatus)) {
+    userPatch.hasAutoDriveCX = true;
+    userPatch.tier = 'pro';
+    userPatch.toolAccessLevel = 999;
+  }
 
   if (trialStartIso) userPatch.trialStartedAt = trialStartIso;
   if (trialEndIso) userPatch.trialEndsAt = trialEndIso;

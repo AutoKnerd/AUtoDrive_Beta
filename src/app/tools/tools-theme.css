@@ -1,13 +1,25 @@
 .tools-theme-light {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  --brand-primary: #2888b0;
+  --brand-primary-dark: #1f6f93;
+  --brand-primary-light: #dbeef6;
+  --brand-accent-1: #60b040;
+  --brand-accent-2: #3e8f71;
+  --surface-page: #f8f9fb;
+  --surface-card: #ffffff;
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-on-brand: #ffffff;
+
+  background-color: var(--surface-page);
+  color: var(--text-muted);
   background-image:
-    radial-gradient(circle at 14% -8%, hsl(var(--primary) / 0.16), transparent 34%),
-    radial-gradient(circle at 86% 2%, hsl(var(--accent) / 0.12), transparent 30%);
+    radial-gradient(circle at 12% -6%, rgba(148, 163, 184, 0.12), transparent 34%),
+    radial-gradient(circle at 86% 2%, rgba(148, 163, 184, 0.08), transparent 30%);
 }
 
 .tools-theme-light .pointer-events-none.absolute.left-1\/2.top-0 {
-  background-color: hsl(var(--primary) / 0.14) !important;
+  background-color: rgba(40, 136, 176, 0.18) !important;
 }
 
 .tools-theme-light [class*="bg-[#070d18]"],
@@ -26,7 +38,10 @@
 .tools-theme-light [class*="bg-[#0b1629]"],
 .tools-theme-light [class*="bg-[#0a1220]"],
 .tools-theme-light [class*="bg-[#14273e]"] {
-  background-color: hsl(var(--card)) !important;
+  background-color: var(--surface-card) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  border-width: 1px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
 }
 
 .tools-theme-light [class*="bg-[#111f35]"],
@@ -39,44 +54,164 @@
 .tools-theme-light [class*="bg-[#1a2d49]"],
 .tools-theme-light [class*="bg-[#22375a]"],
 .tools-theme-light [class*="bg-[#233652]"] {
-  background-color: hsl(var(--muted)) !important;
+  background-color: #f3f4f6 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 .tools-theme-light [class*="bg-[#76ff8f]"] {
-  background-color: hsl(var(--accent)) !important;
+  background-color: var(--brand-primary-dark) !important;
 }
 
 .tools-theme-light [class*="border-[#2"],
 .tools-theme-light [class*="border-[#3"],
 .tools-theme-light [class*="border-[#6"] {
-  border-color: hsl(var(--border)) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  border-width: 1px !important;
+}
+
+.tools-theme-light [class*="bg-[#0f1b30]"][class*="border-[#2b3e5d]"] {
+  background-color: var(--surface-card) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08) !important;
+}
+
+.tools-theme-light [class*="bg-[#0f1b30]"][class*="border-[#2b3e5d]"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12) !important;
 }
 
 .tools-theme-light [class*="text-[#f"],
 .tools-theme-light [class*="text-[#e"],
 .tools-theme-light [class*="text-[#d"],
 .tools-theme-light [class*="text-[#c"] {
-  color: hsl(var(--foreground)) !important;
+  color: var(--text-primary) !important;
 }
 
 .tools-theme-light [class*="text-[#a"],
 .tools-theme-light [class*="text-[#9"],
 .tools-theme-light [class*="text-[#8"],
 .tools-theme-light [class*="text-[#7"],
-.tools-theme-light [class*="text-[#6"],
 .tools-theme-light [class*="text-[#b"] {
-  color: hsl(var(--muted-foreground)) !important;
+  color: var(--text-muted) !important;
+}
+
+.tools-theme-light [class*="text-[#6484b3]"],
+.tools-theme-light [class*="text-[#6f84a7]"],
+.tools-theme-light [class*="text-[#90a8cc]"] {
+  color: var(--text-secondary) !important;
+}
+
+.tools-theme-light [class*="text-[#9db0cb]"],
+.tools-theme-light [class*="text-[#a7b7d1]"],
+.tools-theme-light [class*="text-[#9eb3d1]"] {
+  color: #9ca3af !important;
 }
 
 .tools-theme-light [class*="text-[#0d1d11]"],
 .tools-theme-light [class*="text-[#0e1f12]"] {
-  color: hsl(var(--accent-foreground)) !important;
+  color: var(--text-on-brand) !important;
 }
 
 .tools-theme-light [class*="placeholder:text-[#"]::placeholder {
-  color: hsl(var(--muted-foreground) / 0.75) !important;
+  color: #9ca3af !important;
 }
 
 .tools-theme-light [class*="ring-[#76ff8f]"] {
-  --tw-ring-color: hsl(var(--ring) / 0.35) !important;
+  --tw-ring-color: rgba(40, 136, 176, 0.35) !important;
+}
+
+.tools-theme-light .text-white {
+  color: var(--text-primary) !important;
+}
+
+.tools-theme-light button[class*="bg-[#111b2d]"] {
+  background-color: var(--surface-card) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: var(--text-primary) !important;
+}
+
+.tools-theme-light button[class*="bg-[#111b2d]"]:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.tools-theme-light button[class*="bg-[#172845]"] {
+  background-color: var(--brand-primary-dark) !important;
+  border: 1px solid #1a607f !important;
+  color: var(--text-on-brand) !important;
+  transition: all 0.15s ease !important;
+}
+
+.tools-theme-light button[class*="bg-[#172845]"]:hover {
+  background-color: #1a607f !important;
+}
+
+.tools-theme-light button[class*="border-[#2f466a]"],
+.tools-theme-light button[class*="border-[#2f415f]"],
+.tools-theme-light button[class*="border-[#2f445f]"] {
+  border-color: rgba(0, 0, 0, 0.16) !important;
+  color: var(--text-secondary) !important;
+}
+
+.tools-theme-light button[class*="border-[#2f466a]"]:hover,
+.tools-theme-light button[class*="border-[#2f415f]"]:hover,
+.tools-theme-light button[class*="border-[#2f445f]"]:hover {
+  background-color: #f3f4f6 !important;
+  color: var(--text-primary) !important;
+}
+
+.tools-theme-light .absolute.left-0.top-0.h-full.w-\[3px\] {
+  opacity: 0.7 !important;
+}
+
+.tools-theme-light .absolute.top-0.left-0.w-full.h-\[2px\] {
+  opacity: 0.65 !important;
+}
+
+.tools-theme-light .tool-control-panel {
+  background-color: #f8f9fb !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.tools-theme-light .tool-control-panel-icon {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.tool-run-cta {
+  --brand-green: #60b040;
+  --brand-green-dark: #4f9334;
+  background-color: var(--brand-green) !important;
+  border: 1px solid var(--brand-green-dark) !important;
+  color: #111827 !important;
+  border-radius: 10px !important;
+  padding: 10px 16px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.tool-run-cta:hover {
+  background-color: var(--brand-green-dark) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.tool-run-cta:active {
+  transform: scale(0.98);
+}
+
+/* Inline workspace mode: keep one navigation layer by hiding each tool page's internal top utility row. */
+.workspace-tool-host > div {
+  min-height: 0 !important;
+  background: transparent !important;
+}
+
+.workspace-tool-host > div > main {
+  padding-top: 0 !important;
+}
+
+.workspace-tool-host > div > main > div:first-child {
+  display: none !important;
 }
