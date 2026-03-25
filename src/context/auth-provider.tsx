@@ -157,16 +157,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setOriginalUser(null);
             setIsTouring(false);
           } else {
-            setUser(userProfile);
+            const normalizedProfile: User = userProfile.toolboxGiftedFullAccess
+              ? {
+                  ...userProfile,
+                  tier: 'pro',
+                  toolAccessLevel: 999,
+                  hasAutoDriveCX: true,
+                  subscriptionStatus: userProfile.subscriptionStatus || 'active',
+                }
+              : userProfile;
 
-            if (userProfile.role === 'Developer' || userProfile.role === 'Admin') {
-              setOriginalUser(userProfile);
+            setUser(normalizedProfile);
+
+            if (normalizedProfile.role === 'Developer' || normalizedProfile.role === 'Admin') {
+              setOriginalUser(normalizedProfile);
             } else {
               setOriginalUser(null);
             }
 
-            if (userProfile.email) {
-              setIsTouring(demoUserEmails.includes(userProfile.email));
+            if (normalizedProfile.email) {
+              setIsTouring(demoUserEmails.includes(normalizedProfile.email));
             }
           }
         } else {
