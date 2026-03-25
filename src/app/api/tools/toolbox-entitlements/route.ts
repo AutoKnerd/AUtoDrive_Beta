@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User } from '@/lib/definitions';
-import { getUserEntitlements, resolvePaidAccess } from '@/lib/tools/entitlements';
+import { getUserEntitlements, resolveAutoDriveCxAccess, resolvePaidAccess } from '@/lib/tools/entitlements';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,8 +39,12 @@ export async function GET(req: NextRequest) {
       hasPaidAccess: resolvePaidAccess({
         tier: auth.user.tier,
         subscriptionStatus: auth.user.subscriptionStatus,
+        giftedFullAccess: Boolean(auth.user.toolboxGiftedFullAccess),
       }),
-      hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+      hasAutoDriveCX: resolveAutoDriveCxAccess({
+        hasAutoDriveCX: auth.user.hasAutoDriveCX,
+        giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+      }),
       toolsUsedCount: Number(auth.user.toolboxToolsUsedCount || 0),
     });
 

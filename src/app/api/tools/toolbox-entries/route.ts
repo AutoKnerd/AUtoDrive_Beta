@@ -2,9 +2,14 @@ import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ToolboxSavedEntry } from '@/lib/tools/toolbox';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
-import { hasActiveSubscriptionStatus } from '@/lib/billing/access';
 import type { User } from '@/lib/definitions';
-import { canAccessFeature, FEATURES, getUserEntitlements } from '@/lib/tools/entitlements';
+import {
+  canAccessFeature,
+  FEATURES,
+  getUserEntitlements,
+  resolveAutoDriveCxAccess,
+  resolvePaidAccess,
+} from '@/lib/tools/entitlements';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,9 +20,11 @@ type AuthContext = {
 };
 
 function resolveTier(user: Partial<User> & { tier?: 'free' | 'pro' }): 'free' | 'pro' {
-  if (user.tier === 'pro') return 'pro';
-  if (hasActiveSubscriptionStatus(user.subscriptionStatus)) return 'pro';
-  return 'free';
+  return resolvePaidAccess({
+    tier: user.tier,
+    subscriptionStatus: user.subscriptionStatus,
+    giftedFullAccess: Boolean(user.toolboxGiftedFullAccess),
+  }) ? 'pro' : 'free';
 }
 
 async function requireAuth(req: NextRequest): Promise<AuthContext | NextResponse> {
@@ -54,7 +61,10 @@ export async function GET(req: NextRequest) {
     const entitlements = getUserEntitlements({
       hasAccount: true,
       hasPaidAccess: resolveTier(auth.user as User & { tier?: 'free' | 'pro' }) === 'pro',
-      hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+      hasAutoDriveCX: resolveAutoDriveCxAccess({
+        hasAutoDriveCX: auth.user.hasAutoDriveCX,
+        giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+      }),
       toolsUsedCount: Number(auth.user.toolboxToolsUsedCount || 0),
     });
     if (!canAccessFeature(entitlements, FEATURES.HISTORY)) {
@@ -93,7 +103,10 @@ export async function POST(req: NextRequest) {
     const entitlements = getUserEntitlements({
       hasAccount: true,
       hasPaidAccess: resolveTier(auth.user as User & { tier?: 'free' | 'pro' }) === 'pro',
-      hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+      hasAutoDriveCX: resolveAutoDriveCxAccess({
+        hasAutoDriveCX: auth.user.hasAutoDriveCX,
+        giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+      }),
       toolsUsedCount: Number(auth.user.toolboxToolsUsedCount || 0),
     });
     if (!canAccessFeature(entitlements, FEATURES.CLOUD_SAVE)) {

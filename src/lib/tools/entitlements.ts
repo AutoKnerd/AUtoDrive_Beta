@@ -67,9 +67,18 @@ export type FeatureGateResult = {
 export function resolvePaidAccess(input: {
   tier?: 'free' | 'pro';
   subscriptionStatus?: BillingSubscriptionStatus | null;
+  giftedFullAccess?: boolean;
 }): boolean {
+  if (input.giftedFullAccess) return true;
   if (input.tier === 'pro') return true;
   return hasActiveSubscriptionStatus(input.subscriptionStatus ?? null);
+}
+
+export function resolveAutoDriveCxAccess(input: {
+  hasAutoDriveCX?: boolean;
+  giftedFullAccess?: boolean;
+}): boolean {
+  return Boolean(input.hasAutoDriveCX || input.giftedFullAccess);
 }
 
 export function getUserEntitlements(input: {

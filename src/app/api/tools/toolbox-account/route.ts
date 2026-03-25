@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ToolboxSavedEntry } from '@/lib/tools/toolbox';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
-import { hasActiveSubscriptionStatus } from '@/lib/billing/access';
 import type { User } from '@/lib/definitions';
-import { getUserEntitlements, normalizeLegacyToolboxRole, type ToolboxCapturedRole } from '@/lib/tools/entitlements';
+import {
+  getUserEntitlements,
+  normalizeLegacyToolboxRole,
+  resolveAutoDriveCxAccess,
+  resolvePaidAccess,
+  type ToolboxCapturedRole,
+} from '@/lib/tools/entitlements';
 import { validateEntryPayload } from '@/lib/tools/toolbox-server';
 
 export const runtime = 'nodejs';
@@ -29,9 +34,11 @@ type SyncPaidStatusBody = {
 };
 
 function normalizeTier(user: Partial<User> & { tier?: 'free' | 'pro' }): 'free' | 'pro' {
-  if (user.tier === 'pro') return 'pro';
-  if (hasActiveSubscriptionStatus(user.subscriptionStatus)) return 'pro';
-  return 'free';
+  return resolvePaidAccess({
+    tier: user.tier,
+    subscriptionStatus: user.subscriptionStatus,
+    giftedFullAccess: Boolean(user.toolboxGiftedFullAccess),
+  }) ? 'pro' : 'free';
 }
 
 async function requireAuth(req: NextRequest): Promise<AuthContext | NextResponse> {
@@ -144,7 +151,10 @@ async function handleBootstrapFree(auth: AuthContext, body: BootstrapBody) {
   const entitlements = getUserEntitlements({
     hasAccount: true,
     hasPaidAccess: targetTier === 'pro',
-    hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+    hasAutoDriveCX: resolveAutoDriveCxAccess({
+      hasAutoDriveCX: auth.user.hasAutoDriveCX,
+      giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+    }),
     toolsUsedCount: normalizedToolsUsedCount,
   });
 
@@ -166,7 +176,10 @@ async function handleSyncPaidStatus(auth: AuthContext, _body: SyncPaidStatusBody
   const entitlements = getUserEntitlements({
     hasAccount: true,
     hasPaidAccess: isPaid,
-    hasAutoDriveCX: Boolean(auth.user.hasAutoDriveCX),
+    hasAutoDriveCX: resolveAutoDriveCxAccess({
+      hasAutoDriveCX: auth.user.hasAutoDriveCX,
+      giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+    }),
     toolsUsedCount,
   });
 
