@@ -6,27 +6,38 @@ import Link from 'next/link';
 import { Logo } from '@/components/layout/logo';
 import { UserNav } from './user-nav';
 import { usePathname } from 'next/navigation';
+import { ThemeToggle } from './theme-toggle';
+import { useThemeMode } from '@/context/theme-provider';
 
 export function Header() {
   const { user } = useAuth();
   const pathname = usePathname();
   const isToolsSurface = pathname?.startsWith('/tools');
+  const { mode, resolvedTheme } = useThemeMode();
+  const displayTheme = mode === 'system' ? `System (${resolvedTheme})` : mode === 'light' ? 'Day' : 'Night';
 
   return (
     <header
-      className={`sticky top-0 z-30 flex h-16 items-center gap-4 border-b px-4 backdrop-blur-sm md:px-6 ${
+      className={`sticky top-0 z-30 flex h-16 items-center border-b backdrop-blur-sm ${
         isToolsSurface
-          ? 'border-[#1f3657] bg-[#0f192c]/95 text-[#eaf2ff]'
+          ? 'border-[#c7d6e8] bg-[#f6fbff]/95 text-[#0f2135] dark:border-[#1f3657] dark:bg-[#0f192c]/95 dark:text-[#eaf2ff]'
           : 'border-border bg-background/80'
       }`}
     >
-      <Link href="/" className="flex items-center font-semibold">
-        <Logo variant="full" width={146} height={48} />
-      </Link>
-      <div className="ml-auto flex items-center gap-4">
-        {user && (
-          <UserNav user={user} avatarClassName="h-8 w-8" />
-        )}
+      <div className="mx-auto flex h-full w-full max-w-7xl items-center gap-4 px-4 md:px-6">
+        <Link href="/" className="flex items-center font-semibold">
+          <Logo variant="full" width={146} height={48} />
+        </Link>
+        <div className="ml-auto flex items-center gap-4">
+          <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+            <span>Theme</span>
+            <span className="rounded-full border border-border px-2 py-0.5 text-foreground">{displayTheme}</span>
+          </div>
+          <ThemeToggle />
+          {user && (
+            <UserNav user={user} avatarClassName="h-8 w-8" />
+          )}
+        </div>
       </div>
     </header>
   );

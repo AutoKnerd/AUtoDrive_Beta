@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowRight, FolderOpen, Lock, Save } from 'lucide-react';
+import { ArrowRight, ChevronDown, CheckCircle2, Clock, FolderOpen, HelpCircle, Lock, Save, SlidersHorizontal, Sparkles, Zap } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { EmailGateModal } from '@/components/tools/email-gate-modal';
 import { UpgradeModal } from '@/components/tools/upgrade-modal';
@@ -12,11 +12,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { useEntitlements } from '@/hooks/use-entitlements';
 import { cn } from '@/lib/utils';
+import { useThemeMode } from '@/context/theme-provider';
 import { touchAttribution } from '@/lib/consultant-referral';
+import './tools-theme.css';
 import {
   canAccessTool,
   ctaForFeaturedTool,
@@ -89,10 +93,22 @@ function badgeText(label: 'Premium'): string {
 }
 
 function ctaLabelForTool(tool: ToolConfig, canAccess: boolean): string {
-  if (!canAccess) return ctaForToolCard(canAccess);
-  const labels = ['Open', 'Start', 'Run Tool', 'Try'] as const;
-  const hash = tool.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return labels[hash % labels.length];
+  return 'Run Tool';
+}
+
+const TAG_ACCENT_COLORS: Record<string, string> = {
+  'Fast Win': '#76ff8f', // Soft Green
+  'High Impact': '#4dabf7', // Soft Blue
+  'Stuck Deal Fix': '#ff6b6b', // Soft Red
+  'Customer Saver': '#ff6b6b', // Map Customer Saver to Red
+  'Manager Move': '#ae3ec9', // Soft Purple
+  'Confidence Builder': '#15aabf', // Soft Teal
+  'Momentum Booster': '#ff922b', // Soft Orange
+};
+
+function getToolAccentColor(tool: ToolConfig): string {
+  const tag = getToolConfidenceTag(tool);
+  return TAG_ACCENT_COLORS[tag] || '#76ff8f';
 }
 
 function buildToolRoute(toolId: string): string | null {
@@ -134,9 +150,113 @@ function buildToolRoute(toolId: string): string | null {
   return null;
 }
 
+const SCENARIO_GROUPS = [
+  { label: 'Move deals forward', categories: ['Deal Flow'] },
+  { label: 'Handle objections fast', categories: ['Objections'] },
+  { label: 'Reconnect & recover deals', categories: ['Follow-Up'] },
+  { label: 'Present numbers clearly', categories: ['Pricing'] },
+  { label: 'Improve customer experience', categories: ['CX / Process'] },
+  { label: 'Lead and coach your team', categories: ['Manager Tools'] },
+] as const;
+
+const QUICK_DIAGNOSIS_OPTIONS = [
+  { label: 'Customer said "I need to think about it"', filter: 'Objections', description: 'Break the stall' },
+  { label: 'Deal slowed down', filter: 'Deal Flow', description: 'Get the deal moving again' },
+  { label: 'Objection came up', filter: 'Objections', description: 'Handle the objection' },
+  { label: 'I’m presenting numbers', filter: 'Pricing', description: 'Present numbers cleanly' },
+  { label: 'I need to follow up', filter: 'Follow-Up', description: 'Re-engage this customer' },
+  { label: 'I don’t know what to do next', filter: 'all', description: 'Tell me what to do' },
+] as const;
+
+const TOOL_INTENT_ACTIONS: Record<ToolIntentTag, string> = {
+  'Move a deal forward': 'Push this deal forward',
+  'Handle an objection': 'Break through an objection',
+  'Follow up': 'Reconnect with a customer',
+  'Present numbers': 'Deliver numbers with confidence',
+  'Recover a stalled deal': 'Revive a dead deal',
+  'Improve consistency': 'Get more consistent',
+  'Coach the team': 'Coach my team now',
+};
+
+const TOOL_CONTENT_UPGRADES: Record<string, { triggers: string[]; tag: string; authorityLabel: string; roleDescription: string; bestUsedWhen?: string[] }> = {
+  'pickup-experience-designer': {
+    bestUsedWhen: ['Delivery day is approaching', 'Customer feels unsure about next steps', 'You want to create a strong final impression'],
+    triggers: ['Customer is asking "what happens next?"', 'Delivery feels rushed or unclear', 'You want to turn this into a referral moment'],
+    tag: 'Confidence Builder',
+    authorityLabel: 'Top Performer Move',
+    roleDescription: 'Spotlight: Perfect Delivery'
+  },
+  'consistency-gap-check': {
+    bestUsedWhen: ['Performance feels inconsistent across reps', 'Customer experience varies too much', 'You’re not sure where breakdowns are happening'],
+    triggers: ['Reps are skipping steps', 'Customers ask the same questions twice', 'Follow-up feels uneven or unreliable'],
+    tag: 'Stuck Deal Fix',
+    authorityLabel: 'Most Likely Next Move',
+    roleDescription: 'Behavior Diagnosis'
+  },
+  'team-coaching-converter': {
+    bestUsedWhen: ['You observed a rep struggle in a live interaction', 'You need to turn a moment into a coaching opportunity', 'You want fast, actionable coaching'],
+    triggers: ['A rep stumbled through an objection', 'A conversation felt flat or unclear', 'You’re not sure what feedback to give'],
+    tag: 'Manager Move',
+    authorityLabel: 'Performance Accelerator',
+    roleDescription: 'Actionable Coaching'
+  },
+  'desk-conversation': {
+    bestUsedWhen: ['You’re stepping into a deal mid-conversation', 'A deal is getting complex or stuck', 'You need a clear plan before engaging'],
+    triggers: ['Customer is hesitating at numbers', 'Trade or financing is complicating the deal', 'Rep needs support closing'],
+    tag: 'High Impact',
+    authorityLabel: 'Best Next Step',
+    roleDescription: 'Live Deal Support'
+  },
+  'repair-trust-builder': {
+    triggers: ['Customer is skeptical of MPI', 'High repair estimate needs explaining', 'Building long-term loyalty'],
+    tag: 'Stuck Deal Fix',
+    authorityLabel: 'Most Likely Next Move',
+    roleDescription: 'Trust Architecture'
+  },
+  'clarity-check-builder': {
+    triggers: ['Paperwork is getting complex', 'Customer missed a detail in the contract', 'Verifying all terms are clear'],
+    tag: 'Customer Saver',
+    authorityLabel: 'Best Next Step',
+    roleDescription: 'Clarity Audit'
+  },
+  'price-presentation': {
+    triggers: ['First pencil is being delivered', 'Opening the gross discussion', 'Handling money questions early'],
+    tag: 'Momentum Booster',
+    authorityLabel: 'Top Performer Move',
+    roleDescription: 'Premium Presentation'
+  },
+};
+
+function getToolBestUsedWhen(tool: ToolConfig): string[] {
+  return TOOL_CONTENT_UPGRADES[tool.id]?.bestUsedWhen || [tool.recommendedWhen[0] || 'Handling a deal move.'];
+}
+
+function getToolTriggers(tool: ToolConfig): string[] {
+  return TOOL_CONTENT_UPGRADES[tool.id]?.triggers || [
+    'Momentum has stalled',
+    'Customer needs clarity',
+    'Next steps are unclear',
+  ];
+}
+
+function getToolConfidenceTag(tool: ToolConfig): string {
+  if (TOOL_CONTENT_UPGRADES[tool.id]?.tag) return TOOL_CONTENT_UPGRADES[tool.id]!.tag;
+  if (tool.access === 'premium') return 'High Impact';
+  return 'Fast Win';
+}
+
+function getToolAuthorityLabel(tool: ToolConfig): string {
+  return TOOL_CONTENT_UPGRADES[tool.id]?.authorityLabel || 'Best Next Step';
+}
+
+function getToolRoleDescription(tool: ToolConfig): string {
+  return TOOL_CONTENT_UPGRADES[tool.id]?.roleDescription || 'Optimization Tool';
+}
+
 export default function ToolsPage() {
   const { toast } = useToast();
   const { user, firebaseUser, loading, setUser } = useAuth();
+  const { resolvedTheme } = useThemeMode();
   const [activeTool, setActiveTool] = useState<ToolConfig | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [recentEntries, setRecentEntries] = useState<ToolboxSavedEntry[]>([]);
@@ -173,23 +293,29 @@ export default function ToolsPage() {
   const [showFeaturedCompletionPrompt, setShowFeaturedCompletionPrompt] = useState(false);
   const [dismissedFeaturedCompletionPrompt, setDismissedFeaturedCompletionPrompt] = useState(false);
   const [dismissedReturnBanner, setDismissedReturnBanner] = useState(false);
-  const [selectedIntent, setSelectedIntent] = useState<ToolIntentTag | null>(null);
   const [recommendationEvents, setRecommendationEvents] = useState<RecommendationEvent[]>([]);
   const [recommendationRefresh, setRecommendationRefresh] = useState(0);
   const shownRecommendationIdsRef = useRef<Set<string>>(new Set());
   const previousRecommendationIdsRef = useRef<string[]>([]);
   const interactedRecommendationIdsRef = useRef<Set<string>>(new Set());
 
-  const [activeFilter, setActiveFilter] = useState<'All Tools' | 'Free Tools' | 'Recent Tools' | 'Premium Tools'>('All Tools');
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<'All' | 'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'>('All');
-  const [selectedRoleFilter, setSelectedRoleFilter] = useState<UserRole | 'ALL'>('ALL');
   const [didTouchRoleFilter, setDidTouchRoleFilter] = useState(false);
+  const [selectedIntentFilter, setSelectedIntentFilter] = useState<ToolIntentTag | null>(null);
+  const [isDesktopFilterUI, setIsDesktopFilterUI] = useState(false);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [appliedAccessFilter, setAppliedAccessFilter] = useState<'available' | 'all' | 'free' | 'premium'>('available');
+  const [appliedCategoryFilters, setAppliedCategoryFilters] = useState<Array<'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'>>([]);
+  const [appliedRoleFilter, setAppliedRoleFilter] = useState<UserRole | 'ALL'>('ALL');
+  const [appliedSortBy, setAppliedSortBy] = useState<'recommended' | 'recent' | 'popular'>('recommended');
+  const [draftAccessFilter, setDraftAccessFilter] = useState<'available' | 'all' | 'free' | 'premium'>('available');
+  const [draftCategoryFilters, setDraftCategoryFilters] = useState<Array<'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'>>([]);
+  const [draftRoleFilter, setDraftRoleFilter] = useState<UserRole | 'ALL'>('ALL');
+  const [draftSortBy, setDraftSortBy] = useState<'recommended' | 'recent' | 'popular'>('recommended');
   const [searchQuery, setSearchQuery] = useState('');
-  const filters: Array<'All Tools' | 'Free Tools' | 'Recent Tools' | 'Premium Tools'> = [
-    'All Tools', 'Free Tools', 'Recent Tools', 'Premium Tools',
-  ];
-  const categoryFilters: Array<'All' | 'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'> = [
-    'All', 'Deal Flow', 'Objections', 'Follow-Up', 'Pricing', 'CX / Process', 'Manager Tools',
+  const [isAllToolsExpanded, setIsAllToolsExpanded] = useState(false);
+  const [diagnosisFeedback, setDiagnosisFeedback] = useState<string | null>(null);
+  const categoryFilters: Array<'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'> = [
+    'Deal Flow', 'Objections', 'Follow-Up', 'Pricing', 'CX / Process', 'Manager Tools',
   ];
 
   const tools = TOOLBOX_TOOLS;
@@ -222,27 +348,22 @@ export default function ToolsPage() {
     [entitlements.hasAccount, tools.length]
   );
 
-  const accessFilteredTools = useMemo(() => {
-    if (activeFilter === 'All Tools') return tools;
-    if (activeFilter === 'Free Tools') {
-      return tools.filter((tool) => tool.access === 'free');
-    }
-    if (activeFilter === 'Recent Tools') {
-      return tools.filter((tool) => isRecentTool(tool, tools, 3));
-    }
-    return tools.filter((tool) => tool.access === 'premium');
-  }, [tools, activeFilter]);
-
   const visibleTools = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    const filtered = accessFilteredTools.filter((tool) => {
-      const categoryMatch = activeCategoryFilter === 'All' || tool.category === activeCategoryFilter;
-      if (!categoryMatch) return false;
+    const filtered = tools.filter((tool) => {
+      const isToolAvailable = canOpenTool(tool);
+      if (appliedAccessFilter === 'available' && !isToolAvailable) return false;
+      if (appliedAccessFilter === 'free' && tool.access !== 'free') return false;
+      if (appliedAccessFilter === 'premium' && tool.access !== 'premium') return false;
 
-      if (selectedRoleFilter !== 'ALL') {
-        const roleMatch = tool.primaryRoles.includes(selectedRoleFilter) || tool.secondaryRoles.includes(selectedRoleFilter);
+      if (appliedCategoryFilters.length > 0 && !(appliedCategoryFilters as any[]).includes(tool.category)) return false;
+
+      if (appliedRoleFilter !== 'ALL') {
+        const roleMatch = tool.primaryRoles.includes(appliedRoleFilter) || tool.secondaryRoles.includes(appliedRoleFilter);
         if (!roleMatch) return false;
       }
+
+      if (selectedIntentFilter && !tool.intentTags.includes(selectedIntentFilter)) return false;
 
       if (!normalizedQuery) return true;
       const searchCorpus = [
@@ -258,14 +379,14 @@ export default function ToolsPage() {
       return searchCorpus.includes(normalizedQuery);
     });
 
-    if (selectedRoleFilter === 'ALL') return filtered;
+    if (appliedRoleFilter === 'ALL') return filtered;
 
     return [...filtered].sort((a, b) => {
-      const aPrimary = a.primaryRoles.includes(selectedRoleFilter) ? 1 : 0;
-      const bPrimary = b.primaryRoles.includes(selectedRoleFilter) ? 1 : 0;
+      const aPrimary = a.primaryRoles.includes(appliedRoleFilter) ? 1 : 0;
+      const bPrimary = b.primaryRoles.includes(appliedRoleFilter) ? 1 : 0;
       return bPrimary - aPrimary;
     });
-  }, [accessFilteredTools, activeCategoryFilter, searchQuery, selectedRoleFilter]);
+  }, [appliedAccessFilter, appliedCategoryFilters, appliedRoleFilter, searchQuery, selectedIntentFilter, tools]);
 
   const displayName = (user?.name || '').trim().split(/\s+/)[0] || (user?.email || '');
   const featuredCta = ctaForFeaturedTool();
@@ -277,6 +398,7 @@ export default function ToolsPage() {
   const activeToolId = activeTool?.id ?? null;
   const isWorkspaceMode = !!activeToolId;
   const isConsistencyWorkspace = activeToolId === 'consistency-leak-finder';
+  const embeddedTheme = resolvedTheme === 'light' ? 'light' : 'dark';
   const accountEmail = accountProfile?.email || '';
   const accountRole = accountProfile?.role || 'Sales Consultant';
   const historyGate = checkFeature(FEATURES.HISTORY);
@@ -303,7 +425,7 @@ export default function ToolsPage() {
       hasAccount: entitlements.hasAccount,
       hasAutoDriveCX: entitlements.hasAutoDriveCX,
       role: (user?.role || accountProfile?.role || null),
-      selectedIntent,
+      selectedIntent: selectedIntentFilter,
       recentOpenedToolIds: openedIds,
       recentCompletedToolIds: completedIds,
       savedToolIds: completedIds,
@@ -320,7 +442,7 @@ export default function ToolsPage() {
       } : null,
       recommendationEvents,
     });
-  }, [accessibleToolIds, accountProfile?.role, entitlements.hasAccount, entitlements.hasAutoDriveCX, hasAutoDriveCX, recentEntries, recommendationEvents, selectedIntent, sessionOpenedToolIds, tools, usedToolIds, user?.role, user?.stats?.closing, user?.stats?.followUp, user?.stats?.listening, user?.stats?.trust]);
+  }, [accessibleToolIds, accountProfile?.role, entitlements.hasAccount, entitlements.hasAutoDriveCX, hasAutoDriveCX, recentEntries, recommendationEvents, selectedIntentFilter, sessionOpenedToolIds, tools, usedToolIds, user?.role, user?.stats?.closing, user?.stats?.followUp, user?.stats?.listening, user?.stats?.trust]);
 
   const recommendedPrimaryTool = useMemo(
     () => tools.find((tool) => tool.id === recommendationResult.recommendations[0]?.toolId) || null,
@@ -338,12 +460,46 @@ export default function ToolsPage() {
     [recommendationResult.recommendations]
   );
   const gridTools = useMemo(() => {
-    return [...visibleTools].sort((a, b) => {
+    const byRecommendation = (a: ToolConfig, b: ToolConfig) => {
       const aRecommended = recommendedToolIdSet.has(a.id) ? 1 : 0;
       const bRecommended = recommendedToolIdSet.has(b.id) ? 1 : 0;
-      return aRecommended - bRecommended;
-    });
-  }, [recommendedToolIdSet, visibleTools]);
+      return bRecommended - aRecommended;
+    };
+
+    const byRecency = (a: ToolConfig, b: ToolConfig) => {
+      const aRecent = isRecentTool(a, tools, 4) ? 1 : 0;
+      const bRecent = isRecentTool(b, tools, 4) ? 1 : 0;
+      if (aRecent !== bRecent) return bRecent - aRecent;
+      return byRecommendation(a, b);
+    };
+
+    const byPopularity = (a: ToolConfig, b: ToolConfig) => {
+      const aPopularity = (a.recommendedWhen?.length || 0) + (a.skillTags?.length || 0);
+      const bPopularity = (b.recommendedWhen?.length || 0) + (b.skillTags?.length || 0);
+      if (aPopularity !== bPopularity) return bPopularity - aPopularity;
+      return byRecommendation(a, b);
+    };
+
+    const sorted = [...visibleTools];
+    if (appliedSortBy === 'recent') return sorted.sort(byRecency);
+    if (appliedSortBy === 'popular') return sorted.sort(byPopularity);
+    return sorted.sort(byRecommendation);
+  }, [appliedSortBy, recommendedToolIdSet, tools, visibleTools]);
+
+  const useRightNowTools = useMemo(() => {
+    const list = [
+      featuredTool,
+      recommendedPrimaryTool,
+      ...recommendedSecondaryTools.slice(0, 2).map((r) => r.tool),
+    ].filter((t): t is ToolConfig => !!t);
+    const seen = new Set<string>();
+    return list.filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    }).slice(0, 4);
+  }, [featuredTool, recommendedPrimaryTool, recommendedSecondaryTools]);
+
   const recentToolNameForReason = useMemo(() => {
     const recentId = [...sessionOpenedToolIds, ...usedToolIds].reverse().find((id) => tools.some((tool) => tool.id === id));
     return recentId ? (tools.find((tool) => tool.id === recentId)?.name || null) : null;
@@ -356,7 +512,7 @@ export default function ToolsPage() {
     const roleLabel = (user?.role || accountRole || 'Sales Consultant') === 'manager'
       ? 'Sales Manager'
       : (user?.role || accountRole || 'Sales Consultant');
-    const intentLabel = selectedIntent ? selectedIntent.toLowerCase() : null;
+    const intentLabel = selectedIntentFilter ? selectedIntentFilter.toLowerCase() : null;
     if (slot === 'primary') {
       if (intentLabel) return `Built for ${roleLabel}s handling ${intentLabel}.`;
       return `Built for ${roleLabel} workflows that need clearer next steps.`;
@@ -389,8 +545,17 @@ export default function ToolsPage() {
     if (didTouchRoleFilter) return;
     const defaultRole = user?.role || accountProfile?.role;
     if (!defaultRole) return;
-    setSelectedRoleFilter(defaultRole);
+    setAppliedRoleFilter(defaultRole);
+    setDraftRoleFilter(defaultRole);
   }, [accountProfile?.role, didTouchRoleFilter, user?.role]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncLayout = () => setIsDesktopFilterUI(window.matchMedia('(min-width: 768px)').matches);
+    syncLayout();
+    window.addEventListener('resize', syncLayout);
+    return () => window.removeEventListener('resize', syncLayout);
+  }, []);
 
   useEffect(() => {
     async function loadEntries() {
@@ -514,7 +679,7 @@ export default function ToolsPage() {
       toolId,
       role: user?.role || accountRole,
       mode: recommendationResult.mode,
-      intent: selectedIntent || undefined,
+      intent: selectedIntentFilter || undefined,
       metadata,
     });
     if (localEvent) {
@@ -529,7 +694,7 @@ export default function ToolsPage() {
       toolId,
       role: user?.role || accountRole,
       mode: recommendationResult.mode,
-      intent: selectedIntent || undefined,
+      intent: selectedIntentFilter || undefined,
       metadata,
       createdAt: localEvent?.createdAt,
     });
@@ -547,14 +712,14 @@ export default function ToolsPage() {
     });
 
     recommendationResult.recommendations.forEach((row, index) => {
-      const key = `${row.toolId}:${recommendationResult.mode}:${selectedIntent || 'none'}`;
+      const key = `${row.toolId}:${recommendationResult.mode}:${selectedIntentFilter || 'none'}`;
       if (shownRecommendationIdsRef.current.has(key)) return;
       shownRecommendationIdsRef.current.add(key);
       void logRecommendationEvent('recommended_tool_shown', row.toolId, { rank: index + 1, score: row.score });
     });
 
     previousRecommendationIdsRef.current = currentIds;
-  }, [recommendationRefresh, recommendationResult, selectedIntent]);
+  }, [recommendationRefresh, recommendationResult, selectedIntentFilter]);
 
   function openTool(tool: ToolConfig) {
     setActiveTool(tool);
@@ -616,6 +781,50 @@ export default function ToolsPage() {
     interactedRecommendationIdsRef.current.add(toolId);
     void logRecommendationEvent('recommended_tool_dismissed', toolId, { source: 'tool_shop_recommendation_card' });
     setRecommendationRefresh((current) => current + 1);
+  }
+
+  function handleOpenFiltersPanel(nextOpen: boolean) {
+    setIsFilterPanelOpen(nextOpen);
+    if (!nextOpen) return;
+    setDraftAccessFilter(appliedAccessFilter);
+    setDraftCategoryFilters(appliedCategoryFilters);
+    setDraftRoleFilter(appliedRoleFilter);
+    setDraftSortBy(appliedSortBy);
+  }
+
+  function handleApplyFilters() {
+    setAppliedAccessFilter(draftAccessFilter);
+    setAppliedCategoryFilters(draftCategoryFilters);
+    setAppliedRoleFilter(draftRoleFilter);
+    setAppliedSortBy(draftSortBy);
+    if (draftRoleFilter !== 'ALL') {
+      setDidTouchRoleFilter(true);
+    }
+    setIsFilterPanelOpen(false);
+  }
+
+  function handleClearFilters() {
+    const defaultRole = (user?.role || accountProfile?.role || 'ALL') as UserRole | 'ALL';
+    setDraftAccessFilter('available');
+    setDraftCategoryFilters([]);
+    setDraftRoleFilter(defaultRole);
+    setDraftSortBy('recommended');
+    setAppliedAccessFilter('available');
+    setAppliedCategoryFilters([]);
+    setAppliedRoleFilter(defaultRole);
+    setAppliedSortBy('recommended');
+    setDidTouchRoleFilter(false);
+    setSelectedIntentFilter(null);
+    setSearchQuery('');
+    setIsFilterPanelOpen(false);
+  }
+
+  function toggleDraftCategory(category: 'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools') {
+    setDraftCategoryFilters((current) => (
+      current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category]
+    ));
   }
 
   function handleInlineUpgradeClick(context?: string) {
@@ -884,8 +1093,117 @@ export default function ToolsPage() {
     }, 350);
   }
 
+  const filterPanelContent = (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Access</p>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            { value: 'available', label: 'Available' },
+            { value: 'all', label: 'All' },
+            { value: 'free', label: 'Free Only' },
+            { value: 'premium', label: 'Premium Only' },
+          ] as const).map((entry) => (
+            <button
+              key={entry.value}
+              type="button"
+              onClick={() => setDraftAccessFilter(entry.value)}
+              className={cn(
+                'rounded-md border px-3 py-2 text-xs font-semibold',
+                draftAccessFilter === entry.value
+                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
+              )}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Category</p>
+        <div className="flex flex-wrap gap-2">
+          {categoryFilters.map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => toggleDraftCategory(category)}
+              className={cn(
+                'rounded-full border px-3 py-1.5 text-[11px] font-semibold',
+                draftCategoryFilters.includes(category)
+                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
+              )}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Role</p>
+        <Select value={draftRoleFilter} onValueChange={(value) => setDraftRoleFilter(value as UserRole | 'ALL')}>
+          <SelectTrigger className="h-9 border-[#2c3e5c] bg-[#0f1a2d] text-[#eaf2ff]">
+            <span className="text-xs">
+              {draftRoleFilter === 'ALL' ? 'All Roles' : draftRoleFilter === 'manager' ? 'Sales Manager' : draftRoleFilter}
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Roles</SelectItem>
+            {allRoles.map((role) => (
+              <SelectItem key={role} value={role}>
+                {role === 'manager' ? 'Sales Manager' : role}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Sort</p>
+        <div className="grid grid-cols-3 gap-2">
+          {([
+            { value: 'recommended', label: 'Recommended' },
+            { value: 'recent', label: 'Recent' },
+            { value: 'popular', label: 'Popular' },
+          ] as const).map((entry) => (
+            <button
+              key={entry.value}
+              type="button"
+              onClick={() => setDraftSortBy(entry.value)}
+              className={cn(
+                'rounded-md border px-2 py-2 text-[11px] font-semibold',
+                draftSortBy === entry.value
+                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
+              )}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 pt-2">
+        <Button type="button" variant="ghost" className="text-[#9eb3d1] hover:bg-[#13233b]" onClick={handleClearFilters}>
+          Clear
+        </Button>
+        <Button type="button" className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={handleApplyFilters}>
+          Apply
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#070d18] pb-24 text-[#d9e3f5]">
+    <div
+      className={cn(
+        'relative min-h-screen overflow-hidden bg-[#070d18] pb-24 text-[#d9e3f5]',
+        resolvedTheme === 'light' && 'tools-theme-light'
+      )}
+    >
       <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-[#76ff8f]/[0.07] blur-3xl" />
       <div className="relative z-10">
         <Header />
@@ -902,37 +1220,79 @@ export default function ToolsPage() {
           </div>
         )}
 
-        <main className="mx-auto w-full max-w-6xl space-y-10 p-4 md:space-y-12 md:p-8 lg:px-12 lg:py-14">
-          <section className="space-y-5">
+        <main className="mx-auto w-full max-w-7xl space-y-6 p-4 md:space-y-8 md:p-6 lg:p-8">
+          <section className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#76ff8f]/30 bg-[#111b2d] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9bffac]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#76ff8f]/30 bg-[#111b2d] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9bffac]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#76ff8f]" />
                 New tool drops every week
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
               {!loading && user && (
-                <p className="text-sm font-medium text-[#c8d8f1]">Welcome back{displayName ? `, ${displayName}` : ''}.</p>
+                <p className="text-xs font-medium text-[#c8d8f1]">Welcome back{displayName ? `, ${displayName}` : ''}.</p>
               )}
-              <h1 className="text-3xl font-semibold tracking-tight text-[#f6fbff] md:text-4xl">
-                One tool a week. Better conversations. More deals.
+              <h1 className="text-2xl font-semibold tracking-tight text-[#f6fbff] md:text-4xl">
+                Build a CX system you actually use.
               </h1>
-              <p className="max-w-3xl text-base text-[#a7b7d1] md:text-lg">
-                Build a CX system you actually use, not one you forget.
-              </p>
-              <p className="text-sm text-[#a7b7d1]/70">Takes less than 5 minutes to run.</p>
               <p className="text-sm text-[#9db0cb]">
-                {entitlements.hasAccount ? `You've unlocked ${unlockedToolCount} tools.` : 'Use up to 3 tools free, then add email + role to keep going.'}
+                Not sure what to do next? <span className="text-[#9bffac] font-medium">Start here.</span>
               </p>
+              <p className="text-[11px] text-[#6f84a7] font-medium leading-none">
+                Pick a situation, we’ll guide the next move.
+              </p>
+            </div>
+
+            {/* QUICK DIAGNOSIS BAR */}
+            <div className="rounded-xl border border-[#2b3e5d] bg-[#0c1729]/80 p-1 backdrop-blur shadow-xl">
+              <div className="flex flex-col gap-1 p-2">
+                <p className="px-2 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-[#6f84a7]">
+                  What’s happening right now?
+                </p>
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {QUICK_DIAGNOSIS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.label}
+                      onClick={() => {
+                        const categories = categoryFilters as string[];
+                        if (opt.filter !== 'all' && categories.includes(opt.filter)) {
+                          setAppliedCategoryFilters([opt.filter as any]);
+                          setAppliedRoleFilter('ALL');
+                          const feedbackMap: Record<string, string> = {
+                            'Objections': 'Tools to break through this objection',
+                            'Deal Flow': 'Best tools to regain momentum',
+                            'Pricing': 'Presentation tools for this deal',
+                            'Follow-Up': 'Here’s how to reconnect this deal',
+                          };
+                          setDiagnosisFeedback(feedbackMap[opt.filter] || `Best next steps for this situation`);
+                        } else {
+                          setDiagnosisFeedback('Best next steps for this situation');
+                        }
+                        setIsAllToolsExpanded(true);
+                        document.getElementById('all-tools-anchor')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="flex items-center gap-3 rounded-lg border border-transparent bg-[#111b2d] p-3 text-left transition-all hover:border-[#37507a] hover:bg-[#15243f] active:scale-[0.98]"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#1a2d49] text-[#76ff8f]">
+                        {opt.filter === 'all' ? <HelpCircle className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold text-[#e8f1ff]">{opt.label}</p>
+                        <p className="text-[10px] text-[#9db0cb]">{opt.description}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <Button
               variant="outline"
               onClick={() => maybeOpenTool(featuredTool)}
-              className="border-[#2f415f] bg-[#0d1728] text-[#e8f1ff] hover:bg-[#12203a]"
+              className="h-10 border-[#2f415f] bg-[#0d1728] text-xs text-[#e8f1ff] transition-all hover:bg-[#12203a] active:scale-[0.95]"
             >
-              Start This Week's Tool
+              Run This Week's Featured Tool
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </section>
@@ -979,264 +1339,325 @@ export default function ToolsPage() {
 
           <div className="transition-all duration-200">
             {!isWorkspaceMode ? (
-              <div className="space-y-10">
-                <section>
-                  <Card className="overflow-hidden border-[#2b3e5d] bg-[#0f1b30] shadow-[0_0_0_1px_rgba(118,255,143,0.08)]">
-                    <CardHeader className="space-y-4 border-b border-[#203352] bg-[#121f36]">
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6f89af]">This Week's Tool</p>
-                        <CardTitle className="text-3xl font-semibold tracking-tight text-[#f5f9ff] md:text-4xl">
-                          {featuredTool.name}
-                        </CardTitle>
-                        <p className="max-w-2xl text-base text-[#a9bbd8]">{featuredTool.description}</p>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <Button
-                        size="lg"
-                        className="h-11 bg-[#76ff8f] px-6 font-semibold text-[#0d1d11] hover:bg-[#92ffa7]"
-                        onClick={() => maybeOpenTool(featuredTool)}
-                      >
-                        {featuredCta}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </section>
-
-                <section className="space-y-3">
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Recommended for You</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {TOOL_INTENT_OPTIONS.map((intent) => (
-                        <button
-                          key={intent}
-                          onClick={() => setSelectedIntent((current) => (current === intent ? null : intent))}
-                          className={cn(
-                            'rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide transition-colors',
-                            selectedIntent === intent
-                              ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
-                              : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
-                          )}
-                        >
-                          {intent}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {recommendedPrimaryTool && recommendationResult.recommendations.length > 0 && (
-                    <Card className="overflow-hidden border-[#2b3e5d] bg-[#0f1b30]">
-                      <CardContent className="space-y-2 p-3.5">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8db1df]">Primary Recommendation</p>
-                        <CardTitle className="text-lg font-semibold tracking-tight text-[#f5f9ff]">{recommendedPrimaryTool.name}</CardTitle>
-                        <p className="text-xs text-[#9eb6da]">
-                          {recommendationResult.recommendations[0]
-                            ? formatRecommendationReason(recommendationResult.recommendations[0], 'primary')
-                            : ''}
-                        </p>
-                        <p className="line-clamp-1 text-xs text-[#a8bbd8]">{recommendedPrimaryTool.description}</p>
-                        <div className="flex items-center gap-3">
-                          <Button size="sm" className="h-8 bg-[#172845] px-3 text-[11px] text-[#eaf2ff] hover:bg-[#22375a]" onClick={() => openRecommendedTool(recommendedPrimaryTool)}>
-                            {ctaLabelForTool(recommendedPrimaryTool, true)}
-                          </Button>
-                          <button
-                            type="button"
-                            className="text-xs text-[#9eb3d1] underline-offset-2 hover:text-[#cfe0ff] hover:underline"
-                            onClick={() => dismissRecommendedTool(recommendedPrimaryTool.id)}
+              <div className="space-y-8">
+                {/* 1. Continue where you left off */}
+                {recentEntries.length > 0 && historyGate.allowed && (
+                  <section className="space-y-4">
+                    <p className="px-1 text-xs font-bold uppercase tracking-[0.2em] text-[#6484b3]">
+                      Continue Work
+                    </p>
+                    <div className="divide-y divide-[#1a2d49] rounded-xl border border-[#1a2d49] bg-[#0a1527] overflow-hidden">
+                      {recentEntries.slice(0, 3).map((entry) => {
+                        const tool = tools.find((t) => t.id === entry.toolId);
+                        return (
+                          <div
+                            key={entry.id}
+                            className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-[#111f35]"
                           >
-                            Not helpful
-                          </button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {recommendedSecondaryTools.length > 0 && (
-                    <div className="space-y-1.5 rounded-lg border border-[#263a58] bg-[#0d182b] px-3 py-2">
-                      {recommendedSecondaryTools.map((row, idx) => (
-                        <div key={row.recommendation.toolId} className="flex items-start justify-between gap-3 text-xs">
-                          <p className="min-w-0 flex-1 text-[#cfe0ff]">
-                            <span className="font-semibold">{row.tool?.name}</span>
-                            <span className="text-[#95acce]"> — {formatRecommendationReason(row.recommendation, idx === 0 ? 'backup1' : 'backup2')}</span>
-                          </p>
-                          <button
-                            type="button"
-                            className="shrink-0 font-semibold text-[#9dffb0] hover:text-[#c6ffd1]"
-                            onClick={() => row.tool && openRecommendedTool(row.tool)}
-                          >
-                            Open
-                          </button>
-                        </div>
-                      ))}
+                            <div className="min-w-0 flex-1 flex items-center gap-3">
+                              <div className="h-2 w-2 rounded-full bg-[#76ff8f] shrink-0 animate-pulse" />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-bold text-[#e1ecff]">{tool?.name || entry.toolId}</p>
+                                <p className="text-[10px] text-[#6f84a7] font-medium tracking-wide">
+                                  OPENED {formatLastEdited(entry.createdAt).toUpperCase()}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 shrink-0 text-[11px] font-black uppercase tracking-widest text-[#76ff8f] hover:bg-[#1a2d49] active:scale-95 transition-transform"
+                              onClick={() => {
+                                if (tool) setActiveTool(tool);
+                                setDrafts((current) => ({ ...current, [entry.toolId]: entry.content }));
+                              }}
+                            >
+                              Run Tool
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </section>
+                  </section>
+                )}
 
-                <section className="space-y-4">
-                  <div className="sticky top-[72px] z-30 space-y-2.5 rounded-xl border border-[#253956] bg-[#0c1729]/95 p-2.5 backdrop-blur-md md:top-[86px]">
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Search</p>
-                      <Input
-                        value={searchQuery}
-                        onChange={(event) => setSearchQuery(event.target.value)}
-                        placeholder="Search by name, category, skill, or intent"
-                        className="h-10 border-[#2c3e5c] bg-[#0f1a2d] text-[#eaf2ff] placeholder:text-[#91a6c6] focus-visible:ring-[#76ff8f]/40"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Access</p>
-                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                        {filters.map((filter) => (
-                          <button
-                            key={filter}
-                            onClick={() => setActiveFilter(filter)}
-                            className={cn(
-                              'whitespace-nowrap rounded-full border px-4 py-2 text-xs font-semibold tracking-wide transition-all duration-200',
-                              activeFilter === filter
-                                ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
-                                : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2] hover:-translate-y-0.5 hover:border-[#3c5278] hover:text-[#d8e4f8]'
-                            )}
-                          >
-                            {filter}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Category</p>
-                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                        {categoryFilters.map((category) => (
-                          <button
-                            key={category}
-                            onClick={() => setActiveCategoryFilter(category)}
-                            className={cn(
-                              'whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-semibold tracking-wide transition-all duration-200',
-                              activeCategoryFilter === category
-                                ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
-                                : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2] hover:-translate-y-0.5 hover:border-[#3c5278] hover:text-[#d8e4f8]'
-                            )}
-                          >
-                            {category}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Role</p>
-                      <Select
-                        value={selectedRoleFilter}
-                        onValueChange={(value) => {
-                          setDidTouchRoleFilter(true);
-                          setSelectedRoleFilter(value as UserRole | 'ALL');
-                        }}
-                      >
-                        <SelectTrigger className="h-9 border-[#2c3e5c] bg-[#0f1a2d] text-[#eaf2ff]">
-                          <span className="text-xs">
-                            Role: {selectedRoleFilter === 'ALL' ? 'All Roles' : selectedRoleFilter === 'manager' ? 'Sales Manager' : selectedRoleFilter}
-                          </span>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ALL">All Roles</SelectItem>
-                          {allRoles.map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {role === 'manager' ? 'Sales Manager' : role}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {activeFilter === 'Recent Tools' && (
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">Recently Added</p>
-                  )}
-
-                  {showSecondToolPrompt && !dismissedSecondToolPrompt && !isPaidUser && (
-                    <Card className="border-[#2b3e5d] bg-[#101d31]">
-                      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-sm text-[#dbe7fb]">Want access to every tool? Unlock the full toolbox.</p>
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" className="bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]" onClick={() => handleInlineUpgradeClick()}>
-                            Unlock Full Access
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-[#9eb3d1] hover:bg-[#13233b]" onClick={() => setDismissedSecondToolPrompt(true)}>
-                            Dismiss
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {gridTools.map((tool) => {
+                {/* 2. Use Right Now */}
+                <section className="space-y-6 pt-2">
+                  <p className="px-1 text-xs font-bold uppercase tracking-[0.25em] text-[#76ff8f]">
+                    Essential Moves — Use Right Now
+                  </p>
+                  <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide md:grid md:grid-cols-2 md:overflow-visible">
+                    {useRightNowTools.map((tool) => {
                       const hasAccess = canOpenTool(tool);
-                      const ctaLabel = ctaLabelForTool(tool, hasAccess);
-                      const showPremiumBadge = tool.access === 'premium';
-                      const isPremiumLocked = !hasAccess;
-
+                      const accentColor = getToolAccentColor(tool);
                       return (
                         <Card
                           key={tool.id}
                           className={cn(
-                            'group relative overflow-hidden border-[#263b5a] bg-[#0d192c] transition-all duration-200',
-                            hasAccess ? 'hover:-translate-y-1 hover:border-[#37507a]' : ''
+                            'group relative min-w-[300px] shrink-0 overflow-hidden border-[#2b3e5d] bg-[#0f1b30] transition-all duration-300 md:min-w-0',
+                            'shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-opacity-50 hover:border-opacity-100',
+                            hasAccess && 'hover:bg-[#15243f] hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.25)]'
                           )}
                         >
-                          <CardHeader className={cn('space-y-2', isPremiumLocked && 'opacity-55 blur-[0.6px]')}>
-                            {showPremiumBadge && (
-                              <Badge
-                                variant="outline"
-                                className="w-fit border border-[#6f89af] bg-[#233652] text-[11px] font-semibold tracking-wide text-[#c4d4eb]"
+                          {/* Intensity Strip */}
+                          <div 
+                            className="absolute left-0 top-0 h-full w-[3px]" 
+                            style={{ backgroundColor: accentColor, opacity: 0.4 }} 
+                          />
+                          
+                          <CardHeader className="space-y-2 p-5 pb-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9bffac]">
+                                {getToolAuthorityLabel(tool)}
+                              </p>
+                              <Badge 
+                                className="bg-[#070d18] text-white border-none text-[8px] uppercase tracking-widest font-black h-5 px-2"
+                                style={{ borderLeft: `2px solid ${accentColor}` }}
                               >
-                                {badgeText('Premium')}
+                                {getToolConfidenceTag(tool)}
                               </Badge>
-                            )}
-                            <CardTitle className="text-lg font-semibold text-[#f2f8ff]">{tool.name}</CardTitle>
+                            </div>
+                            <div className="pt-1">
+                              <CardTitle className="text-xl font-black text-white leading-tight tracking-tight">
+                                {tool.name}
+                              </CardTitle>
+                              <p className="text-[11px] font-bold text-[#6f84a7] uppercase tracking-[0.1em] mt-1.5 flex items-center gap-2">
+                                <span className="h-1 w-1 rounded-full" style={{ backgroundColor: accentColor }} />
+                                {getToolRoleDescription(tool)}
+                              </p>
+                            </div>
                           </CardHeader>
+                          <CardContent className="space-y-4 p-5 pt-0">
+                            <div className="space-y-2.5">
+                              <p className="text-[10px] font-medium uppercase tracking-widest text-[#6f84a7]">
+                                Best used when:
+                              </p>
+                              <ul className="space-y-1.5">
+                                {getToolBestUsedWhen(tool).map((item, i) => (
+                                  <li key={i} className="flex items-start gap-2.5 text-[11px] font-bold text-[#e1ecff] leading-tight">
+                                    <ArrowRight className="h-3 w-3 mt-0.5 shrink-0 text-[#76ff8f]" />
+                                    {item}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
 
-                          <CardContent className={cn('pb-4', isPremiumLocked && 'opacity-55 blur-[0.6px]')}>
-                            <p className="line-clamp-1 text-sm leading-relaxed text-[#a7b7d1]">{tool.description}</p>
-                            <p className="mt-1 text-[11px] text-[#8ea2c1]">{tool.category}</p>
-                            <Button
-                              className="mt-3 w-full bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]"
-                              onClick={() => maybeOpenTool(tool)}
-                            >
-                              {ctaLabel}
-                            </Button>
+                            <div className="rounded-lg bg-[#070d18]/70 p-4 border border-[#1a2d49] shadow-inner">
+                              <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#6f84a7]/80 mb-3 flex items-center gap-2">
+                                <Sparkles className="h-3 w-3 text-[#76ff8f]/60" />
+                                Context Triggers:
+                              </p>
+                              <ul className="space-y-2">
+                                {getToolTriggers(tool).map((trigger, i) => (
+                                  <li key={i} className="text-[10px] font-bold text-[#a9bbd8] leading-snug flex items-start gap-2 italic">
+                                    <span>“</span>{trigger}<span>”</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <p className="line-clamp-2 text-[12px] font-medium leading-relaxed text-[#869bbd]">{tool.description}</p>
+                            
+                            <div className="flex items-center justify-between gap-4 pt-2">
+                              <Badge variant="outline" className="border-[#2a3f5f] bg-transparent px-2.5 py-0.5 text-[9px] font-black uppercase tracking-tighter text-[#8ea2c1]">
+                                {tool.category}
+                              </Badge>
+                              <Button
+                                size="sm"
+                                className="h-10 grow bg-[#172845] text-[12px] font-black uppercase tracking-widest text-white hover:bg-[#22375a] active:scale-[0.97] transition-all"
+                                onClick={() => maybeOpenTool(tool)}
+                              >
+                                Run Tool
+                              </Button>
+                            </div>
                           </CardContent>
-
-                          {isPremiumLocked && (
-                            <>
-                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0a1220]/62 backdrop-blur-[1px]">
-                                <Lock className="h-4 w-4 text-[#9db0cb]" />
-                                <p className="text-sm font-medium text-[#d8e3f5]">Free Account Required</p>
-                                <p className="px-4 text-center text-xs text-[#9fb0c9]">Add email + role to open your 4th tool.</p>
-                                <Button
-                                  size="sm"
-                                  className="bg-[#76ff8f] text-[#0e1f12] hover:bg-[#92ffa7]"
-                                  onClick={() => maybeOpenTool(tool)}
-                                >
-                                  Create Free Account
-                                </Button>
-                              </div>
-                              <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 rounded-md border border-[#304466] bg-[#0b1629] px-2 py-1 text-[10px] text-[#d6e4fb] md:block md:opacity-0 md:transition-opacity md:duration-200 group-hover:opacity-100">
-                                Open 3 tools free, then continue with account capture
-                              </div>
-                            </>
-                          )}
                         </Card>
                       );
                     })}
                   </div>
-                  {gridTools.length === 0 && (
-                    <Card className="border-[#2b3e5d] bg-[#101d31]">
-                      <CardContent className="p-4 text-sm text-[#dbe7fb]">
-                        No tools match your current search and filter combo. Try clearing one filter.
-                      </CardContent>
-                    </Card>
+                </section>
+
+                {/* 3. Quick Action Navigation */}
+                <section className="space-y-3">
+                  <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">
+                    What do you need right now?
+                  </p>
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {TOOL_INTENT_OPTIONS.map((intent) => (
+                      <button
+                        key={intent}
+                        onClick={() => {
+                          const isTogglingOff = selectedIntentFilter === intent;
+                          setSelectedIntentFilter((prev) => (isTogglingOff ? null : intent));
+                          setIsAllToolsExpanded(true);
+                          setDiagnosisFeedback(isTogglingOff ? null : `Showing tools to help you ${TOOL_INTENT_ACTIONS[intent].toLowerCase()}`);
+                        }}
+                        className={cn(
+                          'shrink-0 rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.95]',
+                          selectedIntentFilter === intent
+                            ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                            : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
+                        )}
+                      >
+                        {TOOL_INTENT_ACTIONS[intent]}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                {/* 4. Browse All Tools (Collapsed Entry) */}
+                <section className="pt-2" id="all-tools-anchor">
+                  {diagnosisFeedback && (
+                    <div className="mb-4 px-1 animate-in fade-in slide-in-from-left-4 duration-500">
+                      <p className="text-sm font-black text-[#76ff8f] flex items-center gap-3 tracking-wide">
+                        <CheckCircle2 className="h-4 w-4" />
+                        {diagnosisFeedback.toUpperCase()}
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsAllToolsExpanded(!isAllToolsExpanded)}
+                    className="flex w-full items-center justify-between rounded-xl border border-[#253956] bg-gradient-to-r from-[#0d182b] to-[#0c1729] p-6 text-left text-sm font-bold text-[#f5f9ff] transition-all hover:border-[#3d5a8a] hover:from-[#11213a] active:scale-[0.99] group shadow-lg"
+                  >
+                     <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1a2d49] text-[#76ff8f] shadow-inner group-hover:scale-110 transition-transform">
+                        <FolderOpen className="h-5 w-5" />
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-base tracking-tight">Explore All Tools <span className="text-[#6484b3] font-medium ml-1">({tools.length})</span></span>
+                        <p className="text-[11px] text-[#6f84a7] font-bold uppercase tracking-widest group-hover:text-[#9bffac] transition-colors">
+                          Search or jump to the exact move you need
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowRight className={cn('h-5 w-5 transition-transform duration-300', isAllToolsExpanded && 'rotate-90')} />
+                  </button>
+
+                  {isAllToolsExpanded && (
+                    <div className="mt-8 space-y-10 animate-in fade-in slide-in-from-top-4 duration-300">
+                      {/* Expanded Top Bar */}
+                      <div className="sticky top-[64px] z-30 flex items-center gap-2 rounded-lg bg-[#070d18]/95 p-2 backdrop-blur md:top-[76px]">
+                        <Input
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search tools, keywords, skills"
+                          className="h-10 border-[#2c3e5c] bg-[#0f1a2d] text-[#eaf2ff] placeholder:text-[#6f84a7]"
+                        />
+                        {isDesktopFilterUI ? (
+                          <Popover open={isFilterPanelOpen} onOpenChange={handleOpenFiltersPanel}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="h-10 shrink-0 border-[#2f466a] bg-[#0f1a2d] text-[#d8e4f8]">
+                                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                                Filter
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-[360px] border-[#2f466a] bg-[#0e1a30] text-[#dbe7fb]">
+                              {filterPanelContent}
+                            </PopoverContent>
+                          </Popover>
+                        ) : (
+                          <Sheet open={isFilterPanelOpen} onOpenChange={handleOpenFiltersPanel}>
+                            <SheetTrigger asChild>
+                              <Button variant="outline" className="h-10 shrink-0 border-[#2f466a] bg-[#0f1a2d] text-[#d8e4f8]">
+                                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                                Filter
+                              </Button>
+                            </SheetTrigger>
+                            <SheetContent side="bottom" className="max-h-[82vh] overflow-y-auto border-[#2f466a] bg-[#0e1a30] text-[#dbe7fb]">
+                              <SheetHeader>
+                                <SheetTitle className="text-[#f5f9ff]">Filters</SheetTitle>
+                              </SheetHeader>
+                              <div className="mt-4">{filterPanelContent}</div>
+                            </SheetContent>
+                          </Sheet>
+                        )}
+                      </div>
+
+                      {/* Tool Grouping by Scenario */}
+                      <div className="space-y-12">
+                        {SCENARIO_GROUPS.map((group) => {
+                          const groupTools = gridTools.filter((t) => (group.categories as readonly string[]).includes(t.category));
+                          if (groupTools.length === 0) return null;
+
+                          return (
+                            <div key={group.label} className="space-y-4">
+                              <h3 className="flex items-center gap-2 px-1 text-lg font-bold text-[#f2f8ff]">
+                                <span className="h-4 w-1 rounded-full bg-[#76ff8f]" />
+                                {group.label}
+                              </h3>
+                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {groupTools.map((tool) => {
+                                  const hasAccess = canOpenTool(tool);
+                                  const ctaLabel = ctaLabelForTool(tool, hasAccess);
+                                  return (
+                                    <Card
+                                      key={tool.id}
+                                      className="group relative flex flex-col overflow-hidden border-[#263b5a] bg-[#0d192c] transition-all hover:bg-[#0f1d31] hover:translate-y-[-2px] hover:shadow-lg"
+                                    >
+                                      <div 
+                                        className="absolute top-0 left-0 w-full h-[2px]" 
+                                        style={{ backgroundColor: getToolAccentColor(tool), opacity: 0.3 }} 
+                                      />
+                                      <CardHeader className="p-4 pb-2">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-[#6484b3]">
+                                            {tool.category}
+                                          </p>
+                                          <Badge className="bg-[#070d18] text-[#90a8cc] border-none text-[7px] font-black uppercase h-4 px-1.5">
+                                            {getToolConfidenceTag(tool)}
+                                          </Badge>
+                                        </div>
+                                        <CardTitle className="text-sm font-black text-[#f2f8ff] tracking-tight">{tool.name}</CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="flex flex-1 flex-col space-y-3 p-4 pt-0">
+                                        <div className="space-y-1">
+                                          <p className="text-[9px] font-black uppercase tracking-widest text-[#76ff8f]/50">
+                                            Usage: 
+                                          </p>
+                                          <p className="text-[10px] font-bold text-[#e1ecff] leading-snug">
+                                            {tool.recommendedWhen[0]}
+                                          </p>
+                                        </div>
+                                        <p className="line-clamp-2 text-[11px] font-medium leading-relaxed text-[#a7b7d1]">{tool.description}</p>
+                                        <div className="mt-auto pt-2">
+                                          <Button
+                                            size="sm"
+                                            className="h-8 w-full bg-[#172845] text-[10px] font-black uppercase tracking-widest text-[#e8f1ff] hover:bg-[#22375a] active:scale-95 transition-transform"
+                                            onClick={() => maybeOpenTool(tool)}
+                                          >
+                                            Run Tool
+                                          </Button>
+                                        </div>
+                                      </CardContent>
+                                      {!hasAccess && (
+                                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0a1220]/75 backdrop-blur-[2px] p-4 text-center">
+                                          <Lock className="mb-2 h-4 w-4 text-[#9db0cb]" />
+                                          <p className="text-[10px] font-black text-[#d8e3f5] uppercase tracking-[0.2em]">Restricted Access</p>
+                                          <Button
+                                            variant="link"
+                                            className="h-auto p-0 mt-2 text-[10px] font-black uppercase tracking-widest text-[#76ff8f] hover:no-underline"
+                                            onClick={() => maybeOpenTool(tool)}
+                                          >
+                                            Unlock Tool
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </Card>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {gridTools.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-[#2a3f5f] py-16 text-center text-sm text-[#a7b7d1]">
+                          No tools match your current search and filters.
+                        </div>
+                      )}
+                    </div>
                   )}
                 </section>
               </div>
@@ -1469,7 +1890,7 @@ export default function ToolsPage() {
                           <div className="mx-auto w-full max-w-4xl">
                             <div className="overflow-hidden rounded-xl border border-[#2c3f5f] bg-[#081323]">
                               <iframe
-                                src="/tools/consistency-leak-finder?embed=1&theme=dark"
+                                src={`/tools/consistency-leak-finder?embed=1&theme=${embeddedTheme}`}
                                 title="Consistency Leak Finder"
                                 className="h-[78vh] min-h-[900px] w-full bg-[#081323]"
                               />
@@ -1600,69 +2021,6 @@ export default function ToolsPage() {
               </section>
             )}
           </div>
-
-          <section>
-            <Card className="overflow-hidden border-[#263b5a] bg-[#0d192c]">
-              <CardHeader className="border-b border-[#203352] bg-[#111f35]">
-                <CardTitle className="flex items-center gap-2 text-lg text-[#edf5ff]">
-                  <FolderOpen className="h-4 w-4 text-[#9eb3d1]" />
-                  Your Saved Work
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-5">
-                {!historyGate.allowed ? (
-                  <div className="space-y-3 rounded-xl border border-[#2a3f5f] bg-[#0a1527] p-4">
-                    <p className="text-sm text-[#dbe7fb]">Save your best scenarios and reuse them anytime.</p>
-                    <Button
-                      size="sm"
-                      className="bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]"
-                      onClick={() => {
-                        if (historyGate.gate === 'account') {
-                          setPendingGateFeature(FEATURES.HISTORY);
-                          setShowEmailGate(true);
-                          return;
-                        }
-                        setPendingGateFeature(FEATURES.HISTORY);
-                        setUpgradeContextMessage('Unlock history to continue from any device.');
-                        setShowUpgradeModal(true);
-                      }}
-                    >
-                      {historyGate.gate === 'account' ? 'Create Free Account' : 'Unlock History'}
-                    </Button>
-                  </div>
-                ) : recentEntries.length === 0 ? (
-                  <p className="text-sm text-[#a7b7d1]">Nothing saved yet. Start with this week's tool.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {recentEntries.map((entry) => {
-                      const tool = tools.find((t) => t.id === entry.toolId);
-                      return (
-                        <div
-                          key={entry.id}
-                          className="flex flex-col gap-3 rounded-xl border border-[#2a3f5f] bg-[#0a1527] p-4 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-[#e7f0ff]">{tool?.name || entry.toolId}</p>
-                            <p className="text-xs text-[#9eb3d1]">Last edited {formatLastEdited(entry.createdAt)}</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]"
-                            onClick={() => {
-                              if (tool) setActiveTool(tool);
-                              setDrafts((current) => ({ ...current, [entry.toolId]: entry.content }));
-                            }}
-                          >
-                            Continue
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </section>
         </main>
 
         <EmailGateModal
