@@ -6,15 +6,11 @@ import Link from 'next/link';
 import { Logo } from '@/components/layout/logo';
 import { UserNav } from './user-nav';
 import { usePathname } from 'next/navigation';
-import { ThemeToggle } from './theme-toggle';
-import { useThemeMode } from '@/context/theme-provider';
 
 export function Header() {
   const { user } = useAuth();
   const pathname = usePathname();
   const isToolsSurface = pathname?.startsWith('/tools');
-  const { mode, resolvedTheme } = useThemeMode();
-  const displayTheme = mode === 'system' ? `System (${resolvedTheme})` : mode === 'light' ? 'Day' : 'Night';
 
   return (
     <header
@@ -29,11 +25,6 @@ export function Header() {
           <Logo variant="full" width={146} height={48} />
         </Link>
         <div className="ml-auto flex items-center gap-4">
-          <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-            <span>Theme</span>
-            <span className="rounded-full border border-border px-2 py-0.5 text-foreground">{displayTheme}</span>
-          </div>
-          <ThemeToggle />
           {user && (
             <UserNav user={user} avatarClassName="h-8 w-8" />
           )}
