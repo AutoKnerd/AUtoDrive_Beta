@@ -523,7 +523,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
 
   useEffect(() => {
     if (!viewModeInitialized) {
-      setViewMode(hasDealershipContext ? 'team' : 'personal');
+      setViewMode('personal');
       setViewModeInitialized(true);
       return;
     }
