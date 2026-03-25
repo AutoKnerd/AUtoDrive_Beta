@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 import {
   buildEntitlements,
   canAccessFeature as canAccessFeatureByKey,
@@ -40,6 +41,7 @@ export function useEntitlements(input: UseEntitlementsInput): {
   checkFeature: (feature: ToolboxFeatureKey) => FeatureGateResult;
   canAccessFeature: (feature: ToolboxFeatureKey) => boolean;
 } {
+  const { firebaseUser } = useAuth();
   const [accountProfile, setAccountProfile] = useState<ToolboxAccountProfile | null>(null);
   const [toolsUsedCount, setToolsUsedCount] = useState(0);
   const [usedToolIds, setUsedToolIds] = useState<string[]>([]);
@@ -59,6 +61,36 @@ export function useEntitlements(input: UseEntitlementsInput): {
     if (input.isAuthenticated) return;
     setServerEntitlements(null);
   }, [input.isAuthenticated]);
+
+  useEffect(() => {
+    if (!input.isAuthenticated || !firebaseUser) return;
+    let cancelled = false;
+
+    async function syncServerEntitlements() {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const response = await fetch('/api/tools/toolbox-entitlements', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: 'no-store',
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok || !payload?.entitlements) return;
+        if (!cancelled) {
+          setServerEntitlements(payload.entitlements as ToolboxEntitlements);
+        }
+      } catch {
+        // Best effort sync. Local entitlements still provide fallback behavior.
+      }
+    }
+
+    void syncServerEntitlements();
+    return () => {
+      cancelled = true;
+    };
+  }, [firebaseUser, input.hasAutoDriveCX, input.hasPaidAccess, input.isAuthenticated]);
 
   const entitlements = useMemo(
     () => {
