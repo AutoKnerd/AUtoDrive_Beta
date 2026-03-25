@@ -7,6 +7,8 @@ export interface CxScope {
   orgId: string;
   storeId?: string;
   userId?: string;
+  // When comparing a store to its configured group, keep the anchor store id.
+  comparisonStoreId?: string;
 }
 
 export function mapUserRoleToCxRole(role: UserRole): CxScopeRole {
@@ -38,8 +40,8 @@ export function getComparisonScope(scope: CxScope): CxScope | null {
     return { role: 'manager', orgId: scope.orgId, storeId: scope.storeId };
   }
   if (scope.storeId) {
-    // Store vs Org
-    return { role: 'owner', orgId: scope.orgId };
+    // Store vs configured dealership group (anchored by this store id).
+    return { role: 'owner', orgId: scope.orgId, comparisonStoreId: scope.storeId };
   }
   // Org vs nothing
   return null;

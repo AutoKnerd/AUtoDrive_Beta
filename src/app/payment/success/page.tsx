@@ -10,7 +10,7 @@ import { finalizeCheckoutSession } from '@/app/actions/stripe';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-type FinalizeState = 'processing' | 'ready' | 'pending' | 'error';
+type FinalizeState = 'processing' | 'ready' | 'error';
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,7 +22,7 @@ export default function PaymentSuccessPage() {
   const [sessionId, setSessionId] = useState('');
   const [state, setState] = useState<FinalizeState>('processing');
   const [message, setMessage] = useState('Finalizing billing access...');
-  const [syncAttempt, setSyncAttempt] = useState(0);
+  const [autoResyncCount, setAutoResyncCount] = useState(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -32,6 +32,7 @@ export default function PaymentSuccessPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const run = async () => {
       if (!sessionId) {
@@ -42,29 +43,37 @@ export default function PaymentSuccessPage() {
         return;
       }
 
-      const firebaseUser = firebaseAuth.currentUser;
+      if (!cancelled) {
+        setState('processing');
+        setMessage('Finalizing billing access...');
+      }
+
+      // Allow auth state to re-hydrate after returning from Stripe before failing.
+      let firebaseUser = firebaseAuth.currentUser;
+      for (let attempt = 0; attempt < 12 && !firebaseUser; attempt += 1) {
+        await sleep(500);
+        if (cancelled) return;
+        firebaseUser = firebaseAuth.currentUser;
+      }
+
       if (!firebaseUser) {
         if (!cancelled) {
-          setState('error');
-          setMessage('Your session expired. Please sign in again.');
+          if (autoResyncCount >= 5) {
+            setState('error');
+            setMessage('Your session expired. Please sign in again to finish billing confirmation.');
+            return;
+          }
+          setMessage('Reconnecting your session and confirming billing…');
+          retryTimer = setTimeout(() => setAutoResyncCount((value) => value + 1), 1800);
         }
         return;
       }
 
       try {
-        if (!cancelled) {
-          setState('processing');
-          setMessage('Finalizing billing access...');
-        }
         const idToken = await firebaseUser.getIdToken(true);
         await finalizeCheckoutSession(idToken, sessionId);
       } catch (error) {
         console.error('[PaymentSuccess] finalizeCheckoutSession failed', error);
-        if (!cancelled) {
-          setState('error');
-          setMessage('Could not verify checkout yet. Retry sync in a moment.');
-        }
-        return;
       }
 
       // Refresh profile state; AuthProvider does not auto-resubscribe to profile document changes.
@@ -87,16 +96,23 @@ export default function PaymentSuccessPage() {
       }
 
       if (!cancelled) {
-        setState('pending');
-        setMessage('Billing confirmation is still processing. Try dashboard again in a few seconds.');
+        if (autoResyncCount >= 5) {
+          setState('error');
+          setMessage('Billing confirmation is taking longer than expected. Please sign in again to continue.');
+          return;
+        }
+        setState('processing');
+        setMessage('Still confirming your billing setup…');
+        retryTimer = setTimeout(() => setAutoResyncCount((value) => value + 1), 1800);
       }
     };
 
     run();
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [firebaseAuth, sessionId, setUser, syncAttempt]);
+  }, [autoResyncCount, firebaseAuth, sessionId, setUser]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -117,13 +133,13 @@ export default function PaymentSuccessPage() {
             </Button>
           ) : (
             <Button className="w-full" disabled>
-              {state === 'processing' ? 'Finalizing Access...' : 'Waiting for Billing Confirmation...'}
+              Finalizing Access...
             </Button>
           )}
-          {(state === 'pending' || state === 'error') ? (
+          {state === 'error' ? (
             <>
-              <Button variant="outline" className="w-full" onClick={() => setSyncAttempt((value) => value + 1)}>
-                Retry Billing Sync
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/login">Sign In to Continue</Link>
               </Button>
               <Button asChild variant="outline" className="w-full">
                 <Link href="/subscribe">Go to Billing Setup</Link>

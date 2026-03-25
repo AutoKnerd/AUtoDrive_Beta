@@ -43,6 +43,10 @@ export function PppDashboardCard({ user, className, featureEnabled }: PppDashboa
   const ppp = normalizePppUserState(user);
   const enabled = featureEnabled ?? ppp.enabled;
   if (!enabled) return null;
+  const hasNextPppLesson =
+    !ppp.certified &&
+    !ppp.dailyLimitReached &&
+    ppp.currentLevelLessonCount > ppp.currentLevelPassedCount;
 
   return (
     <Card className={cn('flex flex-col justify-between border border-border bg-card/95 p-6 !dark:border-[#7CC242]/40 !dark:shadow-[0_0_24px_rgba(124,194,66,0.14)]', className)}>
@@ -64,7 +68,7 @@ export function PppDashboardCard({ user, className, featureEnabled }: PppDashboa
           value={ppp.progressPercentage}
           className="h-3 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-[#7CC242] [&>div]:to-[#5EA93D]"
         />
-        <Button asChild className="w-full bg-[#7CC242] font-semibold text-slate-950 hover:bg-[#8ED24F]">
+        <Button asChild className={cn("w-full bg-[#7CC242] font-semibold text-slate-950 hover:bg-[#8ED24F]", hasNextPppLesson && "lesson-ready-pulse")}>
           <Link href="/ppp">
             Press Start
             <ArrowRight className="ml-2 h-4 w-4" />

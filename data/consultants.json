@@ -1,0 +1,34 @@
+[
+  {
+    "id": "95c877b7-3e3b-40d0-9760-67195e2885a4",
+    "name": "Ashley Lee",
+    "email": "Ashley@autoknerd.com",
+    "referral_code": "lee",
+    "firebase_uid": "XwvdjFp3ubXWnTooGszmSXYRv5n2",
+    "created_at": "2026-03-09T21:58:46.332Z"
+  },
+  {
+    "id": "51139f44-7dda-49d8-9868-c562afd2a485",
+    "name": "CJ Reycraft",
+    "email": "CJ@autoknerd.com",
+    "referral_code": "cj",
+    "firebase_uid": "IMzy7XPQfbOwLvD27oOafw0aUAx1",
+    "created_at": "2026-03-09T22:04:59.645Z"
+  },
+  {
+    "id": "b69d7b75-f1a9-4e2f-ac52-54225a3b07aa",
+    "name": "Chase Mueller",
+    "email": "Chase@autoknerd.com",
+    "referral_code": "chase",
+    "firebase_uid": "5yRQqHRdsZPI8xIwgKLRUF8VVcI3",
+    "created_at": "2026-03-09T22:05:22.305Z"
+  },
+  {
+    "id": "12bd752c-46bc-449b-80d8-afdb8bf31996",
+    "name": "Jarett Engel",
+    "email": "Jarett@autoknerd.com",
+    "referral_code": "jarett",
+    "firebase_uid": "WktCQMwJcqhmV0ShDWGRqLzoxHm1",
+    "created_at": "2026-03-09T22:05:46.217Z"
+  }
+]

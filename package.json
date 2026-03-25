@@ -6,8 +6,18 @@
     "dev": "next dev",
     "build": "NODE_ENV=production next build && node scripts/firebase-apphosting-postbuild.cjs",
     "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "dev:app": "next dev",
+    "build:app": "NODE_ENV=production next build && node scripts/firebase-apphosting-postbuild.cjs",
+    "start:app": "next start",
+    "lint:app": "eslint src",
+    "typecheck:app": "tsc --noEmit",
+    "install:webpage": "npm --prefix apps/webpage install",
+    "dev:webpage": "npm --prefix apps/webpage run dev",
+    "build:webpage": "npm --prefix apps/webpage run build",
+    "preview:webpage": "npm --prefix apps/webpage run preview",
+    "lint:webpage": "npm --prefix apps/webpage run lint"
   },
   "dependencies": {
     "@genkit-ai/anthropic": "^0.2.0",
@@ -59,6 +69,7 @@
     "stripe": "^16.2.0",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -66,6 +77,8 @@
     "@types/node": "^20",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"

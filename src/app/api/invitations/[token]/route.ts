@@ -143,7 +143,7 @@ export async function POST(
           dealershipIds: dealershipId ? [dealershipId] : [],
           isPrivate: false,
           isPrivateFromOwner: false,
-          showDealerCriticalOnly: false,
+          showDealerCriticalOnly: true,
           memberSince: now.toISOString(),
           xp: 0,
           stats: buildDefaultStats(now),

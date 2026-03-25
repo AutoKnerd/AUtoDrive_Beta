@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
+import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { UserRole } from '@/lib/definitions';
@@ -98,8 +99,8 @@ export function TourFooter() {
       </div>
       
       {/* Desktop Layout */}
-      <div className="container mx-auto hidden h-20 items-center justify-between px-4 md:flex">
-        <div className="flex items-center gap-2 md:gap-4">
+      <div className="container mx-auto hidden h-20 items-center px-4 md:flex">
+        <div className="flex flex-1 items-center gap-2 md:gap-4">
           <div className="flex items-center gap-3">
             <SlidersHorizontal className="h-6 w-6 text-primary dark:text-cyan-400" />
             <div>
@@ -124,7 +125,17 @@ export function TourFooter() {
           </Dialog>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center justify-center px-4">
+          <Button
+            asChild
+            variant="outline"
+            className="border-cyan-400/40 bg-cyan-400/10 px-8 font-semibold text-cyan-200 hover:bg-cyan-400/20 hover:text-cyan-100"
+          >
+            <Link href="/signup">Sign Up</Link>
+          </Button>
+        </div>
+
+        <div className="flex flex-1 items-center justify-end gap-2 md:gap-4">
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground">Viewing as:</p>
               <Select onValueChange={(role) => switchTourRole(role as UserRole)} value={user.role}>

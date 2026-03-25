@@ -80,7 +80,7 @@ export default function CxTrendsPage() {
           </div>
         </div>
 
-        <CxSoundwaveCard scope={activeScope} className="h-[500px]" />
+        <CxSoundwaveCard scope={activeScope} className="h-[500px] border-white/10 bg-slate-900/70 backdrop-blur-sm" />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white/5 border border-white/5 p-6 rounded-2xl space-y-2">

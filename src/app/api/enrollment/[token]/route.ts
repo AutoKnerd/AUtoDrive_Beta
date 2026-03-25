@@ -145,6 +145,7 @@ export async function POST(
     const body = await req.json().catch(() => ({}));
     const submittedRole = body?.role as UserRole | undefined;
     const submittedToken = body?.token as string | undefined;
+    const acceptPrivacyPolicy = body?.acceptPrivacyPolicy === true;
     if (submittedToken && token && submittedToken !== token) {
       return NextResponse.json({ message: 'Token mismatch in request.' }, { status: 400 });
     }
@@ -155,6 +156,9 @@ export async function POST(
 
     if (!submittedRole) {
       return NextResponse.json({ message: 'Selected role is required.' }, { status: 400 });
+    }
+    if (!acceptPrivacyPolicy) {
+      return NextResponse.json({ message: 'Privacy Policy acknowledgement is required.' }, { status: 400 });
     }
 
     if (SELF_ENROLLMENT_RESTRICTED_ROLES.has(submittedRole)) {
@@ -224,11 +228,12 @@ export async function POST(
           xp: 0,
           isPrivate: false,
           isPrivateFromOwner: false,
-          showDealerCriticalOnly: false,
+          showDealerCriticalOnly: true,
           memberSince: now.toISOString(),
           subscriptionStatus: isPrivilegedRole ? 'active' : 'trialing',
           trialStartedAt: isPrivilegedRole ? null : trialWindow.trialStartedAt,
           trialEndsAt: isPrivilegedRole ? null : trialWindow.trialEndsAt,
+          privacyPolicyAcceptedAt: now.toISOString(),
           stats: buildDefaultStats(now),
           ...buildDefaultPppState(pppEnabled),
           ...buildDefaultSaasPppState(saasPppEnabled),
@@ -248,6 +253,7 @@ export async function POST(
           role: preserveRole ? existingRole : submittedRole,
           ppp_enabled: existing.ppp_enabled === true || pppEnabled,
           saas_ppp_enabled: existing.saas_ppp_enabled === true || saasPppEnabled,
+          privacyPolicyAcceptedAt: now.toISOString(),
         });
       }
 

@@ -16,9 +16,14 @@ import {
   ensureDailyRecommendedLesson,
   getPppAccessForUser,
   getSaasPppAccessForUser,
+  updateUser,
+  getDealershipLeaderboard,
+  getFreshUpCoachingInsight,
+  type DealershipLeaderboardEntry,
+  type FreshUpCoachingInsight,
 } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
-import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, Gauge, LucideIcon, CheckCircle, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
+import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, LucideIcon, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
@@ -31,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Logo } from '@/components/layout/logo';
 import { BadgeShowcase } from '../profile/badge-showcase';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
@@ -44,9 +50,16 @@ import { useToast } from '@/hooks/use-toast';
 import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
+import { SprocketFirstLoginTour } from './sprocket-first-login-tour';
+import { TodayActionCard } from './today-action-card';
+import { evaluateUpMeterState, getUpMeterProgress, pickFreshUpProfile } from '@/lib/fresh-up';
+import { resolveAisRoleType } from '@/lib/ais-role-adaptive';
+import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 
 interface ConsultantDashboardProps {
   user: User;
+  sprocketTourPreviewNonce?: number;
+  isSprocketTourSandboxPreview?: boolean;
 }
 
 const SteeringWheelIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -61,8 +74,7 @@ const SteeringWheelIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 const dashboardFeatureCardClass =
   'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
-const dashboardDisabledButtonClass =
-  'w-full border-border bg-muted/70 text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50';
+const SPROCKET_TOUR_COMPLETE_KEY = 'sprocketTourComplete';
 
 function normalizeScore(value: unknown): number | null {
   const numeric = typeof value === 'number' ? value : Number(value);
@@ -79,6 +91,15 @@ const DEFAULT_CX_SCORES: CxScoreSnapshot = {
   followUp: 70,
   closing: 68,
   relationshipBuilding: 85,
+};
+
+const CX_TRAIT_LABELS: Record<CxTrait, string> = {
+  empathy: 'Empathy',
+  listening: 'Listening',
+  trust: 'Trust',
+  followUp: 'Follow Up',
+  closing: 'Closing',
+  relationshipBuilding: 'Relationship',
 };
 
 function scoreSnapshotFromUserStats(user: User): CxScoreSnapshot | null {
@@ -273,7 +294,7 @@ const RecentActivityItem = ({ icon, text, note }: { icon: LucideIcon, text: stri
     );
 };
 
-export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
+export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSprocketTourSandboxPreview = false }: ConsultantDashboardProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [activity, setActivity] = useState<LessonLog[]>([]);
   const [assignedLessons, setAssignedLessons] = useState<Lesson[]>([]);
@@ -287,6 +308,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const { isTouring, setUser } = useAuth();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
+  const [showSprocketTour, setShowSprocketTour] = useState(false);
+  const [sprocketTourStep, setSprocketTourStep] = useState(0);
   const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
   const [creatingUniqueTestingLesson, setCreatingUniqueTestingLesson] = useState(false);
@@ -297,6 +320,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const [range, setRange] = useState<CxRange>('today');
   const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
   const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
+  const [dealershipLeaderboard, setDealershipLeaderboard] = useState<DealershipLeaderboardEntry[]>([]);
+  const [coachingInsight, setCoachingInsight] = useState<FreshUpCoachingInsight | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -310,6 +335,45 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   const hasDealershipContext = scopedDealershipIds.length > 0;
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
+  const sprocketTourCompleteKeyForUser = `${SPROCKET_TOUR_COMPLETE_KEY}_${user.userId}`;
+  const sprocketTourStepKeyForUser = `sprocketTourStep_${user.userId}`;
+
+  const hasCompletedSprocketTour = () => {
+    if (user.forceSprocketTourOnNextLogin === true) return false;
+    if (typeof window === 'undefined') return !!user.hasSeenSprocketTour;
+    return (
+      user.hasSeenSprocketTour === true
+      || localStorage.getItem(sprocketTourCompleteKeyForUser) === 'true'
+      || localStorage.getItem(SPROCKET_TOUR_COMPLETE_KEY) === 'true'
+    );
+  };
+
+  const setSprocketTourStepPersisted = (step: number) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(sprocketTourStepKeyForUser, String(step));
+  };
+
+  const markSprocketTourComplete = async () => {
+    if (isSprocketTourSandboxPreview) return;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(sprocketTourCompleteKeyForUser, 'true');
+      localStorage.setItem(SPROCKET_TOUR_COMPLETE_KEY, 'true');
+      localStorage.removeItem(sprocketTourStepKeyForUser);
+    }
+
+    if (user.hasSeenSprocketTour && user.forceSprocketTourOnNextLogin !== true) return;
+    try {
+      const updated = await updateUser(user.userId, {
+        hasSeenSprocketTour: true,
+        forceSprocketTourOnNextLogin: false,
+      });
+      setUser(updated);
+    } catch (error) {
+      console.error('[ConsultantDashboard] Failed to persist Sprocket tour completion', error);
+      setUser({ ...user, hasSeenSprocketTour: true, forceSprocketTourOnNextLogin: false });
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -318,7 +382,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       setLoading(true);
       try {
         const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
-        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges, pppAccessEnabled, saasPppAccessEnabled] = await Promise.all([
+        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges, pppAccessEnabled, saasPppAccessEnabled, fetchedCoachingInsights] = await Promise.all([
           getLessons(lessonRole, user.userId),
           getConsultantActivity(user.userId),
           getDailyLessonLimits(user.userId),
@@ -327,6 +391,11 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
           getEarnedBadgesByUserId(user.userId),
           getPppAccessForUser(user).catch(() => false),
           getSaasPppAccessForUser(user).catch(() => false),
+          getFreshUpCoachingInsight({
+            entityType: 'consultant',
+            entityId: user.userId,
+            limit: 1,
+          }).catch(() => []),
         ]);
         const baselineEligible = !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
 
@@ -357,6 +426,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         setBadges(fetchedBadges);
         setPppFeatureEnabled(pppAccessEnabled === true);
         setSaasPppFeatureEnabled(saasPppAccessEnabled === true);
+        setCoachingInsight(fetchedCoachingInsights[0] || null);
         const hasBaselineLog = fetchedActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
         const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
         setNeedsBaselineAssessment(baselineRequired);
@@ -364,6 +434,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
 
         if (scopedDealershipIds.length > 0 && !isTouring) {
           const dealershipData = await Promise.all(scopedDealershipIds.map(id => getDealershipById(id, user.userId)));
+          const leaderboardRows = await getDealershipLeaderboard(scopedDealershipIds[0]);
           if (!active) return;
           const activeDealerships = dealershipData.filter(d => d && d.status === 'active');
           const hasRetakeTestingAccess = dealershipData.some(d => d?.enableRetakeRecommendedTesting === true);
@@ -371,10 +442,12 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
           setCanRetakeRecommendedTesting(hasRetakeTestingAccess);
           setCanUseNewRecommendedTesting(hasNewRecommendedTestingAccess);
           setIsPaused(activeDealerships.length === 0);
+          setDealershipLeaderboard(leaderboardRows);
         } else {
           setCanRetakeRecommendedTesting(false);
           setCanUseNewRecommendedTesting(false);
           setIsPaused(false);
+          setDealershipLeaderboard([]);
         }
 
         setMemberSince(
@@ -390,6 +463,8 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         setIsPaused(false);
         setPppFeatureEnabled(false);
         setSaasPppFeatureEnabled(false);
+        setCoachingInsight(null);
+        setDealershipLeaderboard([]);
         toast({
           variant: 'destructive',
           title: 'Dashboard data unavailable',
@@ -416,6 +491,35 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
       }
     }
   }, [isTouring, user.role]);
+
+  useEffect(() => {
+    if (!user.forceSprocketTourOnNextLogin) return;
+    setSprocketTourStep(0);
+    setShowSprocketTour(true);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(sprocketTourStepKeyForUser);
+    }
+  }, [user.forceSprocketTourOnNextLogin, sprocketTourStepKeyForUser]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (hasCompletedSprocketTour()) return;
+
+    const savedStepRaw = localStorage.getItem(sprocketTourStepKeyForUser);
+    if (!savedStepRaw) return;
+
+    const savedStep = Number(savedStepRaw);
+    if (!Number.isFinite(savedStep) || savedStep < 0) return;
+
+    setSprocketTourStep(Math.floor(savedStep));
+    setShowSprocketTour(true);
+  }, [sprocketTourStepKeyForUser]);
+
+  useEffect(() => {
+    if (!sprocketTourPreviewNonce) return;
+    setSprocketTourStep(0);
+    setShowSprocketTour(true);
+  }, [sprocketTourPreviewNonce]);
 
   useEffect(() => {
     if (!viewModeInitialized) {
@@ -570,6 +674,69 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
   };
 
   const showTestingControls = !needsBaselineAssessment && (canRetakeRecommendedTesting || canUseNewRecommendedTesting);
+  const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
+  const showAssignedInPppRow = pppCardCount === 1;
+  const consultantLevel = useMemo(() => calculateLevel(user.xp).level, [user.xp]);
+  const aisRoleType = useMemo(() => resolveAisRoleType(user.role), [user.role]);
+  const roleLabels = useMemo(() => getRoleLabels(resolveRoleLabelKeyFromUserRole(user.role)), [user.role]);
+  const interactionLabel = roleLabels.interactionLabel;
+  const meterLabel = roleLabels.meterLabel;
+  const freshUpProfile = useMemo(() => pickFreshUpProfile(user.userId, activity, consultantLevel, aisRoleType), [user.userId, activity, consultantLevel, aisRoleType]);
+  const freshUpMeter = Math.max(0, Math.round(Number(user.freshUpMeter ?? 0)));
+  const freshUpAvailable = user.freshUpAvailable === true;
+  const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
+  const upMeterProgress = getUpMeterProgress(freshUpMeter);
+
+  const todayActionLessonHref = useMemo(() => {
+    if (!availableRecommendedLesson || lessonLimits.recommendedTaken) return null;
+    return `/lesson/${availableRecommendedLesson.lessonId}?recommended=true`;
+  }, [availableRecommendedLesson, lessonLimits.recommendedTaken]);
+
+  const todayActionSkills = useMemo(() => {
+    if (!recommendedLessonQueue?.length) return [];
+    const uniqueTraits = Array.from(
+      new Set(recommendedLessonQueue.map((lesson) => lesson.associatedTrait).filter(Boolean))
+    ) as CxTrait[];
+    return uniqueTraits.slice(0, 2).map((trait) => CX_TRAIT_LABELS[trait]);
+  }, [recommendedLessonQueue]);
+
+  const assignedCard = (
+    <Card className={cn(
+      `flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`,
+      isPaused && "opacity-50 pointer-events-none"
+    )}>
+      <div className="flex-1">
+        <div className="flex items-center gap-3 mb-2">
+          <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+          <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">Lessons assigned to you by your manager.</p>
+      </div>
+      <div className="space-y-2">
+        {assignedLessons.length > 0 ? (
+          assignedLessons.map(lesson => (
+            <Link
+              key={lesson.lessonId}
+              href={`/lesson/${lesson.lessonId}`}
+              className={cn(
+                "w-full justify-between text-black hover:text-black lesson-ready-pulse",
+                buttonVariants({
+                  className: "w-full font-normal bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]",
+                })
+              )}
+            >
+              <span className="truncate">{lesson.title}</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ))
+        ) : (
+          <div className="rounded-md border border-border bg-muted/50 p-4 text-center text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50">
+            No assigned lessons
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 
   const recentActivities = useMemo(() => {
     if (!activity || !user) return [];
@@ -583,7 +750,9 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         const xpBefore = xpAfter - log.xpGained;
         const levelBefore = calculateLevel(xpBefore).level;
 
-        const lessonTitle = allLessons.find(l => l.lessonId === log.lessonId)?.title || 'a lesson';
+        const lessonTitle = log.activitySource === 'fresh-up'
+          ? interactionLabel
+          : (allLessons.find(l => l.lessonId === log.lessonId)?.title || 'a lesson');
         combinedActivities.push({
             type: 'completed',
             timestamp: new Date(log.timestamp),
@@ -605,7 +774,29 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, 4)
         .map(act => ({ icon: activityIcons[act.type], text: act.text, note: act.note }));
-  }, [activity, lessons, assignedLessons, user]);
+  }, [activity, lessons, assignedLessons, user, interactionLabel]);
+
+  const handleSkipSprocketTour = async () => {
+    setShowSprocketTour(false);
+    await markSprocketTourComplete();
+  };
+
+  const handleFinishSprocketTour = async () => {
+    setShowSprocketTour(false);
+    await markSprocketTourComplete();
+  };
+
+  const handleStartLessonFromSprocketTour = async () => {
+    setShowSprocketTour(false);
+    await markSprocketTourComplete();
+
+    if (availableRecommendedLesson && !lessonLimits.recommendedTaken) {
+      router.push(`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`);
+      return;
+    }
+
+    document.getElementById('lessons')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <div className="space-y-8 pb-24 text-foreground">
@@ -617,7 +808,25 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             setShowBaselineAssessment(false);
             setNeedsBaselineAssessment(false);
             setRefreshKey(prev => prev + 1);
+
+            if (!hasCompletedSprocketTour()) {
+              setSprocketTourStep(0);
+              setSprocketTourStepPersisted(0);
+              setShowSprocketTour(true);
+            }
           }}
+        />
+        <SprocketFirstLoginTour
+          open={showSprocketTour}
+          stepIndex={sprocketTourStep}
+          onStepChange={(nextStep) => {
+            const safeStep = Math.max(0, Math.min(nextStep, 5));
+            setSprocketTourStep(safeStep);
+            setSprocketTourStepPersisted(safeStep);
+          }}
+          onSkip={handleSkipSprocketTour}
+          onFinish={handleFinishSprocketTour}
+          onStartLesson={handleStartLessonFromSprocketTour}
         />
         <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
             <DialogContent>
@@ -649,6 +858,13 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
         )}
 
         <section className="space-y-3">
+          <TodayActionCard
+            lessonHref={todayActionLessonHref}
+            improvementSkills={todayActionSkills}
+          />
+        </section>
+
+        <section className="space-y-3" data-sprocket-tour="level-xp">
              {loading ? <Skeleton className="h-24 w-full" /> : (
                 <div>
                     <LevelDisplay user={user} />
@@ -693,7 +909,7 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
             </div>
         </div>
 
-        <section>
+        <section data-sprocket-tour="cx-scores">
           <CxSoundwaveCard 
             scope={hasDealershipContext ? dealershipScope : personalScope}
             personalScope={hasDealershipContext ? personalScope : undefined}
@@ -708,128 +924,56 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
           />
         </section>
 
-        <section id="lessons" className="space-y-4">
-            <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {loading ? (
-                    <Skeleton className="h-full min-h-[160px] rounded-2xl" />
-                ) : (
-                    <Card className={cn(
-                        `flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`,
-                        isPaused && "opacity-50 pointer-events-none"
-                    )}>
-                        <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <SteeringWheelIcon className="h-8 w-8 text-primary dark:text-cyan-400" />
-                                <h3 className="text-2xl font-bold text-foreground">Recommended</h3>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-4">A daily lesson focused on your area for greatest improvement.</p>
-                        </div>
-                        {needsBaselineAssessment ? (
-                            <div className="grid grid-cols-2 gap-2">
-                                {availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
-                                    <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
-                                        Recommended Lesson
-                                    </Link>
-                                ) : (
-                                    <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-                                        {availableRecommendedLesson ? 'Completed for today' : 'No lesson available'}
-                                    </Button>
-                                )}
-                                <Button
-                                  className="w-full font-bold bg-[#8DC63F] text-black hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]"
-                                  onClick={() => setShowBaselineAssessment(true)}
-                                >
-                                    Take Baseline
-                                </Button>
-                            </div>
-                        ) : availableRecommendedLesson && !lessonLimits.recommendedTaken ? (
-                            <Link href={`/lesson/${availableRecommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
-                                {availableRecommendedLesson.title}
-                            </Link>
-	                        ) : (retakeTestingLesson || availableRecommendedLesson) && lessonLimits.recommendedTaken ? (
-	                            <div className="space-y-2">
-	                                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-	                                    <><CheckCircle className="mr-2 h-4 w-4" /> Completed for today</>
-	                                </Button>
-	                            </div>
-	                        ) : (
-	                            <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-	                                No lesson available
-	                            </Button>
-	                        )}
-                            {showTestingControls && (
-                                <div className="mt-2 space-y-2">
-                                    {canRetakeRecommendedTesting && retakeTestingLesson && (
-                                        <Link
-                                          href={`/lesson/${retakeTestingLesson.lessonId}?recommended=true&retake=testing`}
-                                          className={cn(
-                                            "w-full",
-                                            buttonVariants({
-                                              variant: "outline",
-                                              className: "w-full font-semibold border-primary/50 text-primary hover:bg-primary/10 hover:text-primary dark:border-cyan-400/60 dark:text-cyan-200 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-100",
-                                            })
-                                          )}
-                                        >
-                                          Retake Recommended (Testing)
-                                        </Link>
-                                    )}
-                                    {canUseNewRecommendedTesting && (
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          disabled={creatingUniqueTestingLesson}
-                                          onClick={handleCreateUniqueRecommendedTestingLesson}
-                                          className="w-full font-semibold border-accent/60 text-foreground hover:bg-accent/10 hover:text-foreground dark:border-emerald-400/60 dark:text-emerald-200 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-100"
-                                        >
-                                          New Recommended (Testing)
-                                        </Button>
-                                    )}
-                                </div>
-                            )}
-	                    </Card>
-	                )}
-                
-                {loading ? (
-                    <Skeleton className="h-full min-h-[160px] rounded-2xl" />
-                ) : (
-                    <Card className={cn(
-                        `flex flex-col p-6 ${dashboardFeatureCardClass}`,
-                        isPaused && "opacity-50 pointer-events-none"
-                    )}>
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                                <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
-                                <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-4">Lessons assigned to you by your manager.</p>
-                        </div>
-                        <div className="space-y-2">
-                            {assignedLessons.length > 0 ? (
-                                assignedLessons.map(lesson => (
-                                    <Link
-                                      key={lesson.lessonId}
-                                      href={`/lesson/${lesson.lessonId}`}
-                                      className={cn(
-                                        "w-full justify-between text-black hover:text-black",
-                                        buttonVariants({
-                                          className: "w-full font-normal bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]",
-                                        })
-                                      )}
-                                    >
-                                        <span className="truncate">{lesson.title}</span>
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Link>
-                                ))
-                            ) : (
-                                <div className="rounded-md border border-border bg-muted/50 p-4 text-center text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50">
-                                    No assigned lessons
-                                </div>
-                            )}
-                        </div>
-                    </Card>
-                )}
-            </div>
+        <section className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card className={cn(dashboardFeatureCardClass, 'md:col-span-2')}>
+              <CardHeader>
+                <CardTitle>{meterLabel}</CardTitle>
+                <CardDescription>{`Tracks progress toward a ${interactionLabel}.`}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">{upMeterState}</span>
+                    <span className="text-muted-foreground">{freshUpMeter} / 100</span>
+                  </div>
+                  <Progress value={upMeterProgress} className="h-2" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Normal lessons keep building the meter. Stronger results move it a little faster.
+                </p>
+                {freshUpAvailable ? (
+                  <>
+                    <div className="rounded-lg border border-border/70 bg-muted/40 p-3 text-sm text-muted-foreground dark:border-slate-700 dark:bg-slate-800/40">
+                      <p className="font-medium text-foreground">{interactionLabel}</p>
+                      <p className="mt-1">
+                        {`A higher-level customer interaction is ready. This ${interactionLabel.toLowerCase()} will require stronger listening, trust building, and clarity.`}
+                      </p>
+                      <p className="mt-2">
+                        Next customer: <span className="font-medium text-foreground">{freshUpProfile.characterName}</span> · {freshUpProfile.customerType}
+                      </p>
+                    </div>
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+            {coachingInsight && (
+              <Card className={dashboardFeatureCardClass}>
+                <CardHeader>
+                  <CardTitle>Your Coaching Focus</CardTitle>
+                  <CardDescription>{coachingInsight.coachingTopic}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Practice Suggestion: <span className="font-medium text-foreground">{coachingInsight.recommendedPractice}</span>
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Suggested AutoForge: <span className="font-medium text-foreground">{coachingInsight.suggestedAutoForgeModule}</span>
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </section>
 
         {(pppFeatureEnabled || saasPppFeatureEnabled) && (
@@ -850,11 +994,66 @@ export function ConsultantDashboard({ user }: ConsultantDashboardProps) {
               {saasPppFeatureEnabled && (
                 <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
               )}
+              {showAssignedInPppRow && (loading ? (
+                <Skeleton className="h-full min-h-[160px] rounded-2xl" />
+              ) : (
+                assignedCard
+              ))}
             </div>
           </section>
         )}
 
-        <section>
+        {!showAssignedInPppRow && (
+          <section id="lessons" className="space-y-4">
+            <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {loading ? (
+                <Skeleton className="h-full min-h-[160px] rounded-2xl" />
+              ) : (
+                <>
+                  {assignedCard}
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
+        {hasDealershipContext && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Dealership Leaderboard</CardTitle>
+              <CardDescription>Current store ranking by total XP.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-32 w-full" />
+              ) : dealershipLeaderboard.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No leaderboard data available for this dealership yet.</p>
+              ) : (
+                <div className="max-h-[16rem] overflow-y-auto pr-1">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Total XP / Level</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dealershipLeaderboard.map((row, index) => (
+                        <TableRow key={row.userId}>
+                          <TableCell className="font-medium">{index + 1}. {row.name}</TableCell>
+                          <TableCell>{row.totalXp.toLocaleString()} XP / Level {row.level}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <section data-sprocket-tour="badges">
              {loading ? (
                 <Skeleton className="h-40 w-full rounded-2xl" />
              ) : (

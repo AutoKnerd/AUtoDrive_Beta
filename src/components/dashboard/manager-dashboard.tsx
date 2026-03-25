@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
-import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson } from '@/lib/data.client';
+import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData, getFreshUpCommandCenter, type FreshUpCommandCenterResult } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
 import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ListChecks, ChevronRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
 import { Badge as UiBadge } from '../ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Button, buttonVariants } from '../ui/button';
 import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,6 +43,8 @@ import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
 import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
+import { ManagerGuidedTour } from './manager-guided-tour';
+import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 
 interface ManagerDashboardProps {
   user: User;
@@ -56,14 +58,51 @@ type TeamMemberStats = {
   topStrength: CxTrait | null;
   weakestSkill: CxTrait | null;
   lastInteraction: Date | null;
+  lastRecommendedInteraction: Date | null;
+  tookRecommendedToday: boolean;
   pendingInvite?: PendingInvitation;
 };
-type TeamSortField = 'name' | 'role' | 'lastInteraction' | 'topStrength' | 'weakestSkill';
+type TeamSortField = 'leaderboard' | 'name' | 'role' | 'lastInteraction' | 'topStrength' | 'weakestSkill';
+type DealershipActivityEntry = {
+  userId: string;
+  memberName: string;
+  memberRole: UserRole;
+  lessonId: string;
+  timestamp: Date;
+  xpGained: number;
+  isRecommended: boolean;
+  trainedTrait?: string;
+  severity?: 'normal' | 'behavior_violation';
+};
 
 type DealershipInsight = {
     trait: string;
     score: number;
 };
+
+type DealerOwnerDashboardResponse = {
+  dealership_name: string;
+  snapshot: {
+    team_training_completion: number;
+    team_engagement_rate: number;
+    average_skill_score: number;
+    active_users: number;
+  };
+};
+
+type DealerGmDashboardResponse = {
+  dealership_name: string;
+  rep_performance: Array<{
+    user_id: string;
+    name: string;
+    missions_completed?: number;
+    skill_score?: number;
+    last_activity?: string | null;
+  }>;
+  coaching_alerts: string[];
+};
+
+type DealerLeadershipResponse = DealerOwnerDashboardResponse | DealerGmDashboardResponse;
 
 const dashboardFeatureCardClass =
   'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
@@ -76,6 +115,13 @@ function resolveThemePreference(value: unknown, useProfessionalTheme?: boolean):
   if (raw === 'vibrant' || raw.includes('vibrant neon')) return 'vibrant';
   if (raw === 'executive' || raw.includes('elite executive')) return 'executive';
   if (raw === 'steel' || raw.includes('professional steel')) return 'steel';
+  if (raw === 'patriot' || raw.includes('tricolor') || raw.includes('red, white, blue')) return 'patriot';
+  if (raw === 'velocity' || raw.includes('orange, indigo, teal')) return 'velocity';
+  if (raw === 'monochrome' || raw.includes('silver, graphite, charcoal')) return 'monochrome';
+  if (raw === 'forest' || raw.includes('pine, mint, sage')) return 'forest';
+  if (raw === 'sunset' || raw.includes('crimson, amber, rose')) return 'sunset';
+  if (raw === 'oceanic' || raw.includes('navy, aqua, sand')) return 'oceanic';
+  if (raw === 'cyber' || raw.includes('magenta, cyan, lime')) return 'cyber';
 
   return useProfessionalTheme ? 'executive' : 'vibrant';
 }
@@ -203,6 +249,92 @@ function lowestTraitFromSnapshot(scores: CxScoreSnapshot): CxTrait {
     .reduce((lowest, current) => (current[1] < lowest[1] ? current : lowest), ['empathy', Number.POSITIVE_INFINITY])[0];
 }
 
+function parseCoachingAlert(alert: string): { repName: string; reason: string } {
+  const normalized = alert.trim();
+  if (!normalized) return { repName: 'Unknown rep', reason: 'No reason provided' };
+
+  const patterns = [
+    /(.*)\s+inactive for\s+(.*)$/i,
+    /(.*)\s+showing\s+(.*)$/i,
+    /(.*)\s+has\s+(.*)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      return {
+        repName: match[1].trim(),
+        reason: match[2].trim(),
+      };
+    }
+  }
+
+  return { repName: normalized, reason: 'Review this alert in Team Activity.' };
+}
+
+function resolveTeamMemberName(member: TeamMemberStats): string {
+  const normalizedName = (member.consultant.name || '').trim();
+  if (normalizedName && normalizedName.toLowerCase() !== 'new user') return normalizedName;
+  const localPart = (member.consultant.email || '').split('@')[0] || '';
+  const cleaned = localPart.replace(/[._-]+/g, ' ').trim();
+  if (!cleaned) return 'Rep';
+  return cleaned
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function scoreFromTeamMember(member: TeamMemberStats): number {
+  const snapshot = scoreSnapshotFromUserStats(member.consultant);
+  if (snapshot) {
+    const values = Object.values(snapshot);
+    return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100;
+  }
+
+  return Math.round(member.avgScore * 100) / 100;
+}
+
+function daysSinceActivity(lastActivity: string | Date | null, now: Date): number {
+  if (!lastActivity) return Number.MAX_SAFE_INTEGER;
+  const parsed = lastActivity instanceof Date ? lastActivity : new Date(lastActivity);
+  if (Number.isNaN(parsed.getTime())) return Number.MAX_SAFE_INTEGER;
+  return Math.floor((now.getTime() - parsed.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function buildTourLeadershipData(teamActivity: TeamMemberStats[]): DealerGmDashboardResponse {
+  const now = new Date();
+  const repPerformance = teamActivity
+    .filter((member) => !member.pendingInvite)
+    .map((member) => ({
+      user_id: member.consultant.userId,
+      name: resolveTeamMemberName(member),
+      missions_completed: member.lessonsCompleted,
+      skill_score: scoreFromTeamMember(member),
+      last_activity: member.lastInteraction ? member.lastInteraction.toISOString() : null,
+    }));
+
+  const jesse = repPerformance.find((rep) => rep.name === 'Jesse Jones');
+  const coachingAlerts: string[] = [];
+  if (jesse) {
+    const daysInactive = daysSinceActivity(jesse.last_activity ?? null, now);
+    if (daysInactive === Number.MAX_SAFE_INTEGER) {
+      coachingAlerts.push('Jesse Jones has no recorded activity yet');
+    } else if (daysInactive >= 1) {
+      coachingAlerts.push(`Jesse Jones overdue training for ${daysInactive} ${daysInactive === 1 ? 'day' : 'days'}`);
+    } else {
+      coachingAlerts.push('Jesse Jones overdue training');
+    }
+    coachingAlerts.push('Jesse Jones has incomplete training streaks');
+  }
+
+  return {
+    dealership_name: 'Tour Dealership',
+    rep_performance: repPerformance,
+    coaching_alerts: coachingAlerts.slice(0, 12),
+  };
+}
+
 function LevelDisplay({ user }: { user: User }) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
 
@@ -235,9 +367,10 @@ function LevelDisplay({ user }: { user: User }) {
 
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const { toast } = useToast();
-  const { originalUser, isTouring } = useAuth();
+  const { originalUser, isTouring, firebaseUser } = useAuth();
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
+  const [dealershipActivity, setDealershipActivity] = useState<DealershipActivityEntry[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [managerActivity, setManagerActivity] = useState<LessonLog[]>([]);
   const [managerBadges, setManagerBadges] = useState<Badge[]>([]);
@@ -248,11 +381,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [isCreatedLessonsOpen, setCreatedLessonsOpen] = useState(false);
   const [createdLessonsRefreshKey, setCreatedLessonsRefreshKey] = useState(0);
   const [isManageUsersOpen, setManageUsersOpen] = useState(false);
-  const [isManageDealershipsOpen, setManageDealershipsOpen] = useState(false);
   const [isMessageDialogOpen, setMessageDialogOpen] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [lessonLimits, setLessonLimits] = useState({ recommendedTaken: false, otherTaken: false });
-  const [showTourWelcome, setShowTourWelcome] = useState(false);
+  const [showGuidedTour, setShowGuidedTour] = useState(false);
+  const [guidedTourStep, setGuidedTourStep] = useState(0);
   const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
   const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
 
@@ -260,20 +393,31 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [manageableUsers, setManageableUsers] = useState<User[]>([]);
   const [allDealershipsForAdmin, setAllDealershipsForAdmin] = useState<Dealership[]>([]);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
-  const [teamSortField, setTeamSortField] = useState<TeamSortField>('name');
-  const [teamSortDirection, setTeamSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [teamSortField, setTeamSortField] = useState<TeamSortField>('leaderboard');
+  const [teamSortDirection, setTeamSortDirection] = useState<'asc' | 'desc'>('desc');
   const [showBaselineAssessment, setShowBaselineAssessment] = useState(false);
   const [needsBaselineAssessment, setNeedsBaselineAssessment] = useState(false);
   const [dailyRecommendedLessonId, setDailyRecommendedLessonId] = useState<string | null>(null);
   const [systemReport, setSystemReport] = useState<SystemReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [viewMode, setViewMode] = useState<'team' | 'personal'>(() => (
-    ['Owner', 'General Manager', 'Admin', 'Developer', 'Trainer'].includes(user.role) ? 'team' : 'personal'
-  ));
+  const [isRecalculatingDealership, setIsRecalculatingDealership] = useState(false);
+  const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [range, setRange] = useState<CxRange>('today');
+  const [dealerLeadershipData, setDealerLeadershipData] = useState<DealerLeadershipResponse | null>(null);
+  const [dealerLeadershipLoading, setDealerLeadershipLoading] = useState(false);
+  const [dealerLeadershipError, setDealerLeadershipError] = useState<string | null>(null);
+  const [commandCenter, setCommandCenter] = useState<FreshUpCommandCenterResult | null>(null);
+  const [commandCenterLoading, setCommandCenterLoading] = useState(false);
   const router = useRouter();
+  const canViewAllStores = ['Admin', 'Developer'].includes(user.role);
+  const canViewAssignedStoresAggregate = !canViewAllStores && (user.dealershipIds?.length ?? 0) > 1;
+  const dealershipSelectionStorageKey = useMemo(
+    () => `managerDashboard:selectedDealershipId:${originalUser?.userId || user.userId}`,
+    [originalUser?.userId, user.userId]
+  );
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
+  const roleLabels = useMemo(() => getRoleLabels(resolveRoleLabelKeyFromUserRole(user.role)), [user.role]);
 
   const teamContext = useMemo(() => {
     switch (user.role) {
@@ -286,9 +430,20 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const fetchData = useCallback(async (dealershipId: string | null) => {
       if (!dealershipId) return;
+      const canUseAllSelection = canViewAllStores || canViewAssignedStoresAggregate;
+      const scopedDealershipId = (!canUseAllSelection && dealershipId === 'all')
+        ? (user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null)
+        : dealershipId;
+      if (!scopedDealershipId) {
+        setLoading(false);
+        return;
+      }
+      if (scopedDealershipId !== dealershipId) {
+        setSelectedDealershipId(scopedDealershipId);
+      }
       setLoading(true);
       try {
-          const combinedDataPromise = getCombinedTeamData(dealershipId, user);
+          const combinedDataPromise = getCombinedTeamData(scopedDealershipId, user);
           const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations, pppAccessEnabled, saasPppAccessEnabled] = await Promise.all([
             combinedDataPromise,
             getManageableUsers(user.userId),
@@ -298,9 +453,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             getAssignedLessons(user.userId),
             getAllAssignedLessonIds(user.userId),
             getDailyLessonLimits(user.userId),
-            getPendingInvitations(dealershipId, user),
-            getPppAccessForUser(user, dealershipId).catch(() => false),
-            getSaasPppAccessForUser(user, dealershipId).catch(() => false),
+            getPendingInvitations(scopedDealershipId, user),
+            getPppAccessForUser(user, scopedDealershipId).catch(() => false),
+            getSaasPppAccessForUser(user, scopedDealershipId).catch(() => false),
           ]);
 
           const manageableById = new Map<string, User>(
@@ -323,26 +478,28 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           });
           
           setStats(combinedData.managerStats);
+          setDealershipActivity((combinedData.dealershipActivity || []) as DealershipActivityEntry[]);
           const teamActivityByUserId = new Map<string, TeamMemberStats>(
             hydratedTeamRows.map((row: TeamMemberStats) => [row.consultant.userId, row])
           );
 
           const visibleActiveUsers = usersToManage.filter((u) => {
-            if (dealershipId === 'all') return ['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role);
-            return u.dealershipIds?.includes(dealershipId);
+            if (scopedDealershipId === 'all') return canUseAllSelection;
+            return u.dealershipIds?.includes(scopedDealershipId);
           });
 
           visibleActiveUsers.forEach((u) => {
             if (!teamActivityByUserId.has(u.userId)) {
               teamActivityByUserId.set(u.userId, {
                 consultant: u, lessonsCompleted: 0, totalXp: u.xp, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null,
+                lastRecommendedInteraction: null, tookRecommendedToday: false,
               });
             }
           });
 
           const pendingRows: TeamMemberStats[] = pendingInvitations.map((invite) => ({
             consultant: { userId: `invite-${invite.token}`, name: invite.email.split('@')[0] || invite.email, email: invite.email, role: invite.role, dealershipIds: [invite.dealershipId], avatarUrl: '', xp: 0 },
-            lessonsCompleted: 0, totalXp: 0, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null, pendingInvite: invite,
+            lessonsCompleted: 0, totalXp: 0, avgScore: 0, topStrength: null, weakestSkill: null, lastInteraction: null, lastRecommendedInteraction: null, tookRecommendedToday: false, pendingInvite: invite,
           }));
 
           setTeamActivity([...Array.from(teamActivityByUserId.values()), ...pendingRows]);
@@ -377,6 +534,17 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
           setNeedsBaselineAssessment(baselineRequired);
           setShowBaselineAssessment(baselineRequired);
+
+          setCommandCenterLoading(true);
+          const commandCenterResult = await getFreshUpCommandCenter({
+            entityMode: scopedDealershipId === 'all' ? 'platform' : 'dealer',
+            entityId: scopedDealershipId === 'all' ? undefined : scopedDealershipId,
+            filters: {
+              includeSandboxData: false,
+              dealerId: scopedDealershipId === 'all' ? undefined : scopedDealershipId,
+            },
+          });
+          setCommandCenter(commandCenterResult);
       } catch (error) {
           console.warn("Dashboard partially failed to load team data:", error);
           setPppFeatureEnabled(false);
@@ -387,9 +555,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               description: 'Some administrative data could not be retrieved at this time.',
           });
       } finally {
+          setCommandCenterLoading(false);
           setLoading(false);
       }
-  }, [user, isTouring, toast]);
+  }, [user, isTouring, toast, canViewAllStores, canViewAssignedStoresAggregate]);
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -413,16 +582,32 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         
         let currentSelectedId = selectedDealershipId;
         if (currentSelectedId === null) {
-            if (['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role)) currentSelectedId = 'all';
+            let persistedSelection: string | null = null;
+            if (typeof window !== 'undefined') {
+              persistedSelection = localStorage.getItem(dealershipSelectionStorageKey);
+            }
+            const canUsePersistedAll = persistedSelection === 'all' && (canViewAllStores || canViewAssignedStoresAggregate);
+            const canUsePersistedStore = !!persistedSelection && persistedSelection !== 'all'
+              && initialDealerships.some((d) => d.id === persistedSelection);
+
+            if (canUsePersistedAll || canUsePersistedStore) currentSelectedId = persistedSelection;
+            else if (canViewAllStores) currentSelectedId = 'all';
+            else if (canViewAssignedStoresAggregate && initialDealerships.length > 1) currentSelectedId = 'all';
             else if (initialDealerships.length > 0) currentSelectedId = initialDealerships[0].id;
         }
+        if (currentSelectedId === 'all' && !canViewAllStores && !canViewAssignedStoresAggregate) {
+            currentSelectedId = initialDealerships[0]?.id || user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null;
+        }
         if (currentSelectedId) {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(dealershipSelectionStorageKey, currentSelectedId);
+            }
             if (selectedDealershipId === null) setSelectedDealershipId(currentSelectedId);
             await fetchData(currentSelectedId);
         } else setLoading(false);
     };
     fetchInitialData();
-  }, [user, selectedDealershipId, fetchData, fetchAdminData]);
+  }, [user, selectedDealershipId, fetchData, fetchAdminData, canViewAllStores, canViewAssignedStoresAggregate, dealershipSelectionStorageKey]);
 
   useEffect(() => {
     if (user.memberSince) {
@@ -431,23 +616,41 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   }, [user.memberSince]);
 
   useEffect(() => {
+    // Always default Team Activity back to leaderboard ranking for the current dealership.
+    setTeamSortField('leaderboard');
+    setTeamSortDirection('desc');
+  }, [selectedDealershipId, teamActivity.length]);
+
+  useEffect(() => {
     if (isTouring) {
       const hasSeenWelcome = sessionStorage.getItem(`tourWelcomeSeen_${user.role}`);
-      if (!hasSeenWelcome) setShowTourWelcome(true);
+      if (!hasSeenWelcome) {
+        setGuidedTourStep(0);
+        setShowGuidedTour(true);
+      }
     }
   }, [isTouring, user.role]);
-  
-  const handleWelcomeDialogChange = (open: boolean) => {
-    if (!open) sessionStorage.setItem(`tourWelcomeSeen_${user.role}`, 'true');
-    setShowTourWelcome(open);
-  }
+
+  const closeGuidedTour = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`tourWelcomeSeen_${user.role}`, 'true');
+    }
+    setShowGuidedTour(false);
+    setGuidedTourStep(0);
+  }, [user.role]);
 
   const handleLessonCreated = () => {
     setCreateLessonOpen(false);
     setCreatedLessonsRefreshKey((current) => current + 1);
   };
 
-  const handleDealershipChange = (dealershipId: string) => setSelectedDealershipId(dealershipId);
+  const handleDealershipChange = (dealershipId: string) => {
+    if (dealershipId === 'all' && !canViewAllStores && !canViewAssignedStoresAggregate) return;
+    setSelectedDealershipId(dealershipId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(dealershipSelectionStorageKey, dealershipId);
+    }
+  };
 
   const formatUserDisplayName = useCallback((name?: string, email?: string) => {
     const normalizedName = (name || '').trim();
@@ -463,6 +666,61 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return trait.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   }, []);
 
+  const getRecommendedStatus = useCallback((member: TeamMemberStats) => {
+    if (isTouring) {
+      const displayName = resolveTeamMemberName(member);
+      if (displayName === 'Jesse Jones') {
+        return {
+          label: 'Overdue',
+          colorClass: 'bg-red-500',
+          detail: 'Jesse Jones is intentionally shown as overdue in the guided tour.',
+        };
+      }
+
+      return {
+        label: 'Up to date',
+        colorClass: 'bg-emerald-500',
+        detail: 'Guided tour teammates are shown as current.',
+      };
+    }
+
+    if (member.tookRecommendedToday) {
+      return {
+        label: 'Today',
+        colorClass: 'bg-emerald-500',
+        detail: 'Recommended lesson completed today.',
+      };
+    }
+
+    if (!member.lastRecommendedInteraction) {
+      return {
+        label: 'Overdue',
+        colorClass: 'bg-red-500',
+        detail: 'No recommended lesson completed yet.',
+      };
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const lastStart = new Date(member.lastRecommendedInteraction);
+    lastStart.setHours(0, 0, 0, 0);
+    const daysSince = Math.max(0, Math.floor((todayStart.getTime() - lastStart.getTime()) / (24 * 60 * 60 * 1000)));
+
+    if (daysSince > 3) {
+      return {
+        label: 'Overdue',
+        colorClass: 'bg-red-500',
+        detail: `${daysSince} days since last recommended lesson.`,
+      };
+    }
+
+    return {
+      label: 'Due Soon',
+      colorClass: 'bg-amber-400',
+      detail: `${daysSince} day${daysSince === 1 ? '' : 's'} since last recommended lesson.`,
+    };
+  }, [isTouring]);
+
   const isMetricsHiddenForViewer = useCallback((member: User) => {
     if (['Admin', 'Developer', 'Trainer'].includes(user.role)) return false;
     if (user.role === 'Owner') return member.isPrivateFromOwner === true;
@@ -477,6 +735,18 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       const bPending = !!b.pendingInvite;
       if (aPending !== bPending) return aPending ? 1 : -1;
       switch (teamSortField) {
+        case 'leaderboard': {
+          const leaderboardDir = teamSortDirection === 'desc' ? 1 : -1;
+          const aLevel = calculateLevel(a.totalXp).level;
+          const bLevel = calculateLevel(b.totalXp).level;
+          const levelDiff = bLevel - aLevel;
+          if (levelDiff !== 0) return levelDiff * leaderboardDir;
+          const xpDiff = b.totalXp - a.totalXp;
+          if (xpDiff !== 0) return xpDiff * leaderboardDir;
+          return formatUserDisplayName(a.consultant.name, a.consultant.email)
+            .localeCompare(formatUserDisplayName(b.consultant.name, b.consultant.email))
+            * leaderboardDir;
+        }
         case 'role': return a.consultant.role.localeCompare(b.consultant.role) * dir;
         case 'lastInteraction': {
           const aTime = a.lastInteraction ? new Date(a.lastInteraction).getTime() : 0;
@@ -491,6 +761,38 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     });
     return list;
   }, [teamActivity, teamSortDirection, teamSortField, formatUserDisplayName]);
+
+  const leaderboardRankByUserId = useMemo(() => {
+    const ranked = teamActivity
+      .filter((member) => !member.pendingInvite)
+      .slice()
+      .sort((a, b) => {
+        const aLevel = calculateLevel(a.totalXp).level;
+        const bLevel = calculateLevel(b.totalXp).level;
+        const levelDiff = bLevel - aLevel;
+        if (levelDiff !== 0) return levelDiff;
+        const xpDiff = b.totalXp - a.totalXp;
+        if (xpDiff !== 0) return xpDiff;
+        return formatUserDisplayName(a.consultant.name, a.consultant.email).localeCompare(
+          formatUserDisplayName(b.consultant.name, b.consultant.email)
+        );
+      });
+
+    const rankMap = new Map<string, number>();
+    ranked.forEach((member, index) => {
+      rankMap.set(member.consultant.userId, index + 1);
+    });
+    return rankMap;
+  }, [teamActivity, formatUserDisplayName]);
+
+  const toggleTeamSort = useCallback((field: TeamSortField) => {
+    if (teamSortField === field) {
+      setTeamSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setTeamSortField(field);
+    setTeamSortDirection(field === 'leaderboard' ? 'desc' : 'asc');
+  }, [teamSortField]);
 
   const managerAverageScores = useMemo(() => {
       if (!managerActivity.length) return { empathy: 0, listening: 0, trust: 0, followUp: 0, closing: 0, relationshipBuilding: 0 };
@@ -519,6 +821,31 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const hasAvailableLessons = useMemo(() => {
     return !loading && ((recommendedLesson && !lessonLimits.recommendedTaken) || assignedLessons.length > 0);
   }, [loading, recommendedLesson, lessonLimits.recommendedTaken, assignedLessons.length]);
+  const showTodaysLessonsCard = !noPersonalDevelopmentRoles.includes(user.role);
+  const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
+  const showAssignedInPppRow = showTodaysLessonsCard && pppCardCount === 1;
+  const assignedLessonCard = (
+    <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
+      <div>
+        <div className="mb-2 flex items-center gap-3">
+          <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+          <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">Training assigned specifically to you.</p>
+      </div>
+      {loading ? (
+        <Skeleton className="h-10 w-full" />
+      ) : assignedLessons.length > 0 ? (
+        <Link href={`/lesson/${assignedLessons[0].lessonId}`} className={cn("w-full text-black", buttonVariants({ className: "w-full font-bold bg-[#8DC63F]" }))}>
+          {assignedLessons[0].title}
+        </Link>
+      ) : (
+        <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
+          No assignments
+        </Button>
+      )}
+    </Card>
+  );
 
   const dealershipInsights = useMemo(() => {
     if (!stats?.avgScores) return { bestStat: null, watchStat: null };
@@ -538,6 +865,26 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     catch (e: any) { toast({ variant: 'destructive', title: 'Report Failed', description: e?.message || 'Could not generate system report.' }); }
     finally { setIsGeneratingReport(false); }
   }, [user, toast]);
+
+  const handleRecalculateDealershipData = useCallback(async () => {
+    if (!selectedDealershipId || selectedDealershipId === 'all') {
+      toast({ variant: 'destructive', title: 'Select a dealership', description: 'Choose a specific dealership before recalculating data.' });
+      return;
+    }
+    const confirmed = window.confirm('Recalculate all assigned users for this dealership from lesson history? This keeps logs but overwrites computed stats.');
+    if (!confirmed) return;
+
+    setIsRecalculatingDealership(true);
+    try {
+      const result = await recalculateDealershipData(selectedDealershipId);
+      await fetchData(selectedDealershipId);
+      toast({ title: 'Dealership recalculated', description: `Updated ${result.updatedUsers} assigned user profiles.` });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Recalculation failed', description: e?.message || 'Could not recalculate dealership data.' });
+    } finally {
+      setIsRecalculatingDealership(false);
+    }
+  }, [selectedDealershipId, toast, fetchData]);
 
   const activeScope = useMemo(() => {
     const baseScope = getDefaultScope(user);
@@ -559,21 +906,103 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const showInsufficientDataWarning = stats?.totalLessons === -1;
   const canManage = ['Admin', 'Trainer', 'Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Developer'].includes(user.role);
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
+  const isOwnerDashboardRole = user.role === 'Owner';
+  const isGmDashboardRole = ['General Manager', 'manager', 'Admin', 'Developer'].includes(user.role);
+  const effectiveLeadershipData = useMemo<DealerLeadershipResponse | null>(() => {
+    if (isTouring) {
+      return buildTourLeadershipData(teamActivity);
+    }
+    return dealerLeadershipData;
+  }, [dealerLeadershipData, isTouring, teamActivity]);
+
+  useEffect(() => {
+    let active = true;
+    const hasDealershipContext = (user.dealershipIds?.length ?? 0) > 0 || !!user.selfDeclaredDealershipId;
+    const endpoint = isOwnerDashboardRole ? '/api/dealer/owner' : isGmDashboardRole ? '/api/dealer/gm' : null;
+    const scopedDealershipId = selectedDealershipId && selectedDealershipId !== 'all'
+      ? selectedDealershipId
+      : null;
+
+    if (!endpoint || !hasDealershipContext || isTouring || !firebaseUser || !scopedDealershipId) {
+      setDealerLeadershipData(null);
+      setDealerLeadershipError(null);
+      setDealerLeadershipLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+    const authUser = firebaseUser;
+    const requestEndpoint = `${endpoint}?dealershipId=${encodeURIComponent(scopedDealershipId)}`;
+
+    async function fetchDealerLeadershipData() {
+      setDealerLeadershipLoading(true);
+      setDealerLeadershipError(null);
+
+      try {
+        const token = await authUser.getIdToken(true);
+        const response = await fetch(requestEndpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.message || 'Unable to load dealer leadership data.');
+        }
+        if (!active) return;
+        setDealerLeadershipData(payload as DealerLeadershipResponse);
+      } catch (error) {
+        if (!active) return;
+        setDealerLeadershipData(null);
+        setDealerLeadershipError(error instanceof Error ? error.message : 'Unable to load dealer leadership data.');
+      } finally {
+        if (active) {
+          setDealerLeadershipLoading(false);
+        }
+      }
+    }
+
+    void fetchDealerLeadershipData();
+    return () => {
+      active = false;
+    };
+  }, [firebaseUser, isOwnerDashboardRole, isGmDashboardRole, isTouring, selectedDealershipId, user.dealershipIds, user.selfDeclaredDealershipId]);
+
+  const isOwnerLeadershipData = (value: DealerLeadershipResponse | null): value is DealerOwnerDashboardResponse => {
+    return !!value && 'snapshot' in value;
+  };
 
   return (
     <div className="space-y-8 pb-8 text-foreground">
+      <ManagerGuidedTour
+        open={showGuidedTour}
+        stepIndex={guidedTourStep}
+        onStepChange={setGuidedTourStep}
+        onSkip={closeGuidedTour}
+        onFinish={closeGuidedTour}
+      />
       <BaselineAssessmentDialog user={user} open={showBaselineAssessment} onOpenChange={setShowBaselineAssessment} onCompleted={async () => { setShowBaselineAssessment(false); setNeedsBaselineAssessment(false); await fetchData(selectedDealershipId); }} />
-      <Dialog open={showTourWelcome} onOpenChange={handleWelcomeDialogChange}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle className="text-2xl">Welcome, {user.role === 'manager' ? 'Sales Manager' : user.role}!</DialogTitle>
-                  <DialogDescription className="pt-2">This is your command center. From here, you can monitor team-wide statistics, track individual member activity, and create custom training lessons.</DialogDescription>
-              </DialogHeader>
-          </DialogContent>
-      </Dialog>
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-3">
           <Logo variant="full" width={183} height={61} />
-          <UserNav user={user} avatarClassName="h-14 w-14" />
+          <div className="flex items-center gap-3">
+            {(canViewAllStores || (dealerships && dealerships.length > 1)) && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase text-muted-foreground whitespace-nowrap">Dealership:</span>
+                <Select value={selectedDealershipId || ''} onValueChange={handleDealershipChange}>
+                  <SelectTrigger className="w-[220px] bg-background h-9 text-xs">
+                    <SelectValue placeholder="Select a dealership" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(canViewAllStores || canViewAssignedStoresAggregate) && (
+                      <SelectItem value="all">{canViewAllStores ? 'All Stores' : 'All Assigned Stores'}</SelectItem>
+                    )}
+                    {dealerships.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <UserNav user={user} avatarClassName="h-14 w-14" />
+          </div>
       </header>
 
       <section className="space-y-3">
@@ -582,20 +1011,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
       {/* Control Bar - Repositioned below Identity */}
       <div className="flex flex-col md:flex-row items-center justify-center bg-card/50 backdrop-blur-sm border rounded-xl p-3 gap-4">
-          {(['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) || (dealerships && dealerships.length > 1)) && (
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                  <span className="text-xs font-bold uppercase text-muted-foreground whitespace-nowrap">Dealership:</span>
-                  <Select value={selectedDealershipId || ''} onValueChange={handleDealershipChange}>
-                      <SelectTrigger className="w-full md:w-[240px] bg-background h-9 text-xs">
-                          <SelectValue placeholder="Select a dealership" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {['Owner', 'Admin', 'Trainer', 'General Manager', 'Developer'].includes(user.role) && <SelectItem value="all">All Stores</SelectItem>}
-                          {dealerships.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                      </SelectContent>
-                  </Select>
-              </div>
-          )}
           <div className="flex bg-muted p-1 rounded-lg border">
               <Button
                   variant="ghost"
@@ -626,7 +1041,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           </div>
       </div>
 
-      <section>
+      <section data-manager-tour="team-scores">
         <CxSoundwaveCard 
           scope={activeScope} 
           personalScope={personalScope}
@@ -637,9 +1052,247 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           onViewModeChange={setViewMode}
           range={range}
           onRangeChange={setRange}
+          actionLabel="Update"
+          onActionClick={handleRecalculateDealershipData}
+          actionDisabled={isRecalculatingDealership || !selectedDealershipId || selectedDealershipId === 'all'}
+          actionLoading={isRecalculatingDealership}
           hideInternalToggle 
         />
       </section>
+
+      <section>
+        <Card className={dashboardFeatureCardClass}>
+          <CardHeader>
+            <CardTitle>CX Command Center</CardTitle>
+            <CardDescription>
+              Leadership briefing view combining digest, risks, goals, alerts, performance, and coaching priority.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {commandCenterLoading ? (
+              <Skeleton className="h-20 w-full" />
+            ) : !commandCenter ? (
+              <p className="text-sm text-muted-foreground">Command Center data is not available yet for this scope.</p>
+            ) : (
+              <>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-semibold">Weekly Digest Summary</p>
+                  <p className="mt-1 text-sm">{commandCenter.weeklyDigestSummary.headline}</p>
+                  {commandCenter.weeklyDigestSummary.topInsights.slice(0, 3).map((line, index) => (
+                    <p key={`cc-weekly-${index}`} className="mt-1 text-xs text-muted-foreground">• {line}</p>
+                  ))}
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-md border p-3">
+                    <p className="text-xs font-semibold">Active Risks</p>
+                    <p className="text-xs text-muted-foreground mt-1">{commandCenter.activeRiskRadarSummary.totalActiveRisks} active</p>
+                    {commandCenter.activeRiskRadarSummary.topRisks.slice(0, 2).map((risk) => (
+                      <p key={risk.riskId} className="mt-1 text-xs text-muted-foreground">• {risk.riskType.replace(/_/g, ' ')} ({risk.riskLevel})</p>
+                    ))}
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <p className="text-xs font-semibold">Goals</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Active {commandCenter.goalsAndTargetsSummary.activeGoals} • At Risk {commandCenter.goalsAndTargetsSummary.atRisk}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      On Track {commandCenter.goalsAndTargetsSummary.onTrack} • Stalled {commandCenter.goalsAndTargetsSummary.stalled}
+                    </p>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <p className="text-xs font-semibold">Alerts</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Total {commandCenter.activeAlertsSummary.totalActiveAlerts} • High {commandCenter.activeAlertsSummary.highSeverityAlerts}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Goal {commandCenter.activeAlertsSummary.goalRelatedAlerts} • Version {commandCenter.activeAlertsSummary.versionRelatedAlerts}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-semibold">Coaching Intelligence</p>
+                  {commandCenter.coachingIntelligence ? (
+                    <>
+                      <p className="mt-1 text-sm text-muted-foreground">{commandCenter.coachingIntelligence.message}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Supporting Evidence:</span> {commandCenter.coachingIntelligence.supportingEvidence}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Recommended Practice:</span> {commandCenter.coachingIntelligence.recommendedPractice}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Suggested AutoForge:</span> {commandCenter.coachingIntelligence.suggestedAutoForgeModule}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-1 text-sm text-muted-foreground">{commandCenter.coachingPrioritySummary}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Recommended AutoForge:</span> {commandCenter.autoForgeRecommendationSummary.module}
+                      </p>
+                    </>
+                  )}
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-semibold">{`${roleLabels.interactionLabel} Performance Snapshot`}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Sessions {commandCenter.freshUpPerformanceSnapshot.totalFreshUpSessions} • {roleLabels.meterLabel} Peak {commandCenter.freshUpPerformanceSnapshot.averageUpMeterPeak} • Trust Shift {commandCenter.freshUpPerformanceSnapshot.averageTrustShift}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Emp {commandCenter.freshUpPerformanceSnapshot.averageEmpathy} • Lis {commandCenter.freshUpPerformanceSnapshot.averageListening} • Trust {commandCenter.freshUpPerformanceSnapshot.averageTrust}
+                  </p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-semibold">Trend + Benchmark Highlights</p>
+                  {commandCenter.trendHighlights.slice(0, 3).map((trend, index) => (
+                    <p key={`cc-trend-${index}`} className="mt-1 text-xs text-muted-foreground">
+                      • {trend.label}: {trend.delta > 0 ? '+' : ''}{trend.delta}
+                    </p>
+                  ))}
+                  {commandCenter.benchmarkSnapshot.highlights.slice(0, 2).map((highlight, index) => (
+                    <p key={`cc-bench-${index}`} className="mt-1 text-xs text-muted-foreground">
+                      • {highlight.metricName}: {highlight.difference > 0 ? '+' : ''}{highlight.difference}
+                    </p>
+                  ))}
+                </div>
+                {commandCenter.narrativeSummary && (
+                  <div className="rounded-md border bg-muted/20 p-3">
+                    <p className="text-xs font-semibold">Leadership Narrative</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{commandCenter.narrativeSummary.narrative}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {showTodaysLessonsCard && (
+        <section className="space-y-4" data-manager-tour="dealer-focus">
+          <h2 className="text-xl font-bold text-foreground">Dealer Focus</h2>
+          <Card className={dashboardFeatureCardClass}>
+            <CardHeader>
+              <CardTitle>Today&apos;s Leadership Mission</CardTitle>
+              <CardDescription>
+                Keep dealer execution tight with one focused coaching action.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {dealerLeadershipLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : dealerLeadershipError ? (
+                <p className="text-sm text-muted-foreground">{dealerLeadershipError}</p>
+              ) : null}
+              <div className="rounded-lg border p-4">
+                <p className="text-lg font-semibold">
+                  {recommendedLesson?.title || 'Leadership Calibration Sprint'}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {recommendedLesson
+                    ? 'Complete this recommended lesson to strengthen your lowest coaching trait today.'
+                    : 'No recommended lesson is available right now. Check assigned training and team priorities.'}
+                </p>
+                {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Top alert: {effectiveLeadershipData.coaching_alerts[0] || 'No active alerts'}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <details className="rounded-lg border p-3">
+                  <summary className="list-none cursor-pointer">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Team Members</p>
+                        <p className="mt-2 text-xl font-semibold">
+                          {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData)
+                            ? effectiveLeadershipData.rep_performance.length
+                            : teamActivity.length}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">Click to view rep list</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </summary>
+                  <div className="mt-3 space-y-2 border-t pt-3 text-sm">
+                    {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) ? (
+                      effectiveLeadershipData.rep_performance.length > 0 ? (
+                        effectiveLeadershipData.rep_performance.map((rep) => (
+                          <div key={rep.user_id} className="rounded-md border p-2">
+                            <p className="font-medium">{rep.name}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">No reps in this view yet.</p>
+                      )
+                    ) : (
+                      <p className="text-muted-foreground">Rep details are shown in Team Activity below.</p>
+                    )}
+                  </div>
+                </details>
+                <details className="rounded-lg border p-3">
+                  <summary className="list-none cursor-pointer">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Coaching Alerts</p>
+                        <p className="mt-2 text-xl font-semibold">
+                          {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData)
+                            ? effectiveLeadershipData.coaching_alerts.length
+                            : 0}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">Click to view who and why</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </summary>
+                  <div className="mt-3 space-y-2 border-t pt-3 text-sm">
+                    {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) ? (
+                      effectiveLeadershipData.coaching_alerts.length > 0 ? (
+                        effectiveLeadershipData.coaching_alerts.map((alert, index) => {
+                          const parsed = parseCoachingAlert(alert);
+                          return (
+                            <div key={`${alert}-${index}`} className="rounded-md border p-2">
+                              <p className="font-medium">{parsed.repName}</p>
+                              <p className="text-xs text-muted-foreground">{parsed.reason}</p>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-muted-foreground">No active coaching alerts.</p>
+                      )
+                    ) : (
+                      <p className="text-muted-foreground">Coaching alert details are available in GM view.</p>
+                    )}
+                  </div>
+                </details>
+                <div className="col-span-2 md:col-span-1">
+                  {loading ? (
+                    <Skeleton className="h-12 w-full rounded-md" />
+                  ) : needsBaselineAssessment ? (
+                    <Button className="h-full w-full font-bold bg-[#8DC63F] text-black" onClick={() => setShowBaselineAssessment(true)}>
+                      Baseline Assessment
+                    </Button>
+                  ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
+                    <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("h-full w-full", buttonVariants({ className: "h-full w-full font-semibold" }))}>
+                      Recommended Lesson
+                    </Link>
+                  ) : (
+                    <Button variant="outline" disabled className="h-full w-full font-semibold">
+                      {recommendedLesson ? (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" /> Completed for today
+                        </>
+                      ) : (
+                        'No lesson available'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {(pppFeatureEnabled || saasPppFeatureEnabled) && (
           <section>
@@ -650,14 +1303,56 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                   {saasPppFeatureEnabled && (
                     <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
                   )}
+                  {showAssignedInPppRow && assignedLessonCard}
               </div>
           </section>
       )}
 
+      {showTodaysLessonsCard && !showAssignedInPppRow && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-foreground">Today&apos;s Lessons</h2>
+          <div className="grid grid-cols-1 gap-4">
+            <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
+              <div>
+                <div className="mb-2 flex items-center gap-3">
+                  <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
+                  <h3 className="text-2xl font-bold text-foreground">Recommended</h3>
+                </div>
+                <p className="mb-4 text-sm text-muted-foreground">A daily lesson focused on your area for improvement.</p>
+              </div>
+              {loading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : needsBaselineAssessment ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button className="w-full font-bold bg-[#8DC63F] text-black" onClick={() => setShowBaselineAssessment(true)}>
+                    Baseline Assessment
+                  </Button>
+                </div>
+              ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
+                <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
+                  {recommendedLesson.title}
+                </Link>
+              ) : (
+                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
+                  {recommendedLesson ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" /> Complete
+                    </>
+                  ) : (
+                    'No lesson available'
+                  )}
+                </Button>
+              )}
+            </Card>
+            {assignedLessonCard}
+          </div>
+        </section>
+      )}
+
       {viewMode === 'team' ? (
           <>
-            <Card>
-              <CardHeader><CardTitle>Team Statistics</CardTitle><CardDescription>{selectedDealershipId === 'all' ? 'Across all dealerships' : `Performance overview`}</CardDescription></CardHeader>
+            <Card data-manager-tour="team-stats">
+              <CardHeader><CardTitle>Team Statistics</CardTitle><CardDescription>{selectedDealershipId === 'all' ? (canViewAllStores ? 'Across all dealerships' : 'Across assigned dealerships') : `Performance overview`}</CardDescription></CardHeader>
               <CardContent>
                   {loading ? <Skeleton className="h-24 w-full" /> : showInsufficientDataWarning ? (
                     <div className="flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-6 text-center"><Info className="h-8 w-8 text-muted-foreground" /><h3 className="font-semibold">Insufficient Data</h3><p className="max-w-md text-sm text-muted-foreground">Aggregated stats are only shown for active teams of 3 or more members.</p></div>
@@ -674,11 +1369,11 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card data-manager-tour="team-activity">
                 <CardHeader className="flex-col gap-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div><CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5" />Team Activity</CardTitle></div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2" data-manager-tour="team-actions">
                             {canManage && (
                                 <Dialog open={isManageUsersOpen} onOpenChange={setManageUsersOpen}>
                                     <DialogTrigger asChild><Button variant="outline" size="sm"><Users className="mr-2 h-4 w-4" />Manage Team</Button></DialogTrigger>
@@ -707,14 +1402,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                 <DialogTrigger asChild><Button variant="outline" size="sm"><ListChecks className="mr-2 h-4 w-4" />Created Lessons</Button></DialogTrigger>
                                 <DialogContent className="sm:max-w-[820px]">
                                     <DialogHeader><DialogTitle>Created Lessons</DialogTitle></DialogHeader>
-                                    <ScrollArea className="max-h-[70vh] pr-6"><CreatedLessonsView user={user} refreshKey={createdLessonsRefreshKey} /></ScrollArea>
+                                    <ScrollArea className="max-h-[70vh] pr-6"><CreatedLessonsView user={user} dealershipId={selectedDealershipId} refreshKey={createdLessonsRefreshKey} /></ScrollArea>
                                 </DialogContent>
                             </Dialog>
                             <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
                                 <DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2 h-4 w-4" />Create Lesson</Button></DialogTrigger>
                                 <DialogContent className="sm:max-w-[625px]">
                                     <DialogHeader><DialogTitle>Create New Lesson</DialogTitle></DialogHeader>
-                                    <CreateLessonForm user={user} onLessonCreated={handleLessonCreated} />
+                                    <CreateLessonForm user={user} onLessonCreated={handleLessonCreated} scopedDealershipId={selectedDealershipId} />
                                 </DialogContent>
                             </Dialog>
                         </div>
@@ -723,14 +1418,57 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 <CardContent>
                     {loading ? <Skeleton className="h-40 w-full" /> : (
                         <Table>
-                            <TableHeader><TableRow><TableHead>Member</TableHead><TableHead>Role</TableHead><TableHead className="text-center">Last Active</TableHead><TableHead className="text-center">Top Skill</TableHead><TableHead className="text-center">Watch Area</TableHead></TableRow></TableHeader>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-center">
+                                  <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('leaderboard')}>
+                                    Leaderboard
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'leaderboard' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead>
+                                  <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('name')}>
+                                    Member
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'name' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead>
+                                  <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('role')}>
+                                    Role
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'role' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead className="text-center">Recommended</TableHead>
+                                <TableHead className="text-center">
+                                  <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('lastInteraction')}>
+                                    Last Active
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'lastInteraction' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('topStrength')}>
+                                    Top Skill
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'topStrength' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                                <TableHead className="text-center">
+                                  <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleTeamSort('weakestSkill')}>
+                                    Watch Area
+                                    <ArrowUpDown className={cn("h-3.5 w-3.5", teamSortField === 'weakestSkill' ? 'text-foreground' : 'text-muted-foreground')} />
+                                  </button>
+                                </TableHead>
+                              </TableRow>
+                            </TableHeader>
                             <TableBody>
-                                {sortedTeamActivity.length > 0 ? sortedTeamActivity.map(member => (
+                                {sortedTeamActivity.length > 0 ? sortedTeamActivity.map((member) => (
                                     <Dialog key={member.consultant.userId}>
                                         <DialogTrigger asChild>
                                           <TableRow className="cursor-pointer">
+                                            <TableCell className="text-center align-middle font-semibold text-muted-foreground">
+                                              {member.pendingInvite ? '-' : `${leaderboardRankByUserId.get(member.consultant.userId) ?? '-'}`}
+                                            </TableCell>
                                             <TableCell>
-                                              <div className="flex items-center gap-3">
+                                              <div className="flex items-center gap-4">
                                                 {(() => {
                                                   const memberName = formatUserDisplayName(member.consultant.name, member.consultant.email);
                                                   const avatarScores = getUserAvatarScores(member.consultant);
@@ -745,7 +1483,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
                                                   return (
                                                     <>
-                                                      <div className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                                                      <div className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center mr-1">
                                                         <AvatarSoundRing
                                                           scores={avatarScores}
                                                           hasActivity={hasAvatarActivity}
@@ -757,11 +1495,16 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                           <AvatarFallback>{memberName.charAt(0)}</AvatarFallback>
                                                         </Avatar>
                                                       </div>
-                                                      <div>
+                                                      <div className="pl-1">
                                                         <p className="font-medium">{memberName}</p>
                                                         <p className="text-sm text-muted-foreground">
                                                           {!!member.pendingInvite ? 'Pending invitation' : `Level ${calculateLevel(member.consultant.xp).level}`}
                                                         </p>
+                                                        {!member.pendingInvite && (
+                                                          <p className="text-xs text-muted-foreground">
+                                                            {member.totalXp.toLocaleString()} XP
+                                                          </p>
+                                                        )}
                                                       </div>
                                                     </>
                                                   );
@@ -775,6 +1518,21 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                                 </UiBadge>
                                                 {!!member.pendingInvite && <UiBadge variant="secondary">Invited</UiBadge>}
                                               </div>
+                                            </TableCell>
+                                            <TableCell className="text-center font-medium">
+                                              {!!member.pendingInvite
+                                                ? '-'
+                                                : isMetricsHiddenForViewer(member.consultant)
+                                                  ? 'Private'
+                                                  : (() => {
+                                                    const status = getRecommendedStatus(member);
+                                                    return (
+                                                      <div className="inline-flex items-center gap-2" title={status.detail}>
+                                                        <span className={cn('h-2.5 w-2.5 rounded-full', status.colorClass)} />
+                                                        <span>{status.label}</span>
+                                                      </div>
+                                                    );
+                                                  })()}
                                             </TableCell>
                                             <TableCell className="text-center font-medium">
                                               {!!member.pendingInvite
@@ -801,36 +1559,65 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                             </TableCell>
                                           </TableRow>
                                         </DialogTrigger>
-                                        <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Performance Snapshot</DialogTitle></DialogHeader><ScrollArea className="max-h-[70vh]"><div className="pr-6"><TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={() => fetchData(selectedDealershipId)} /></div></ScrollArea></DialogContent>
+                                        <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Performance Snapshot</DialogTitle></DialogHeader><ScrollArea className="max-h-[70vh]"><div className="pr-6"><TeamMemberCard user={member.consultant} currentUser={user} dealerships={dealerships} onAssignmentUpdated={async () => { await fetchData(selectedDealershipId || user.dealershipIds?.[0] || user.selfDeclaredDealershipId || null); }} /></div></ScrollArea></DialogContent>
                                     </Dialog>
-                                )) : <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No team activity found.</TableCell></TableRow>}
+                                )) : <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No team activity found.</TableCell></TableRow>}
                             </TableBody>
                         </Table>
                     )}
                 </CardContent>
             </Card>
+
+            {isSuperAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dealership Activity</CardTitle>
+                  <CardDescription>
+                    Recent lesson completions and XP gains for {selectedDealershipId === 'all' ? 'the current scope' : 'this dealership'}.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <Skeleton className="h-40 w-full" />
+                  ) : dealershipActivity.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No lesson activity found for this selection.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>When</TableHead>
+                          <TableHead>Member</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Lesson</TableHead>
+                          <TableHead className="text-right">XP</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dealershipActivity.map((entry) => (
+                          <TableRow key={`${entry.userId}-${entry.lessonId}-${new Date(entry.timestamp).getTime()}`}>
+                            <TableCell>{new Date(entry.timestamp).toLocaleString()}</TableCell>
+                            <TableCell>{formatUserDisplayName(entry.memberName)}</TableCell>
+                            <TableCell>{entry.memberRole === 'manager' ? 'Sales Manager' : entry.memberRole}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{entry.lessonId}</span>
+                                {entry.isRecommended && <UiBadge variant="secondary">Recommended</UiBadge>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {entry.xpGained >= 0 ? `+${entry.xpGained}` : entry.xpGained}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </>
       ) : (
           <div className="space-y-8">
-              <section className="space-y-4">
-                  <h2 className="text-xl font-bold text-foreground">My Development</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
-                          <div><div className="flex items-center gap-3 mb-2"><BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" /><h3 className="text-2xl font-bold text-foreground">Recommended</h3></div><p className="text-sm text-muted-foreground mb-4">A daily lesson focused on your area for improvement.</p></div>
-                          {loading ? <Skeleton className="h-10 w-full" /> : needsBaselineAssessment ? (
-                              <div className="grid grid-cols-2 gap-2"><Button className="w-full font-bold bg-[#8DC63F] text-black" onClick={() => setShowBaselineAssessment(true)}>Baseline Assessment</Button></div>
-                          ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
-                              <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>{recommendedLesson.title}</Link>
-                          ) : <Button variant="outline" disabled className={dashboardDisabledButtonClass}>{recommendedLesson ? <><CheckCircle className="mr-2 h-4 w-4" /> Complete</> : "No lesson available"}</Button>}
-                      </Card>
-                      <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
-                          <div><div className="flex items-center gap-3 mb-2"><BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" /><h3 className="text-2xl font-bold text-foreground">Assigned</h3></div><p className="text-sm text-muted-foreground mb-4">Training assigned specifically to you.</p></div>
-                          {loading ? <Skeleton className="h-10 w-full" /> : assignedLessons.length > 0 ? (
-                              <Link href={`/lesson/${assignedLessons[0].lessonId}`} className={cn("w-full text-black", buttonVariants({ className: "w-full font-bold bg-[#8DC63F]" }))}>{assignedLessons[0].title}</Link>
-                          ) : <Button variant="outline" disabled className={dashboardDisabledButtonClass}>No assignments</Button>}
-                      </Card>
-                  </div>
-              </section>
               <section><BadgeShowcase badges={managerBadges} /></section>
           </div>
       )}
@@ -843,26 +1630,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                     <Button onClick={handleGenerateSystemReport} disabled={isGeneratingReport}>
                       {isGeneratingReport ? 'Generating...' : 'System Report'}
                     </Button>
-                    <Dialog open={isManageDealershipsOpen} onOpenChange={setManageDealershipsOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline">Manage Dealerships</Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-3xl">
-                        <DialogHeader>
-                          <DialogTitle>Manage Dealerships</DialogTitle>
-                        </DialogHeader>
-                        <ScrollArea className="max-h-[70vh] pr-3">
-                          <ManageDealershipForm
-                            dealerships={dealerships}
-                            manageableUsers={manageableUsers}
-                            onDealershipManaged={async () => {
-                              await fetchAdminData();
-                              await fetchData(selectedDealershipId);
-                            }}
-                          />
-                        </ScrollArea>
-                      </DialogContent>
-                    </Dialog>
                   </div>
                   {systemReport && <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-md border p-3"><div><p className="text-sm text-muted-foreground">Users</p><p className="font-semibold">Total: {systemReport.users.total}</p></div><div><p className="text-sm text-muted-foreground">Dealerships</p><p className="font-semibold">Active: {systemReport.dealerships.active}</p></div><div><p className="text-sm text-muted-foreground">Performance</p><p className="font-semibold">Avg: {systemReport.performance.averageScore}%</p></div></div>}
               </CardContent>

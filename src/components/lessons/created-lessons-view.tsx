@@ -14,6 +14,7 @@ import { CheckCircle2, Clock3, FileText, RefreshCw } from 'lucide-react';
 
 interface CreatedLessonsViewProps {
   user: User;
+  dealershipId?: string | null;
   refreshKey?: number;
 }
 
@@ -35,7 +36,20 @@ const getStatusIcon = (row: CreatedLessonStatus) => {
   return <Clock3 className="h-3.5 w-3.5 text-amber-600" />;
 };
 
-export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewProps) {
+const formatDateLabel = (value: unknown): string => {
+  if (!value) return 'Not sent';
+  try {
+    if (value instanceof Date) return value.toLocaleDateString();
+    if (typeof value === 'object' && value !== null && 'toDate' in (value as Record<string, unknown>) && typeof (value as any).toDate === 'function') {
+      return (value as any).toDate().toLocaleDateString();
+    }
+    const parsed = new Date(value as any);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString();
+  } catch {}
+  return 'Not sent';
+};
+
+export function CreatedLessonsView({ user, dealershipId = null, refreshKey = 0 }: CreatedLessonsViewProps) {
   const [rows, setRows] = useState<CreatedLessonStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +59,10 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
   const { toast } = useToast();
   
   const selectedRow = rows.find((row) => row.lesson.lessonId === selectedLessonId) || rows[0];
+  const creatorHasAssignment = !!selectedRow?.assignees.some((assignee) => assignee.userId === user.userId);
+  const canOptIn = !!selectedRow
+    && !creatorHasAssignment
+    && !['Owner', 'Trainer', 'Admin', 'Developer'].includes(user.role);
 
   useEffect(() => {
     let active = true;
@@ -52,7 +70,7 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
       setLoading(true);
       setError(null);
       try {
-        const data = await getCreatedLessonStatuses(user.userId);
+        const data = await getCreatedLessonStatuses(user.userId, dealershipId);
         if (!active) return;
         setRows(data);
         setSelectedLessonId((current) => {
@@ -70,7 +88,7 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
     };
     fetchCreatedLessons();
     return () => { active = false; };
-  }, [user.userId, refreshKey, internalRefreshKey]);
+  }, [user.userId, dealershipId, refreshKey, internalRefreshKey]);
   
   const handleReassign = async (assigneeId: string, lessonId: string) => {
       setIsReassigning(assigneeId);
@@ -83,6 +101,20 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
       } finally {
           setIsReassigning(null);
       }
+  };
+
+  const handleOptIn = async () => {
+    if (!selectedRow) return;
+    setIsReassigning(user.userId);
+    try {
+      await assignLesson(user.userId, selectedRow.lesson.lessonId, user.userId);
+      toast({ title: 'Lesson Assigned', description: 'This lesson was added to your Assigned lessons.' });
+      setInternalRefreshKey((prev) => prev + 1);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Opt In Failed', description: e.message || 'Could not assign this lesson.' });
+    } finally {
+      setIsReassigning(null);
+    }
   };
 
   if (loading) {
@@ -132,7 +164,7 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
                       <span className="hidden sm:inline">{getStatusLabel(row)}</span>
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{row.lastAssignedAt ? row.lastAssignedAt.toLocaleDateString() : 'Not sent'}</TableCell>
+                  <TableCell className="hidden md:table-cell">{formatDateLabel(row.lastAssignedAt)}</TableCell>
                 </TableRow>
               );
             })}
@@ -143,7 +175,20 @@ export function CreatedLessonsView({ user, refreshKey = 0 }: CreatedLessonsViewP
       <div className="space-y-3 rounded-lg border p-4 bg-muted/20">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h4 className="font-semibold">{selectedRow.lesson.title}</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="font-semibold">{selectedRow.lesson.title}</h4>
+              {canOptIn && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOptIn}
+                  disabled={isReassigning === user.userId}
+                  className="h-7 text-xs"
+                >
+                  {isReassigning === user.userId ? <Spinner size="sm" /> : 'Opt In'}
+                </Button>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">{formatRoleLabel(selectedRow.lesson.role)} • {selectedRow.lesson.category}</p>
           </div>
           <Badge variant="secondary">{selectedRow.takenUserCount > 1 ? 'Taken by Multiple' : selectedRow.takenUserCount === 1 ? 'Taken by 1' : 'Not Taken'}</Badge>

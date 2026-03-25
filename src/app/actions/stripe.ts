@@ -8,12 +8,15 @@ import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { BillingSubscriptionStatus, Dealership, DealershipBillingTier, User } from '@/lib/definitions';
 import { BILLING_PRICING } from '@/lib/billing/tiers';
 import { DEFAULT_TRIAL_DAYS } from '@/lib/billing/trial';
+import { resolveConsultant } from '@/lib/consultant-referral';
 
 type BillingCycle = 'monthly' | 'annual';
 
 type CheckoutSessionResult =
   | { ok: true; url: string }
   | { ok: false; message: string };
+
+const BILLING_MANAGER_ROLES = new Set(['Owner', 'General Manager', 'Admin', 'Developer']);
 
 async function getAppUrl(): Promise<string> {
   const requestHeaders = await headers();
@@ -94,6 +97,30 @@ function toIsoFromUnix(epochSeconds?: number | null): string | null {
   return new Date(epochSeconds * 1000).toISOString();
 }
 
+function normalizeEmail(value?: string | null): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function resolveSessionCustomerEmail(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session
+): Promise<string> {
+  const directEmail = normalizeEmail(session.customer_details?.email || session.customer_email || null);
+  if (directEmail) return directEmail;
+
+  const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+  if (!customerId) return '';
+
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    if (!customer || customer.deleted) return '';
+    return normalizeEmail(customer.email);
+  } catch (error) {
+    console.warn('[Stripe] Could not resolve customer email from checkout session customer:', error);
+    return '';
+  }
+}
+
 async function ensureUserCustomer(userId: string, userData: Partial<User>) {
   const adminDb = getAdminDb();
   const stripe = getStripe();
@@ -147,7 +174,11 @@ async function ensureDealershipCustomer(dealershipId: string, dealershipData: Pa
   return customer.id;
 }
 
-async function createIndividualSessionUrl(userId: string, billingCycle: BillingCycle): Promise<string> {
+async function createIndividualSessionUrl(
+  userId: string,
+  billingCycle: BillingCycle,
+  consultant?: string
+): Promise<string> {
   const adminDb = getAdminDb();
   const stripe = getStripe();
   const appUrl = await getAppUrl();
@@ -165,6 +196,10 @@ async function createIndividualSessionUrl(userId: string, billingCycle: BillingC
   }
 
   const customerId = await ensureUserCustomer(userId, user);
+  const profileConsultantValue = (user.consultant_referral || '').trim().toLowerCase();
+  const passedConsultantValue = (consultant || '').trim().toLowerCase();
+  const resolvedConsultant = resolveConsultant(profileConsultantValue || passedConsultantValue);
+  const consultantValue = resolvedConsultant?.code || 'direct';
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -178,12 +213,16 @@ async function createIndividualSessionUrl(userId: string, billingCycle: BillingC
       firebaseUserId: userId,
       billingScope: 'individual',
       billingCycle,
+      consultant: consultantValue,
+      ...(consultantValue !== 'direct' ? { referral_source: 'consultant_link' } : {}),
     },
     subscription_data: {
       trial_period_days: trialDays,
       metadata: {
         firebaseUserId: userId,
         billingScope: 'individual',
+        consultant: consultantValue,
+        ...(consultantValue !== 'direct' ? { referral_source: 'consultant_link' } : {}),
       },
     },
   });
@@ -212,12 +251,13 @@ export async function createIndividualCheckoutSession(idToken: string, billingCy
 
 export async function createIndividualCheckoutSessionUrl(
   idToken: string,
-  billingCycle: BillingCycle = 'monthly'
+  billingCycle: BillingCycle = 'monthly',
+  consultant?: string
 ): Promise<CheckoutSessionResult> {
   try {
     const adminAuth = getAdminAuth();
     const decoded = await adminAuth.verifyIdToken(idToken);
-    const url = await createIndividualSessionUrl(decoded.uid, billingCycle);
+    const url = await createIndividualSessionUrl(decoded.uid, billingCycle, consultant);
     return { ok: true, url };
   } catch (error: any) {
     const message = typeof error?.message === 'string'
@@ -250,7 +290,7 @@ export async function createDealershipCheckoutSession(input: {
   }
   const actor = actorSnap.data() as User;
 
-  const isAuthorized = ['Owner', 'General Manager', 'Admin', 'Developer'].includes(actor.role);
+  const isAuthorized = BILLING_MANAGER_ROLES.has(actor.role);
   if (!isAuthorized && !(actor.dealershipIds || []).includes(input.dealershipId)) {
     throw new Error('You do not have permission to manage billing for this dealership.');
   }
@@ -336,12 +376,26 @@ export async function createDealershipCheckoutSession(input: {
   redirect(session.url);
 }
 
-export async function createCustomerPortalSession(stripeCustomerId: string) {
+export async function createCustomerPortalSession(idToken: string) {
+  const adminAuth = getAdminAuth();
+  const adminDb = getAdminDb();
   const appUrl = await getAppUrl();
   const stripe = getStripe();
 
+  if (!idToken) {
+    throw new Error('Missing idToken.');
+  }
+
+  const decoded = await adminAuth.verifyIdToken(idToken);
+  const userSnap = await adminDb.collection('users').doc(decoded.uid).get();
+  if (!userSnap.exists) {
+    throw new Error('User profile not found.');
+  }
+
+  const user = userSnap.data() as User;
+  const stripeCustomerId = user.stripeCustomerId || '';
   if (!stripeCustomerId) {
-    throw new Error('Stripe customer ID is required.');
+    throw new Error('No Stripe customer is configured for this user.');
   }
 
   const session = await stripe.billingPortal.sessions.create({
@@ -420,6 +474,17 @@ export async function finalizeCheckoutSession(idToken: string, sessionId: string
       throw new Error('Dealership checkout session is missing dealership id.');
     }
 
+    const actorSnap = await adminDb.collection('users').doc(decoded.uid).get();
+    if (!actorSnap.exists) {
+      throw new Error('Requester profile not found.');
+    }
+    const actor = actorSnap.data() as User;
+    const isAuthorizedRole = BILLING_MANAGER_ROLES.has(actor.role);
+    const isDealershipMember = Array.isArray(actor.dealershipIds) && actor.dealershipIds.includes(dealershipId);
+    if (!isAuthorizedRole && !isDealershipMember) {
+      throw new Error('You do not have permission to finalize this dealership billing checkout.');
+    }
+
     const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
     if (!customerId) {
       throw new Error('Checkout session has no customer id.');
@@ -451,6 +516,90 @@ export async function finalizeCheckoutSession(idToken: string, sessionId: string
   }
 
   throw new Error(`Unsupported billing scope: ${sessionScope}`);
+}
+
+export async function claimCheckoutFirstSubscriber(idToken: string, sessionId: string) {
+  if (!idToken) {
+    throw new Error('Missing idToken.');
+  }
+  if (!sessionId) {
+    throw new Error('Missing checkout session id.');
+  }
+
+  const adminAuth = getAdminAuth();
+  const adminDb = getAdminDb();
+  const stripe = getStripe();
+  const decoded = await adminAuth.verifyIdToken(idToken);
+
+  const userSnap = await adminDb.collection('users').doc(decoded.uid).get();
+  if (!userSnap.exists) {
+    throw new Error('User profile not found.');
+  }
+  const user = userSnap.data() as User;
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ['subscription'],
+  });
+
+  if (session.mode !== 'subscription') {
+    throw new Error('Checkout session is not a subscription session.');
+  }
+
+  const sessionScope = session.metadata?.billingScope || 'individual';
+  if (sessionScope !== 'individual') {
+    throw new Error('Checkout session is not an individual subscriber checkout.');
+  }
+
+  const metadataUserId = session.metadata?.firebaseUserId || session.client_reference_id || '';
+  if (metadataUserId && metadataUserId !== decoded.uid) {
+    throw new Error('Checkout session belongs to a different user.');
+  }
+
+  const userEmail = normalizeEmail(user.email || decoded.email || '');
+  const sessionEmail = await resolveSessionCustomerEmail(stripe, session);
+  if (!userEmail || !sessionEmail || sessionEmail !== userEmail) {
+    throw new Error('Checkout session email does not match this account.');
+  }
+
+  const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+  if (!customerId) {
+    throw new Error('Checkout session has no customer id.');
+  }
+
+  const patch: Record<string, unknown> = {
+    stripeCustomerId: customerId,
+    subscriptionStatus: 'trialing',
+  };
+
+  let subscription: Stripe.Subscription | null = null;
+  if (session.subscription) {
+    subscription = typeof session.subscription === 'string'
+      ? await stripe.subscriptions.retrieve(session.subscription)
+      : session.subscription;
+  }
+
+  if (subscription) {
+    patch.subscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
+    const trialStartedAt = toIsoFromUnix(subscription.trial_start);
+    const trialEndsAt = toIsoFromUnix(subscription.trial_end);
+    if (trialStartedAt) patch.trialStartedAt = trialStartedAt;
+    if (trialEndsAt) patch.trialEndsAt = trialEndsAt;
+  }
+
+  await adminDb.collection('users').doc(decoded.uid).set(patch, { merge: true });
+
+  try {
+    await stripe.customers.update(customerId, {
+      metadata: {
+        firebaseUserId: decoded.uid,
+        billingScope: 'individual',
+      },
+    });
+  } catch (error) {
+    console.warn('[Stripe] Unable to backfill customer metadata for checkout-first subscriber:', error);
+  }
+
+  return { ok: true as const, status: patch.subscriptionStatus as BillingSubscriptionStatus };
 }
 
 export async function assertBillingEnabled() {

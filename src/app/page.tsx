@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { ConsultantDashboard } from '@/components/dashboard/consultant-dashboard';
@@ -8,27 +8,94 @@ import { ManagerDashboard } from '@/components/dashboard/manager-dashboard';
 import { Spinner } from '@/components/ui/spinner';
 import { managerialRoles } from '@/lib/definitions';
 import { BottomNav } from '@/components/layout/bottom-nav';
-import { requiresIndividualCheckout } from '@/lib/billing/access';
+import { hasDealershipAssignment, requiresIndividualCheckout } from '@/lib/billing/access';
 
 export default function Home() {
-  const { user, loading, isTouring } = useAuth();
+  const { user, loading, isTouring, firebaseUser } = useAuth();
   const router = useRouter();
+  const isAssigned = !!user && hasDealershipAssignment(user);
+  const [consultantRoute, setConsultantRoute] = useState<string | null>(null);
+  const [isConsultantRouteChecking, setIsConsultantRouteChecking] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveConsultantRoute() {
+      if (loading) return;
+
+      if (!user || !firebaseUser) {
+        if (!cancelled) {
+          setConsultantRoute(null);
+          setIsConsultantRouteChecking(false);
+        }
+        return;
+      }
+
+      const role = String(user.role || '').toLowerCase();
+      if (role === 'admin' || role === 'developer') {
+        if (!cancelled) {
+          setConsultantRoute(null);
+          setIsConsultantRouteChecking(false);
+        }
+        return;
+      }
+
+      try {
+        const token = await firebaseUser.getIdToken(true);
+        const response = await fetch('/api/consultants/me', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setConsultantRoute(null);
+          }
+          return;
+        }
+
+        const payload = await response.json() as { consultant?: { referral_code?: string; referralCode?: string } };
+        const referralCode = String(payload.consultant?.referral_code || payload.consultant?.referralCode || '').trim().toLowerCase();
+        if (!cancelled) {
+          setConsultantRoute(referralCode ? `/consultant/${encodeURIComponent(referralCode)}` : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setConsultantRoute(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsConsultantRouteChecking(false);
+        }
+      }
+    }
+
+    void resolveConsultantRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, user?.userId, user?.role, firebaseUser]);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
-    } else if (!loading && (user?.role === 'Developer' || user?.role === 'Admin')) {
-      router.push('/developer');
     } else if (!loading && user && requiresIndividualCheckout(user)) {
       router.push('/subscribe');
+    } else if (!loading && !isConsultantRouteChecking && consultantRoute) {
+      router.push(consultantRoute);
+    } else if (!loading && isAssigned && (user?.role === 'Developer' || user?.role === 'Admin')) {
+      router.push('/developer');
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, isAssigned, consultantRoute, isConsultantRouteChecking]);
 
   if (
     loading ||
     !user ||
-    user.role === 'Developer' ||
-    user.role === 'Admin' ||
+    isConsultantRouteChecking ||
+    (!!consultantRoute) ||
+    (isAssigned && (user.role === 'Developer' || user.role === 'Admin')) ||
     requiresIndividualCheckout(user)
   ) {
     return (
@@ -38,7 +105,7 @@ export default function Home() {
     );
   }
 
-  const isManager = managerialRoles.includes(user.role);
+  const isManager = isAssigned && managerialRoles.includes(user.role);
 
   return (
     <div className="flex min-h-screen w-full flex-col">

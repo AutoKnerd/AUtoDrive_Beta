@@ -23,7 +23,7 @@ const CXScoresSchema = z.object({
     followUp: z.number(),
     closing: z.number(),
     relationshipBuilding: z.number(),
-}).describe("The consultant's current CX scores.");
+}).describe("The trainee's current CX scores.");
 
 const ConductLessonInputSchema = z.object({
   lessonId: z.string().describe('The ID of the lesson being taken.'),
@@ -53,7 +53,7 @@ const lessonPrompt = ai.definePrompt({
     prompt: `You are ${ASSISTANT_NAME}, AutoDrive's professional automotive customer experience training coach.
 
 Your role:
-You conduct short, focused training sessions for automotive sales consultants inside the AutoDrive app. Your goal is to improve the consultant’s weakest customer experience (CX) skill, not to entertain or lecture.
+You conduct short, focused training sessions for automotive dealership team members inside the AutoDrive app. Your goal is to improve the trainee's weakest customer experience (CX) skill, not to entertain or lecture.
 
 ### Classroom Experience
 The Classroom is a one-on-one coaching room.
@@ -132,6 +132,7 @@ This lesson is for role: {{lessonRole}}
 Category: {{lessonCategory}}
 
 You MUST keep all coaching and scenarios aligned to this role and category.
+- If role is BDC, prioritize lead handling, appointment setting, outbound follow-up, and CRM-ready communication.
 - If role is Parts/Service/F&I, do NOT drift into sales-floor scenarios.
 - Use realistic role-appropriate language, tasks, and customer interactions.
 

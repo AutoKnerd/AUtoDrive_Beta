@@ -1,0 +1,697 @@
+'use client';
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { ChevronLeft, Copy, Save, Star, Sparkles, BrainCircuit, Cloud } from 'lucide-react';
+import { Header } from '@/components/layout/header';
+import { EmailGateModal } from '@/components/tools/email-gate-modal';
+import { FeatureGate } from '@/components/tools/feature-gate';
+import { UpgradeModal } from '@/components/tools/upgrade-modal';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
+import { useEntitlements } from '@/hooks/use-entitlements';
+import { useToast } from '@/hooks/use-toast';
+import {
+  FEATURES,
+  resolvePaidAccess,
+  type ToolboxCapturedRole,
+  type ToolboxFeatureKey,
+} from '@/lib/tools/entitlements';
+import {
+  captureToolboxUnlockEmail,
+  saveToolboxEntry,
+} from '@/lib/tools/toolbox-client';
+import {
+  clearFullToolHandoff,
+  readFullToolHandoff,
+} from '@/lib/tools/toolbox-storage';
+import {
+  NEXT_MOVE_BEHAVIORS,
+  NEXT_MOVE_CHANNELS,
+  NEXT_MOVE_STAGES,
+  NEXT_MOVE_VISIT_TYPES,
+  getAutoDriveCxNextMoveRecommendation,
+  getNextMoveBaseRecommendation,
+  getSprocketNextMoveRecommendation,
+  type NextMoveBehavior,
+  type NextMoveChannel,
+  type NextMoveInput,
+  type NextMoveSavedScenario,
+  type NextMoveStage,
+  type NextMoveVisitType,
+} from '@/lib/tools/next-move-engine';
+
+const TOOL_ID = 'next-move-engine';
+const LOCAL_SCENARIOS_KEY = 'nextMoveEngineSavedScenariosV1';
+const TOOLBOX_UPGRADE_URL = 'https://app.autodrivecx.com/signup';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type GateModalType = 'paid' | 'autodrive_cx' | null;
+
+function scenarioToCloudContent(input: NextMoveInput, scenario: NextMoveSavedScenario): string {
+  return [
+    'NEXT MOVE ENGINE',
+    '',
+    `Stage: ${input.stage}`,
+    `Behavior: ${input.behavior || 'Neutral / no special behavior'}`,
+    `Visit Type: ${input.modifiers?.visitType || 'Not set'}`,
+    `Channel: ${input.modifiers?.channel || 'Not set'}`,
+    `Trade Involved: ${input.modifiers?.tradeInvolved ? 'Yes' : 'No'}`,
+    `Manager Engaged: ${input.modifiers?.managerEngaged ? 'Yes' : 'No'}`,
+    '',
+    '[Say This Next]',
+    scenario.sayThisNext,
+    '',
+    '[Ask This Question]',
+    scenario.askThisQuestion,
+    '',
+    '[Do Not Do This]',
+    scenario.doNotDoThis,
+  ].join('\n');
+}
+
+function readLocalScenarios(): NextMoveSavedScenario[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_SCENARIOS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as NextMoveSavedScenario[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalScenarios(scenarios: NextMoveSavedScenario[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LOCAL_SCENARIOS_KEY, JSON.stringify(scenarios));
+}
+
+export default function NextMoveEnginePage() {
+  const { toast } = useToast();
+  const { user, firebaseUser } = useAuth();
+
+  const [selectedStage, setSelectedStage] = useState<NextMoveStage | null>(null);
+  const [selectedBehavior, setSelectedBehavior] = useState<NextMoveBehavior>('Neutral / no special behavior');
+  const [visitType, setVisitType] = useState<NextMoveVisitType>('First Visit');
+  const [channel, setChannel] = useState<NextMoveChannel>('In-store');
+  const [tradeInvolved, setTradeInvolved] = useState(false);
+  const [managerEngaged, setManagerEngaged] = useState(false);
+  const [savedScenarios, setSavedScenarios] = useState<NextMoveSavedScenario[]>([]);
+
+  const [showEmailGate, setShowEmailGate] = useState(false);
+  const [gateModalType, setGateModalType] = useState<GateModalType>(null);
+  const [upgradeContextMessage, setUpgradeContextMessage] = useState<string | undefined>(undefined);
+  const [isEmailSubmitting, setIsEmailSubmitting] = useState(false);
+  const [isCloudSaving, setIsCloudSaving] = useState(false);
+
+  const [sprocketOutput, setSprocketOutput] = useState<ReturnType<typeof getSprocketNextMoveRecommendation> | null>(null);
+  const [cxOutput, setCxOutput] = useState<ReturnType<typeof getAutoDriveCxNextMoveRecommendation> | null>(null);
+
+  const hasTrackedMeaningfulInteraction = useRef(false);
+
+  const {
+    entitlements,
+    accountProfile,
+    usedToolIds,
+    setLocalAccountProfile,
+    registerToolUsage,
+    checkFeature,
+  } = useEntitlements({
+    isAuthenticated: !!firebaseUser,
+    hasPaidAccess: resolvePaidAccess({
+      tier: user?.tier,
+      subscriptionStatus: user?.subscriptionStatus,
+    }),
+    hasAutoDriveCX: Boolean(user?.hasAutoDriveCX),
+  });
+
+  const canUseBaseTool = entitlements.hasAccount || entitlements.usage.toolsUsedCount < 3 || usedToolIds.includes(TOOL_ID);
+
+  useEffect(() => {
+    setSavedScenarios(readLocalScenarios());
+
+    const handoff = readFullToolHandoff<{ source?: string; draft?: string }>(TOOL_ID);
+    if (handoff?.draft) {
+      const maybeStage = NEXT_MOVE_STAGES.find((stage) => handoff.draft?.toLowerCase().includes(stage.toLowerCase()));
+      if (maybeStage) {
+        setSelectedStage(maybeStage);
+      }
+    }
+    clearFullToolHandoff(TOOL_ID);
+  }, []);
+
+  useEffect(() => {
+    setSprocketOutput(null);
+    setCxOutput(null);
+  }, [selectedStage, selectedBehavior, visitType, channel, tradeInvolved, managerEngaged]);
+
+  const currentInput = useMemo<NextMoveInput | null>(() => {
+    if (!selectedStage) return null;
+    return {
+      stage: selectedStage,
+      behavior: selectedBehavior,
+      modifiers: {
+        visitType,
+        channel,
+        tradeInvolved,
+        managerEngaged,
+      },
+    };
+  }, [selectedStage, selectedBehavior, visitType, channel, tradeInvolved, managerEngaged]);
+
+  const baseRecommendation = useMemo(() => {
+    if (!currentInput) return null;
+    return getNextMoveBaseRecommendation(currentInput);
+  }, [currentInput]);
+
+  const favoriteCount = useMemo(
+    () => savedScenarios.filter((scenario) => scenario.favorite).length,
+    [savedScenarios]
+  );
+
+  const requireFeature = useCallback((feature: ToolboxFeatureKey, contextMessage?: string): boolean => {
+    const gate = checkFeature(feature);
+    if (gate.allowed) return true;
+
+    if (gate.gate === 'account') {
+      setShowEmailGate(true);
+      return false;
+    }
+
+    setUpgradeContextMessage(contextMessage || gate.message);
+    setGateModalType(gate.gate === 'autodrive_cx' ? 'autodrive_cx' : 'paid');
+    return false;
+  }, [checkFeature]);
+
+  const trackMeaningfulInteraction = useCallback(() => {
+    if (hasTrackedMeaningfulInteraction.current) return;
+    registerToolUsage(TOOL_ID);
+    hasTrackedMeaningfulInteraction.current = true;
+  }, [registerToolUsage]);
+
+  const handleStageSelect = useCallback((stage: NextMoveStage) => {
+    if (!canUseBaseTool) {
+      setShowEmailGate(true);
+      return;
+    }
+
+    setSelectedStage(stage);
+    trackMeaningfulInteraction();
+  }, [canUseBaseTool, trackMeaningfulInteraction]);
+
+  const handleCopy = useCallback(async () => {
+    if (!baseRecommendation || !currentInput) {
+      toast({ variant: 'destructive', title: 'Pick a stage first', description: 'Select a deal stage to generate your next move.' });
+      return;
+    }
+
+    const payload = scenarioToCloudContent(currentInput, {
+      id: 'clipboard',
+      createdAt: new Date().toISOString(),
+      stage: currentInput.stage,
+      behavior: currentInput.behavior || 'Neutral / no special behavior',
+      sayThisNext: baseRecommendation.sayThisNext,
+      askThisQuestion: baseRecommendation.askThisQuestion,
+      doNotDoThis: baseRecommendation.doNotDoThis,
+    });
+
+    try {
+      await navigator.clipboard.writeText(payload);
+      toast({ title: 'Copied', description: 'Next move copied and ready to use live.' });
+    } catch {
+      toast({ variant: 'destructive', title: 'Copy failed', description: 'Try again in a moment.' });
+    }
+  }, [baseRecommendation, currentInput, toast]);
+
+  const handleSaveLocal = useCallback(() => {
+    if (!baseRecommendation || !currentInput) {
+      toast({ variant: 'destructive', title: 'Pick a stage first', description: 'Select a deal stage to save a scenario.' });
+      return;
+    }
+
+    const scenario: NextMoveSavedScenario = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      stage: currentInput.stage,
+      behavior: currentInput.behavior || 'Neutral / no special behavior',
+      sayThisNext: baseRecommendation.sayThisNext,
+      askThisQuestion: baseRecommendation.askThisQuestion,
+      doNotDoThis: baseRecommendation.doNotDoThis,
+      favorite: false,
+    };
+
+    const next = [scenario, ...savedScenarios].slice(0, 30);
+    setSavedScenarios(next);
+    writeLocalScenarios(next);
+    toast({ title: 'Saved locally', description: 'Scenario is available on this device.' });
+  }, [baseRecommendation, currentInput, savedScenarios, toast]);
+
+  const handleSaveCloud = useCallback(async () => {
+    if (!baseRecommendation || !currentInput) {
+      toast({ variant: 'destructive', title: 'Pick a stage first', description: 'Select a deal stage to save this recommendation.' });
+      return;
+    }
+
+    if (!requireFeature(FEATURES.CLOUD_SAVE, 'Unlock cloud save to sync this scenario across devices.')) return;
+    if (!firebaseUser) {
+      toast({ variant: 'destructive', title: 'Sign in required', description: 'Sign in to save this scenario to your account.' });
+      return;
+    }
+
+    const scenario: NextMoveSavedScenario = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      stage: currentInput.stage,
+      behavior: currentInput.behavior || 'Neutral / no special behavior',
+      sayThisNext: baseRecommendation.sayThisNext,
+      askThisQuestion: baseRecommendation.askThisQuestion,
+      doNotDoThis: baseRecommendation.doNotDoThis,
+    };
+
+    setIsCloudSaving(true);
+    const idToken = await firebaseUser.getIdToken();
+    const result = await saveToolboxEntry({
+      idToken,
+      toolId: TOOL_ID,
+      content: scenarioToCloudContent(currentInput, scenario),
+    });
+    setIsCloudSaving(false);
+
+    if (!result.ok) {
+      if (result.code === 'PAYMENT_REQUIRED') {
+        setUpgradeContextMessage('Cloud saves are unlocked with paid Tool Shop access.');
+        setGateModalType('paid');
+      }
+      toast({ variant: 'destructive', title: result.message });
+      return;
+    }
+
+    toast({ title: 'Saved to cloud', description: 'Scenario now syncs across devices.' });
+  }, [baseRecommendation, currentInput, firebaseUser, requireFeature, toast]);
+
+  const handleRunSprocket = useCallback(() => {
+    if (!currentInput || !baseRecommendation) {
+      toast({ variant: 'destructive', title: 'Pick a stage first', description: 'Generate the base recommendation before running Sprocket.' });
+      return;
+    }
+
+    if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper diagnosis and coaching.')) return;
+
+    setSprocketOutput(getSprocketNextMoveRecommendation(currentInput, baseRecommendation));
+  }, [baseRecommendation, currentInput, requireFeature, toast]);
+
+  const handleRunAutoDrive = useCallback(() => {
+    if (!currentInput || !baseRecommendation) {
+      toast({ variant: 'destructive', title: 'Pick a stage first', description: 'Generate the base recommendation before personalization.' });
+      return;
+    }
+
+    if (!requireFeature(FEATURES.AUTODRIVE_CX, 'Upgrade to AutoDriveCX to get skill-aware coaching.')) return;
+
+    setCxOutput(getAutoDriveCxNextMoveRecommendation(currentInput, baseRecommendation, user));
+  }, [baseRecommendation, currentInput, requireFeature, toast, user]);
+
+  const toggleFavorite = useCallback((scenarioId: string) => {
+    const next = savedScenarios.map((scenario) => {
+      if (scenario.id !== scenarioId) return scenario;
+      return { ...scenario, favorite: !scenario.favorite };
+    });
+    setSavedScenarios(next);
+    writeLocalScenarios(next);
+  }, [savedScenarios]);
+
+  async function handleUnlockByEmail(input: { email: string; role: ToolboxCapturedRole }) {
+    const email = input.email.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(email)) {
+      toast({ variant: 'destructive', title: 'Enter a valid email' });
+      return;
+    }
+
+    setIsEmailSubmitting(true);
+    const captureResult = await captureToolboxUnlockEmail({ email, role: input.role });
+    if (!captureResult.ok) {
+      console.warn('[NextMoveEngine] unlock capture failed:', captureResult.message);
+    }
+
+    setLocalAccountProfile({ email, role: input.role });
+    setShowEmailGate(false);
+    setIsEmailSubmitting(false);
+
+    toast({
+      title: 'Account captured',
+      description: 'You now have unlimited standalone tool access.',
+    });
+  }
+
+  async function handleUpgrade() {
+    window.open(TOOLBOX_UPGRADE_URL, '_blank', 'noopener,noreferrer');
+    setGateModalType(null);
+  }
+
+  const ChipButton = ({
+    active,
+    label,
+    onClick,
+  }: {
+    active: boolean;
+    label: string;
+    onClick: () => void;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors ${
+        active
+          ? 'border-[#00d8e5] bg-[#00f2ff]/15 text-[#e6fdff]'
+          : 'border-[#2c3e5c] bg-[#101c30] text-[#d2def2] hover:bg-[#152743]'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#070d18] text-[#dce7f8]">
+      <Header />
+
+      <main className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-24 pt-4 sm:px-5 md:space-y-6 md:px-8 md:pt-8">
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
+            <Link href="/tools">
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Tool Shop
+            </Link>
+          </Button>
+          <Badge className="border border-[#00d8e5]/40 bg-[#00f2ff]/10 text-[#6eeef8]">AutoDriveCX</Badge>
+        </div>
+
+        <section className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-[#f5f9ff] md:text-3xl">Next Move Engine</h1>
+          <p className="max-w-2xl text-sm text-[#a7b7d1] md:text-base">
+            Pick the stage, tap the behavior, and get the exact next line, next question, and the mistake to avoid.
+          </p>
+          <p className="text-xs uppercase tracking-[0.12em] text-[#6f89af]">Built for live dealership conversations</p>
+        </section>
+
+        {!canUseBaseTool && (
+          <Card className="border-[#3f2a2a] bg-[#231718]">
+            <CardHeader>
+              <CardTitle className="text-lg text-[#ffe5e5]">Free limit reached</CardTitle>
+              <CardDescription className="text-[#f2b6b6]">
+                Add your email and role to keep using standalone tools with unlimited access.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={() => setShowEmailGate(true)}>
+                Continue with Free Account
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
+          <CardHeader>
+            <CardTitle className="text-lg text-[#f2f7ff]">1. Deal Stage</CardTitle>
+            <CardDescription className="text-[#9cb0cd]">Select where you are right now.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {NEXT_MOVE_STAGES.map((stage) => (
+              <ChipButton
+                key={stage}
+                active={selectedStage === stage}
+                label={stage}
+                onClick={() => handleStageSelect(stage)}
+              />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
+          <CardHeader>
+            <CardTitle className="text-lg text-[#f2f7ff]">2. Customer Behavior (Optional)</CardTitle>
+            <CardDescription className="text-[#9cb0cd]">Sharpen the recommendation for this exact moment.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {NEXT_MOVE_BEHAVIORS.map((behavior) => (
+              <ChipButton
+                key={behavior}
+                active={selectedBehavior === behavior}
+                label={behavior}
+                onClick={() => {
+                  if (!canUseBaseTool) {
+                    setShowEmailGate(true);
+                    return;
+                  }
+                  setSelectedBehavior(behavior);
+                  trackMeaningfulInteraction();
+                }}
+              />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
+          <CardHeader>
+            <CardTitle className="text-lg text-[#f2f7ff]">3. Quick Modifiers (Optional)</CardTitle>
+            <CardDescription className="text-[#9cb0cd]">Use only what matters to avoid clutter.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#84a0c4]">Visit Type</p>
+              <div className="grid grid-cols-2 gap-2">
+                {NEXT_MOVE_VISIT_TYPES.map((option) => (
+                  <ChipButton key={option} active={visitType === option} label={option} onClick={() => setVisitType(option)} />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#84a0c4]">Channel</p>
+              <div className="grid grid-cols-2 gap-2">
+                {NEXT_MOVE_CHANNELS.map((option) => (
+                  <ChipButton key={option} active={channel === option} label={option} onClick={() => setChannel(option)} />
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <ChipButton
+                active={tradeInvolved}
+                label={tradeInvolved ? 'Trade Involved: Yes' : 'Trade Involved: No'}
+                onClick={() => setTradeInvolved((current) => !current)}
+              />
+              <ChipButton
+                active={managerEngaged}
+                label={managerEngaged ? 'Manager Engaged: Yes' : 'Manager Engaged: No'}
+                onClick={() => setManagerEngaged((current) => !current)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-[#f4f8ff]">Your Next Move</h2>
+
+          {!baseRecommendation ? (
+            <Card className="border-dashed border-[#2f4568] bg-[#0b1627]">
+              <CardContent className="p-5 text-sm text-[#90a7ca]">Select a deal stage to generate your next move instantly.</CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              <Card className="border-[#2d4b66] bg-[#10243a]">
+                <CardHeader>
+                  <CardTitle className="text-base text-[#7eeeff]">Say This Next</CardTitle>
+                </CardHeader>
+                <CardContent className="text-base font-medium text-[#eff6ff]">{baseRecommendation.sayThisNext}</CardContent>
+              </Card>
+
+              <Card className="border-[#2d4b66] bg-[#10243a]">
+                <CardHeader>
+                  <CardTitle className="text-base text-[#7eeeff]">Ask This Question</CardTitle>
+                </CardHeader>
+                <CardContent className="text-base font-medium text-[#eff6ff]">{baseRecommendation.askThisQuestion}</CardContent>
+              </Card>
+
+              <Card className="border-[#4f3442] bg-[#261823]">
+                <CardHeader>
+                  <CardTitle className="text-base text-[#ffb5d2]">Do Not Do This</CardTitle>
+                </CardHeader>
+                <CardContent className="text-base font-medium text-[#ffe7f2]">{baseRecommendation.doNotDoThis}</CardContent>
+              </Card>
+
+              <Card className="border-[#2b3e5d] bg-[#0f1b30]">
+                <CardHeader>
+                  <CardTitle className="text-sm text-[#dce8ff]">Why this move works</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-[#a8b9d4]">{baseRecommendation.whyThisWorks}</CardContent>
+              </Card>
+
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                <Button className="h-11 bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]" onClick={handleCopy}>
+                  <Copy className="mr-2 h-4 w-4" /> Copy
+                </Button>
+                <Button className="h-11 bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]" onClick={handleSaveLocal}>
+                  <Save className="mr-2 h-4 w-4" /> Save Local
+                </Button>
+                <Button className="h-11 border border-[#3c5878] bg-[#0f1b30] text-[#dce7f8] hover:bg-[#172845]" onClick={handleSaveCloud} disabled={isCloudSaving}>
+                  <Cloud className="mr-2 h-4 w-4" /> {isCloudSaving ? 'Saving...' : 'Save to Cloud'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <FeatureGate
+          feature={FEATURES.SPROCKET}
+          entitlements={entitlements}
+          fallback={(gate) => (
+            <Card className="border-[#2f4568] bg-[#0f1c31]">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Layer</CardTitle>
+                <CardDescription className="text-[#9cb0cd]">Deeper diagnosis, sharper move, natural rewrite, and delivery coaching.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-[#b8c8e2]">{gate.message}</p>
+                <Button
+                  className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
+                  onClick={() => {
+                    if (gate.gate === 'account') {
+                      setShowEmailGate(true);
+                      return;
+                    }
+                    setUpgradeContextMessage(gate.message);
+                    setGateModalType('paid');
+                  }}
+                >
+                  Unlock Sprocket
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        >
+          <Card className="border-[#1f4b66] bg-[#0c2236]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Layer</CardTitle>
+              <CardDescription className="text-[#9cb0cd]">AI-enhanced guidance for this exact scenario.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button className="h-11 bg-[#00d8e5] text-[#06232b] hover:bg-[#39eaf4]" onClick={handleRunSprocket}>
+                Run Sprocket Enhancement
+              </Button>
+
+              {sprocketOutput && (
+                <div className="space-y-2 rounded-xl border border-[#2e5872] bg-[#0c1d2f] p-3 text-sm text-[#dce9fb]">
+                  <p><span className="font-semibold text-[#88f3ff]">Likely issue:</span> {sprocketOutput.likelyIssue}</p>
+                  <p><span className="font-semibold text-[#88f3ff]">Sharper next move:</span> {sprocketOutput.sharperNextMove}</p>
+                  <p><span className="font-semibold text-[#88f3ff]">Natural rewrite:</span> {sprocketOutput.naturalRewrite}</p>
+                  <p><span className="font-semibold text-[#88f3ff]">Delivery coaching:</span> {sprocketOutput.deliveryCoaching}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </FeatureGate>
+
+        <FeatureGate
+          feature={FEATURES.AUTODRIVE_CX}
+          entitlements={entitlements}
+          fallback={(gate) => (
+            <Card className="border-[#35556f] bg-[#101f33]">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-[#9ff5ff]"><BrainCircuit className="h-4 w-4" /> AutoDriveCX Layer</CardTitle>
+                <CardDescription className="text-[#9cb0cd]">Skill-aware adjustments using your coaching patterns.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-[#b8c8e2]">{gate.message}</p>
+                <Button
+                  className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
+                  onClick={() => {
+                    if (gate.gate === 'account') {
+                      setShowEmailGate(true);
+                      return;
+                    }
+                    setUpgradeContextMessage(gate.message);
+                    setGateModalType(gate.gate === 'autodrive_cx' ? 'autodrive_cx' : 'paid');
+                  }}
+                >
+                  Unlock AutoDriveCX
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        >
+          <Card className="border-[#2f516f] bg-[#10253b]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-[#9ff5ff]"><BrainCircuit className="h-4 w-4" /> AutoDriveCX Layer</CardTitle>
+              <CardDescription className="text-[#9cb0cd]">Personalized recommendation tuning from your skill trends.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button className="h-11 bg-[#00d8e5] text-[#06232b] hover:bg-[#39eaf4]" onClick={handleRunAutoDrive}>
+                Personalize with AutoDriveCX
+              </Button>
+
+              {cxOutput && (
+                <div className="space-y-2 rounded-xl border border-[#2e5872] bg-[#0c1d2f] p-3 text-sm text-[#dce9fb]">
+                  <p><span className="font-semibold text-[#88f3ff]">Tailored reason:</span> {cxOutput.tailoredReason}</p>
+                  <p><span className="font-semibold text-[#88f3ff]">Adapted line:</span> {cxOutput.adaptedLine}</p>
+                  <p><span className="font-semibold text-[#88f3ff]">Focus skill:</span> {cxOutput.focusSkillTag}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </FeatureGate>
+
+        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
+          <CardHeader>
+            <CardTitle className="text-lg text-[#f2f7ff]">Local Scenarios</CardTitle>
+            <CardDescription className="text-[#9cb0cd]">
+              {savedScenarios.length} saved on this device. {favoriteCount} favorited.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {savedScenarios.length === 0 ? (
+              <p className="text-sm text-[#90a7ca]">No saved scenarios yet.</p>
+            ) : (
+              savedScenarios.slice(0, 6).map((scenario) => (
+                <div key={scenario.id} className="rounded-xl border border-[#29415e] bg-[#0c182a] p-3">
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-[#e8f1ff]">{scenario.stage} · {scenario.behavior}</p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2 text-[#bdd0ea] hover:bg-[#172845] hover:text-[#fff8ca]"
+                      onClick={() => toggleFavorite(scenario.id)}
+                    >
+                      <Star className={`mr-1 h-4 w-4 ${scenario.favorite ? 'fill-[#ffd95e] text-[#ffd95e]' : ''}`} />
+                      {scenario.favorite ? 'Favorited' : 'Favorite'}
+                    </Button>
+                  </div>
+                  <p className="text-sm text-[#c9d7ee]">{scenario.sayThisNext}</p>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </main>
+
+      <EmailGateModal
+        open={showEmailGate}
+        loading={isEmailSubmitting}
+        defaultEmail={accountProfile?.email || user?.email || ''}
+        defaultRole={accountProfile?.role || 'Sales Consultant'}
+        onOpenChange={setShowEmailGate}
+        onSubmit={handleUnlockByEmail}
+      />
+
+      <UpgradeModal
+        open={gateModalType !== null}
+        contextMessage={upgradeContextMessage || (gateModalType === 'autodrive_cx' ? 'AutoDriveCX unlocks personalized CX intelligence on top of Sprocket.' : undefined)}
+        onOpenChange={(open) => {
+          if (!open) setGateModalType(null);
+        }}
+        onUpgrade={handleUpgrade}
+      />
+    </div>
+  );
+}

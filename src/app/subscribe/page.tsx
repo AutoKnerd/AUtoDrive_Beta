@@ -3,8 +3,9 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Header } from '@/components/layout/header';
+import { Logo } from '@/components/layout/logo';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { createIndividualCheckoutSessionUrl } from '@/app/actions/stripe';
 import { requiresIndividualCheckout } from '@/lib/billing/access';
 import { CreditCard } from 'lucide-react';
+import { getConsultant, parseConsultantFromURL, setAttribution, touchAttribution } from '@/lib/consultant-referral';
 
 export default function SubscribePage() {
   const { user, loading } = useAuth();
@@ -21,9 +23,16 @@ export default function SubscribePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
+    const consultant = parseConsultantFromURL(`${window.location.pathname}${window.location.search}`);
+    if (consultant) {
+      setAttribution({
+        consultant_id: consultant,
+        engagement_type: 'weak',
+        engagement_event: 'page_visit',
+        timestamp: Date.now(),
+      });
     }
+
     if (!loading && user && !requiresIndividualCheckout(user)) {
       router.push('/');
     }
@@ -38,7 +47,8 @@ export default function SubscribePage() {
       }
 
       const idToken = await fbUser.getIdToken(true);
-      const checkout = await createIndividualCheckoutSessionUrl(idToken);
+      touchAttribution('strong', 'payment_started');
+      const checkout = await createIndividualCheckoutSessionUrl(idToken, 'monthly', getConsultant() || undefined);
       if (!checkout.ok) {
         throw new Error(checkout.message);
       }
@@ -54,7 +64,53 @@ export default function SubscribePage() {
     }
   };
 
-  if (loading || !user || !requiresIndividualCheckout(user)) {
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-8">
+          <div className="flex flex-col items-center">
+            <Logo variant="full" width={610} height={203} />
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-center text-3xl">Start Your Pro Trial</CardTitle>
+              <CardDescription className="text-center">
+                Create your account first, then we&apos;ll send you straight into secure Stripe checkout.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">What happens next:</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>Create your AutoDrive account</li>
+                  <li>Add your billing method securely in Stripe</li>
+                  <li>Start your 30-day trial</li>
+                </ul>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-2">
+              <Button asChild className="w-full">
+                <Link href="/signup">Create Pro Account</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </main>
+    );
+  }
+
+  if (!requiresIndividualCheckout(user)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Spinner size="lg" />
@@ -64,7 +120,6 @@ export default function SubscribePage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header />
       <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-6 lg:p-8">
         <Card className="w-full max-w-md">
           <CardHeader>

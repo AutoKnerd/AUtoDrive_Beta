@@ -3,8 +3,12 @@ import { initializeFirebase } from '@/firebase/init';
 import type { RatingKey, Ratings, UserStats } from '@/lib/definitions';
 
 export const BASELINE = 60;
-export const ALPHA = 1 - Math.pow(0.5, 1 / 12);
 export const LAMBDA = Math.log(2) / 30;
+export const MIN_CX_AGGRESSIVENESS = 5;
+export const MAX_CX_AGGRESSIVENESS = 60;
+export const DEFAULT_CX_AGGRESSIVENESS = 25;
+export const DEFAULT_CX_DELTA_GAIN = DEFAULT_CX_AGGRESSIVENESS / 100;
+export const MAX_CX_DELTA_PER_LESSON = 10;
 
 const MIN_SCORE = 0;
 const MAX_SCORE = 100;
@@ -27,8 +31,22 @@ export type RollingStatsUpdateResult = {
   updatedAt: Date;
 };
 
+type UpdateRollingStatsOptions = {
+  weightMultiplier?: number;
+};
+
 function clamp(value: number, min: number = MIN_SCORE, max: number = MAX_SCORE): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function clampDelta(value: number): number {
+  return Math.max(-MAX_CX_DELTA_PER_LESSON, Math.min(MAX_CX_DELTA_PER_LESSON, value));
+}
+
+export function normalizeCxAggressiveness(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_CX_AGGRESSIVENESS;
+  return Math.max(MIN_CX_AGGRESSIVENESS, Math.min(MAX_CX_AGGRESSIVENESS, Math.round(numeric)));
 }
 
 function toFiniteNumber(value: unknown, fallback: number): number {
@@ -79,7 +97,11 @@ export function clampRatings(ratings: Partial<Ratings> | null | undefined): Rati
   };
 }
 
-export async function updateRollingStats(userId: string, ratings: Ratings): Promise<RollingStatsUpdateResult> {
+export async function updateRollingStats(
+  userId: string,
+  ratings: Ratings,
+  options?: UpdateRollingStatsOptions
+): Promise<RollingStatsUpdateResult> {
   if (!userId) {
     throw new Error('updateRollingStats requires a userId');
   }
@@ -89,6 +111,7 @@ export async function updateRollingStats(userId: string, ratings: Ratings): Prom
   const now = new Date();
   const nowTimestamp = Timestamp.fromDate(now);
   const safeRatings = clampRatings(ratings);
+  const weightMultiplier = Math.max(0.5, Math.min(2, Number(options?.weightMultiplier ?? 1)));
 
   return runTransaction(db, async (transaction) => {
     const userSnap = await transaction.get(userRef);
@@ -97,9 +120,19 @@ export async function updateRollingStats(userId: string, ratings: Ratings): Prom
       throw new Error(`User ${userId} not found`);
     }
 
-    const rawStats = (userSnap.data()?.stats ?? {}) as Partial<
+    const userData = userSnap.data() ?? {};
+    const rawStats = (userData.stats ?? {}) as Partial<
       Record<RatingKey, { score?: unknown; lastUpdated?: unknown }>
     >;
+    let deltaGain = DEFAULT_CX_DELTA_GAIN;
+    try {
+      const cxConfigRef = doc(db, 'systemSettings', 'cx');
+      const cxConfigSnap = await transaction.get(cxConfigRef);
+      const aggressiveness = normalizeCxAggressiveness(cxConfigSnap.data()?.aggressiveness);
+      deltaGain = aggressiveness / 100;
+    } catch {
+      // Fallback to default aggressiveness when system settings are unavailable.
+    }
 
     const nextStats = {} as UserStats;
     const beforeScores = {} as RollingStatScores;
@@ -108,17 +141,22 @@ export async function updateRollingStats(userId: string, ratings: Ratings): Prom
     for (const key of STAT_KEYS) {
       const current = rawStats[key];
       const currentScore = clamp(toFiniteNumber(current?.score, BASELINE));
+      const currentWhole = Math.round(currentScore);
       const lastUpdated = toDate(current?.lastUpdated) ?? now;
       const deltaDays = Math.max(0, (now.getTime() - lastUpdated.getTime()) / MS_PER_DAY);
 
-      const driftedScore = BASELINE + (currentScore - BASELINE) * Math.exp(-LAMBDA * deltaDays);
-      const updatedScore = clamp((1 - ALPHA) * driftedScore + ALPHA * safeRatings[key]);
+      const driftedScore = BASELINE + (currentWhole - BASELINE) * Math.exp(-LAMBDA * deltaDays);
+      const driftDelta = driftedScore - currentWhole;
+      const ratingDelta = safeRatings[key] - currentWhole;
+      const rawDelta = driftDelta + ratingDelta * deltaGain * weightMultiplier;
+      const stepDelta = clampDelta(Math.round(rawDelta));
+      const updatedScore = clamp(currentWhole + stepDelta);
 
       nextStats[key] = {
         score: updatedScore,
         lastUpdated: nowTimestamp,
       };
-      beforeScores[key] = currentScore;
+      beforeScores[key] = currentWhole;
       afterScores[key] = updatedScore;
     }
 

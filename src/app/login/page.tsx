@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { Logo } from '@/components/layout/logo';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
 
@@ -35,11 +35,14 @@ export default function LoginPage() {
         </div>
         <LoginForm />
         <div className="flex flex-col gap-3">
-          <Button type="button" className="w-full" disabled>
-            Sign up for Pro plan (Coming soon)
-          </Button>
+          <Link
+            href="/signup"
+            className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+              Sign up for Pro plan
+          </Link>
           <p className="px-2 text-center text-xs text-muted-foreground">
-            New self-serve subscription is temporarily disabled while checkout is being finalized.
+            New here? Create your account and start your subscription.
           </p>
         </div>
         <div className="text-center">

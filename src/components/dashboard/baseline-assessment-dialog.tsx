@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import type { CxTrait, User, UserRole } from '@/lib/definitions';
-import { logLessonCompletion, updateUser } from '@/lib/data.client';
+import { allRoles } from '@/lib/definitions';
+import { logLessonCompletion } from '@/lib/data.client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuth as useFirebaseAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -38,17 +40,9 @@ const defaultScores: ScoreMap = {
   relationshipBuilding: 75,
 };
 
-const baselineRoleOptions: UserRole[] = [
-  'Sales Consultant',
-  'BDC',
-  'manager',
-  'Service Writer',
-  'Service Manager',
-  'Finance Manager',
-  'Parts Consultant',
-  'Parts Manager',
-  'General Manager',
-];
+const SELF_SELECTABLE_ROLES: UserRole[] = allRoles.filter((role) => (
+  !['Owner', 'Admin', 'Developer', 'Trainer'].includes(role)
+));
 
 function clampScore(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
@@ -57,17 +51,47 @@ function clampScore(value: number): number {
 export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted }: BaselineAssessmentDialogProps) {
   const { toast } = useToast();
   const { setUser } = useAuth();
+  const firebaseAuth = useFirebaseAuth();
   const [scores, setScores] = useState<ScoreMap>(defaultScores);
-  const rawRole = (user as Partial<User>)?.role;
-  const currentRole = typeof rawRole === 'string' ? rawRole : '';
-  const hasAssignedRole = baselineRoleOptions.includes(currentRole as UserRole);
-  const [selectedRole, setSelectedRole] = useState<UserRole | ''>(hasAssignedRole ? (currentRole as UserRole) : '');
+  const [selectedRole, setSelectedRole] = useState<UserRole>(
+    SELF_SELECTABLE_ROLES.includes(user.role) ? user.role : 'Sales Consultant'
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const allowRoleSelection = !Array.isArray(user.dealershipIds) || user.dealershipIds.length === 0;
 
   useEffect(() => {
-    if (!open) return;
-    setSelectedRole(hasAssignedRole ? (currentRole as UserRole) : '');
-  }, [open, hasAssignedRole, currentRole]);
+    setSelectedRole(SELF_SELECTABLE_ROLES.includes(user.role) ? user.role : 'Sales Consultant');
+  }, [user.role]);
+
+  const updateRoleSelection = (value: string) => {
+    if (!SELF_SELECTABLE_ROLES.includes(value as UserRole)) return;
+    setSelectedRole(value as UserRole);
+  };
+
+  const persistRoleSelection = async () => {
+    if (!allowRoleSelection || selectedRole === user.role) return;
+    const firebaseUser = firebaseAuth.currentUser;
+    if (!firebaseUser) {
+      throw new Error('Authentication session expired. Please sign in again.');
+    }
+
+    const idToken = await firebaseUser.getIdToken(true);
+    const response = await fetch('/api/profile/select-role', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        role: selectedRole,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.message || 'Could not update role.');
+    }
+  };
 
   const updateScore = (trait: CxTrait, rawValue: string) => {
     const parsed = Number(rawValue);
@@ -76,24 +100,10 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
   };
 
   const handleSubmit = async () => {
-    if (!hasAssignedRole && !selectedRole) {
-      toast({
-        variant: 'destructive',
-        title: 'Role required',
-        description: 'Please select your role before saving your baseline.',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      let roleUpdateFailed = false;
-      if (!hasAssignedRole && selectedRole) {
-        try {
-          await updateUser(user.userId, { role: selectedRole });
-        } catch {
-          roleUpdateFailed = true;
-        }
+      if (allowRoleSelection) {
+        await persistRoleSelection();
       }
 
       const baselineId = `baseline-${new Date().toISOString().slice(0, 10)}`;
@@ -110,13 +120,6 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
         title: 'Baseline saved',
         description: 'Your baseline assessment has been recorded.',
       });
-      if (roleUpdateFailed) {
-        toast({
-          variant: 'destructive',
-          title: 'Role update needed',
-          description: 'Baseline was saved, but your role could not be updated. Please update your role in Profile.',
-        });
-      }
 
       await onCompleted();
     } catch (error: any) {
@@ -141,15 +144,15 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
-          {!hasAssignedRole && (
+          {allowRoleSelection ? (
             <div className="grid gap-2">
-              <Label htmlFor="baseline-role">Your Role</Label>
-              <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as UserRole)} disabled={isSubmitting}>
+              <Label htmlFor="baseline-role">Role</Label>
+              <Select value={selectedRole} onValueChange={updateRoleSelection} disabled={isSubmitting}>
                 <SelectTrigger id="baseline-role">
                   <SelectValue placeholder="Select your role..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {baselineRoleOptions.map((role) => (
+                  {SELF_SELECTABLE_ROLES.map((role) => (
                     <SelectItem key={role} value={role}>
                       {role === 'manager' ? 'Sales Manager' : role}
                     </SelectItem>
@@ -157,7 +160,7 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
                 </SelectContent>
               </Select>
             </div>
-          )}
+          ) : null}
 
           {traitFields.map((trait) => (
             <div key={trait.key} className="grid grid-cols-[1fr_100px] items-center gap-3">
@@ -180,7 +183,7 @@ export function BaselineAssessmentDialog({ user, open, onOpenChange, onCompleted
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || (!hasAssignedRole && !selectedRole)}>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Saving...' : 'Save Baseline'}
           </Button>
         </DialogFooter>

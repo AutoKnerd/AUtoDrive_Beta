@@ -40,6 +40,7 @@ interface EditUserFormProps {
 
 export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: EditUserFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isForcingSprocketTour, setIsForcingSprocketTour] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
@@ -107,6 +108,32 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
     }
   }
 
+  const triggerSprocketTourOnNextLogin = async () => {
+    if (!selectedUser || isForcingSprocketTour) return;
+    setIsForcingSprocketTour(true);
+    try {
+      const updated = await updateUser(selectedUser.userId, {
+        hasSeenSprocketTour: false,
+        forceSprocketTourOnNextLogin: true,
+      });
+      setSelectedUser(updated);
+      form.reset(toFormValues(updated));
+      toast({
+        title: 'Sprocket Tour queued',
+        description: 'The user will see the Sprocket tour on their next login.',
+      });
+      onUserUpdated?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not queue tour',
+        description: (e as Error).message,
+      });
+    } finally {
+      setIsForcingSprocketTour(false);
+    }
+  };
+
   return (
     <div className="grid gap-6">
       {!selectedUser ? (
@@ -144,6 +171,15 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
             <div className="grid gap-2 border rounded-md p-3">
                 <FormField control={form.control} name="isPrivate" render={({ field }) => <FormItem className="flex items-center justify-between"><FormLabel>Hide from Managers</FormLabel><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>} />
                 <FormField control={form.control} name="showDealerCriticalOnly" render={({ field }) => <FormItem className="flex items-center justify-between"><FormLabel>Critical Data Only</FormLabel><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>} />
+            </div>
+            <div className="rounded-md border p-3 space-y-2">
+              <p className="text-sm font-medium">Sprocket Tour Controls</p>
+              <p className="text-xs text-muted-foreground">
+                Force the first-login Sprocket onboarding tour for this user the next time they sign in.
+              </p>
+              <Button type="button" variant="outline" onClick={triggerSprocketTourOnNextLogin} disabled={isForcingSprocketTour}>
+                {isForcingSprocketTour ? <Spinner size="sm" /> : 'Show Tour On Next Login'}
+              </Button>
             </div>
             <Button type="submit" disabled={isSubmitting} className="w-full">{isSubmitting ? <Spinner size="sm" /> : <><Save className="mr-2 h-4 w-4" /> Save Edits</>}</Button>
           </form>

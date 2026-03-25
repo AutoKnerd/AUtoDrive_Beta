@@ -56,6 +56,7 @@ export async function POST(
       status: 'active',
       enableRetakeRecommendedTesting: false,
       enableNewRecommendedTesting: false,
+      disableManagementPrivateDataViewing: false,
       enablePppProtocol: false,
       enableSaasPppTraining: false,
       billingTier: 'sales_fi',

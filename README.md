@@ -5,6 +5,21 @@ This is a NextJS starter in Firebase Studio.
 
 To get started, take a look at src/app/page.tsx.
 
+## Combined Workspace
+
+This repository now contains two projects so you can edit them together:
+
+- App (Next.js): repository root
+- Webpage (Vite): `apps/webpage`
+
+Common commands from the repository root:
+
+- `npm run dev:app` to run the Next.js app
+- `npm run dev:webpage` to run the Vite webpage
+- `npm run install:webpage` to install webpage dependencies
+- `npm run build:app` to build the Next.js app
+- `npm run build:webpage` to build the Vite webpage
+
 ## Stripe Billing Setup
 
 Billing supports:

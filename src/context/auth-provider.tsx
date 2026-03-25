@@ -23,7 +23,7 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>;
   logout: (redirectTo?: string) => Promise<void>;
   register: (name: string, password: string, invitation: EmailInvitation) => Promise<void>;
-  publicSignup: (name: string, email: string, password: string) => Promise<void>;
+  publicSignup: (name: string, email: string, password: string, signupRoleInterest: UserRole, consultantReferral?: string) => Promise<void>;
   setUser: (user: User | null) => void;
   switchTourRole: (role: UserRole) => Promise<void>;
 }
@@ -243,21 +243,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [auth]
   );
 
-  const publicSignup = useCallback(async (name: string, email: string, password: string) => {
+  const publicSignup = useCallback(async (name: string, email: string, password: string, signupRoleInterest: UserRole, consultantReferral?: string) => {
+    let createdUid: string | null = null;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      await createUserProfile(
-        userCredential.user.uid,
-        name,
-        email,
-        'Sales Consultant', // Default role for public signups
-        [], // No dealership association initially
-        { requireCheckoutForTrial: true },
-      );
-      
+      createdUid = userCredential.user.uid;
+      const idToken = await userCredential.user.getIdToken(true);
+      const response = await fetch('/api/auth/bootstrap-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          signupRoleInterest,
+          consultantReferral,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.message || 'Could not finish account setup.');
+      }
     } catch(error: any) {
         console.error("Public signup error:", error);
+        if (createdUid && auth.currentUser?.uid === createdUid) {
+          try {
+            await auth.currentUser.delete();
+          } catch (cleanupError) {
+            console.error('[AuthProvider] Failed to clean up partially created public signup user:', cleanupError);
+            await auth.signOut().catch(() => undefined);
+          }
+        }
         if (error.code === 'auth/email-already-in-use') {
             throw new Error('This email address is already in use. Please sign in or use a different email.');
         }
@@ -290,6 +309,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [auth]);
 
   const logout = useCallback(async (redirectTo: string = '/login') => {
+    setLoading(true);
     try {
       await auth.signOut();
     } catch (error) {
@@ -301,7 +321,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (redirectTo) {
-      router.replace(redirectTo);
+      if (typeof window !== 'undefined') {
+        window.location.replace(redirectTo);
+      } else {
+        router.replace(redirectTo);
+      }
     }
   }, [auth, router]);
 

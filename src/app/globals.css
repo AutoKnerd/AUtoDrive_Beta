@@ -6,10 +6,15 @@
   :root {
     --background: 207 56% 97%;
     --foreground: 220 47% 11%;
+    --surface: 0 0% 100%;
+    --surface-elevated: 211 33% 94%;
     --card: 0 0% 100%;
     --card-foreground: 220 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 220 47% 11%;
+    --text-primary: 220 47% 11%;
+    --text-secondary: 215 24% 27%;
+    --text-muted: 215 16% 42%;
     --primary: 198 74% 48%;
     --primary-foreground: 0 0% 100%;
     --secondary: 211 33% 92%;
@@ -18,11 +23,16 @@
     --muted-foreground: 215 16% 42%;
     --accent: 107 47% 50%;
     --accent-foreground: 220 47% 11%;
+    --success: 145 63% 42%;
+    --warning: 39 92% 50%;
+    --danger: 0 84% 60%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 210 31% 84%;
+    --divider: 210 27% 88%;
     --input: 210 31% 84%;
     --ring: 198 74% 43%;
+    --focus-ring: 198 74% 43%;
     --chart-1: 198 74% 48%;
     --chart-2: 107 47% 50%;
     --chart-3: 203 78% 39%;
@@ -41,10 +51,15 @@
   .dark {
     --background: 224 71% 4%;
     --foreground: 210 40% 98%;
+    --surface: 224 33% 14%;
+    --surface-elevated: 224 33% 19%;
     --card: 224 33% 14%;
     --card-foreground: 210 40% 98%;
     --popover: 224 71% 4%;
     --popover-foreground: 210 40% 98%;
+    --text-primary: 210 40% 98%;
+    --text-secondary: 214 32% 85%;
+    --text-muted: 215 20% 65%;
     --primary: 195 89% 51%;
     --primary-foreground: 224 71% 4%;
     --secondary: 224 33% 20%;
@@ -53,11 +68,16 @@
     --muted-foreground: 215 20% 65%;
     --accent: 195 89% 45%;
     --accent-foreground: 210 40% 98%;
+    --success: 145 68% 52%;
+    --warning: 38 92% 56%;
+    --danger: 0 80% 65%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 224 33% 25%;
+    --divider: 224 30% 21%;
     --input: 224 33% 20%;
     --ring: 195 89% 51%;
+    --focus-ring: 195 89% 51%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -80,6 +100,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    color-scheme: light dark;
+    transition:
+      background-color 180ms ease,
+      color 180ms ease,
+      border-color 180ms ease;
     background-image:
       radial-gradient(circle at 12% -10%, hsl(198 74% 48% / 0.16), transparent 34%),
       radial-gradient(circle at 88% 2%, hsl(107 47% 50% / 0.14), transparent 30%);
@@ -87,5 +112,27 @@
   }
   .dark body {
     background-image: none;
+  }
+}
+
+@keyframes lesson-ready-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.35);
+  }
+  50% {
+    transform: scale(1.015);
+    box-shadow: 0 0 0 10px rgba(45, 212, 191, 0);
+  }
+}
+
+.lesson-ready-pulse {
+  animation: lesson-ready-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-ready-pulse {
+    animation: none;
   }
 }
