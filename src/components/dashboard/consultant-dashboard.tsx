@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { isToday } from 'date-fns';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership, LessonRole, ThemePreference } from '@/lib/definitions';
 import {
   getLessons,
@@ -306,7 +306,8 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [canRetakeRecommendedTesting, setCanRetakeRecommendedTesting] = useState(false);
   const [canUseNewRecommendedTesting, setCanUseNewRecommendedTesting] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
-  const { isTouring, setUser } = useAuth();
+  const { isTouring, setUser, originalUser } = useAuth();
+  const pathname = usePathname();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
   const [showSprocketTour, setShowSprocketTour] = useState(false);
   const [sprocketTourStep, setSprocketTourStep] = useState(0);
@@ -686,6 +687,16 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const freshUpAvailable = user.freshUpAvailable === true;
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
   const upMeterProgress = getUpMeterProgress(freshUpMeter);
+  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX);
+  const isDeveloperPreviewUser = (
+    user?.role === 'Developer'
+    || user?.role === 'Admin'
+    || originalUser?.role === 'Developer'
+    || originalUser?.role === 'Admin'
+  );
+  const shouldShowSurfaceToggle = hasActiveAutoDriveCx || isDeveloperPreviewUser;
+  const isToolsActive = Boolean(pathname?.startsWith('/tools'));
+  const isTrainingActive = !isToolsActive;
 
   const todayActionLessonHref = useMemo(() => {
     if (!availableRecommendedLesson || lessonLimits.recommendedTaken) return null;
@@ -798,6 +809,45 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
     document.getElementById('lessons')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const renderSurfaceToggle = (className?: string) => {
+    if (!shouldShowSurfaceToggle) return null;
+
+    return (
+      <div
+        className={cn(
+          'inline-flex items-center rounded-full border p-1 shadow-[0_10px_24px_rgba(0,0,0,0.32)]',
+          isTrainingActive
+            ? 'border-[#3ecf73]/80 bg-gradient-to-r from-[#0f3a28] via-[#135236] to-[#0f3f2d]'
+            : 'border-[#1a6eb6]/85 bg-gradient-to-r from-[#061d38] via-[#092e55] to-[#072444]',
+          className
+        )}
+      >
+        <Link
+          href="/"
+          className={cn(
+            'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
+            isTrainingActive
+              ? 'bg-gradient-to-r from-[#2cc3ff] to-[#1d8dff] text-[#031a34] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(13,146,214,0.35)]'
+              : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
+          )}
+        >
+          AutoDriveCX
+        </Link>
+        <Link
+          href="/tools"
+          className={cn(
+            'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
+            isToolsActive
+              ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
+              : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
+          )}
+        >
+          AutoShopCX
+        </Link>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8 pb-24 text-foreground">
         <BaselineAssessmentDialog
@@ -842,9 +892,13 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
         </Dialog>
 
         {/* Header */}
-        <header className="flex items-center justify-between">
+        <header className="relative flex items-center justify-between gap-3">
             <Logo variant="full" width={183} height={61} />
-            <UserNav user={user} avatarClassName="h-14 w-14" />
+            {renderSurfaceToggle('absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:inline-flex')}
+            <div className="ml-auto flex items-center gap-2">
+              {renderSurfaceToggle('md:hidden')}
+              <UserNav user={user} avatarClassName="h-14 w-14" />
+            </div>
         </header>
 
         {isPaused && (
