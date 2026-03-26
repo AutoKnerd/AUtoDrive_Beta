@@ -687,7 +687,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const freshUpAvailable = user.freshUpAvailable === true;
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
   const upMeterProgress = getUpMeterProgress(freshUpMeter);
-  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX);
+  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
   const isDeveloperPreviewUser = (
     user?.role === 'Developer'
     || user?.role === 'Admin'

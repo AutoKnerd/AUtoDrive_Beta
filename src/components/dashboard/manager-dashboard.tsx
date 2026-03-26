@@ -973,7 +973,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return !!value && 'snapshot' in value;
   };
 
-  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX);
+  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
   const isDeveloperPreviewUser = (
     user?.role === 'Developer'
     || user?.role === 'Admin'

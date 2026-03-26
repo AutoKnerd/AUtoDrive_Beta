@@ -13,7 +13,7 @@ export function Header() {
   const { user, originalUser } = useAuth();
   const pathname = usePathname();
   const isToolsSurface = pathname?.startsWith('/tools');
-  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX);
+  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
   const isDeveloperPreviewUser = (
     user?.role === 'Developer'
     || user?.role === 'Admin'
