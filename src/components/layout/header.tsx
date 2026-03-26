@@ -1,14 +1,12 @@
 
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { Logo } from '@/components/layout/logo';
 import { UserNav } from './user-nav';
 import { usePathname } from 'next/navigation';
-import { hasDealershipAssignment } from '@/lib/billing/access';
-import { managerialRoles } from '@/lib/definitions';
 import { cn } from '@/lib/utils';
 
 export function Header() {
@@ -25,13 +23,7 @@ export function Header() {
   const shouldShowSurfaceToggle = Boolean(user && (hasActiveAutoDriveCx || isDeveloperPreviewUser));
   const [showAutoDriveBadgePulse, setShowAutoDriveBadgePulse] = useState(false);
 
-  const trainingDashboardPath = useMemo(() => {
-    if (!user) return '/';
-    if (!hasDealershipAssignment(user)) return '/';
-    if (user.role === 'Owner') return '/dealer/owner';
-    if (managerialRoles.includes(user.role)) return '/dealer/gm';
-    return '/dealer/me';
-  }, [user]);
+  const trainingDashboardPath = '/';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = Boolean(pathname && (
     pathname === trainingDashboardPath
