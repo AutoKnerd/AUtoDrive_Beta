@@ -992,7 +992,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         className={cn(
           'inline-flex items-center rounded-full border p-1 shadow-[0_10px_24px_rgba(0,0,0,0.32)]',
           isTrainingActive
-            ? 'border-[#3ecf73]/80 bg-gradient-to-r from-[#0f3a28] via-[#135236] to-[#0f3f2d]'
+            ? 'border-[#45c7ff]/85 bg-gradient-to-r from-[#0f3d72] via-[#1362b6] to-[#0f4f92]'
             : 'border-[#1a6eb6]/85 bg-gradient-to-r from-[#061d38] via-[#092e55] to-[#072444]',
           className
         )}
@@ -1002,7 +1002,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           className={cn(
             'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
             isTrainingActive
-              ? 'bg-gradient-to-r from-[#2cc3ff] to-[#1d8dff] text-[#031a34] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(13,146,214,0.35)]'
+              ? 'bg-gradient-to-r from-[#53d7ff] to-[#2c98ff] text-[#031a34] shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_10px_20px_rgba(18,132,228,0.5)]'
               : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
           )}
         >
