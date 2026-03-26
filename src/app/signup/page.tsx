@@ -1,7 +1,9 @@
 
 'use client';
 
+import Image from 'next/image';
 import { SignupForm } from '@/components/auth/signup-form';
+import { ASSISTANT_AVATAR_SRC } from '@/lib/assistant';
 import { Logo } from '@/components/layout/logo';
 
 export default function SignupPage() {
@@ -69,6 +71,24 @@ export default function SignupPage() {
                   <li className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">Habit-based coaching for consistent CX execution</li>
                 </ul>
               </div>
+              <div className="rounded-xl border border-emerald-300/35 bg-emerald-500/10 p-3 sm:p-4">
+                <div className="flex items-start gap-3">
+                  <Image
+                    src={ASSISTANT_AVATAR_SRC}
+                    alt="Sprocket"
+                    width={24}
+                    height={24}
+                    className="mt-0.5 rounded-md border border-cyan-200/35 shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
+                  />
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100/95">Bonus Included</p>
+                    <p className="text-sm font-semibold uppercase tracking-[0.08em] text-cyan-100">Sprocket Intelligence in AutoShop</p>
+                    <p className="text-sm text-slate-100/90">
+                      Your signup includes access to AutoShop, where Sprocket Intelligence helps sequence trust signals, urgency, and your next best wording.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </details>
 
@@ -94,6 +114,25 @@ export default function SignupPage() {
               <li className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">Real-time skill tracking for empathy, listening, and trust</li>
               <li className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">Habit-based coaching for consistent CX execution</li>
             </ul>
+          </div>
+
+          <div className="hidden rounded-xl border border-emerald-300/35 bg-emerald-500/10 p-3 sm:p-4 md:block">
+            <div className="flex items-start gap-3">
+              <Image
+                src={ASSISTANT_AVATAR_SRC}
+                alt="Sprocket"
+                width={24}
+                height={24}
+                className="mt-0.5 rounded-md border border-cyan-200/35 shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
+              />
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100/95">Bonus Included</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-cyan-100">Sprocket Intelligence in AutoShop</p>
+                <p className="text-sm text-slate-100/90">
+                  Your signup includes access to AutoShop, where Sprocket Intelligence helps sequence trust signals, urgency, and your next best wording.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
       </div>
