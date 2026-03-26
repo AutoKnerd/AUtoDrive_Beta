@@ -44,11 +44,6 @@ import {
 } from '@/lib/tools/toolbox-storage';
 import { FEATURES, resolvePaidAccess, type ToolboxCapturedRole, type ToolboxFeatureKey } from '@/lib/tools/entitlements';
 import {
-  buildSignalMapperMicroDraft,
-  parseSignalMapperMicroDraft,
-  type SignalMapperMicroDraft,
-} from '@/lib/tools/signal-mapper-micro';
-import {
   captureToolboxUnlockEmail,
   createToolboxFreeAccount,
   fetchToolboxEntitlements,
@@ -140,7 +135,6 @@ const INLINE_TOOL_COMPONENTS: Record<string, ComponentType> = {
   'handoff-script': dynamic(() => import('@/app/tools/handoff-script/page'), { ssr: false }),
   'deal-recovery': dynamic(() => import('@/app/tools/deal-recovery/page'), { ssr: false }),
   'loyalty-loop': dynamic(() => import('@/app/tools/loyalty-loop/page'), { ssr: false }),
-  'signal-mapper': dynamic(() => import('@/app/tools/signal-mapper/page'), { ssr: false }),
   'price-presentation': dynamic(() => import('@/app/tools/price-presentation/page'), { ssr: false }),
   'consistency-leak-finder': dynamic(() => import('@/app/tools/consistency-leak-finder/page'), { ssr: false }),
 };
@@ -167,18 +161,18 @@ type RoleTypeSelection = 'sales_advisor' | 'manager';
 type RoleDetailSelection = 'Sales Consultant' | 'Service Writer' | 'manager' | 'Service Manager' | 'Finance Manager';
 
 const DIAGNOSIS_TOOL_PRIORITY: Record<DiagnosisLabel, string[]> = {
-  'Customer is stalling': ['objection-reframe', 'signal-mapper', 'parts-objection-defuser'],
-  'Deal lost momentum': ['signal-mapper', 'objection-reframe', 'follow-up-cadence', 'status-update', 'loyalty-loop'],
-  'Customer pushed back': ['objection-reframe', 'parts-objection-defuser', 'signal-mapper'],
-  'I’m at numbers': ['desk-conversation', 'objection-reframe', 'signal-mapper'],
-  'Need to re-engage': ['signal-mapper', 'follow-up-cadence', 'status-update', 'loyalty-loop'],
-  'Just tell me what to do': ['signal-mapper', 'consistency-gap-check', 'objection-reframe'],
+  'Customer is stalling': ['objection-reframe', 'parts-objection-defuser', 'commitment-ladder'],
+  'Deal lost momentum': ['objection-reframe', 'follow-up-cadence', 'status-update', 'loyalty-loop'],
+  'Customer pushed back': ['objection-reframe', 'parts-objection-defuser', 'next-move-engine'],
+  'I’m at numbers': ['desk-conversation', 'objection-reframe', 'price-presentation'],
+  'Need to re-engage': ['follow-up-cadence', 'status-update', 'loyalty-loop', 'deal-recovery'],
+  'Just tell me what to do': ['consistency-gap-check', 'objection-reframe', 'next-move-engine'],
 };
 
 const ROLE_DETAIL_TOOL_PRIORITY: Record<RoleDetailSelection, string[]> = {
-  'Sales Consultant': ['objection-reframe', 'signal-mapper', 'follow-up-cadence', 'deal-recovery', 'commitment-ladder', 'next-move-engine'],
+  'Sales Consultant': ['objection-reframe', 'follow-up-cadence', 'deal-recovery', 'commitment-ladder', 'next-move-engine'],
   'Service Writer': ['clarity-check-builder', 'repair-trust-builder', 'repair-approval', 'status-update', 'waiter-update-flow', 'wait-experience-coach'],
-  manager: ['team-coaching-converter', 'desk-conversation', 'consistency-gap-check', 'consistency-leak-finder', 'signal-mapper'],
+  manager: ['team-coaching-converter', 'desk-conversation', 'consistency-gap-check', 'consistency-leak-finder', 'next-move-engine'],
   'Service Manager': ['consistency-gap-check', 'team-coaching-converter', 'repair-trust-builder', 'wait-experience-coach', 'status-update'],
   'Finance Manager': ['price-presentation', 'payment-comfort-mapper', 'objection-reframe', 'clarity-check-builder', 'desk-conversation'],
 };
@@ -412,10 +406,6 @@ export default function ToolsPage() {
   const displayName = (user?.name || '').trim().split(/\s+/)[0] || (user?.email || '');
   const featuredCta = ctaForFeaturedTool();
   const activeDraft = activeTool ? drafts[activeTool.id] || '' : '';
-  const signalMapperDraft = useMemo(
-    () => parseSignalMapperMicroDraft(activeDraft),
-    [activeDraft]
-  );
   const activeToolId = activeTool?.id ?? null;
   const isWorkspaceMode = !!activeToolId;
   const embeddedTheme = resolvedTheme === 'light' ? 'light' : 'dark';
@@ -1095,15 +1085,6 @@ export default function ToolsPage() {
     if (!entitlements.hasPaidAccess) {
       writeTempDraft(toolId, value);
     }
-  }
-
-  function handleSignalMapperFieldChange(field: keyof SignalMapperMicroDraft, value: string) {
-    if (!activeTool || activeTool.id !== 'signal-mapper') return;
-    const nextDraft = buildSignalMapperMicroDraft({
-      ...signalMapperDraft,
-      [field]: value,
-    });
-    handleDraftChange(activeTool.id, nextDraft);
   }
 
   function buildSprocketLayerOutput(input: string) {

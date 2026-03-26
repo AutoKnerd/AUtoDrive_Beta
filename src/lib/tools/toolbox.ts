@@ -178,12 +178,6 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
     roleSecondary.splice(0, roleSecondary.length, ...uniqueRoles([...SALES_ROLES, ...MANAGER_ROLES]));
   }
 
-  if (id.includes('signal-mapper')) {
-    skillTags = ['listening', 'trust', 'objection control'];
-    intentTags = ['Handle an objection', 'Recover a stalled deal'];
-    category = 'Objections';
-  }
-
   if (id.includes('objection') || id.includes('reframe') || id.includes('defuser')) {
     category = 'Objections';
   }
@@ -424,14 +418,6 @@ const TOOL_SEED: ToolSeed[] = [
     access: 'free',
     hasFullVersion: true,
     createdAt: '2026-03-26T09:00:00.000Z',
-  },
-  {
-    id: 'signal-mapper',
-    name: 'Signal Mapper',
-    description: 'Hear what they mean, then turn it into a close.',
-    access: 'free',
-    hasFullVersion: true,
-    createdAt: '2026-03-20T09:00:00.000Z',
   },
   {
     id: 'objection-reframe',
