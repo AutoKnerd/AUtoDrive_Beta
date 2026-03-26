@@ -1,10 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
-import type { User } from '@/lib/definitions';
+import type { Dealership, User } from '@/lib/definitions';
+import { resolveBillingAccess } from '@/lib/billing/access';
 import { getUserEntitlements, resolveAutoDriveCxAccess, resolvePaidAccess } from '@/lib/tools/entitlements';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+async function getDealershipSupport(user: User): Promise<boolean> {
+  const dealershipIds = Array.isArray(user.dealershipIds) ? user.dealershipIds.filter(Boolean) : [];
+  if (!dealershipIds.length) return false;
+
+  const adminDb = getAdminDb();
+  const refs = dealershipIds.map((id) => adminDb.collection('dealerships').doc(id));
+  const snaps = await adminDb.getAll(...refs);
+  const dealerships: Dealership[] = snaps
+    .filter((snap) => snap.exists)
+    .map((snap) => ({ id: snap.id, ...(snap.data() as Omit<Dealership, 'id'>) }));
+
+  const billing = resolveBillingAccess(user, dealerships);
+  return billing.accessGranted && billing.source === 'dealership';
+}
 
 async function requireAuth(req: NextRequest): Promise<{ uid: string; user: User } | NextResponse> {
   const authorization = req.headers.get('authorization') ?? req.headers.get('Authorization');
@@ -33,6 +49,7 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth(req);
     if (auth instanceof NextResponse) return auth;
+    const dealershipSupported = await getDealershipSupport(auth.user);
 
     const entitlements = getUserEntitlements({
       hasAccount: true,
@@ -40,10 +57,12 @@ export async function GET(req: NextRequest) {
         tier: auth.user.tier,
         subscriptionStatus: auth.user.subscriptionStatus,
         giftedFullAccess: Boolean(auth.user.toolboxGiftedFullAccess),
+        dealershipSupported,
       }),
       hasAutoDriveCX: resolveAutoDriveCxAccess({
         hasAutoDriveCX: auth.user.hasAutoDriveCX,
         giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+        dealershipSupported,
       }),
       toolsUsedCount: Number(auth.user.toolboxToolsUsedCount || 0),
     });

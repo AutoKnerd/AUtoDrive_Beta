@@ -336,11 +336,11 @@ export default function ToolsPage() {
   const tools = TOOLBOX_TOOLS;
   const featuredTool = useMemo(() => getFeaturedTool(tools), [tools]);
   const isAuthenticated = !!firebaseUser;
-  const isPaidUser = resolvePaidAccess({
+  const baseHasPaidAccess = resolvePaidAccess({
     tier: user?.tier,
     subscriptionStatus: user?.subscriptionStatus,
   });
-  const hasAutoDriveCX = Boolean(user?.hasAutoDriveCX);
+  const baseHasAutoDriveCX = Boolean(user?.hasAutoDriveCX);
 
   const {
     entitlements,
@@ -354,9 +354,10 @@ export default function ToolsPage() {
     checkFeature,
   } = useEntitlements({
     isAuthenticated,
-    hasPaidAccess: isPaidUser,
-    hasAutoDriveCX,
+    hasPaidAccess: baseHasPaidAccess,
+    hasAutoDriveCX: baseHasAutoDriveCX,
   });
+  const isPaidUser = entitlements.hasPaidAccess;
 
   const unlockedToolCount = useMemo(
     () => (entitlements.hasAccount ? tools.length : Math.min(3, tools.length)),
@@ -440,7 +441,7 @@ export default function ToolsPage() {
       recentCompletedToolIds: completedIds,
       savedToolIds: completedIds,
       lastCategoryUsed,
-      cxSignals: hasAutoDriveCX ? {
+      cxSignals: entitlements.hasAutoDriveCX ? {
         skillGaps: [
           ...(Number(user?.stats?.trust ?? 0) > 0 && Number(user?.stats?.trust ?? 0) < 60 ? ['trust'] : []),
           ...(Number(user?.stats?.listening ?? 0) > 0 && Number(user?.stats?.listening ?? 0) < 60 ? ['listening'] : []),
@@ -452,7 +453,7 @@ export default function ToolsPage() {
       } : null,
       recommendationEvents,
     });
-  }, [accessibleToolIds, accountProfile?.role, entitlements.hasAccount, entitlements.hasAutoDriveCX, hasAutoDriveCX, recentEntries, recommendationEvents, selectedIntentFilter, sessionOpenedToolIds, tools, usedToolIds, user?.role, user?.stats?.closing, user?.stats?.followUp, user?.stats?.listening, user?.stats?.trust]);
+  }, [accessibleToolIds, accountProfile?.role, entitlements.hasAccount, entitlements.hasAutoDriveCX, recentEntries, recommendationEvents, selectedIntentFilter, sessionOpenedToolIds, tools, usedToolIds, user?.role, user?.stats?.closing, user?.stats?.followUp, user?.stats?.listening, user?.stats?.trust]);
 
   const recommendedPrimaryTool = useMemo(
     () => tools.find((tool) => tool.id === recommendationResult.recommendations[0]?.toolId) || null,
@@ -1284,7 +1285,7 @@ export default function ToolsPage() {
         {!loading && !isAuthenticated && (
           <div className="pointer-events-none absolute right-4 top-3 z-40 flex items-center gap-2 md:right-6">
             <a
-              href="https://app.autodrivecx.com/login"
+              href="/login?next=%2Ftools"
               className="pointer-events-auto uppercase tracking-[0.08em] hover:brightness-110"
               style={mainSiteLoginButtonStyle}
             >
@@ -1898,14 +1899,14 @@ export default function ToolsPage() {
                   <Card className="border-[#263b5a] bg-[#0d192c]">
                     <CardHeader className="border-b border-[#203352] bg-[#111f35] py-4">
                       <CardTitle className="flex items-center justify-between text-base text-[#edf5ff]">
-                        <span>Toolbox</span>
+                        <span>AutoShop</span>
                         <Button
                           size="sm"
                           variant="ghost"
                           className="text-[#9eb3d1] hover:bg-[#1a2d49]"
                           onClick={() => setActiveTool(null)}
                         >
-                          Back to Toolbox
+                          Back to AutoShop
                         </Button>
                       </CardTitle>
                     </CardHeader>
@@ -1957,7 +1958,7 @@ export default function ToolsPage() {
                         className="w-full border-[#2f445f] bg-transparent text-[#dbe7fb] hover:bg-[#1a2d49]"
                         onClick={() => setActiveTool(null)}
                       >
-                        Back to Toolbox
+                        Back to AutoShop
                       </Button>
                     </CardContent>
                   </Card>
@@ -1979,7 +1980,7 @@ export default function ToolsPage() {
                             className="text-[#9eb3d1] hover:bg-[#1a2d49]"
                             onClick={() => setActiveTool(null)}
                           >
-                            ← Back to Toolbox
+                            ← Back to AutoShop
                           </Button>
                         </div>
                       </div>

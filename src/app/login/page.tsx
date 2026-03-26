@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { Logo } from '@/components/layout/logo';
 import { useAuth } from '@/hooks/use-auth';
@@ -11,13 +11,21 @@ import { Spinner } from '@/components/ui/spinner';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading } = useAuth();
+
+  const resolvePostLoginPath = (): string => {
+    const requested = searchParams.get('next')?.trim();
+    if (!requested) return '/';
+    if (!requested.startsWith('/') || requested.startsWith('//')) return '/';
+    return requested;
+  };
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/');
+      router.push(resolvePostLoginPath());
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, searchParams]);
   
     if (loading || user) {
     return (

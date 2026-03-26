@@ -43,7 +43,7 @@ export function EmailGateModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Your Free Tool Shop Account</DialogTitle>
+          <DialogTitle>Create Your Free AutoShop Account</DialogTitle>
           <DialogDescription>Add your email and role to keep going after 3 tools.</DialogDescription>
         </DialogHeader>
 

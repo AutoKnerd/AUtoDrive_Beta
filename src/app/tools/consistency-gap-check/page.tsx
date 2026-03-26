@@ -375,7 +375,7 @@ export default function ConsistencyGapCheckPage() {
 
   const handleSaveCloud = useCallback(async () => {
     if (!result) return;
-    if (!requireFeature(FEATURES.CLOUD_SAVE, 'Unlock paid Tool Shop access to sync scans and drift maps.')) return;
+    if (!requireFeature(FEATURES.CLOUD_SAVE, 'Unlock paid AutoShop access to sync scans and drift maps.')) return;
     if (!firebaseUser) {
       toast({ variant: 'destructive', title: 'Sign in required', description: 'Sign in to save this scan.' });
       return;
@@ -392,7 +392,7 @@ export default function ConsistencyGapCheckPage() {
 
     if (!response.ok) {
       if (response.code === 'PAYMENT_REQUIRED') {
-        setUpgradeContextMessage('Cloud saves require paid Tool Shop access.');
+        setUpgradeContextMessage('Cloud saves require paid AutoShop access.');
         setGateModalType('paid');
       }
       toast({ variant: 'destructive', title: response.message });
@@ -446,7 +446,7 @@ export default function ConsistencyGapCheckPage() {
           <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
             <Link href="/tools">
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Tool Shop
+              AutoShop
             </Link>
           </Button>
           <Badge className="border border-[#00d8e5]/40 bg-[#00f2ff]/10 text-[#6eeef8]">AutoDriveCX</Badge>

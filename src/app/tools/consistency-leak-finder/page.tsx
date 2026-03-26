@@ -329,7 +329,7 @@ function ConsistencyLeakFinderPageContent() {
     if (gate.gate === 'paid') {
       toast({
         title: 'Upgrade required',
-        description: 'Sprocket is unlocked with paid Tool Shop access.',
+        description: 'Sprocket is unlocked with paid AutoShop access.',
       });
       window.open(FULL_TOOL_URL, '_blank', 'noopener,noreferrer');
       return;

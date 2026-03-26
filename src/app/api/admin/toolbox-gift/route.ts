@@ -124,6 +124,6 @@ export async function POST(req: NextRequest) {
       },
     }, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json({ message: error?.message || 'Failed to gift Tool Shop access.' }, { status: 500 });
+    return NextResponse.json({ message: error?.message || 'Failed to gift AutoShop access.' }, { status: 500 });
   }
 }

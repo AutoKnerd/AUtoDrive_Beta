@@ -283,7 +283,7 @@ export default function NextMoveEnginePage() {
 
     if (!result.ok) {
       if (result.code === 'PAYMENT_REQUIRED') {
-        setUpgradeContextMessage('Cloud saves are unlocked with paid Tool Shop access.');
+        setUpgradeContextMessage('Cloud saves are unlocked with paid AutoShop access.');
         setGateModalType('paid');
       }
       toast({ variant: 'destructive', title: result.message });
@@ -383,7 +383,7 @@ export default function NextMoveEnginePage() {
           <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
             <Link href="/tools">
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Tool Shop
+              AutoShop
             </Link>
           </Button>
           <Badge className="border border-[#00d8e5]/40 bg-[#00f2ff]/10 text-[#6eeef8]">AutoDriveCX</Badge>

@@ -2,7 +2,8 @@ import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ToolboxSavedEntry } from '@/lib/tools/toolbox';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
-import type { User } from '@/lib/definitions';
+import type { Dealership, User } from '@/lib/definitions';
+import { resolveBillingAccess } from '@/lib/billing/access';
 import {
   canAccessFeature,
   FEATURES,
@@ -19,11 +20,27 @@ type AuthContext = {
   user: User;
 };
 
-function resolveTier(user: Partial<User> & { tier?: 'free' | 'pro' }): 'free' | 'pro' {
+async function getDealershipSupport(user: User): Promise<boolean> {
+  const dealershipIds = Array.isArray(user.dealershipIds) ? user.dealershipIds.filter(Boolean) : [];
+  if (!dealershipIds.length) return false;
+
+  const adminDb = getAdminDb();
+  const refs = dealershipIds.map((id) => adminDb.collection('dealerships').doc(id));
+  const snaps = await adminDb.getAll(...refs);
+  const dealerships: Dealership[] = snaps
+    .filter((snap) => snap.exists)
+    .map((snap) => ({ id: snap.id, ...(snap.data() as Omit<Dealership, 'id'>) }));
+
+  const billing = resolveBillingAccess(user, dealerships);
+  return billing.accessGranted && billing.source === 'dealership';
+}
+
+function resolveTier(user: Partial<User> & { tier?: 'free' | 'pro' }, dealershipSupported = false): 'free' | 'pro' {
   return resolvePaidAccess({
     tier: user.tier,
     subscriptionStatus: user.subscriptionStatus,
     giftedFullAccess: Boolean(user.toolboxGiftedFullAccess),
+    dealershipSupported,
   }) ? 'pro' : 'free';
 }
 
@@ -58,18 +75,20 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth(req);
     if (auth instanceof NextResponse) return auth;
+    const dealershipSupported = await getDealershipSupport(auth.user);
     const entitlements = getUserEntitlements({
       hasAccount: true,
-      hasPaidAccess: resolveTier(auth.user as User & { tier?: 'free' | 'pro' }) === 'pro',
+      hasPaidAccess: resolveTier(auth.user as User & { tier?: 'free' | 'pro' }, dealershipSupported) === 'pro',
       hasAutoDriveCX: resolveAutoDriveCxAccess({
         hasAutoDriveCX: auth.user.hasAutoDriveCX,
         giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+        dealershipSupported,
       }),
       toolsUsedCount: Number(auth.user.toolboxToolsUsedCount || 0),
     });
     if (!canAccessFeature(entitlements, FEATURES.HISTORY)) {
       return NextResponse.json(
-        { ok: false, message: 'Saved history requires paid Tool Shop access.', code: 'PAYMENT_REQUIRED' },
+        { ok: false, message: 'Saved history requires paid AutoShop access.', code: 'PAYMENT_REQUIRED' },
         { status: 402 }
       );
     }
@@ -91,6 +110,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(req);
     if (auth instanceof NextResponse) return auth;
+    const dealershipSupported = await getDealershipSupport(auth.user);
 
     const body = await req.json().catch(() => null);
     const toolId = String(body?.toolId || '').trim();
@@ -102,16 +122,17 @@ export async function POST(req: NextRequest) {
 
     const entitlements = getUserEntitlements({
       hasAccount: true,
-      hasPaidAccess: resolveTier(auth.user as User & { tier?: 'free' | 'pro' }) === 'pro',
+      hasPaidAccess: resolveTier(auth.user as User & { tier?: 'free' | 'pro' }, dealershipSupported) === 'pro',
       hasAutoDriveCX: resolveAutoDriveCxAccess({
         hasAutoDriveCX: auth.user.hasAutoDriveCX,
         giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+        dealershipSupported,
       }),
       toolsUsedCount: Number(auth.user.toolboxToolsUsedCount || 0),
     });
     if (!canAccessFeature(entitlements, FEATURES.CLOUD_SAVE)) {
       return NextResponse.json(
-        { ok: false, message: 'Cloud saves require paid Tool Shop access.', code: 'PAYMENT_REQUIRED' },
+        { ok: false, message: 'Cloud saves require paid AutoShop access.', code: 'PAYMENT_REQUIRED' },
         { status: 402 }
       );
     }

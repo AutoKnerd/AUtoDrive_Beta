@@ -59,6 +59,7 @@ export async function POST(
       disableManagementPrivateDataViewing: false,
       enablePppProtocol: false,
       enableSaasPppTraining: false,
+      enableToolboxAccess: true,
       billingTier: 'sales_fi',
       billingSubscriptionStatus: 'trialing',
       billingTrialStartedAt: trialWindow.trialStartedAt,

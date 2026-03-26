@@ -68,7 +68,9 @@ export function resolvePaidAccess(input: {
   tier?: 'free' | 'pro';
   subscriptionStatus?: BillingSubscriptionStatus | null;
   giftedFullAccess?: boolean;
+  dealershipSupported?: boolean;
 }): boolean {
+  if (input.dealershipSupported) return true;
   if (input.giftedFullAccess) return true;
   if (input.tier === 'pro') return true;
   return hasActiveSubscriptionStatus(input.subscriptionStatus ?? null);
@@ -77,8 +79,9 @@ export function resolvePaidAccess(input: {
 export function resolveAutoDriveCxAccess(input: {
   hasAutoDriveCX?: boolean;
   giftedFullAccess?: boolean;
+  dealershipSupported?: boolean;
 }): boolean {
-  return Boolean(input.hasAutoDriveCX || input.giftedFullAccess);
+  return Boolean(input.dealershipSupported || input.hasAutoDriveCX || input.giftedFullAccess);
 }
 
 export function getUserEntitlements(input: {
@@ -158,7 +161,7 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
       return blocked(feature, 'account', 'first_sprocket_use', 'Create your free account to continue with Sprocket.');
     }
     if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_sprocket_use', 'Sprocket is included with paid Tool Shop access.');
+      return blocked(feature, 'paid', 'first_sprocket_use', 'Sprocket is included with paid AutoShop access.');
     }
     return allowed(feature);
   }
@@ -168,7 +171,7 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
       return blocked(feature, 'account', 'first_cloud_save', 'Add your email and role to save your work.');
     }
     if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_cloud_save', 'Cloud saves require paid Tool Shop access.');
+      return blocked(feature, 'paid', 'first_cloud_save', 'Cloud saves require paid AutoShop access.');
     }
     return allowed(feature);
   }
@@ -178,7 +181,7 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
       return blocked(feature, 'account', 'first_history_access', 'Add your email and role to access history.');
     }
     if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_history_access', 'Saved history requires paid Tool Shop access.');
+      return blocked(feature, 'paid', 'first_history_access', 'Saved history requires paid AutoShop access.');
     }
     return allowed(feature);
   }
@@ -188,7 +191,7 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
   }
 
   if (!entitlements.hasPaidAccess) {
-    return blocked(feature, 'paid', 'first_cx_insight', 'Paid Tool Shop access is required before CX insights.');
+    return blocked(feature, 'paid', 'first_cx_insight', 'Paid AutoShop access is required before CX insights.');
   }
 
   if (!canAccessFeature(entitlements, feature)) {

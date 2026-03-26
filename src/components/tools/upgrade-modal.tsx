@@ -16,7 +16,7 @@ export function UpgradeModal({ open, loading = false, contextMessage, onOpenChan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Unlock Your Full Toolbox</DialogTitle>
+          <DialogTitle>Unlock Your Full AutoShop</DialogTitle>
           <DialogDescription>Don&apos;t lose momentum. Turn every conversation into a system.</DialogDescription>
         </DialogHeader>
 

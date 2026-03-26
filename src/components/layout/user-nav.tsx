@@ -276,7 +276,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => router.push('/tools')}>
                 <Zap className="mr-2 h-4 w-4" />
-                <span>ToolBox</span>
+                <span>AutoShop</span>
             </DropdownMenuItem>
             {consultantReferralCode && (
               <>

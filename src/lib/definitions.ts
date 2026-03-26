@@ -560,6 +560,7 @@ export type Dealership = {
   disableManagementPrivateDataViewing?: boolean;
   enablePppProtocol?: boolean;
   enableSaasPppTraining?: boolean;
+  enableToolboxAccess?: boolean;
   billingTier?: DealershipBillingTier;
   billingSubscriptionStatus?: BillingSubscriptionStatus;
   billingTrialStartedAt?: string | null;

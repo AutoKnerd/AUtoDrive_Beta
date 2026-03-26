@@ -37,6 +37,7 @@ export function hasActiveSubscriptionStatus(status?: BillingSubscriptionStatus |
 
 function hasDealershipAccess(dealership?: Dealership | null): boolean {
   if (!dealership) return false;
+  if (dealership.enableToolboxAccess === false) return false;
   const status = normalizeStatus(dealership.billingSubscriptionStatus);
   if (status === 'active' || status === 'past_due') return true;
   if (status === 'trialing') return isTrialActive(dealership.billingTrialEndsAt || null);

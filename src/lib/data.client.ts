@@ -1058,6 +1058,7 @@ export async function createDealership(dealershipData: {
             disableManagementPrivateDataViewing: false,
             enablePppProtocol: false,
             enableSaasPppTraining: false,
+            enableToolboxAccess: true,
             billingTier: 'sales_fi',
             billingSubscriptionStatus: 'trialing',
             billingTrialStartedAt: trialWindow.trialStartedAt,
@@ -4369,6 +4370,39 @@ export async function updateDealershipSaasPppAccess(
             path: dealershipRef.path,
             operation: 'update',
             requestResourceData: { enableSaasPppTraining: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+export async function updateDealershipToolboxAccess(
+    dealershipId: string,
+    enabled: boolean
+): Promise<Dealership> {
+    const { firestore: db } = getFirebase();
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.enableToolboxAccess = enabled;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    const dealershipsCollection = collection(db, 'dealerships');
+    const dealershipRef = doc(dealershipsCollection, dealershipId);
+
+    try {
+        await updateDoc(dealershipRef, { enableToolboxAccess: enabled });
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: { enableToolboxAccess: enabled },
         });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;
