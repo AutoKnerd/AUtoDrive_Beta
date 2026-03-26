@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   TEST_DRIVE_ENERGY,
   TEST_DRIVE_NEXT_GOALS,
@@ -239,7 +240,7 @@ export default function TestDriveDebriefPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper debrief optimization.')) return;
-    setSprocketOutput(getSprocketTestDriveDebriefEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketTestDriveDebriefEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

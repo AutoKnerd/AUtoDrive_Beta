@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const DESK_INVOLVEMENT_REASONS = [
   'price objection',
@@ -230,10 +231,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const leadership = Number(stats?.closing ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const tone = Number(stats?.listening ?? 60);
-  const coaching = Number(stats?.followUp ?? 60);
+  const leadership = readCxStatScore(stats?.closing, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const tone = readCxStatScore(stats?.listening, 60);
+  const coaching = readCxStatScore(stats?.followUp, 60);
 
   return {
     leadershipLow: leadership > 0 && leadership < 55,

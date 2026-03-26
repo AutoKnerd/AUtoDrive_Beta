@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   CLARITY_CHECK_STAGES,
   CLARITY_CONFUSION_AREAS,
@@ -235,7 +236,7 @@ export default function ClarityCheckBuilderPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper confusion diagnosis.')) return;
-    setSprocketOutput(getSprocketClarityCheckEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketClarityCheckEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   SPECIAL_ORDER_CHECKPOINTS,
   SPECIAL_ORDER_CUSTOMER_STYLES,
@@ -241,7 +242,7 @@ export default function SpecialOrderConfidenceBuilderPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for stronger reassurance and uncertainty coaching.')) return;
-    setSprocketOutput(getSprocketSpecialOrderEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketSpecialOrderEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

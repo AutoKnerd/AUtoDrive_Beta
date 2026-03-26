@@ -25,6 +25,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   CUSTOMER_MINDSETS,
   CUSTOMER_STATUSES,
@@ -248,7 +249,7 @@ export default function DealRecoveryPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper recovery diagnosis and coaching.')) return;
-    setSprocketOutput(getSprocketDealRecoveryEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketDealRecoveryEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

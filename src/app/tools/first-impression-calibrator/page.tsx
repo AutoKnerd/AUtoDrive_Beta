@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   FIRST_IMPRESSION_COMFORT_READS,
   FIRST_IMPRESSION_PACE,
@@ -243,7 +244,7 @@ export default function FirstImpressionCalibratorPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper first-impression diagnosis.')) return;
-    setSprocketOutput(getSprocketFirstImpressionEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketFirstImpressionEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

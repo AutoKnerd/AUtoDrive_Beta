@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const PICKUP_IMPRESSIONS = [
   'efficient',
@@ -198,10 +199,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const clarity = Number(stats?.listening ?? 60);
-  const tone = Number(stats?.closing ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const followThrough = Number(stats?.followUp ?? 60);
+  const clarity = readCxStatScore(stats?.listening, 60);
+  const tone = readCxStatScore(stats?.closing, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const followThrough = readCxStatScore(stats?.followUp, 60);
 
   return {
     clarityLow: clarity > 0 && clarity < 55,

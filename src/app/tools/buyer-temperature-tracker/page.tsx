@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   BUYER_TEMPERATURE_STAGES,
   getAutoDriveCxBuyerTemperatureEnhancement,
@@ -289,7 +290,7 @@ export default function BuyerTemperatureTrackerPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper momentum diagnosis.')) return;
-    setSprocketOutput(getSprocketBuyerTemperatureEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketBuyerTemperatureEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

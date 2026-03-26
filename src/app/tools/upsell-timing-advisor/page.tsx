@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   UPSELL_CUSTOMER_MINDSETS,
   UPSELL_REPAIR_CATEGORIES,
@@ -243,7 +244,7 @@ export default function UpsellTimingAdvisorPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper readiness and timing coaching.')) return;
-    setSprocketOutput(getSprocketUpsellTimingEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketUpsellTimingEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

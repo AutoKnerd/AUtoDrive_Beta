@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const LOYALTY_GOALS = [
   'referral generation',
@@ -295,10 +296,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const trust = Number(stats?.trust ?? 60);
-  const followUp = Number(stats?.followUp ?? 60);
-  const tone = Number(stats?.listening ?? 60);
-  const referralConfidence = Number(stats?.closing ?? 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const followUp = readCxStatScore(stats?.followUp, 60);
+  const tone = readCxStatScore(stats?.listening, 60);
+  const referralConfidence = readCxStatScore(stats?.closing, 60);
 
   return {
     trustLow: trust > 0 && trust < 55,

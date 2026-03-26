@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   REPAIR_TRUST_PROOF_POINTS,
   REPAIR_TRUST_TYPES,
@@ -254,7 +255,7 @@ export default function RepairTrustBuilderPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper trust-barrier diagnosis and proof sequencing.')) return;
-    setSprocketOutput(getSprocketRepairTrustEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketRepairTrustEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

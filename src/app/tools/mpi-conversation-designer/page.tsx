@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   MPI_CUSTOMER_ATTITUDES,
   MPI_ITEM_LEVELS,
@@ -255,7 +256,7 @@ export default function MpiConversationDesignerPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for sharper MPI sequencing and wording.')) return;
-    setSprocketOutput(getSprocketMpiConversationEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketMpiConversationEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

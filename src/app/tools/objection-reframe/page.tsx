@@ -26,6 +26,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   OBJECTION_TYPES,
   getAutoDriveCxObjectionRecommendation,
@@ -295,7 +296,7 @@ export default function ObjectionReframePage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper objection interpretation.')) return;
-    setSprocketOutput(getSprocketObjectionRecommendation(input, baseRecommendation));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketObjectionRecommendation(input, baseRecommendation), user));
   }, [baseRecommendation, input, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

@@ -53,6 +53,7 @@ import {
   trackRecommendationEventServer,
 } from '@/lib/tools/toolbox-client';
 import { getRecommendedTools } from '@/lib/tools/recommendation';
+import { readUserCxStatScore } from '@/lib/tools/cx-stats';
 import { allRoles, type UserRole } from '@/lib/definitions';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -185,6 +186,26 @@ const TOOL_INTENT_ACTIONS: Record<ToolIntentTag, string> = {
   'Recover a stalled deal': 'Revive a dead deal',
   'Improve consistency': 'Get more consistent',
   'Coach the team': 'Coach my team now',
+};
+
+type CxScoreKey = 'empathy' | 'listening' | 'trust' | 'followUp' | 'closing' | 'relationship';
+
+const CX_SCORE_LABELS: Record<CxScoreKey, string> = {
+  empathy: 'Empathy',
+  listening: 'Listening',
+  trust: 'Trust',
+  followUp: 'Follow-Up',
+  closing: 'Closing',
+  relationship: 'Relationship',
+};
+
+const CX_SCORE_TAG_MATCHERS: Record<CxScoreKey, string[]> = {
+  empathy: ['empathy'],
+  listening: ['listening', 'clarity', 'tone', 'pacing'],
+  trust: ['trust', 'objection', 'transparency'],
+  followUp: ['follow-up', 'follow up', 'followup', 'consistency'],
+  closing: ['closing', 'commitment', 'leadership', 'coaching', 'control'],
+  relationship: ['relationship', 'loyalty'],
 };
 
 const TOOL_CONTENT_UPGRADES: Record<string, { triggers: string[]; tag: string; authorityLabel: string; roleDescription: string; bestUsedWhen?: string[] }> = {
@@ -429,6 +450,14 @@ export default function ToolsPage() {
     const openedIds = sessionOpenedToolIds.length > 0 ? sessionOpenedToolIds : usedToolIds;
     const lastOpenedTool = [...openedIds].reverse().find((toolId) => tools.some((tool) => tool.id === toolId));
     const lastCategoryUsed = tools.find((tool) => tool.id === lastOpenedTool)?.category || null;
+    const cxScores = {
+      empathy: readUserCxStatScore(user, 'empathy'),
+      listening: readUserCxStatScore(user, 'listening'),
+      trust: readUserCxStatScore(user, 'trust'),
+      followUp: readUserCxStatScore(user, 'followUp'),
+      closing: readUserCxStatScore(user, 'closing'),
+      relationship: readUserCxStatScore(user, 'relationship'),
+    };
 
     return getRecommendedTools({
       tools,
@@ -443,17 +472,26 @@ export default function ToolsPage() {
       lastCategoryUsed,
       cxSignals: entitlements.hasAutoDriveCX ? {
         skillGaps: [
-          ...(Number(user?.stats?.trust ?? 0) > 0 && Number(user?.stats?.trust ?? 0) < 60 ? ['trust'] : []),
-          ...(Number(user?.stats?.listening ?? 0) > 0 && Number(user?.stats?.listening ?? 0) < 60 ? ['listening'] : []),
-          ...(Number(user?.stats?.followUp ?? 0) > 0 && Number(user?.stats?.followUp ?? 0) < 60 ? ['follow-up'] : []),
-          ...(Number(user?.stats?.closing ?? 0) > 0 && Number(user?.stats?.closing ?? 0) < 60 ? ['closing'] : []),
+          ...(cxScores.trust < 60 ? ['trust'] : []),
+          ...(cxScores.listening < 60 ? ['listening'] : []),
+          ...(cxScores.followUp < 60 ? ['follow-up'] : []),
+          ...(cxScores.closing < 60 ? ['closing'] : []),
+          ...(cxScores.empathy < 60 ? ['empathy'] : []),
+          ...(cxScores.relationship < 60 ? ['relationship'] : []),
         ],
-        coachingSignals: [],
-        performanceWeaknesses: [],
+        coachingSignals: [
+          ...(cxScores.listening < 55 ? ['question-led listening'] : []),
+          ...(cxScores.trust < 55 ? ['transparency framing'] : []),
+          ...(cxScores.closing < 55 ? ['commitment confidence'] : []),
+        ],
+        performanceWeaknesses: [
+          ...(cxScores.followUp < 55 ? ['follow-up consistency'] : []),
+          ...(cxScores.relationship < 55 ? ['relationship consistency'] : []),
+        ],
       } : null,
       recommendationEvents,
     });
-  }, [accessibleToolIds, accountProfile?.role, entitlements.hasAccount, entitlements.hasAutoDriveCX, recentEntries, recommendationEvents, selectedIntentFilter, sessionOpenedToolIds, tools, usedToolIds, user?.role, user?.stats?.closing, user?.stats?.followUp, user?.stats?.listening, user?.stats?.trust]);
+  }, [accessibleToolIds, accountProfile?.role, entitlements.hasAccount, entitlements.hasAutoDriveCX, recentEntries, recommendationEvents, selectedIntentFilter, sessionOpenedToolIds, tools, usedToolIds, user]);
 
   const recommendedPrimaryTool = useMemo(
     () => tools.find((tool) => tool.id === recommendationResult.recommendations[0]?.toolId) || null,
@@ -469,6 +507,21 @@ export default function ToolsPage() {
   const recommendedToolIdSet = useMemo(
     () => new Set(recommendationResult.recommendations.map((row) => row.toolId)),
     [recommendationResult.recommendations]
+  );
+  const recommendationByToolId = useMemo(
+    () => new Map(recommendationResult.recommendations.map((row) => [row.toolId, row] as const)),
+    [recommendationResult.recommendations]
+  );
+  const cxScores = useMemo(
+    () => ({
+      empathy: readUserCxStatScore(user, 'empathy'),
+      listening: readUserCxStatScore(user, 'listening'),
+      trust: readUserCxStatScore(user, 'trust'),
+      followUp: readUserCxStatScore(user, 'followUp'),
+      closing: readUserCxStatScore(user, 'closing'),
+      relationship: readUserCxStatScore(user, 'relationship'),
+    }),
+    [user]
   );
   const diagnosisPriorityToolIds = useMemo(
     () => (selectedDiagnosis ? DIAGNOSIS_TOOL_PRIORITY[selectedDiagnosis] || [] : []),
@@ -575,6 +628,25 @@ export default function ToolsPage() {
 
     if (intentLabel) return `Useful when teams need support around ${intentLabel}.`;
     return 'Helps recover momentum when deals stall.';
+  }
+
+  function getRecommendationStatBadge(tool: ToolConfig): string | null {
+    if (!entitlements.hasAutoDriveCX) return null;
+    if (!recommendedToolIdSet.has(tool.id)) return null;
+
+    const normalizedTags = tool.skillTags.map((tag) => tag.toLowerCase());
+    const rankedKeys = (Object.keys(CX_SCORE_LABELS) as CxScoreKey[])
+      .sort((a, b) => cxScores[a] - cxScores[b]);
+
+    for (const key of rankedKeys) {
+      if (cxScores[key] >= 60) continue;
+      const matchesTool = CX_SCORE_TAG_MATCHERS[key]
+        .some((pattern) => normalizedTags.some((tag) => tag.includes(pattern)));
+      if (!matchesTool) continue;
+      return `Low ${CX_SCORE_LABELS[key]} score detected`;
+    }
+
+    return null;
   }
 
 
@@ -1093,6 +1165,19 @@ export default function ToolsPage() {
     const lowConfidence = /(maybe|not sure|i think|probably|guess)/i.test(normalized);
     const priceFriction = /(price|payment|budget|cost)/i.test(normalized);
     const trustFriction = /(trust|concern|hesitat|nervous|unsure)/i.test(normalized);
+    const cxScores = [
+      { label: 'Empathy', score: readUserCxStatScore(user, 'empathy') },
+      { label: 'Listening', score: readUserCxStatScore(user, 'listening') },
+      { label: 'Trust', score: readUserCxStatScore(user, 'trust') },
+      { label: 'Follow-Up', score: readUserCxStatScore(user, 'followUp') },
+      { label: 'Closing', score: readUserCxStatScore(user, 'closing') },
+      { label: 'Relationship', score: readUserCxStatScore(user, 'relationship') },
+    ].sort((a, b) => a.score - b.score);
+    const weakest = cxScores[0];
+    const hasCxGap = entitlements.hasAutoDriveCX && weakest.score < 60;
+    const cxOverlay = hasCxGap
+      ? ` CX signal: ${weakest.label} is low (${Math.round(weakest.score)}), so lead with that correction first.`
+      : '';
 
     const diagnosis = trustFriction
       ? 'Trust friction is the main blocker. The customer language suggests low certainty before commitment.'
@@ -1112,8 +1197,8 @@ export default function ToolsPage() {
         'Ask for agreement before moving to details.',
         'Set one explicit time-bound follow-up.',
       ],
-      coaching: 'Lead with clarity, then confirmation, then commitment. Avoid jumping to details before alignment.',
-      prioritization: trustFriction ? 'Priority: trust -> clarity -> close' : 'Priority: clarity -> value -> close',
+      coaching: `Lead with clarity, then confirmation, then commitment. Avoid jumping to details before alignment.${cxOverlay}`,
+      prioritization: `${trustFriction ? 'Priority: trust -> clarity -> close' : 'Priority: clarity -> value -> close'}${hasCxGap ? ` | CX: ${weakest.label}` : ''}`,
     };
   }
 
@@ -1121,17 +1206,25 @@ export default function ToolsPage() {
     const normalized = input.trim().toLowerCase();
     const followUpGap = /(follow|later|tomorrow|next week)/.test(normalized);
     const listeningGap = /(i told|already said|again)/.test(normalized);
+    const followUpScore = readUserCxStatScore(user, 'followUp');
+    const listeningScore = readUserCxStatScore(user, 'listening');
+    const trustScore = readUserCxStatScore(user, 'trust');
+    const weakest = [
+      { label: 'Follow-up reliability', score: followUpScore },
+      { label: 'Listening precision', score: listeningScore },
+      { label: 'Trust framing', score: trustScore },
+    ].sort((a, b) => a.score - b.score)[0];
 
     return {
       insight: followUpGap
-        ? 'Pattern trend: follow-up timing drift is reducing momentum.'
-        : 'Pattern trend: next-step clarity is the highest leverage behavior.',
+        ? `Pattern trend: follow-up timing drift is reducing momentum. AutoDriveCX score signal: ${weakest.label} (${Math.round(weakest.score)}).`
+        : `Pattern trend: next-step clarity is the highest leverage behavior. AutoDriveCX score signal: ${weakest.label} (${Math.round(weakest.score)}).`,
       personalization: listeningGap
         ? 'Personalized coaching: mirror customer language once before advancing the conversation.'
         : 'Personalized coaching: tighten next-step statements to one action and one time.',
       focus: [
-        followUpGap ? 'Follow-up reliability' : 'Next-step precision',
-        listeningGap ? 'Listening effectiveness' : 'Tone and pacing consistency',
+        followUpGap || followUpScore < 58 ? 'Follow-up reliability' : 'Next-step precision',
+        listeningGap || listeningScore < 58 ? 'Listening effectiveness' : 'Tone and pacing consistency',
         'Trust-building micro-commitments',
       ],
     };
@@ -1295,7 +1388,7 @@ export default function ToolsPage() {
         )}
 
         <main className="mx-auto w-full max-w-7xl space-y-6 p-4 md:space-y-8 md:p-6 lg:p-8">
-          <section className="space-y-4 transition-all duration-200">
+          <section className="relative space-y-4 transition-all duration-200">
             <div
               className={cn(
                 'flex flex-wrap items-center justify-between gap-3 transition-all duration-200',
@@ -1598,6 +1691,8 @@ export default function ToolsPage() {
                     {useRightNowTools.map((tool) => {
                       const hasAccess = canOpenTool(tool);
                       const accentColor = getToolAccentColor(tool);
+                      const recommendation = recommendationByToolId.get(tool.id);
+                      const recommendationStatBadge = getRecommendationStatBadge(tool);
                       return (
                         <Card
                           key={tool.id}
@@ -1633,6 +1728,18 @@ export default function ToolsPage() {
                                 <span className="h-1 w-1 rounded-full" style={{ backgroundColor: accentColor }} />
                                 {getToolRoleDescription(tool)}
                               </p>
+                              {recommendation && (
+                                <div className="mt-2 space-y-1">
+                                  <p className="text-[10px] font-semibold text-[#9db0cb]">
+                                    Why recommended: {recommendation.reasonText}
+                                  </p>
+                                  {recommendationStatBadge && (
+                                    <Badge className="border border-[#76ff8f]/40 bg-[#76ff8f]/10 text-[#b4ffbf] text-[9px] uppercase tracking-widest">
+                                      {recommendationStatBadge}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-4 p-5 pt-0">
@@ -1811,6 +1918,8 @@ export default function ToolsPage() {
                               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 {groupTools.map((tool) => {
                                   const hasAccess = canOpenTool(tool);
+                                  const recommendation = recommendationByToolId.get(tool.id);
+                                  const recommendationStatBadge = getRecommendationStatBadge(tool);
                                   return (
                                     <Card
                                       key={tool.id}
@@ -1827,6 +1936,18 @@ export default function ToolsPage() {
                                           </p>
                                         </div>
                                         <CardTitle className="text-sm font-black text-[#f2f8ff] tracking-tight">{tool.name}</CardTitle>
+                                        {recommendation && (
+                                          <div className="mt-2 space-y-1">
+                                            <p className="text-[10px] font-semibold text-[#9db0cb] line-clamp-2">
+                                              Why recommended: {recommendation.reasonText}
+                                            </p>
+                                            {recommendationStatBadge && (
+                                              <Badge className="w-fit border border-[#76ff8f]/40 bg-[#76ff8f]/10 text-[#b4ffbf] text-[9px] uppercase tracking-widest">
+                                                {recommendationStatBadge}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        )}
                                       </CardHeader>
                                       <CardContent className="flex flex-1 flex-col space-y-3 p-4 pt-0">
                                         <div className="space-y-1">

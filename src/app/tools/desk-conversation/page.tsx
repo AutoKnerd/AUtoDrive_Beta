@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   DESK_CUSTOMER_POSTURES,
   DESK_INVOLVEMENT_REASONS,
@@ -239,7 +240,7 @@ export default function DeskConversationPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper desk-entry coaching.')) return;
-    setSprocketOutput(getSprocketDeskConversationEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketDeskConversationEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

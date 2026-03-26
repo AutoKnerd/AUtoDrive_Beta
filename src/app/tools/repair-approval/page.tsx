@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   REPAIR_CATEGORIES,
   REPAIR_CUSTOMER_MINDSETS,
@@ -239,7 +240,7 @@ export default function RepairApprovalPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper approval coaching.')) return;
-    setSprocketOutput(getSprocketRepairApprovalEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketRepairApprovalEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

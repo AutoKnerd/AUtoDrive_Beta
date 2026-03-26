@@ -1,489 +1,445 @@
-import type { User } from '@/lib/definitions';
+import type { User, UserRole } from '@/lib/definitions';
+import { allRoles } from '@/lib/definitions';
+import { readCxStatScoreOrNull } from '@/lib/tools/cx-stats';
 
-export const CONSISTENCY_ROLES = [
-  'Sales Consultant',
-  'manager',
-  'Trainer',
+export const CONSISTENCY_ROLES = allRoles;
+
+export const CONSISTENCY_EVALUATION_BASIS = [
+  'Today',
+  'This week',
+  'Recent deals',
+  'Team observation',
 ] as const;
 
-export const CONSISTENCY_TIMEFRAMES = [
-  'Last 3 days',
-  'Last 7 days',
-  'Last 14 days',
-  'Last 30 days',
-] as const;
+export type ConsistencyRole = UserRole;
+export type ConsistencyEvaluationBasis = typeof CONSISTENCY_EVALUATION_BASIS[number];
 
-export const CONSISTENCY_THEMES = [
-  'greeting_consistency',
-  'discovery_retention',
-  'expectation_setting',
-  'confidence_under_pressure',
-  'customer_clarity',
-  'follow_through',
-  'old_habit_relapse',
-  'manager_visibility',
-  'team_experience_consistency',
-] as const;
+export type ConsistencyInputStyle = 'segmented' | 'slider' | 'chips' | 'cards';
 
-export const CONSISTENCY_MODULES = [
-  {
-    id: 'quick_pulse',
-    title: 'Quick Pulse',
-    subtitle: 'Instinctive read on core behaviors',
-    style: 'cards',
-  },
-  {
-    id: 'pressure_test',
-    title: 'Pressure Test',
-    subtitle: 'What holds when real pushback shows up',
-    style: 'scenario',
-  },
-  {
-    id: 'habit_drift',
-    title: 'Habit Drift Scan',
-    subtitle: 'Spot relapses and shortcuts quickly',
-    style: 'slider',
-  },
-  {
-    id: 'team_visibility',
-    title: 'Team Consistency / Visibility',
-    subtitle: 'Check reinforcement visibility across people',
-    style: 'status',
-  },
-] as const;
-
-export type ConsistencyRole = typeof CONSISTENCY_ROLES[number];
-export type ConsistencyTimeframe = typeof CONSISTENCY_TIMEFRAMES[number];
-export type ConsistencyTheme = typeof CONSISTENCY_THEMES[number];
-export type ConsistencyBand = 'Sticking' | 'Wobbling' | 'Fading' | 'Needs Reinforcement';
-export type ConsistencyModuleId = typeof CONSISTENCY_MODULES[number]['id'];
-
-export type ConsistencyPromptOption = {
+export type ConsistencyInputOption = {
   key: string;
   label: string;
-  score: 1 | 2 | 3 | 4;
+  score: 1 | 2 | 3;
 };
 
-export type ConsistencyPrompt = {
+export type ConsistencyCategory = {
   id: string;
-  moduleId: ConsistencyModuleId;
-  themes: ConsistencyTheme[];
-  roleText: Record<ConsistencyRole, string>;
-  options: readonly ConsistencyPromptOption[];
+  title: string;
+  behaviorLabel: string;
+  description: string;
+  inputStyle: ConsistencyInputStyle;
+  options: readonly ConsistencyInputOption[];
 };
 
-export type ConsistencyResponses = Partial<Record<string, string>>;
+export const CONSISTENCY_CATEGORIES = [
+  {
+    id: 'first_impression',
+    title: 'First Impression / Greeting Consistency',
+    behaviorLabel: 'Greeting consistency',
+    description: 'Are you opening with the same trust-building structure each time?',
+    inputStyle: 'segmented',
+    options: [
+      { key: 'locked_in', label: 'Locked In', score: 3 },
+      { key: 'pulling_right', label: 'Pulling Right', score: 2 },
+      { key: 'off_track', label: 'Off Track', score: 1 },
+    ],
+  },
+  {
+    id: 'discovery_quality',
+    title: 'Discovery / Question Quality',
+    behaviorLabel: 'Discovery consistency',
+    description: 'How consistently are you uncovering actual customer priorities?',
+    inputStyle: 'cards',
+    options: [
+      { key: 'green_light', label: 'Green Light', score: 3 },
+      { key: 'yellow_light', label: 'Yellow Light', score: 2 },
+      { key: 'red_light', label: 'Red Light', score: 1 },
+    ],
+  },
+  {
+    id: 'pace_tone_control',
+    title: 'Pace and Tone Control',
+    behaviorLabel: 'Pace and tone control',
+    description: 'Is your delivery calm, clear, and controlled when pressure rises?',
+    inputStyle: 'slider',
+    options: [
+      { key: 'smooth_drive', label: 'Smooth Drive', score: 3 },
+      { key: 'rough_shift', label: 'Rough Shift', score: 2 },
+      { key: 'stall', label: 'Stall', score: 1 },
+    ],
+  },
+  {
+    id: 'next_step_clarity',
+    title: 'Clarity of Next Steps',
+    behaviorLabel: 'Next-step clarity',
+    description: 'Do customers leave each conversation knowing the exact next action?',
+    inputStyle: 'chips',
+    options: [
+      { key: 'tight_line', label: 'Tight Line', score: 3 },
+      { key: 'wide_turn', label: 'Wide Turn', score: 2 },
+      { key: 'missed_exit', label: 'Missed Exit', score: 1 },
+    ],
+  },
+  {
+    id: 'objection_consistency',
+    title: 'Objection Handling Consistency',
+    behaviorLabel: 'Objection handling consistency',
+    description: 'Are objections handled with a repeatable structure instead of improvising?',
+    inputStyle: 'cards',
+    options: [
+      { key: 'consistent', label: 'Consistent', score: 3 },
+      { key: 'mixed', label: 'Mixed', score: 2 },
+      { key: 'reactive', label: 'Reactive', score: 1 },
+    ],
+  },
+  {
+    id: 'follow_up_discipline',
+    title: 'Follow-up Discipline',
+    behaviorLabel: 'Follow-up discipline',
+    description: 'How reliably are follow-up commitments completed on time?',
+    inputStyle: 'slider',
+    options: [
+      { key: 'on_time', label: 'On Time', score: 3 },
+      { key: 'inconsistent', label: 'Inconsistent', score: 2 },
+      { key: 'drops_off', label: 'Drops Off', score: 1 },
+    ],
+  },
+  {
+    id: 'handoff_consistency',
+    title: 'Handoff Consistency',
+    behaviorLabel: 'Handoff consistency',
+    description: 'When another person joins, does continuity stay intact for the customer?',
+    inputStyle: 'chips',
+    options: [
+      { key: 'clean_handoff', label: 'Clean', score: 3 },
+      { key: 'partial_handoff', label: 'Patchy', score: 2 },
+      { key: 'broken_handoff', label: 'Broken', score: 1 },
+    ],
+  },
+  {
+    id: 'delivery_wrap_up',
+    title: 'Delivery / Wrap-up Consistency',
+    behaviorLabel: 'Delivery and wrap-up consistency',
+    description: 'Is the closeout step reliably complete and confidence-building?',
+    inputStyle: 'segmented',
+    options: [
+      { key: 'complete', label: 'Complete', score: 3 },
+      { key: 'rushed', label: 'Rushed', score: 2 },
+      { key: 'unfinished', label: 'Unfinished', score: 1 },
+    ],
+  },
+] as const satisfies readonly ConsistencyCategory[];
 
-export type ConsistencyDriftRow = {
-  theme: ConsistencyTheme;
-  label: string;
-  score: number;
+export type ConsistencyCategoryId = typeof CONSISTENCY_CATEGORIES[number]['id'];
+export type ConsistencyResponses = Partial<Record<ConsistencyCategoryId, string>>;
+
+export type ConsistencyStatus = 'Strong' | 'Slipping' | 'At Risk';
+
+export type ConsistencyCategoryScore = {
+  categoryId: ConsistencyCategoryId;
+  title: string;
+  behaviorLabel: string;
+  selectedLabel: string;
+  score: 1 | 2 | 3;
   percent: number;
-  band: ConsistencyBand;
-  atRisk: boolean;
+  status: ConsistencyStatus;
 };
 
 export type ConsistencyResult = {
+  completed: boolean;
+  missingCategoryIds: ConsistencyCategoryId[];
+  strongestBehavior: string;
+  biggestConsistencyGap: string;
+  likelyCustomerImpact: string;
+  recommendedNextFix: string;
+  nextInteractionMove: string;
+  strongestCategoryId: ConsistencyCategoryId;
+  weakestCategoryId: ConsistencyCategoryId;
+  biggestLeakCategoryId: ConsistencyCategoryId;
+  strongestCategoryIds: ConsistencyCategoryId[];
+  weakestCategoryIds: ConsistencyCategoryId[];
   overallScore: number;
-  overallBand: ConsistencyBand;
-  strongestZones: ConsistencyTheme[];
-  weakZones: ConsistencyTheme[];
-  whyThisIsHappening: string;
-  nextReinforcementMove: string;
-  interpretation: string;
-  themeScores: Record<ConsistencyTheme, number>;
-  driftMap: ConsistencyDriftRow[];
+  categories: ConsistencyCategoryScore[];
+  counts: {
+    strong: number;
+    slipping: number;
+    atRisk: number;
+  };
 };
 
 export type ConsistencySprocketEnhancement = {
-  likelyCause: string;
-  sharperReinforcementAngle: string;
-  coachingLanguage: string;
-  resetMove3Day: string;
+  patternDiagnosis: string;
+  issueType: 'process drift' | 'confidence drop' | 'tone/pacing issue' | 'discipline inconsistency';
+  preciseCorrectiveAction: string;
+  coachingCue: string;
+  behaviorStandardRewrite?: string;
 };
 
 export type ConsistencyCxEnhancement = {
-  tailoredReason: string;
-  adjustedMove: string;
-  focusSkillTag: 'Listening' | 'Follow-Through' | 'Manager Visibility' | 'Tone/Pacing' | 'Trust';
-  mapHighlights: ConsistencyTheme[];
+  tailoredPattern: string;
+  likelyRepeatedBreakdown: string;
+  personalizedFix: string;
+  focusAreas: ConsistencyCategoryId[];
+  usedSkillData: boolean;
 };
 
-export type ConsistencySavedDiagnostic = {
-  id: string;
-  createdAt: string;
-  role: ConsistencyRole;
-  timeframe: ConsistencyTimeframe;
-  overallScore: number;
-  overallBand: ConsistencyBand;
-  weakZones: ConsistencyTheme[];
-  strongestZones: ConsistencyTheme[];
-  nextReinforcementMove: string;
-  driftMap: Array<Pick<ConsistencyDriftRow, 'theme' | 'score' | 'band'>>;
+const IMPACT_BY_CATEGORY: Record<ConsistencyCategoryId, string> = {
+  first_impression: 'Weak trust at the start can lower customer confidence before discovery begins.',
+  discovery_quality: 'Poor discovery creates poor fit, missed needs, and weaker recommendation quality.',
+  pace_tone_control: 'Unsteady pace or tone can make customers feel rushed or pressured.',
+  next_step_clarity: 'Unclear next steps stall momentum and increase no-response risk.',
+  objection_consistency: 'Inconsistent objection handling creates avoidable doubt and delayed decisions.',
+  follow_up_discipline: 'Inconsistent follow-up increases customer drop-off after initial engagement.',
+  handoff_consistency: 'Broken handoffs reduce continuity and confidence in the process.',
+  delivery_wrap_up: 'Incomplete wrap-up leaves customers uncertain and weakens final confidence.',
 };
 
-const THEME_LABELS: Record<ConsistencyTheme, string> = {
-  greeting_consistency: 'Greeting Consistency',
-  discovery_retention: 'Discovery Retention',
-  expectation_setting: 'Expectation Setting',
-  confidence_under_pressure: 'Confidence Under Pressure',
-  customer_clarity: 'Customer Clarity',
-  follow_through: 'Follow-Through',
-  old_habit_relapse: 'Old Habit Relapse',
-  manager_visibility: 'Manager Visibility',
-  team_experience_consistency: 'Team Experience Consistency',
+const NEXT_FIX_BY_CATEGORY: Record<ConsistencyCategoryId, string> = {
+  first_impression: 'Standardize one 20-second greeting opener and use it on every first contact.',
+  discovery_quality: 'Use the same three discovery questions before presenting any recommendation.',
+  pace_tone_control: 'Insert a two-second pause before each transition to keep pace controlled.',
+  next_step_clarity: 'End every interaction by confirming one exact next step, owner, and time.',
+  objection_consistency: 'Run one fixed objection sequence: acknowledge, clarify, proof, confirm.',
+  follow_up_discipline: 'Set and send the first follow-up checkpoint before ending the current interaction.',
+  handoff_consistency: 'Use a 30-second handoff script: context, commitment, next action, owner.',
+  delivery_wrap_up: 'Use a closeout checklist that confirms recap, expectation, and next contact.',
 };
 
-const QUICK_PULSE_OPTIONS: readonly ConsistencyPromptOption[] = [
-  { key: 'locked_in', label: 'Locked In', score: 4 },
-  { key: 'mostly_there', label: 'Mostly There', score: 3 },
-  { key: 'uneven', label: 'Uneven', score: 2 },
-  { key: 'slipping', label: 'Slipping', score: 1 },
-] as const;
+const NEXT_MOVE_BY_CATEGORY: Record<ConsistencyCategoryId, string> = {
+  first_impression: 'On your next customer start, open with your standard greeting before any pricing talk.',
+  discovery_quality: 'In your next interaction, ask all three discovery questions before offering options.',
+  pace_tone_control: 'In your next objection moment, slow your cadence and confirm understanding first.',
+  next_step_clarity: 'Before ending your next conversation, confirm exact follow-up time and method.',
+  objection_consistency: 'In your next objection, follow your sequence instead of jumping to discounting.',
+  follow_up_discipline: 'Before finishing your next interaction, schedule and send the first follow-up touchpoint.',
+  handoff_consistency: 'In your next handoff, state context, promised action, and owner out loud.',
+  delivery_wrap_up: 'In your next wrap-up, recap commitments and give the customer one clear contact path.',
+};
 
-const PRESSURE_OPTIONS: readonly ConsistencyPromptOption[] = [
-  { key: 'holds', label: 'Holds', score: 4 },
-  { key: 'softens', label: 'Softens', score: 2 },
-  { key: 'breaks', label: 'Breaks', score: 1 },
-] as const;
+const LEAK_PRIORITY: ConsistencyCategoryId[] = [
+  'follow_up_discipline',
+  'next_step_clarity',
+  'discovery_quality',
+  'handoff_consistency',
+  'objection_consistency',
+  'first_impression',
+  'pace_tone_control',
+  'delivery_wrap_up',
+];
 
-const DRIFT_OPTIONS: readonly ConsistencyPromptOption[] = [
-  { key: 'none', label: 'No Drift', score: 4 },
-  { key: 'some', label: 'Some Drift', score: 2 },
-  { key: 'clear', label: 'Clear Drift', score: 1 },
-] as const;
+const ISSUE_TYPE_BY_CATEGORY: Record<ConsistencyCategoryId, ConsistencySprocketEnhancement['issueType']> = {
+  first_impression: 'confidence drop',
+  discovery_quality: 'process drift',
+  pace_tone_control: 'tone/pacing issue',
+  next_step_clarity: 'process drift',
+  objection_consistency: 'confidence drop',
+  follow_up_discipline: 'discipline inconsistency',
+  handoff_consistency: 'discipline inconsistency',
+  delivery_wrap_up: 'process drift',
+};
 
-const VISIBILITY_OPTIONS: readonly ConsistencyPromptOption[] = [
-  { key: 'strong', label: 'Strong', score: 4 },
-  { key: 'mixed', label: 'Mixed', score: 2 },
-  { key: 'weak', label: 'Weak', score: 1 },
-] as const;
+const CATEGORY_MAP = new Map(CONSISTENCY_CATEGORIES.map((category) => [category.id, category]));
 
-const CONSISTENCY_PROMPTS: readonly ConsistencyPrompt[] = [
-  {
-    id: 'pulse_greeting',
-    moduleId: 'quick_pulse',
-    themes: ['greeting_consistency'],
-    roleText: {
-      'Sales Consultant': 'Your trained greeting consistency lately feels:',
-      Manager: 'Team greeting consistency lately feels:',
-      'Trainer': 'Store-level greeting consistency lately feels:',
-    },
-    options: QUICK_PULSE_OPTIONS,
-  },
-  {
-    id: 'pulse_discovery',
-    moduleId: 'quick_pulse',
-    themes: ['discovery_retention'],
-    roleText: {
-      'Sales Consultant': 'Your discovery habits lately feel:',
-      Manager: 'Team discovery habits lately feel:',
-      'Trainer': 'Discovery habit retention lately feels:',
-    },
-    options: QUICK_PULSE_OPTIONS,
-  },
-  {
-    id: 'pressure_greeting',
-    moduleId: 'pressure_test',
-    themes: ['greeting_consistency', 'confidence_under_pressure'],
-    roleText: {
-      'Sales Consultant': 'When the customer pushes back early, your greeting discipline usually:',
-      Manager: 'When customers push back early, team greeting discipline usually:',
-      'Trainer': 'Under early pushback, greeting discipline usually:',
-    },
-    options: PRESSURE_OPTIONS,
-  },
-  {
-    id: 'pressure_expectation',
-    moduleId: 'pressure_test',
-    themes: ['expectation_setting', 'customer_clarity'],
-    roleText: {
-      'Sales Consultant': 'When time pressure rises, your expectation setting usually:',
-      Manager: 'When time pressure rises, team expectation setting usually:',
-      'Trainer': 'When time pressure rises, expectation setting usually:',
-    },
-    options: [
-      { key: 'clear', label: 'Stays Clear', score: 4 },
-      { key: 'rushed', label: 'Gets Rushed', score: 2 },
-      { key: 'skipped', label: 'Gets Skipped', score: 1 },
-    ],
-  },
-  {
-    id: 'pressure_follow_through',
-    moduleId: 'pressure_test',
-    themes: ['follow_through', 'customer_clarity'],
-    roleText: {
-      'Sales Consultant': 'After objections, your follow-through on the next step usually:',
-      Manager: 'After objections, team follow-through on the next step usually:',
-      'Trainer': 'After objections, follow-through on next steps usually:',
-    },
-    options: [
-      { key: 'completes', label: 'Completes Cleanly', score: 4 },
-      { key: 'partial', label: 'Partially Holds', score: 2 },
-      { key: 'drops', label: 'Drops Off', score: 1 },
-    ],
-  },
-  {
-    id: 'drift_old_habits',
-    moduleId: 'habit_drift',
-    themes: ['old_habit_relapse'],
-    roleText: {
-      'Sales Consultant': 'Old greeting/discovery shortcuts are showing back up:',
-      Manager: 'Old greeting/discovery shortcuts are showing back up on the team:',
-      'Trainer': 'Old shortcut habits are showing back up:',
-    },
-    options: [
-      { key: 'not_at_all', label: 'Not at All', score: 4 },
-      { key: 'a_little', label: 'A Little', score: 2 },
-      { key: 'regularly', label: 'Regularly', score: 1 },
-    ],
-  },
-  {
-    id: 'drift_discovery_depth',
-    moduleId: 'habit_drift',
-    themes: ['discovery_retention', 'confidence_under_pressure'],
-    roleText: {
-      'Sales Consultant': 'Discovery depth is drifting toward old habits:',
-      Manager: 'Discovery depth across the team is drifting toward old habits:',
-      'Trainer': 'Discovery depth is drifting toward old habits:',
-    },
-    options: DRIFT_OPTIONS,
-  },
-  {
-    id: 'team_experience',
-    moduleId: 'team_visibility',
-    themes: ['team_experience_consistency'],
-    roleText: {
-      'Sales Consultant': 'Across your recent deals, customer experience felt:',
-      Manager: 'Across the team, customer experience has felt:',
-      'Trainer': 'Across teams and shifts, customer experience has felt:',
-    },
-    options: [
-      { key: 'consistent', label: 'Consistent', score: 4 },
-      { key: 'mixed', label: 'Mixed', score: 2 },
-      { key: 'uneven', label: 'Highly Uneven', score: 1 },
-    ],
-  },
-  {
-    id: 'team_manager_visibility',
-    moduleId: 'team_visibility',
-    themes: ['manager_visibility'],
-    roleText: {
-      'Sales Consultant': 'Manager visibility reinforcing trained behavior has been:',
-      Manager: 'Your visible reinforcement in live moments has been:',
-      'Trainer': 'Manager reinforcement visibility has been:',
-    },
-    options: [
-      { key: 'active', label: 'Active', score: 4 },
-      { key: 'occasional', label: 'Occasional', score: 2 },
-      { key: 'absent', label: 'Mostly Absent', score: 1 },
-    ],
-  },
-  {
-    id: 'team_expectation_clarity',
-    moduleId: 'team_visibility',
-    themes: ['expectation_setting', 'customer_clarity'],
-    roleText: {
-      'Sales Consultant': 'Customers are leaving conversations with clear expectations:',
-      Manager: 'Customers are leaving team conversations with clear expectations:',
-      'Trainer': 'Customers are leaving conversations with clear expectations:',
-    },
-    options: VISIBILITY_OPTIONS,
-  },
-] as const;
-
-export function labelForTheme(theme: ConsistencyTheme): string {
-  return THEME_LABELS[theme];
+function asCategoryId(value: string): ConsistencyCategoryId {
+  return value as ConsistencyCategoryId;
 }
 
-export function getConsistencyPromptsByModule(
-  moduleId: ConsistencyModuleId,
-  role: ConsistencyRole
-): Array<ConsistencyPrompt & { prompt: string }> {
-  return CONSISTENCY_PROMPTS
-    .filter((prompt) => prompt.moduleId === moduleId)
-    .map((prompt) => ({
-      ...prompt,
-      prompt: prompt.roleText[role],
-    }));
+function optionFor(categoryId: ConsistencyCategoryId, optionKey: string | undefined): ConsistencyInputOption | null {
+  if (!optionKey) return null;
+  const category = CATEGORY_MAP.get(categoryId);
+  if (!category) return null;
+  return category.options.find((option) => option.key === optionKey) ?? null;
 }
 
-function scoreForResponse(prompt: ConsistencyPrompt, responseKey: string | undefined): number {
-  const option = prompt.options.find((item) => item.key === responseKey);
-  if (!option) return 2;
-  return option.score;
+function statusFromScore(score: 1 | 2 | 3): ConsistencyStatus {
+  if (score === 3) return 'Strong';
+  if (score === 2) return 'Slipping';
+  return 'At Risk';
 }
 
-function mapBandFromScore(score: number): ConsistencyBand {
-  if (score >= 3.35) return 'Sticking';
-  if (score >= 2.65) return 'Wobbling';
-  if (score >= 1.95) return 'Fading';
-  return 'Needs Reinforcement';
+function percentFromScore(score: 1 | 2 | 3): number {
+  if (score === 3) return 100;
+  if (score === 2) return 67;
+  return 33;
 }
 
-function mapOverallBand(score: number): ConsistencyBand {
-  if (score >= 78) return 'Sticking';
-  if (score >= 60) return 'Wobbling';
-  if (score >= 42) return 'Fading';
-  return 'Needs Reinforcement';
+function findTiedCategoryIds(categories: ConsistencyCategoryScore[], score: 1 | 2 | 3): ConsistencyCategoryId[] {
+  return categories.filter((category) => category.score === score).map((category) => category.categoryId);
 }
 
-function interpretationLine(band: ConsistencyBand): string {
-  if (band === 'Sticking') return 'Strong behavior retention is visible. Keep pressure-proof reinforcement in place.';
-  if (band === 'Wobbling') return 'Behavior is present, but pressure moments are creating drift.';
-  if (band === 'Fading') return 'Adoption is slipping in live execution. Quick reinforcement is needed now.';
-  return 'Behavior is not holding consistently. Immediate reset and visibility are required.';
+function pickPrimaryLeak(ids: ConsistencyCategoryId[]): ConsistencyCategoryId {
+  for (const id of LEAK_PRIORITY) {
+    if (ids.includes(id)) return id;
+  }
+  return ids[0] ?? 'next_step_clarity';
 }
 
-function buildWhyThisIsHappening(weakZones: ConsistencyTheme[]): string {
-  const weakSet = new Set(weakZones);
+function formatBehaviorTieText(primaryId: ConsistencyCategoryId, tiedIds: ConsistencyCategoryId[]): string {
+  const primaryLabel = CATEGORY_MAP.get(primaryId)?.behaviorLabel ?? 'Execution behavior';
+  if (tiedIds.length <= 1) return primaryLabel;
 
-  if (weakSet.has('confidence_under_pressure') || weakSet.has('old_habit_relapse')) {
-    return 'Behaviors are present in ideal moments, but pressure is exposing relapse patterns.';
-  }
-  if (weakSet.has('manager_visibility') || weakSet.has('team_experience_consistency')) {
-    return 'Training landed, but daily reinforcement visibility appears too light to hold consistency.';
-  }
-  if (weakSet.has('expectation_setting') || weakSet.has('customer_clarity')) {
-    return 'Execution is drifting at transition moments, causing customer clarity to weaken.';
-  }
-  if (weakSet.has('follow_through')) {
-    return 'Completion discipline is fading late in interactions, which erodes carry-through momentum.';
-  }
-  return 'Adoption is visible, but consistency routines are not yet stable in live customer flow.';
+  const otherLabel = CATEGORY_MAP.get(tiedIds.find((id) => id !== primaryId) ?? primaryId)?.behaviorLabel ?? primaryLabel;
+  return `${primaryLabel} (tied with ${otherLabel})`;
 }
 
-function reinforcementMove(weakZones: ConsistencyTheme[]): string {
-  const top = weakZones[0];
-  const second = weakZones[1];
-
-  if (!top) {
-    return 'Run one focused reinforcement sprint for the next 5 working days on your weakest behavior.';
+function buildStrongestBehaviorText(primaryId: ConsistencyCategoryId, strongestIds: ConsistencyCategoryId[], strongestScore: 1 | 2 | 3): string {
+  if (strongestScore === 1) {
+    return 'No stable strong behavior yet; all categories are currently at risk.';
   }
 
-  if (top === 'expectation_setting' || top === 'follow_through') {
-    return 'Reinforce expectation setting and follow-through for the next 5 working days in every transition moment.';
-  }
-  if (top === 'discovery_retention' || top === 'confidence_under_pressure') {
-    return 'Coach discovery under pressure for the next 5 working days, not only in calm conversations.';
-  }
-  if (top === 'manager_visibility') {
-    return 'Increase manager visibility around greeting and transition moments for the next 5 working days.';
-  }
-  if (top === 'old_habit_relapse') {
-    return 'Choose one relapsing habit, block it by name, and run daily replacement reps for the next 5 working days.';
+  return formatBehaviorTieText(primaryId, strongestIds);
+}
+
+function buildBiggestGapText(leakId: ConsistencyCategoryId, weakestIds: ConsistencyCategoryId[], weakestScore: 1 | 2 | 3): string {
+  const leakLabel = CATEGORY_MAP.get(leakId)?.behaviorLabel ?? 'Execution behavior';
+
+  if (weakestScore === 3) {
+    return `No critical gap detected. Lowest category to protect is ${leakLabel}.`;
   }
 
-  if (second) {
-    return `Reinforce ${labelForTheme(top)} and ${labelForTheme(second)} with one live checkpoint each shift for the next 5 working days.`;
+  if (weakestIds.length > 1) {
+    return `${leakLabel} is the primary leak (tie on lowest score across multiple categories).`;
   }
 
-  return `Reinforce ${labelForTheme(top)} with one live checkpoint each shift for the next 5 working days.`;
+  return `${leakLabel} is inconsistent in live execution.`;
+}
+
+function buildDefaultResult(input: {
+  missingCategoryIds: ConsistencyCategoryId[];
+}): ConsistencyResult {
+  const fallbackId = 'next_step_clarity' as ConsistencyCategoryId;
+
+  return {
+    completed: false,
+    missingCategoryIds: input.missingCategoryIds,
+    strongestBehavior: 'Complete all categories to identify your strongest behavior.',
+    biggestConsistencyGap: 'Complete all categories to identify the biggest consistency gap.',
+    likelyCustomerImpact: IMPACT_BY_CATEGORY[fallbackId],
+    recommendedNextFix: NEXT_FIX_BY_CATEGORY[fallbackId],
+    nextInteractionMove: NEXT_MOVE_BY_CATEGORY[fallbackId],
+    strongestCategoryId: fallbackId,
+    weakestCategoryId: fallbackId,
+    biggestLeakCategoryId: fallbackId,
+    strongestCategoryIds: [fallbackId],
+    weakestCategoryIds: [fallbackId],
+    overallScore: 0,
+    categories: [],
+    counts: {
+      strong: 0,
+      slipping: 0,
+      atRisk: 0,
+    },
+  };
+}
+
+export function getRoleDisplayLabel(role: ConsistencyRole): string {
+  return role === 'manager' ? 'Sales Manager' : role;
 }
 
 export function scoreConsistencyGapCheck(input: {
   role: ConsistencyRole;
-  timeframe: ConsistencyTimeframe;
+  evaluationBasis: ConsistencyEvaluationBasis;
   responses: ConsistencyResponses;
 }): ConsistencyResult {
-  const themeTotals = {} as Record<ConsistencyTheme, number>;
-  const themeCounts = {} as Record<ConsistencyTheme, number>;
+  void input.role;
+  void input.evaluationBasis;
 
-  CONSISTENCY_THEMES.forEach((theme) => {
-    themeTotals[theme] = 0;
-    themeCounts[theme] = 0;
-  });
+  const missingCategoryIds = CONSISTENCY_CATEGORIES
+    .map((category) => asCategoryId(category.id))
+    .filter((categoryId) => !optionFor(categoryId, input.responses[categoryId]));
 
-  CONSISTENCY_PROMPTS.forEach((prompt) => {
-    const score = scoreForResponse(prompt, input.responses[prompt.id]);
-    prompt.themes.forEach((theme) => {
-      themeTotals[theme] += score;
-      themeCounts[theme] += 1;
-    });
-  });
-
-  const themeScores = {} as Record<ConsistencyTheme, number>;
-  CONSISTENCY_THEMES.forEach((theme) => {
-    const count = Math.max(themeCounts[theme], 1);
-    themeScores[theme] = Number((themeTotals[theme] / count).toFixed(2));
-  });
-
-  const orderedThemes = [...CONSISTENCY_THEMES].sort((a, b) => themeScores[a] - themeScores[b]);
-  const weakZones = orderedThemes.slice(0, 3);
-  const strongestZones = [...orderedThemes].reverse().slice(0, 3);
-
-  const avgScore = CONSISTENCY_THEMES.reduce((sum, theme) => sum + themeScores[theme], 0) / CONSISTENCY_THEMES.length;
-  const overallScore = Math.round(((avgScore - 1) / 3) * 100);
-  const overallBand = mapOverallBand(overallScore);
-
-  const riskSet = new Set(weakZones);
-  const driftMap: ConsistencyDriftRow[] = CONSISTENCY_THEMES.map((theme) => {
-    const score = themeScores[theme];
-    return {
-      theme,
-      label: labelForTheme(theme),
-      score,
-      percent: Math.round(((score - 1) / 3) * 100),
-      band: mapBandFromScore(score),
-      atRisk: riskSet.has(theme),
-    };
-  }).sort((a, b) => b.score - a.score);
-
-  return {
-    overallScore,
-    overallBand,
-    strongestZones,
-    weakZones,
-    whyThisIsHappening: buildWhyThisIsHappening(weakZones),
-    nextReinforcementMove: reinforcementMove(weakZones),
-    interpretation: interpretationLine(overallBand),
-    themeScores,
-    driftMap,
-  };
-}
-
-export function getSprocketConsistencyEnhancement(
-  result: ConsistencyResult
-): ConsistencySprocketEnhancement {
-  const weakTop = result.weakZones[0] ?? 'expectation_setting';
-  const weakSecond = result.weakZones[1] ?? 'follow_through';
-
-  let likelyCause = 'Behavior drift is likely coming from uneven reinforcement in pressure moments.';
-  if (weakTop === 'old_habit_relapse') {
-    likelyCause = 'Legacy habits are reappearing because replacement routines are not being reinforced live.';
-  } else if (weakTop === 'manager_visibility') {
-    likelyCause = 'Reinforcement is likely too invisible in real customer flow, so behaviors are not anchoring.';
-  } else if (weakTop === 'discovery_retention') {
-    likelyCause = 'Discovery behavior is being rushed, so confidence and clarity degrade downstream.';
+  if (missingCategoryIds.length > 0) {
+    return buildDefaultResult({ missingCategoryIds });
   }
 
+  const categories: ConsistencyCategoryScore[] = CONSISTENCY_CATEGORIES.map((category) => {
+    const categoryId = asCategoryId(category.id);
+    const selected = optionFor(categoryId, input.responses[categoryId]) ?? category.options[1] ?? category.options[0];
+
+    return {
+      categoryId,
+      title: category.title,
+      behaviorLabel: category.behaviorLabel,
+      selectedLabel: selected.label,
+      score: selected.score,
+      percent: percentFromScore(selected.score),
+      status: statusFromScore(selected.score),
+    };
+  });
+
+  const scoreValues = categories.map((category) => category.score);
+  const strongestScore = Math.max(...scoreValues) as 1 | 2 | 3;
+  const weakestScore = Math.min(...scoreValues) as 1 | 2 | 3;
+
+  const strongestCategoryIds = findTiedCategoryIds(categories, strongestScore);
+  const weakestCategoryIds = findTiedCategoryIds(categories, weakestScore);
+
+  const strongestCategoryId = pickPrimaryLeak([...strongestCategoryIds].reverse());
+  const weakestCategoryId = pickPrimaryLeak(weakestCategoryIds);
+  const biggestLeakCategoryId = weakestCategoryId;
+
+  const average = categories.reduce((sum, category) => sum + category.score, 0) / categories.length;
+  const overallScore = Math.round(((average - 1) / 2) * 100);
+
+  const counts = {
+    strong: categories.filter((category) => category.status === 'Strong').length,
+    slipping: categories.filter((category) => category.status === 'Slipping').length,
+    atRisk: categories.filter((category) => category.status === 'At Risk').length,
+  };
+
+  const sortedCategories = [...categories].sort((a, b) => {
+    if (a.score !== b.score) return a.score - b.score;
+    return LEAK_PRIORITY.indexOf(a.categoryId) - LEAK_PRIORITY.indexOf(b.categoryId);
+  });
+
   return {
-    likelyCause,
-    sharperReinforcementAngle: `Anchor reinforcement around ${labelForTheme(weakTop)} and ${labelForTheme(weakSecond)} during live transitions, not recap-only coaching.`,
-    coachingLanguage: `Coach line: "For the next 3 days, we are tightening ${labelForTheme(weakTop)} in every live interaction."`,
-    resetMove3Day: `3-day reset focus: pre-shift cue, one live spot-coach, and one end-of-day review on ${labelForTheme(weakTop)}.`,
+    completed: true,
+    missingCategoryIds: [],
+    strongestBehavior: buildStrongestBehaviorText(strongestCategoryId, strongestCategoryIds, strongestScore),
+    biggestConsistencyGap: buildBiggestGapText(biggestLeakCategoryId, weakestCategoryIds, weakestScore),
+    likelyCustomerImpact: IMPACT_BY_CATEGORY[biggestLeakCategoryId],
+    recommendedNextFix: NEXT_FIX_BY_CATEGORY[biggestLeakCategoryId],
+    nextInteractionMove: NEXT_MOVE_BY_CATEGORY[biggestLeakCategoryId],
+    strongestCategoryId,
+    weakestCategoryId,
+    biggestLeakCategoryId,
+    strongestCategoryIds,
+    weakestCategoryIds,
+    overallScore,
+    categories: sortedCategories,
+    counts,
   };
 }
 
-type SkillSignals = {
-  listeningLow: boolean;
-  followUpLow: boolean;
-  trustLow: boolean;
-  toneLow: boolean;
-};
+export function getSprocketConsistencyEnhancement(result: ConsistencyResult): ConsistencySprocketEnhancement {
+  const leakId = result.biggestLeakCategoryId;
+  const issueType = ISSUE_TYPE_BY_CATEGORY[leakId];
+  const leakLabel = CATEGORY_MAP.get(leakId)?.behaviorLabel ?? 'execution behavior';
 
-function readSkillSignals(user: User | null | undefined): SkillSignals {
-  const stats = user?.stats;
-  const listening = Number(stats?.listening ?? 60);
-  const followUp = Number(stats?.followUp ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const tone = Number(stats?.closing ?? 60);
+  const patternDiagnosis =
+    result.counts.atRisk >= 3
+      ? `Multiple at-risk categories suggest broad ${issueType}, with ${leakLabel} as the highest-leverage correction.`
+      : `${leakLabel} appears to be the primary breakdown point, and it is likely driving downstream inconsistency.`;
+
+  const preciseCorrectiveAction =
+    issueType === 'discipline inconsistency'
+      ? 'Add one non-negotiable checkpoint per interaction and verify completion before moving to the next deal.'
+      : issueType === 'tone/pacing issue'
+        ? 'Use a controlled transition script and pace reset in every pressure moment for the next five interactions.'
+        : issueType === 'confidence drop'
+          ? 'Use one pre-planned response structure so objections and first-contact moments are not improvised.'
+          : 'Lock one repeatable process step and measure it interaction-by-interaction for one week.';
+
+  const coachingCue = `Coaching cue: "Today we tighten ${leakLabel} first. We do not widen focus until this step is repeatable."`;
+
+  const behaviorStandardRewrite = `Behavior standard: In every interaction, execute ${leakLabel} before advancing. If it is skipped, reset immediately.`;
 
   return {
-    listeningLow: listening > 0 && listening < 55,
-    followUpLow: followUp > 0 && followUp < 55,
-    trustLow: trust > 0 && trust < 55,
-    toneLow: tone > 0 && tone < 55,
+    patternDiagnosis,
+    issueType,
+    preciseCorrectiveAction,
+    coachingCue,
+    behaviorStandardRewrite,
   };
 }
 
@@ -491,80 +447,68 @@ export function getAutoDriveCxConsistencyEnhancement(
   result: ConsistencyResult,
   user?: User | null
 ): ConsistencyCxEnhancement {
-  const signal = readSkillSignals(user);
+  const listening = readCxStatScoreOrNull(user?.stats?.listening);
+  const followUp = readCxStatScoreOrNull(user?.stats?.followUp);
+  const trust = readCxStatScoreOrNull(user?.stats?.trust);
+  const closing = readCxStatScoreOrNull(user?.stats?.closing);
 
-  if (signal.listeningLow) {
+  const hasSkillData = [listening, followUp, trust, closing].some((value) => value !== null);
+
+  if (!hasSkillData) {
     return {
-      tailoredReason: 'Listening trend suggests discovery drift creates downstream consistency wobble.',
-      adjustedMove: `Prioritize discovery retention checks first, then run: ${result.nextReinforcementMove}`,
-      focusSkillTag: 'Listening',
-      mapHighlights: ['discovery_retention', 'customer_clarity'],
+      tailoredPattern: 'Skill data is unavailable, so this recommendation uses your live execution pattern only.',
+      likelyRepeatedBreakdown: `Repeated drift is most likely around ${CATEGORY_MAP.get(result.biggestLeakCategoryId)?.behaviorLabel ?? 'execution consistency'}.`,
+      personalizedFix: result.recommendedNextFix,
+      focusAreas: [result.biggestLeakCategoryId],
+      usedSkillData: false,
     };
   }
-  if (signal.followUpLow) {
+
+  if (followUp !== null && followUp < 55) {
     return {
-      tailoredReason: 'Follow-through trend indicates transition execution is likely where behavior is fading.',
-      adjustedMove: 'Add explicit next-step verification in every interaction for the next 5 working days.',
-      focusSkillTag: 'Follow-Through',
-      mapHighlights: ['follow_through', 'expectation_setting'],
+      tailoredPattern: 'Follow-up skill trend is low and aligns with execution drop-off risk after initial contact.',
+      likelyRepeatedBreakdown: 'Customers likely disengage after early momentum because follow-up cadence is inconsistent.',
+      personalizedFix: 'Prioritize follow-up discipline first: set same-day follow-up before ending each interaction.',
+      focusAreas: ['follow_up_discipline', 'next_step_clarity'],
+      usedSkillData: true,
     };
   }
-  if (signal.trustLow) {
+
+  if (listening !== null && listening < 55) {
     return {
-      tailoredReason: 'Trust trend suggests clarity and expectation-setting consistency need earlier reinforcement.',
-      adjustedMove: 'Use lower-pressure clarity language at each handoff before moving to the next ask.',
-      focusSkillTag: 'Trust',
-      mapHighlights: ['customer_clarity', 'expectation_setting'],
+      tailoredPattern: 'Listening trend suggests discovery inconsistency is likely driving mismatched recommendations.',
+      likelyRepeatedBreakdown: 'Need-fit confidence likely drops when discovery depth varies between interactions.',
+      personalizedFix: 'Prioritize discovery consistency first: lock three discovery questions before any recommendation.',
+      focusAreas: ['discovery_quality', 'next_step_clarity'],
+      usedSkillData: true,
     };
   }
-  if (signal.toneLow) {
+
+  if (trust !== null && trust < 55) {
     return {
-      tailoredReason: 'Tone/pacing trend suggests confidence under pressure is vulnerable in tense moments.',
-      adjustedMove: 'Run short pressure-moment reps daily and coach for slower pacing with cleaner transitions.',
-      focusSkillTag: 'Tone/Pacing',
-      mapHighlights: ['confidence_under_pressure', 'old_habit_relapse'],
+      tailoredPattern: 'Trust trend suggests early interaction consistency is not stable enough to anchor confidence.',
+      likelyRepeatedBreakdown: 'Confidence likely dips during greeting and transition moments.',
+      personalizedFix: 'Prioritize greeting consistency and next-step clarity in every first interaction.',
+      focusAreas: ['first_impression', 'next_step_clarity'],
+      usedSkillData: true,
+    };
+  }
+
+  if (closing !== null && closing < 55) {
+    return {
+      tailoredPattern: 'Closing trend suggests pace and wrap-up consistency are likely weakening final commitment.',
+      likelyRepeatedBreakdown: 'Momentum likely drops late when transitions are rushed or incomplete.',
+      personalizedFix: 'Prioritize pace control and wrap-up checklist completion before introducing new asks.',
+      focusAreas: ['pace_tone_control', 'delivery_wrap_up'],
+      usedSkillData: true,
     };
   }
 
   return {
-    tailoredReason: 'Current skill profile suggests reinforcement visibility and execution rhythm are the highest leverage.',
-    adjustedMove: result.nextReinforcementMove,
-    focusSkillTag: 'Manager Visibility',
-    mapHighlights: ['manager_visibility', 'team_experience_consistency'],
+    tailoredPattern: 'Current skill trends are stable; your biggest gain remains fixing the single weakest execution category first.',
+    likelyRepeatedBreakdown: `Most repeated breakdown risk is still ${CATEGORY_MAP.get(result.biggestLeakCategoryId)?.behaviorLabel ?? 'execution drift'}.`,
+    personalizedFix: result.recommendedNextFix,
+    focusAreas: [result.biggestLeakCategoryId, result.weakestCategoryId],
+    usedSkillData: true,
   };
-}
-
-export function mapBandToOrder(band: ConsistencyBand): number {
-  if (band === 'Sticking') return 0;
-  if (band === 'Wobbling') return 1;
-  if (band === 'Fading') return 2;
-  return 3;
-}
-
-export function groupDriftMapByBand(driftMap: ConsistencyDriftRow[]): Record<ConsistencyBand, ConsistencyDriftRow[]> {
-  const grouped: Record<ConsistencyBand, ConsistencyDriftRow[]> = {
-    Sticking: [],
-    Wobbling: [],
-    Fading: [],
-    'Needs Reinforcement': [],
-  };
-
-  driftMap.forEach((row) => {
-    grouped[row.band].push(row);
-  });
-
-  (Object.keys(grouped) as ConsistencyBand[]).forEach((band) => {
-    grouped[band].sort((a, b) => b.score - a.score);
-  });
-
-  return grouped;
-}
-
-export function getModuleCompletion(
-  moduleId: ConsistencyModuleId,
-  responses: ConsistencyResponses
-): { answered: number; total: number } {
-  const prompts = CONSISTENCY_PROMPTS.filter((prompt) => prompt.moduleId === moduleId);
-  const answered = prompts.filter((prompt) => Boolean(responses[prompt.id])).length;
-  return { answered, total: prompts.length };
 }

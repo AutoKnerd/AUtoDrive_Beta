@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   BE_BACK_ENGAGEMENT_LEVELS,
   BE_BACK_REASONS,
@@ -261,7 +262,7 @@ export default function BeBackConversionPlannerPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper be-back diagnosis and messaging.')) return;
-    setSprocketOutput(getSprocketBeBackEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketBeBackEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

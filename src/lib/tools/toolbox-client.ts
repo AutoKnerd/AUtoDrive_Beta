@@ -142,3 +142,20 @@ export async function trackRecommendationEventServer(input: {
 
   return parseApiResponse<{ ok: true }>(response);
 }
+
+export async function enhanceSprocketInsight(input: {
+  toolId: string;
+  output: Record<string, string>;
+  userRole?: string;
+  cxSummary?: string;
+}): Promise<ApiResult<{ output: Record<string, string> }>> {
+  const response = await fetch('/api/tools/sprocket-insight-ai', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  return parseApiResponse<{ output: Record<string, string> }>(response);
+}

@@ -21,9 +21,12 @@ import {
 } from '@/lib/tools/entitlements';
 import {
   captureToolboxUnlockEmail,
+  enhanceSprocketInsight,
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
+import { readUserCxStatScore } from '@/lib/tools/cx-stats';
 import {
   PICKUP_CHECKPOINTS,
   PICKUP_IMPRESSIONS,
@@ -255,8 +258,37 @@ export default function PickupExperienceDesignerPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper pickup-friction diagnosis and recap coaching.')) return;
-    setSprocketOutput(getSprocketPickupExperienceEnhancement(input, plan));
-  }, [input, plan, requireFeature]);
+    const baseOutput = applySprocketCxOverlay(getSprocketPickupExperienceEnhancement(input, plan), user);
+
+    const cxSummary = user?.hasAutoDriveCX
+      ? `Trust ${Math.round(readUserCxStatScore(user, 'trust'))}, Listening ${Math.round(readUserCxStatScore(user, 'listening'))}, Follow-Up ${Math.round(readUserCxStatScore(user, 'followUp'))}, Closing ${Math.round(readUserCxStatScore(user, 'closing'))}`
+      : undefined;
+
+    setSprocketOutput(baseOutput);
+
+    void (async () => {
+      const aiResult = await enhanceSprocketInsight({
+        toolId: TOOL_ID,
+        userRole: user?.role,
+        cxSummary,
+        output: {
+          likelyFriction: baseOutput.likelyFriction,
+          smarterReset: baseOutput.smarterReset,
+          recapRewrite: baseOutput.recapRewrite,
+          coachingAdjustment: baseOutput.coachingAdjustment,
+        },
+      });
+
+      if (!aiResult.ok) return;
+
+      setSprocketOutput({
+        likelyFriction: aiResult.data.output.likelyFriction || baseOutput.likelyFriction,
+        smarterReset: aiResult.data.output.smarterReset || baseOutput.smarterReset,
+        recapRewrite: aiResult.data.output.recapRewrite || baseOutput.recapRewrite,
+        coachingAdjustment: aiResult.data.output.coachingAdjustment || baseOutput.coachingAdjustment,
+      });
+    })();
+  }, [input, plan, requireFeature, user]);
 
   const handleRunAutoDrive = useCallback(() => {
     if (!requireFeature(FEATURES.AUTODRIVE_CX, 'Upgrade to AutoDriveCX for personalized pickup-experience adaptation.')) return;

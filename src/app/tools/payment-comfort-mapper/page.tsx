@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   PAYMENT_COMFORT_STYLES,
   getAutoDriveCxPaymentComfortEnhancement,
@@ -252,7 +253,7 @@ export default function PaymentComfortMapperPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper payment-reaction interpretation.')) return;
-    setSprocketOutput(getSprocketPaymentComfortEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketPaymentComfortEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

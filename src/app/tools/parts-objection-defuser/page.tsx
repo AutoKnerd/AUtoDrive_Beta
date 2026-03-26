@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   PARTS_KNOWLEDGE_LEVELS,
   PARTS_OBJECTION_TYPES,
@@ -243,7 +244,7 @@ export default function PartsObjectionDefuserPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper parts-objection diagnosis and framing.')) return;
-    setSprocketOutput(getSprocketPartsObjectionEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketPartsObjectionEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

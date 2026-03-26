@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const TEST_DRIVE_OUTCOMES = [
   'positive',
@@ -220,10 +221,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const listening = Number(stats?.listening ?? 60);
-  const pacing = Number(stats?.followUp ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const confidence = Number(stats?.closing ?? 60);
+  const listening = readCxStatScore(stats?.listening, 60);
+  const pacing = readCxStatScore(stats?.followUp, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const confidence = readCxStatScore(stats?.closing, 60);
 
   return {
     listeningLow: listening > 0 && listening < 55,

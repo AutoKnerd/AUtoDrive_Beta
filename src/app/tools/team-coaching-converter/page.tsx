@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   COACHING_DEAL_STAGES,
   COACHING_OBSERVED_ISSUES,
@@ -239,7 +240,7 @@ export default function TeamCoachingConverterPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper coaching conversion guidance.')) return;
-    setSprocketOutput(getSprocketTeamCoachingEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketTeamCoachingEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

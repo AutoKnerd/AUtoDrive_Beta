@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   COMMITMENT_CONCERNS,
   COMMITMENT_DEAL_MOMENTS,
@@ -243,7 +244,7 @@ export default function CommitmentLadderPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper commitment coaching.')) return;
-    setSprocketOutput(getSprocketCommitmentLadderEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketCommitmentLadderEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

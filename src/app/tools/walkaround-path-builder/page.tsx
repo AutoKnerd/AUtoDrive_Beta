@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   WALKAROUND_CUSTOMER_BEHAVIORS,
   WALKAROUND_FEATURE_LIBRARY,
@@ -273,7 +274,7 @@ export default function WalkaroundPathBuilderPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for sharper walkaround sequencing.')) return;
-    setSprocketOutput(getSprocketWalkaroundEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketWalkaroundEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

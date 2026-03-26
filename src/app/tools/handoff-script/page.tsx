@@ -25,6 +25,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   HANDOFF_MINDSETS,
   HANDOFF_SITUATIONS,
@@ -242,7 +243,7 @@ export default function HandoffScriptPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper handoff coaching.')) return;
-    setSprocketOutput(getSprocketHandoffEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketHandoffEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

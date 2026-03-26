@@ -1,18 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Header } from '@/components/layout/header';
-import { EmailGateModal } from '@/components/tools/email-gate-modal';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
-import { useEntitlements } from '@/hooks/use-entitlements';
-import { resolvePaidAccess, type ToolboxCapturedRole } from '@/lib/tools/entitlements';
-import { captureToolboxUnlockEmail } from '@/lib/tools/toolbox-client';
+import {
+  captureToolboxUnlockEmail,
+} from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
 import type { SignalMapperFullPrefill } from '@/lib/tools/signal-mapper-micro';
 import {

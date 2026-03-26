@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const NEXT_MOVE_STAGES = [
   'Greeting',
@@ -250,9 +251,9 @@ type SkillSignal = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignal {
   const stats = user?.stats;
-  const listening = Number(stats?.listening ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const followUp = Number(stats?.followUp ?? 60);
+  const listening = readCxStatScore(stats?.listening, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const followUp = readCxStatScore(stats?.followUp, 60);
   return {
     listeningLow: listening > 0 && listening < 55,
     trustLow: trust > 0 && trust < 55,

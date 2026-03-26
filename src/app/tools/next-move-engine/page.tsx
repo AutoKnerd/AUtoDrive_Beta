@@ -27,6 +27,7 @@ import {
   clearFullToolHandoff,
   readFullToolHandoff,
 } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   NEXT_MOVE_BEHAVIORS,
   NEXT_MOVE_CHANNELS,
@@ -301,7 +302,7 @@ export default function NextMoveEnginePage() {
 
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper diagnosis and coaching.')) return;
 
-    setSprocketOutput(getSprocketNextMoveRecommendation(currentInput, baseRecommendation));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketNextMoveRecommendation(currentInput, baseRecommendation), user));
   }, [baseRecommendation, currentInput, requireFeature, toast]);
 
   const handleRunAutoDrive = useCallback(() => {

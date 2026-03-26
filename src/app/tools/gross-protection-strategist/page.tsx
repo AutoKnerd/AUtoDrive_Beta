@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   GROSS_CUSTOMER_LEVERAGE_LEVELS,
   GROSS_DEAL_PRESSURE_LEVELS,
@@ -239,7 +240,7 @@ export default function GrossProtectionStrategistPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper gross-hold strategy guidance.')) return;
-    setSprocketOutput(getSprocketGrossProtectionEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketGrossProtectionEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

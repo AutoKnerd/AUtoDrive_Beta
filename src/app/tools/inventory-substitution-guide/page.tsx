@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   SUBSTITUTION_CUSTOMER_TYPES,
   SUBSTITUTION_TRADEOFFS,
@@ -263,7 +264,7 @@ export default function InventorySubstitutionGuidePage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper tradeoff diagnosis and recommendation framing.')) return;
-    setSprocketOutput(getSprocketInventorySubstitutionEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketInventorySubstitutionEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

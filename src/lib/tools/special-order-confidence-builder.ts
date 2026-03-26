@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const SPECIAL_ORDER_CUSTOMER_STYLES = [
   'decisive',
@@ -173,10 +174,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const tone = Number(stats?.listening ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const clarity = Number(stats?.closing ?? 60);
-  const consistency = Number(stats?.followUp ?? 60);
+  const tone = readCxStatScore(stats?.listening, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const clarity = readCxStatScore(stats?.closing, 60);
+  const consistency = readCxStatScore(stats?.followUp, 60);
 
   return {
     toneLow: tone > 0 && tone < 55,

@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const OBJECTION_TYPES = [
   'Payment too high',
@@ -301,10 +302,10 @@ type SkillSignal = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignal {
   const stats = user?.stats;
-  const listening = Number(stats?.listening ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const followUp = Number(stats?.followUp ?? 60);
-  const closing = Number(stats?.closing ?? 60);
+  const listening = readCxStatScore(stats?.listening, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const followUp = readCxStatScore(stats?.followUp, 60);
+  const closing = readCxStatScore(stats?.closing, 60);
 
   return {
     listeningLow: listening > 0 && listening < 55,

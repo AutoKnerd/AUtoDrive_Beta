@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const MPI_ITEM_LEVELS = [
   'red',
@@ -173,10 +174,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const clarity = Number(stats?.closing ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const tone = Number(stats?.listening ?? 60);
-  const listening = Number(stats?.followUp ?? 60);
+  const clarity = readCxStatScore(stats?.closing, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const tone = readCxStatScore(stats?.listening, 60);
+  const listening = readCxStatScore(stats?.followUp, 60);
 
   return {
     clarityLow: clarity > 0 && clarity < 55,

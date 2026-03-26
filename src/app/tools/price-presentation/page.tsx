@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   PRICE_PRESENTATION_CHANNELS,
   PRICE_PRESENTATION_GOALS,
@@ -311,7 +312,7 @@ export default function PricePresentationPage() {
     }
 
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for diagnosis and sharper framing.')) return;
-    setSprocketOutput(getSprocketPricePresentationRecommendation(currentInput, baseRecommendation));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketPricePresentationRecommendation(currentInput, baseRecommendation), user));
   }, [baseRecommendation, currentInput, requireFeature, toast]);
 
   const handleRunAutoDrive = useCallback(() => {

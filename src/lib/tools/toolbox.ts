@@ -477,11 +477,14 @@ const TOOL_SEED: ToolSeed[] = [
   },
 ];
 
+const WEEKLY_FEATURED_TOOL_ID = 'consistency-gap-check';
 export const TOOLBOX_TOOLS: ToolConfig[] = buildToolConfig(TOOL_SEED);
 
 export function buildToolConfig(seed: ToolSeed[]): ToolConfig[] {
   const sorted = [...seed].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const featuredId = sorted[0]?.id;
+  const featuredId = seed.some((tool) => tool.id === WEEKLY_FEATURED_TOOL_ID)
+    ? WEEKLY_FEATURED_TOOL_ID
+    : sorted[0]?.id;
   const seedById = new Map(seed.map((tool) => [tool.id, tool]));
 
   return sorted.map((tool) => ({

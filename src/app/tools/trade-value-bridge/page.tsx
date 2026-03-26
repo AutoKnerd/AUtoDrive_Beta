@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   TRADE_DEAL_STAGES,
   TRADE_EMOTION_LEVELS,
@@ -239,7 +240,7 @@ export default function TradeValueBridgePage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper trade-bridge coaching.')) return;
-    setSprocketOutput(getSprocketTradeValueBridgeEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketTradeValueBridgeEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

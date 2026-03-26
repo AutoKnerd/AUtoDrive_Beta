@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   WAITER_CUSTOMER_MOODS,
   WAITER_LANE_STAGES,
@@ -242,7 +243,7 @@ export default function WaiterUpdateFlowPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for stronger live-lane update coaching.')) return;
-    setSprocketOutput(getSprocketWaiterUpdateEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketWaiterUpdateEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {

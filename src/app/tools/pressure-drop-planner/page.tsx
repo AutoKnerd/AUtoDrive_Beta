@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   PRESSURE_DROP_PATHS,
   PRESSURE_DROP_TRIGGERS,
@@ -239,7 +240,7 @@ export default function PressureDropPlannerPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper pressure-spike diagnosis.')) return;
-    setSprocketOutput(getSprocketPressureDropEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketPressureDropEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {
