@@ -830,16 +830,13 @@ export default function ConsistencyGapCheckPage() {
                     <p className="font-semibold text-[#9fe8ff]">Next Best Action</p>
                     <p>Ask: "If this fails..."</p>
                   </div>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b1728] via-[#0b1728]/90 to-transparent" />
                 </div>
                     <Button
                       className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
                       onClick={() => {
-                        if (gate.gate === 'account') {
-                          setShowEmailGate(true);
-                          return;
-                        }
-                        setUpgradeContextMessage(gate.message);
-                        setGateModalType('paid');
+                        setUpgradeContextMessage('AutoDriveCX unlocks Sprocket Insight.');
+                    void handleUpgrade();
                       }}
                     >
                       Unlock Sprocket

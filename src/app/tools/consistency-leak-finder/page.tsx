@@ -319,10 +319,10 @@ function ConsistencyLeakFinderPageContent() {
   function handleBlockedFeature(gate: FeatureGateResult) {
     if (gate.gate === 'account') {
       toast({
-        title: 'Account required',
-        description: 'Add email and role in Tool Shop to use Sprocket.',
+        title: 'Upgrade required',
+        description: 'AutoDriveCX unlocks Sprocket Insight.',
       });
-      window.open('/tools', '_self');
+      window.open(FULL_TOOL_URL, '_blank', 'noopener,noreferrer');
       return;
     }
 

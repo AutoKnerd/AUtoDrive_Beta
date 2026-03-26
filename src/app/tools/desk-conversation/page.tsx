@@ -294,8 +294,8 @@ export default function DeskConversationPage() {
       onClick={onClick}
       className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors ${
         active
-          ? 'border-[#00d8e5] bg-[#00f2ff]/15 text-[#e6fdff]'
-          : 'border-[#2c3e5c] bg-[#101c30] text-[#d2def2] hover:bg-[#152743]'
+          ? 'border-cyan-300 bg-cyan-50 text-cyan-900 dark:border-[#00d8e5] dark:bg-[#00f2ff]/15 dark:text-[#e6fdff]'
+          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-[#2c3e5c] dark:bg-[#101c30] dark:text-[#d2def2] dark:hover:bg-[#152743]'
       }`}
     >
       {label}
@@ -303,12 +303,12 @@ export default function DeskConversationPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#070d18] text-[#dce7f8]">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#070d18] dark:text-[#dce7f8]">
       <Header />
 
       <main className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-24 pt-4 sm:px-5 md:space-y-6 md:px-8 md:pt-8">
         <div className="flex items-center justify-between gap-3">
-          <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
+          <Button variant="ghost" asChild className="h-10 px-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-[#b8c8e2] dark:hover:bg-[#13233b] dark:hover:text-[#e6efff]">
             <Link href="/tools">
               <ChevronLeft className="mr-1 h-4 w-4" />
               Tool Shop
@@ -318,17 +318,17 @@ export default function DeskConversationPage() {
         </div>
 
         <section className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-[#f5f9ff] md:text-3xl">Desk Conversation Planner</h1>
-          <p className="max-w-2xl text-sm text-[#a7b7d1] md:text-base">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-[#f5f9ff] md:text-3xl">Desk Conversation Planner</h1>
+          <p className="max-w-2xl text-sm text-slate-600 dark:text-[#a7b7d1] md:text-base">
             Help managers enter live deals with strategy, continuity, and better customer alignment.
           </p>
         </section>
 
         {!canUseBaseTool && (
-          <Card className="border-[#3f2a2a] bg-[#231718]">
+          <Card className="border-rose-200 bg-rose-50 dark:border-[#3f2a2a] dark:bg-[#231718]">
             <CardHeader>
-              <CardTitle className="text-lg text-[#ffe5e5]">Free limit reached</CardTitle>
-              <CardDescription className="text-[#f2b6b6]">Add email and role to keep using standalone tools.</CardDescription>
+              <CardTitle className="text-lg text-rose-900 dark:text-[#ffe5e5]">Free limit reached</CardTitle>
+              <CardDescription className="text-rose-700 dark:text-[#f2b6b6]">Add email and role to keep using standalone tools.</CardDescription>
             </CardHeader>
             <CardContent>
               <Button className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={() => setShowEmailGate(true)}>
@@ -338,8 +338,8 @@ export default function DeskConversationPage() {
           </Card>
         )}
 
-        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
-          <CardHeader><CardTitle className="text-lg text-[#f2f7ff]">1. Reason for Manager Involvement</CardTitle></CardHeader>
+        <Card className="border-slate-200 bg-white dark:border-[#2b3e5d] dark:bg-[#0f1b30]">
+          <CardHeader><CardTitle className="text-lg text-slate-900 dark:text-[#f2f7ff]">1. Reason for Manager Involvement</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {DESK_INVOLVEMENT_REASONS.map((item) => (
               <ChipButton key={item} active={reason === item} label={item} onClick={() => withUsageTracking(() => setReason(item))} />
@@ -347,8 +347,8 @@ export default function DeskConversationPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
-          <CardHeader><CardTitle className="text-lg text-[#f2f7ff]">2. Customer Posture</CardTitle></CardHeader>
+        <Card className="border-slate-200 bg-white dark:border-[#2b3e5d] dark:bg-[#0f1b30]">
+          <CardHeader><CardTitle className="text-lg text-slate-900 dark:text-[#f2f7ff]">2. Customer Posture</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             {DESK_CUSTOMER_POSTURES.map((item) => (
               <ChipButton key={item} active={customerPosture === item} label={item} onClick={() => withUsageTracking(() => setCustomerPosture(item))} />
@@ -356,8 +356,8 @@ export default function DeskConversationPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
-          <CardHeader><CardTitle className="text-lg text-[#f2f7ff]">3. Salesperson Progress</CardTitle></CardHeader>
+        <Card className="border-slate-200 bg-white dark:border-[#2b3e5d] dark:bg-[#0f1b30]">
+          <CardHeader><CardTitle className="text-lg text-slate-900 dark:text-[#f2f7ff]">3. Salesperson Progress</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {DESK_SALESPERSON_PROGRESS.map((item) => (
               <ChipButton key={item} active={salespersonProgress === item} label={item} onClick={() => withUsageTracking(() => setSalespersonProgress(item))} />
@@ -365,8 +365,8 @@ export default function DeskConversationPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#2b3e5d] bg-[#0f1b30]">
-          <CardHeader><CardTitle className="text-lg text-[#f2f7ff]">4. Urgency</CardTitle></CardHeader>
+        <Card className="border-slate-200 bg-white dark:border-[#2b3e5d] dark:bg-[#0f1b30]">
+          <CardHeader><CardTitle className="text-lg text-slate-900 dark:text-[#f2f7ff]">4. Urgency</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-3 gap-2">
             {DESK_URGENCY_LEVELS.map((item) => (
               <ChipButton key={item} active={urgency === item} label={item} onClick={() => withUsageTracking(() => setUrgency(item))} />
@@ -375,38 +375,38 @@ export default function DeskConversationPage() {
         </Card>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-[#f4f8ff]">Manager Entry Plan</h2>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-[#f4f8ff]">Manager Entry Plan</h2>
 
-          <Card className="border-[#2d4b66] bg-[#10243a]">
-            <CardHeader><CardTitle className="text-base text-[#7eeeff]">Best Entry Angle</CardTitle></CardHeader>
-            <CardContent><p className="text-sm text-[#eff6ff]">{plan.bestEntryAngle}</p></CardContent>
+          <Card className="border-slate-200 bg-slate-50 dark:border-[#2d4b66] dark:bg-[#10243a]">
+            <CardHeader><CardTitle className="text-base text-cyan-700 dark:text-[#7eeeff]">Best Entry Angle</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-slate-800 dark:text-[#eff6ff]">{plan.bestEntryAngle}</p></CardContent>
           </Card>
-          <Card className="border-[#2d4b66] bg-[#10243a]">
-            <CardHeader><CardTitle className="text-base text-[#7eeeff]">Say This First</CardTitle></CardHeader>
-            <CardContent><p className="text-sm text-[#eff6ff]">{plan.sayThisFirst}</p></CardContent>
+          <Card className="border-slate-200 bg-slate-50 dark:border-[#2d4b66] dark:bg-[#10243a]">
+            <CardHeader><CardTitle className="text-base text-cyan-700 dark:text-[#7eeeff]">Say This First</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-slate-800 dark:text-[#eff6ff]">{plan.sayThisFirst}</p></CardContent>
           </Card>
-          <Card className="border-[#2d4b66] bg-[#10243a]">
-            <CardHeader><CardTitle className="text-base text-[#7eeeff]">Ask This</CardTitle></CardHeader>
-            <CardContent><p className="text-sm text-[#eff6ff]">{plan.askThis}</p></CardContent>
+          <Card className="border-slate-200 bg-slate-50 dark:border-[#2d4b66] dark:bg-[#10243a]">
+            <CardHeader><CardTitle className="text-base text-cyan-700 dark:text-[#7eeeff]">Ask This</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-slate-800 dark:text-[#eff6ff]">{plan.askThis}</p></CardContent>
           </Card>
-          <Card className="border-[#2d4b66] bg-[#10243a]">
-            <CardHeader><CardTitle className="text-base text-[#7eeeff]">Reinforce This</CardTitle></CardHeader>
-            <CardContent><p className="text-sm text-[#eff6ff]">{plan.reinforceThis}</p></CardContent>
+          <Card className="border-slate-200 bg-slate-50 dark:border-[#2d4b66] dark:bg-[#10243a]">
+            <CardHeader><CardTitle className="text-base text-cyan-700 dark:text-[#7eeeff]">Reinforce This</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-slate-800 dark:text-[#eff6ff]">{plan.reinforceThis}</p></CardContent>
           </Card>
-          <Card className="border-[#2d4b66] bg-[#10243a]">
-            <CardHeader><CardTitle className="text-base text-[#ffb8b8]">Do Not Do This</CardTitle></CardHeader>
-            <CardContent><p className="text-sm text-[#ffd8d8]">{plan.doNotDoThis}</p></CardContent>
+          <Card className="border-slate-200 bg-slate-50 dark:border-[#2d4b66] dark:bg-[#10243a]">
+            <CardHeader><CardTitle className="text-base text-rose-700 dark:text-[#ffb8b8]">Do Not Do This</CardTitle></CardHeader>
+            <CardContent><p className="text-sm text-rose-700 dark:text-[#ffd8d8]">{plan.doNotDoThis}</p></CardContent>
           </Card>
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <Button className="h-11 bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]" onClick={handleCopy}>
+            <Button className="h-11 bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-[#172845] dark:text-[#eaf2ff] dark:hover:bg-[#22375a]" onClick={handleCopy}>
               <Copy className="mr-2 h-4 w-4" /> Copy
             </Button>
-            <Button className="h-11 bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]" onClick={() => withUsageTracking(handleSaveLocal)}>
+            <Button className="h-11 bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-[#172845] dark:text-[#eaf2ff] dark:hover:bg-[#22375a]" onClick={() => withUsageTracking(handleSaveLocal)}>
               <Save className="mr-2 h-4 w-4" /> Save Local
             </Button>
             <Button
-              className="h-11 border border-[#3c5878] bg-[#0f1b30] text-[#dce7f8] hover:bg-[#172845]"
+              className="h-11 border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 dark:border-[#3c5878] dark:bg-[#0f1b30] dark:text-[#dce7f8] dark:hover:bg-[#172845]"
               onClick={() => withUsageTracking(() => {
                 void handleSaveCloud();
               })}
@@ -421,35 +421,31 @@ export default function DeskConversationPage() {
           feature={FEATURES.SPROCKET}
           entitlements={entitlements}
           fallback={(gate) => (
-            <Card className="border-[#2f4568] bg-[#0f1c31]">
+            <Card className="border-slate-200 bg-white dark:border-[#2f4568] dark:bg-[#0f1c31]">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Insight</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Insight</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                                <div className="h-px w-full bg-gradient-to-r from-transparent via-[#2f4568] to-transparent" />
-                <p className="text-sm text-[#d8e6fb]">There's a smarter way to sequence this conversation based on trust signals, urgency, and customer skepticism.</p>
-                <p className="text-sm text-[#c5d6ef]">The system can adapt your wording, proof order, and next move in real time.</p>
-                <p className="text-xs uppercase tracking-[0.16em] text-[#8ca5c7]">Unlocked with AutoDriveCX</p>
-                <div className="relative overflow-hidden rounded-xl border border-[#2c4464] bg-[#0b1728]/85 p-3">
-                  <div className="space-y-2 text-sm text-[#c3d5ec] opacity-70 blur-[8px] select-none pointer-events-none">
-                    <p className="font-semibold text-[#f3c46b]">Failure Risk Detected</p>
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-300 to-transparent dark:via-[#2f4568]" />
+                <p className="text-sm text-slate-700 dark:text-[#d8e6fb]">There's a smarter way to sequence this conversation based on trust signals, urgency, and customer skepticism.</p>
+                <p className="text-sm text-slate-600 dark:text-[#c5d6ef]">The system can adapt your wording, proof order, and next move in real time.</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-[#8ca5c7]">Unlocked with AutoDriveCX</p>
+                <div className="relative overflow-hidden rounded-xl border border-slate-300 bg-slate-100/90 p-3 dark:border-[#2c4464] dark:bg-[#0b1728]/85">
+                  <div className="space-y-2 text-sm text-slate-600 opacity-70 blur-[8px] select-none pointer-events-none dark:text-[#c3d5ec]">
+                    <p className="font-semibold text-amber-700 dark:text-[#f3c46b]">Failure Risk Detected</p>
                     <p>Customer may delay due to...</p>
-                    <p className="font-semibold text-[#9fe8ff]">Recommended Shift</p>
+                    <p className="font-semibold text-cyan-700 dark:text-[#9fe8ff]">Recommended Shift</p>
                     <p>Lead with...</p>
-                    <p className="font-semibold text-[#9fe8ff]">Next Best Action</p>
+                    <p className="font-semibold text-cyan-700 dark:text-[#9fe8ff]">Next Best Action</p>
                     <p>Ask: "If this fails..."</p>
                   </div>
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b1728] via-[#0b1728]/90 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-100 via-slate-100/90 to-transparent dark:from-[#0b1728] dark:via-[#0b1728]/90" />
                 </div>
                 <Button
                   className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
                   onClick={() => {
-                    if (gate.gate === 'account') {
-                      setShowEmailGate(true);
-                      return;
-                    }
-                    setUpgradeContextMessage(gate.message);
-                    setGateModalType('paid');
+                    setUpgradeContextMessage('AutoDriveCX unlocks Sprocket Insight.');
+                    void handleUpgrade();
                   }}
                 >
                   Unlock Sprocket
@@ -458,51 +454,51 @@ export default function DeskConversationPage() {
             </Card>
           )}
         >
-          <Card className="border-[#1f4b66] bg-[#0c2236]">
-            <CardHeader><CardTitle className="flex items-center gap-2 text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Insight</CardTitle></CardHeader>
+          <Card className="border-slate-200 bg-white dark:border-[#1f4b66] dark:bg-[#0c2236]">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-slate-900 dark:text-[#7eeeff]"><Sparkles className="h-4 w-4" /> Sprocket Insight</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <Button className="h-11 bg-[#00d8e5] text-[#06232b] hover:bg-[#39eaf4]" onClick={() => withUsageTracking(handleRunSprocket)}>
+              <Button className="h-11 bg-cyan-600 text-white hover:bg-cyan-500 dark:bg-[#00d8e5] dark:text-[#06232b] dark:hover:bg-[#39eaf4]" onClick={() => withUsageTracking(handleRunSprocket)}>
                 Run Sprocket Enhancement
               </Button>
 
               {sprocketOutput && (
-                <div className="space-y-2 rounded-xl border border-[#2e5872] bg-[#0c1d2f] p-3 text-sm text-[#dce9fb]">
-                  <p><span className="font-semibold text-[#88f3ff]">Likely hidden issue:</span> {sprocketOutput.likelyHiddenIssue}</p>
-                  <p><span className="font-semibold text-[#88f3ff]">Sharper manager entry:</span> {sprocketOutput.sharperManagerEntry}</p>
-                  <p><span className="font-semibold text-[#88f3ff]">Natural rewrite:</span> {sprocketOutput.naturalRewrite}</p>
-                  <p><span className="font-semibold text-[#88f3ff]">Coaching:</span> {sprocketOutput.coaching}</p>
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 dark:border-[#2e5872] dark:bg-[#0c1d2f] dark:text-[#dce9fb]">
+                  <p><span className="font-semibold text-cyan-700 dark:text-[#88f3ff]">Likely hidden issue:</span> {sprocketOutput.likelyHiddenIssue}</p>
+                  <p><span className="font-semibold text-cyan-700 dark:text-[#88f3ff]">Sharper manager entry:</span> {sprocketOutput.sharperManagerEntry}</p>
+                  <p><span className="font-semibold text-cyan-700 dark:text-[#88f3ff]">Natural rewrite:</span> {sprocketOutput.naturalRewrite}</p>
+                  <p><span className="font-semibold text-cyan-700 dark:text-[#88f3ff]">Coaching:</span> {sprocketOutput.coaching}</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </FeatureGate>
 
-<Card className="border-[#2b3e5d] bg-[#0f1b30]">
+        <Card className="border-slate-200 bg-white dark:border-[#2b3e5d] dark:bg-[#0f1b30]">
           <CardHeader>
-            <CardTitle className="text-lg text-[#f2f7ff]">Saved Local Scenarios</CardTitle>
-            <CardDescription className="text-[#9cb0cd]">
+            <CardTitle className="text-lg text-slate-900 dark:text-[#f2f7ff]">Saved Local Scenarios</CardTitle>
+            <CardDescription className="text-slate-600 dark:text-[#9cb0cd]">
               {savedScenarios.length} saved on this device. {favoriteCount} favorited.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {savedScenarios.length === 0 ? (
-              <p className="text-sm text-[#90a7ca]">No saved scenarios yet.</p>
+              <p className="text-sm text-slate-500 dark:text-[#90a7ca]">No saved scenarios yet.</p>
             ) : (
               savedScenarios.slice(0, 6).map((scenario) => (
-                <div key={scenario.id} className="rounded-xl border border-[#29415e] bg-[#0c182a] p-3">
+                <div key={scenario.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#29415e] dark:bg-[#0c182a]">
                   <div className="mb-1 flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-[#e8f1ff]">{scenario.reason} - {scenario.customerPosture}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-[#e8f1ff]">{scenario.reason} - {scenario.customerPosture}</p>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 px-2 text-[#bdd0ea] hover:bg-[#172845] hover:text-[#fff8ca]"
+                      className="h-8 px-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-[#bdd0ea] dark:hover:bg-[#172845] dark:hover:text-[#fff8ca]"
                       onClick={() => toggleFavorite(scenario.id)}
                     >
                       <Star className={`mr-1 h-4 w-4 ${scenario.favorite ? 'fill-[#ffd95e] text-[#ffd95e]' : ''}`} />
                       {scenario.favorite ? 'Favorited' : 'Favorite'}
                     </Button>
                   </div>
-                  <p className="text-sm text-[#c9d7ee]">{scenario.bestEntryAngle}</p>
+                  <p className="text-sm text-slate-700 dark:text-[#c9d7ee]">{scenario.bestEntryAngle}</p>
                 </div>
               ))
             )}

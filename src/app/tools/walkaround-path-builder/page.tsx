@@ -551,12 +551,8 @@ export default function WalkaroundPathBuilderPage() {
                 <Button
                   className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
                   onClick={() => {
-                    if (gate.gate === 'account') {
-                      setShowEmailGate(true);
-                      return;
-                    }
-                    setUpgradeContextMessage(gate.message);
-                    setGateModalType('paid');
+                    setUpgradeContextMessage('AutoDriveCX unlocks Sprocket Insight.');
+                    void handleUpgrade();
                   }}
                 >
                   Unlock Sprocket
