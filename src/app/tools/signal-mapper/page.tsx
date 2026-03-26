@@ -1,6 +1,20 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { Header } from '@/components/layout/header';
+import { EmailGateModal } from '@/components/tools/email-gate-modal';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/hooks/use-auth';
+import { useEntitlements } from '@/hooks/use-entitlements';
+import { useToast } from '@/hooks/use-toast';
+import {
+  resolvePaidAccess,
+  type ToolboxCapturedRole,
+} from '@/lib/tools/entitlements';
 import {
   captureToolboxUnlockEmail,
 } from '@/lib/tools/toolbox-client';
