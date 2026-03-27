@@ -25,10 +25,7 @@ export function Header() {
 
   const trainingDashboardPath = '/';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
-  const isTrainingActive = Boolean(pathname && (
-    pathname === trainingDashboardPath
-    || (trainingDashboardPath !== '/' && pathname.startsWith(`${trainingDashboardPath}/`))
-  ));
+  const isTrainingActive = !isToolsActive;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
