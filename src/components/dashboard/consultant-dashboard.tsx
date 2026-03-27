@@ -55,8 +55,6 @@ import { TodayActionCard } from './today-action-card';
 import { evaluateUpMeterState, getUpMeterProgress, pickFreshUpProfile } from '@/lib/fresh-up';
 import { resolveAisRoleType } from '@/lib/ais-role-adaptive';
 import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
-import { hasDealershipAssignment } from '@/lib/billing/access';
-import { resolvePaidAccess } from '@/lib/tools/entitlements';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -308,7 +306,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [canRetakeRecommendedTesting, setCanRetakeRecommendedTesting] = useState(false);
   const [canUseNewRecommendedTesting, setCanUseNewRecommendedTesting] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
-  const { isTouring, setUser, originalUser } = useAuth();
+  const { isTouring, setUser } = useAuth();
   const pathname = usePathname();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
   const [showSprocketTour, setShowSprocketTour] = useState(false);
@@ -690,17 +688,8 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
   const upMeterProgress = getUpMeterProgress(freshUpMeter);
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
-  const shouldShowSurfaceToggle = true;
-  const hasPaidAccess = resolvePaidAccess({
-    tier: user.tier,
-    subscriptionStatus: user.subscriptionStatus,
-    dealershipSupported: hasDealershipAssignment(user),
-  });
-  const trainingSurfaceHref = hasActiveAutoDriveCx
-    ? '/'
-    : hasPaidAccess
-      ? 'https://app.autodrivecx.com/about'
-      : 'https://app.autodrivecx.com/signup';
+  const shouldShowSurfaceToggle = hasActiveAutoDriveCx;
+  const trainingSurfaceHref = '/';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
