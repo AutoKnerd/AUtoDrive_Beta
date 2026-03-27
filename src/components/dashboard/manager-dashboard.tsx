@@ -45,6 +45,8 @@ import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 import { ManagerGuidedTour } from './manager-guided-tour';
 import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
+import { hasDealershipAssignment } from '@/lib/billing/access';
+import { resolvePaidAccess } from '@/lib/tools/entitlements';
 
 interface ManagerDashboardProps {
   user: User;
@@ -975,7 +977,16 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
   const shouldShowSurfaceToggle = true;
-  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/about';
+  const hasPaidAccess = resolvePaidAccess({
+    tier: user.tier,
+    subscriptionStatus: user.subscriptionStatus,
+    dealershipSupported: hasDealershipAssignment(user),
+  });
+  const trainingSurfaceHref = hasActiveAutoDriveCx
+    ? '/'
+    : hasPaidAccess
+      ? 'https://app.autodrivecx.com/about'
+      : 'https://app.autodrivecx.com/signup';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 

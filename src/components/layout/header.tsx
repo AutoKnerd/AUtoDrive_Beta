@@ -8,16 +8,27 @@ import { Logo } from '@/components/layout/logo';
 import { UserNav } from './user-nav';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { hasDealershipAssignment } from '@/lib/billing/access';
+import { resolvePaidAccess } from '@/lib/tools/entitlements';
 
 export function Header() {
   const { user, originalUser } = useAuth();
   const pathname = usePathname();
   const isToolsSurface = pathname?.startsWith('/tools');
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
+  const hasPaidAccess = Boolean(user && resolvePaidAccess({
+    tier: user.tier,
+    subscriptionStatus: user.subscriptionStatus,
+    dealershipSupported: hasDealershipAssignment(user),
+  }));
   const shouldShowSurfaceToggle = Boolean(user);
   const [showAutoDriveBadgePulse, setShowAutoDriveBadgePulse] = useState(false);
 
-  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/about';
+  const trainingSurfaceHref = hasActiveAutoDriveCx
+    ? '/'
+    : hasPaidAccess
+      ? 'https://app.autodrivecx.com/about'
+      : 'https://app.autodrivecx.com/signup';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
