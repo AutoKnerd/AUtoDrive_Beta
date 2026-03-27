@@ -10,14 +10,25 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 export function Header() {
-  const { user } = useAuth();
+  const { user, originalUser } = useAuth();
   const pathname = usePathname();
   const isToolsSurface = pathname?.startsWith('/tools');
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
+  const isDeveloperPreviewUser = Boolean(
+    user?.role === 'Developer'
+    || user?.role === 'Admin'
+    || originalUser?.role === 'Developer'
+    || originalUser?.role === 'Admin'
+  );
+  const hasGiftedBothSurfaces = Boolean(
+    (user as any)?.toolboxGiftedFullAccess
+    && ((user as any)?.autoDriveCxGiftedAccess || hasActiveAutoDriveCx)
+  );
+  const shouldUseNormalToggle = hasActiveAutoDriveCx || isDeveloperPreviewUser || hasGiftedBothSurfaces;
   const shouldShowSurfaceToggle = Boolean(user);
   const [showAutoDriveBadgePulse, setShowAutoDriveBadgePulse] = useState(false);
 
-  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/signup';
+  const trainingSurfaceHref = shouldUseNormalToggle ? '/' : 'https://app.autodrivecx.com/signup';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
@@ -54,7 +65,7 @@ export function Header() {
           showAutoDriveBadgePulse && 'animate-pulse ring-2 ring-[#63e36f]/45',
           className
         )}
-        title={hasActiveAutoDriveCx ? 'Open AutoDriveCX dashboard' : 'Start AutoDriveCX'}
+        title={shouldUseNormalToggle ? 'Open AutoDriveCX dashboard' : 'Start AutoDriveCX'}
       >
         <Link
           href={trainingSurfaceHref}

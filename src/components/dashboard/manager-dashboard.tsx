@@ -974,8 +974,19 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   };
 
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
+  const isDeveloperPreviewUser = Boolean(
+    user?.role === 'Developer'
+    || user?.role === 'Admin'
+    || originalUser?.role === 'Developer'
+    || originalUser?.role === 'Admin'
+  );
+  const hasGiftedBothSurfaces = Boolean(
+    (user as any)?.toolboxGiftedFullAccess
+    && ((user as any)?.autoDriveCxGiftedAccess || hasActiveAutoDriveCx)
+  );
+  const shouldUseNormalToggle = hasActiveAutoDriveCx || isDeveloperPreviewUser || hasGiftedBothSurfaces;
   const shouldShowSurfaceToggle = true;
-  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/signup';
+  const trainingSurfaceHref = shouldUseNormalToggle ? '/' : 'https://app.autodrivecx.com/signup';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
