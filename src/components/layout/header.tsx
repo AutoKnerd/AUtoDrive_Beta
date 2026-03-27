@@ -14,10 +14,10 @@ export function Header() {
   const pathname = usePathname();
   const isToolsSurface = pathname?.startsWith('/tools');
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
-  const shouldShowSurfaceToggle = Boolean(user && hasActiveAutoDriveCx);
+  const shouldShowSurfaceToggle = Boolean(user);
   const [showAutoDriveBadgePulse, setShowAutoDriveBadgePulse] = useState(false);
 
-  const trainingSurfaceHref = '/';
+  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/signup';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
@@ -54,7 +54,7 @@ export function Header() {
           showAutoDriveBadgePulse && 'animate-pulse ring-2 ring-[#63e36f]/45',
           className
         )}
-        title="Open AutoDriveCX dashboard"
+        title={hasActiveAutoDriveCx ? 'Open AutoDriveCX dashboard' : 'Start AutoDriveCX'}
       >
         <Link
           href={trainingSurfaceHref}

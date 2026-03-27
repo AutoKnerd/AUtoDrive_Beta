@@ -974,8 +974,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   };
 
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
-  const shouldShowSurfaceToggle = hasActiveAutoDriveCx;
-  const trainingSurfaceHref = '/';
+  const shouldShowSurfaceToggle = true;
+  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/signup';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 

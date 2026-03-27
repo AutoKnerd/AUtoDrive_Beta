@@ -688,8 +688,8 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
   const upMeterProgress = getUpMeterProgress(freshUpMeter);
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
-  const shouldShowSurfaceToggle = hasActiveAutoDriveCx;
-  const trainingSurfaceHref = '/';
+  const shouldShowSurfaceToggle = true;
+  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/signup';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
