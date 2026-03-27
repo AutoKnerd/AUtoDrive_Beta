@@ -974,13 +974,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   };
 
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
-  const isDeveloperPreviewUser = (
-    user?.role === 'Developer'
-    || user?.role === 'Admin'
-    || originalUser?.role === 'Developer'
-    || originalUser?.role === 'Admin'
-  );
-  const shouldShowSurfaceToggle = hasActiveAutoDriveCx || isDeveloperPreviewUser;
+  const shouldShowSurfaceToggle = true;
+  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/about';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
@@ -998,13 +993,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         )}
       >
         <Link
-          href="/"
+          href={trainingSurfaceHref}
           className={cn(
             'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
             isTrainingActive
               ? 'bg-gradient-to-r from-[#53d7ff] to-[#2c98ff] text-[#031a34] shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_10px_20px_rgba(18,132,228,0.5)]'
               : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
           )}
+          prefetch={false}
         >
           AutoDriveCX
         </Link>

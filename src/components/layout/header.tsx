@@ -14,16 +14,10 @@ export function Header() {
   const pathname = usePathname();
   const isToolsSurface = pathname?.startsWith('/tools');
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
-  const isDeveloperPreviewUser = (
-    user?.role === 'Developer'
-    || user?.role === 'Admin'
-    || originalUser?.role === 'Developer'
-    || originalUser?.role === 'Admin'
-  );
-  const shouldShowSurfaceToggle = Boolean(user && (hasActiveAutoDriveCx || isDeveloperPreviewUser));
+  const shouldShowSurfaceToggle = Boolean(user);
   const [showAutoDriveBadgePulse, setShowAutoDriveBadgePulse] = useState(false);
 
-  const trainingDashboardPath = '/';
+  const trainingSurfaceHref = hasActiveAutoDriveCx ? '/' : 'https://app.autodrivecx.com/about';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
@@ -60,10 +54,10 @@ export function Header() {
           showAutoDriveBadgePulse && 'animate-pulse ring-2 ring-[#63e36f]/45',
           className
         )}
-        title={hasActiveAutoDriveCx ? 'AutoDriveCX active' : 'Developer preview'}
+        title={hasActiveAutoDriveCx ? 'Open AutoDriveCX dashboard' : 'Learn about AutoDriveCX'}
       >
         <Link
-          href={trainingDashboardPath}
+          href={trainingSurfaceHref}
           className={cn(
             'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
             isTrainingActive
@@ -76,6 +70,7 @@ export function Header() {
             }
             setShowAutoDriveBadgePulse(false);
           }}
+          prefetch={false}
         >AutoDriveCX</Link>
         <Link
           href="/tools"
