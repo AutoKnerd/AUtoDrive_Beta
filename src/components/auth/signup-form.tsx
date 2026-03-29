@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -56,6 +56,7 @@ export function SignupForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [didCaptureEmailEntry, setDidCaptureEmailEntry] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const firebaseAuth = useFirebaseAuth();
   const { publicSignup } = useAuth();
   const { toast } = useToast();
@@ -86,6 +87,19 @@ export function SignupForm() {
   }, []);
 
   const emailValue = form.watch('email');
+
+  useEffect(() => {
+    const prefillEmail = String(searchParams.get('email') || '').trim();
+    const prefillRole = String(searchParams.get('role') || '').trim();
+    const hasRoleOption = signupRoleOptions.some((option) => option.value === prefillRole);
+
+    if (prefillEmail) {
+      form.setValue('email', prefillEmail, { shouldDirty: true });
+    }
+    if (hasRoleOption) {
+      form.setValue('role', prefillRole, { shouldDirty: true });
+    }
+  }, [form, searchParams]);
 
   useEffect(() => {
     if (didCaptureEmailEntry) return;

@@ -94,9 +94,9 @@ export function getUserEntitlements(input: {
 
   const features: Record<ToolboxFeatureKey, boolean> = {
     [FEATURES.TOOL_ACCESS]: input.hasAccount || normalizedToolsUsedCount < FREE_TOOL_USAGE_LIMIT,
-    [FEATURES.SPROCKET]: input.hasAccount && input.hasPaidAccess,
-    [FEATURES.CLOUD_SAVE]: input.hasAccount && input.hasPaidAccess,
-    [FEATURES.HISTORY]: input.hasAccount && input.hasPaidAccess,
+    [FEATURES.SPROCKET]: input.hasAccount && input.hasPaidAccess && input.hasAutoDriveCX,
+    [FEATURES.CLOUD_SAVE]: input.hasAccount,
+    [FEATURES.HISTORY]: input.hasAccount,
     [FEATURES.AUTODRIVE_CX]: input.hasAccount && input.hasPaidAccess && input.hasAutoDriveCX,
   };
 
@@ -153,7 +153,7 @@ function allowed(feature: ToolboxFeatureKey): FeatureGateResult {
 export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: ToolboxFeatureKey): FeatureGateResult {
   if (feature === FEATURES.TOOL_ACCESS) {
     if (canAccessFeature(entitlements, feature)) return allowed(feature);
-    return blocked(feature, 'account', 'fourth_tool_open', 'Create your free account to open your 4th tool.');
+    return blocked(feature, 'account', 'fourth_tool_open', 'Create your free account to keep going. All tools unlock immediately after account setup.');
   }
 
   if (feature === FEATURES.SPROCKET) {
@@ -161,29 +161,19 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
       return blocked(feature, 'account', 'first_sprocket_use', 'Create your free account to continue with Sprocket.');
     }
     if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_sprocket_use', 'Sprocket is included with paid AutoShop access.');
+      return blocked(feature, 'autodrive_cx', 'first_sprocket_use', 'Upgrade to AutoDriveCX intelligence for guided coaching and smarter next-move support.');
     }
     return allowed(feature);
   }
 
   if (feature === FEATURES.CLOUD_SAVE) {
-    if (!entitlements.hasAccount) {
-      return blocked(feature, 'account', 'first_cloud_save', 'Add your email and role to save your work.');
-    }
-    if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_cloud_save', 'Cloud saves require paid AutoShop access.');
-    }
-    return allowed(feature);
+    if (canAccessFeature(entitlements, feature)) return allowed(feature);
+    return blocked(feature, 'account', 'first_cloud_save', 'Add your email and role to save your work.');
   }
 
   if (feature === FEATURES.HISTORY) {
-    if (!entitlements.hasAccount) {
-      return blocked(feature, 'account', 'first_history_access', 'Add your email and role to access history.');
-    }
-    if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_history_access', 'Saved history requires paid AutoShop access.');
-    }
-    return allowed(feature);
+    if (canAccessFeature(entitlements, feature)) return allowed(feature);
+    return blocked(feature, 'account', 'first_history_access', 'Add your email and role to access history.');
   }
 
   if (!entitlements.hasAccount) {

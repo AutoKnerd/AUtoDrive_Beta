@@ -193,7 +193,7 @@ function CategoryInput({
                 key={option.key}
                 type="button"
                 onClick={() => onSelect(category.id as ConsistencyCategoryId, option.key)}
-                className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${optionButtonClass(selected)}`}
+                className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-all ${optionButtonClass(selected)}`}
               >
                 {option.label}
               </button>
@@ -215,7 +215,7 @@ function CategoryInput({
             key={option.key}
             type="button"
             onClick={() => onSelect(category.id as ConsistencyCategoryId, option.key)}
-            className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-colors ${optionButtonClass(selected)}`}
+            className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all ${optionButtonClass(selected)}`}
           >
             {option.label}
           </button>
@@ -523,7 +523,7 @@ export default function ConsistencyGapCheckPage() {
                       key={option}
                       type="button"
                       onClick={() => withUsageTracking(() => setRole(option))}
-                      className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-colors ${optionButtonClass(selected)}`}
+                      className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all ${optionButtonClass(selected)}`}
                     >
                       {getRoleDisplayLabel(option)}
                     </button>
@@ -542,7 +542,7 @@ export default function ConsistencyGapCheckPage() {
                       key={option}
                       type="button"
                       onClick={() => withUsageTracking(() => setEvaluationBasis(option))}
-                      className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-colors ${optionButtonClass(selected)}`}
+                      className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all ${optionButtonClass(selected)}`}
                     >
                       {option}
                     </button>

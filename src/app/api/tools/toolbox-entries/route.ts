@@ -88,8 +88,8 @@ export async function GET(req: NextRequest) {
     });
     if (!canAccessFeature(entitlements, FEATURES.HISTORY)) {
       return NextResponse.json(
-        { ok: false, message: 'Saved history requires paid AutoShop access.', code: 'PAYMENT_REQUIRED' },
-        { status: 402 }
+        { ok: false, message: 'Saved history requires an AutoShop account.', code: 'ACCOUNT_REQUIRED' },
+        { status: 403 }
       );
     }
 
@@ -132,8 +132,8 @@ export async function POST(req: NextRequest) {
     });
     if (!canAccessFeature(entitlements, FEATURES.CLOUD_SAVE)) {
       return NextResponse.json(
-        { ok: false, message: 'Cloud saves require paid AutoShop access.', code: 'PAYMENT_REQUIRED' },
-        { status: 402 }
+        { ok: false, message: 'Cloud saves require an AutoShop account.', code: 'ACCOUNT_REQUIRED' },
+        { status: 403 }
       );
     }
 

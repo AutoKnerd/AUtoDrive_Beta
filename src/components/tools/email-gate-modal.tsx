@@ -41,13 +41,23 @@ export function EmailGateModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Your Free AutoShop Account</DialogTitle>
-          <DialogDescription>Add your email and role to keep going after 3 tools.</DialogDescription>
+      <DialogContent className="sm:max-w-[520px]">
+        <DialogHeader className="space-y-3">
+          <DialogTitle>Unlock Your AutoShopCX Experience</DialogTitle>
+          <DialogDescription>Save your progress. Personalize your tools. Get more out of every deal.</DialogDescription>
         </DialogHeader>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li>Pick up where you left off</li>
+          <li>Tools tailored to your role</li>
+          <li>Consistent, repeatable workflow</li>
+        </ul>
+
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <p className="text-sm font-medium text-foreground">
+            You&apos;re one step away from unlocking the full system.
+          </p>
+
           <div className="space-y-2">
             <Label htmlFor="toolbox-email">Email</Label>
             <Input
@@ -76,11 +86,21 @@ export function EmailGateModal({
             </Select>
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={loading || !email.trim()}>
-              {loading ? 'Saving...' : 'Continue'}
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button type="button" variant="ghost" className="text-muted-foreground" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading || !email.trim()}
+              className="h-11 min-w-[190px] bg-[#5BFF3A] text-[#000000] hover:bg-[#4be92b]"
+            >
+              {loading ? 'Redirecting...' : 'Set Up My Account'}
             </Button>
           </DialogFooter>
+          <p className="text-center text-xs text-muted-foreground">
+            We&apos;ll send you a secure login link — no password needed.
+          </p>
         </form>
       </DialogContent>
     </Dialog>

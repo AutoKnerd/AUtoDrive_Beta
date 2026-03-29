@@ -16,26 +16,26 @@ export function UpgradeModal({ open, loading = false, contextMessage, onOpenChan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Unlock Your Full AutoShop</DialogTitle>
-          <DialogDescription>Don&apos;t lose momentum. Turn every conversation into a system.</DialogDescription>
+          <DialogTitle>Unlock AutoDriveCX Intelligence</DialogTitle>
+          <DialogDescription>Get guided coaching and smarter decision support inside your workflow.</DialogDescription>
         </DialogHeader>
 
         {contextMessage && <p className="text-sm font-medium text-slate-700">{contextMessage}</p>}
 
-        <p className="text-sm text-slate-600">You&apos;ve only unlocked part of the system.</p>
+        <p className="text-sm text-slate-600">Tool access stays open. Upgrade adds intelligence layers.</p>
 
         <ul className="space-y-2 text-sm text-slate-700">
-          <li>Access every tool, anytime</li>
-          <li>Save your work and build on it</li>
-          <li>Turn weekly reps into real results</li>
+          <li>Guided coaching in live scenarios</li>
+          <li>Smarter next-move recommendations</li>
+          <li>Pattern recognition to improve performance</li>
         </ul>
 
         <DialogFooter>
           <Button onClick={onUpgrade} disabled={loading}>
-            {loading ? 'Upgrading...' : 'Unlock Full Access'}
+            {loading ? 'Upgrading...' : 'Unlock Intelligence'}
           </Button>
         </DialogFooter>
-        <p className="text-center text-xs text-slate-500">Start now. Pick up where you left off anytime.</p>
+        <p className="text-center text-xs text-slate-500">Coach better, decide faster, and improve outcomes.</p>
       </DialogContent>
     </Dialog>
   );

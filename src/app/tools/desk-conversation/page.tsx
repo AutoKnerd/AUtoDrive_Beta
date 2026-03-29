@@ -293,7 +293,7 @@ export default function DeskConversationPage() {
     <button
       type="button"
       onClick={onClick}
-      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors ${
+      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
         active
           ? 'border-cyan-300 bg-cyan-50 text-cyan-900 dark:border-[#00d8e5] dark:bg-[#00f2ff]/15 dark:text-[#e6fdff]'
           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-[#2c3e5c] dark:bg-[#101c30] dark:text-[#d2def2] dark:hover:bg-[#152743]'

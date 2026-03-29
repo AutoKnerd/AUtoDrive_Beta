@@ -8,6 +8,7 @@ import { Logo } from '@/components/layout/logo';
 import { UserNav } from './user-nav';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 export function Header() {
   const { user, originalUser } = useAuth();
@@ -98,15 +99,28 @@ export function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-30 flex h-16 items-center border-b backdrop-blur-sm ${
+      className={`sticky top-0 z-30 flex h-24 items-center border-b backdrop-blur-sm ${
         isToolsSurface
           ? 'border-[#c7d6e8] bg-[#f6fbff]/95 text-[#0f2135] dark:border-[#1f3657] dark:bg-[#0f192c]/95 dark:text-[#eaf2ff]'
           : 'border-border bg-background/80'
       }`}
     >
       <div className="relative mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
-        <Link href="/" className="flex items-center font-semibold">
-          <Logo variant="full" width={146} height={48} />
+        <Link href="/" className="flex items-center font-semibold text-[#FFFFFF]">
+          {isToolsSurface ? (
+            <div className="relative flex items-center">
+              <Image 
+                src="/Autoshop logo.png"
+                alt="AutoShopCX"
+                width={320}
+                height={80}
+                className="h-16 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(123,46,255,0.4)]"
+                priority
+              />
+            </div>
+          ) : (
+            <Logo variant="full" width={292} height={96} />
+          )}
         </Link>
         {renderSurfaceToggle('absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:inline-flex')}
         <div className="ml-auto flex items-center gap-2">
