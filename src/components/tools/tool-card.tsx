@@ -65,7 +65,7 @@ export function ToolCard({ tool, badgeLabel, ctaLabel, locked, onAction }: ToolC
           </div>
           <h4 className="font-['Manrope'] mb-2 text-lg font-bold tracking-tight text-[#FFFFFF]">Premium System</h4>
           <p className="text-xs text-[#B8B8C5] mb-6 max-w-[200px] leading-relaxed">Unlock to deploy this framework to your CX strategy.</p>
-          <button onClick={onAction} className="w-full rounded-md bg-[#5BFF3A] px-6 py-3.5 text-[11px] font-bold uppercase tracking-widest text-[#000000] transition-all duration-200 hover:bg-[#4be92b] shadow-[0_4px_14px_rgba(91,255,58,0.15)] active:scale-95">
+          <button onClick={onAction} className="w-full rounded-md bg-[#9DEE75] px-6 py-3.5 text-[11px] font-bold uppercase tracking-widest text-[#000000] transition-all duration-200 hover:bg-[#ABF28A] shadow-[0_4px_14px_rgba(91,255,58,0.15)] active:scale-95">
             Upgrade to unlock
           </button>
         </div>

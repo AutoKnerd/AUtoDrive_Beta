@@ -159,3 +159,27 @@ export async function enhanceSprocketInsight(input: {
 
   return parseApiResponse<{ output: Record<string, string> }>(response);
 }
+
+export async function trackToolXpEvent(input: {
+  idToken: string;
+  idempotencyKey: string;
+  userId: string;
+  toolId: string;
+  eventType: 'tool_first_use' | 'tool_completion' | 'tool_session_completion';
+  baseXP: number;
+  bonusXP?: number;
+  skillCategory: 'Empathy' | 'Listening' | 'Trust' | 'Follow-Up' | 'Closing' | 'Relationship Building';
+  entitlementStatus: 'free' | 'paid';
+  timestamp?: string;
+}): Promise<ApiResult<{ xpAdded: number; totalXp: number; duplicate?: boolean }>> {
+  const response = await fetch('/api/tools/xp-events', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${input.idToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  return parseApiResponse<{ xpAdded: number; totalXp: number; duplicate?: boolean }>(response);
+}

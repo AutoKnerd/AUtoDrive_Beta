@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentType } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowRight, ChevronDown, CheckCircle2, Clock, FolderOpen, HelpCircle, Lock, Save, SlidersHorizontal, Sparkles, Zap } from 'lucide-react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { ArrowRight, ChevronDown, CheckCircle2, Clock, FolderOpen, HelpCircle, Save, SlidersHorizontal, Sparkles, Zap } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { EmailGateModal } from '@/components/tools/email-gate-modal';
 import { UpgradeModal } from '@/components/tools/upgrade-modal';
@@ -16,6 +17,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { useEntitlements } from '@/hooks/use-entitlements';
+import { useAuth as useFirebaseAuth } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { useThemeMode } from '@/context/theme-provider';
 import { touchAttribution } from '@/lib/consultant-referral';
@@ -41,12 +43,12 @@ import {
 } from '@/lib/tools/toolbox-storage';
 import { FEATURES, resolvePaidAccess, type ToolboxCapturedRole, type ToolboxFeatureKey } from '@/lib/tools/entitlements';
 import {
-  captureToolboxUnlockEmail,
   createToolboxFreeAccount,
   fetchToolboxEntitlements,
   fetchToolboxEntries,
   saveToolboxEntry,
   syncToolboxPaidStatus,
+  trackToolXpEvent,
   trackRecommendationEventServer,
 } from '@/lib/tools/toolbox-client';
 import { getRecommendedTools } from '@/lib/tools/recommendation';
@@ -57,21 +59,19 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOOLBOX_UPGRADE_URL = 'https://app.autodrivecx.com/signup';
 
 const mainSiteLoginButtonStyle: CSSProperties = {
-  fontSize: '12px',
-  padding: '12px 20px',
-  borderRadius: '5px',
-  border: '1px solid rgba(122, 211, 255, 0.3)',
-  background: 'linear-gradient(180deg, #46a8df 0%, #2f88c2 100%)',
-  color: '#fff',
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  transition: 'all 0.25s ease',
-  boxShadow: '0 6px 14px rgba(28, 130, 189, 0.35), inset 0 1px 0 rgba(255,255,255,0.2)',
-  textShadow: '0 1px 0 rgba(0,0,0,0.22)',
+  fontSize: '11px',
+  padding: '9px 14px',
+  borderRadius: '8px',
+  border: '1px solid rgba(184, 184, 197, 0.26)',
+  background: 'rgba(18, 18, 26, 0.82)',
+  color: '#b8b8c5',
+  fontWeight: 700,
+  letterSpacing: '0.1em',
+  transition: 'all 0.2s ease',
   textDecoration: 'none',
   textAlign: 'center',
   whiteSpace: 'nowrap',
-  lineHeight: 1.05,
+  lineHeight: 1.1,
 };
 
 function badgeText(label: 'Premium'): string {
@@ -140,6 +140,31 @@ const QUICK_DIAGNOSIS_OPTIONS = [
 type DiagnosisLabel = (typeof QUICK_DIAGNOSIS_OPTIONS)[number]['label'];
 type RoleTypeSelection = 'sales_advisor' | 'manager';
 type RoleDetailSelection = 'Sales Consultant' | 'Service Writer' | 'manager' | 'Service Manager' | 'Finance Manager';
+type HeroRoleSegment = 'sales' | 'service' | 'management';
+
+const MANAGEMENT_ROLE_SET = new Set<UserRole>([
+  'manager',
+  'Service Manager',
+  'Finance Manager',
+  'Parts Manager',
+  'General Manager',
+  'Owner',
+  'Trainer',
+  'Admin',
+  'Developer',
+]);
+
+const SERVICE_ROLE_SET = new Set<UserRole>([
+  'Service Writer',
+  'Parts Consultant',
+]);
+
+function mapUserRoleToHeroSegment(role: UserRole | null | undefined): HeroRoleSegment | null {
+  if (!role) return null;
+  if (MANAGEMENT_ROLE_SET.has(role)) return 'management';
+  if (SERVICE_ROLE_SET.has(role)) return 'service';
+  return 'sales';
+}
 
 const DIAGNOSIS_TOOL_PRIORITY: Record<DiagnosisLabel, string[]> = {
   'Customer is stalling': ['objection-reframe', 'parts-objection-defuser', 'commitment-ladder'],
@@ -161,6 +186,7 @@ const ROLE_DETAIL_TOOL_PRIORITY: Record<RoleDetailSelection, string[]> = {
 export default function ToolsPage() {
   const { toast } = useToast();
   const { user, firebaseUser, loading, setUser } = useAuth();
+  const firebaseAuth = useFirebaseAuth();
   const { resolvedTheme } = useThemeMode();
   const [activeTool, setActiveTool] = useState<ToolConfig | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -215,12 +241,12 @@ export default function ToolsPage() {
   const [draftSortBy, setDraftSortBy] = useState<'recommended' | 'recent' | 'popular'>('recommended');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAllToolsExpanded, setIsAllToolsExpanded] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(true);
   const [diagnosisFeedback, setDiagnosisFeedback] = useState<string | null>(null);
   const [selectedDiagnosis, setSelectedDiagnosis] = useState<DiagnosisLabel | null>(null);
   const [selectedRoleType, setSelectedRoleType] = useState<RoleTypeSelection | null>(null);
   const [selectedRoleDetail, setSelectedRoleDetail] = useState<RoleDetailSelection | null>(null);
   const [isRoleSelectorExpanded, setIsRoleSelectorExpanded] = useState(true);
+  const [heroRoleSelection, setHeroRoleSelection] = useState<HeroRoleSegment | null>(null);
   const categoryFilters: Array<'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'> = [
     'Deal Flow', 'Objections', 'Follow-Up', 'Pricing', 'CX / Process', 'Manager Tools',
   ];
@@ -296,16 +322,21 @@ export default function ToolsPage() {
     });
   }, [appliedAccessFilter, appliedCategoryFilters, appliedRoleFilter, searchQuery, selectedIntentFilter, tools]);
 
-  const displayName = (user?.name || '').trim().split(/\s+/)[0] || (user?.email || '');
   const activeDraft = activeTool ? drafts[activeTool.id] || '' : '';
   const activeToolId = activeTool?.id ?? null;
   const isWorkspaceMode = !!activeToolId;
-  const accountEmail = accountProfile?.email || '';
-  const accountRole = accountProfile?.role || 'Sales Consultant';
+  const displayName = (user?.name || '').trim().split(/\s+/)[0] || (user?.email || '');
+  const accountEmail = accountProfile?.email || user?.email || firebaseUser?.email || '';
+  const accountRole = (user?.role || accountProfile?.role || 'Sales Consultant') as ToolboxCapturedRole;
+  const storedRole = (user?.role || accountProfile?.role || null) as UserRole | null;
+  const resolvedHeroRole = useMemo(
+    () => (isAuthenticated ? mapUserRoleToHeroSegment(storedRole) : heroRoleSelection),
+    [heroRoleSelection, isAuthenticated, storedRole]
+  );
   const historyGate = checkFeature(FEATURES.HISTORY);
   const intelligenceGate = checkFeature(FEATURES.AUTODRIVE_CX);
   const hasIntelligenceAccess = intelligenceGate.allowed;
-  const shouldShowOnboarding = showOnboarding && !entitlements.hasAccount && !entitlements.hasPaidAccess && !entitlements.hasAutoDriveCX;
+  const shouldShowOnboarding = !entitlements.hasAccount && !entitlements.hasPaidAccess && !entitlements.hasAutoDriveCX;
 
   const accessibleToolIds = useMemo(() => {
     return tools
@@ -499,6 +530,34 @@ export default function ToolsPage() {
     return selectedDiagnosis ? (byDiagnosis[selectedDiagnosis] || 'for this situation') : 'for this situation';
   }, [selectedDiagnosis]);
 
+  const compactHeroContent = useMemo(() => {
+    if (resolvedHeroRole === 'sales') {
+      return {
+        headline: 'Move more deals forward with confidence.',
+        subtext: 'Handle objections cleanly, keep momentum, and choose the best next move faster.',
+      };
+    }
+
+    if (resolvedHeroRole === 'service') {
+      return {
+        headline: 'Drive more approvals through trust and clarity.',
+        subtext: 'Communicate recommendations clearly, strengthen customer confidence, and move work forward.',
+      };
+    }
+
+    if (resolvedHeroRole === 'management') {
+      return {
+        headline: 'Coach consistency across every customer conversation.',
+        subtext: 'Build repeatable behaviors, sharpen team execution, and improve performance at scale.',
+      };
+    }
+
+    return {
+      headline: 'Build a system that actually moves deals.',
+      subtext: 'For consultants and managers who want consistent wins.',
+    };
+  }, [resolvedHeroRole]);
+
   function formatRecommendationReason(
     recommendation: (typeof recommendationResult.recommendations)[number],
     slot: 'primary' | 'backup1' | 'backup2'
@@ -546,6 +605,7 @@ export default function ToolsPage() {
     if (typeof window === 'undefined') return;
     const storedType = window.localStorage.getItem('autodrive_role_type');
     const storedDetail = window.localStorage.getItem('autodrive_role_detail');
+    const storedHeroRole = window.localStorage.getItem('autodrive_hero_role');
 
     if (storedType === 'sales_advisor' || storedType === 'manager') {
       setSelectedRoleType(storedType);
@@ -561,6 +621,9 @@ export default function ToolsPage() {
     }
     if (storedType || storedDetail) {
       setIsRoleSelectorExpanded(false);
+    }
+    if (storedHeroRole === 'sales' || storedHeroRole === 'service' || storedHeroRole === 'management') {
+      setHeroRoleSelection(storedHeroRole);
     }
   }, []);
 
@@ -581,6 +644,15 @@ export default function ToolsPage() {
       window.localStorage.removeItem('autodrive_role_detail');
     }
   }, [selectedRoleDetail]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isAuthenticated) return;
+    if (heroRoleSelection) {
+      window.localStorage.setItem('autodrive_hero_role', heroRoleSelection);
+    } else {
+      window.localStorage.removeItem('autodrive_hero_role');
+    }
+  }, [heroRoleSelection, isAuthenticated]);
 
   useEffect(() => {
     async function loadEntries() {
@@ -656,14 +728,6 @@ export default function ToolsPage() {
   }, [firebaseUser]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const dismissed = window.localStorage.getItem('autodrive_onboarding_dismissed');
-    if (dismissed === 'true') {
-      setShowOnboarding(false);
-    }
-  }, []);
-
-  useEffect(() => {
     setSprocketLayerOutput(null);
     setCxLayerOutput(null);
   }, [activeToolId]);
@@ -707,6 +771,65 @@ export default function ToolsPage() {
       hour: 'numeric',
       minute: '2-digit',
     }).format(date);
+  }
+
+  function deriveNameFromEmail(email: string): string {
+    const localPart = (email || '').split('@')[0] || '';
+    const cleaned = localPart.replace(/[._-]+/g, ' ').trim();
+    if (!cleaned) return 'Member';
+    return cleaned
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  }
+
+  function skillCategoryForTool(tool: ToolConfig): 'Empathy' | 'Listening' | 'Trust' | 'Follow-Up' | 'Closing' | 'Relationship Building' {
+    if (tool.category === 'Follow-Up') return 'Follow-Up';
+    if (tool.category === 'Pricing') return 'Closing';
+    if (tool.category === 'Objections') return 'Trust';
+    if (tool.category === 'CX / Process') return 'Relationship Building';
+    if (tool.category === 'Manager Tools') return 'Listening';
+    return 'Empathy';
+  }
+
+  async function awardToolXp(input: {
+    tool: ToolConfig;
+    eventType: 'tool_first_use' | 'tool_completion' | 'tool_session_completion';
+    baseXP: number;
+    idempotencyKey: string;
+  }) {
+    if (!firebaseUser || !user?.userId) return;
+
+    const bonusXP = (entitlements.hasPaidAccess && entitlements.hasAutoDriveCX)
+      ? Math.round(input.baseXP * 0.5)
+      : 0;
+
+    const idToken = await firebaseUser.getIdToken();
+    const result = await trackToolXpEvent({
+      idToken,
+      idempotencyKey: input.idempotencyKey,
+      userId: user.userId,
+      toolId: input.tool.id,
+      eventType: input.eventType,
+      baseXP: input.baseXP,
+      bonusXP,
+      skillCategory: skillCategoryForTool(input.tool),
+      entitlementStatus: entitlements.hasPaidAccess && entitlements.hasAutoDriveCX ? 'paid' : 'free',
+      timestamp: new Date().toISOString(),
+    });
+
+    if (!result.ok) {
+      console.warn('[Toolbox XP] event failed:', result.message);
+      return;
+    }
+
+    if (typeof result.data.totalXp === 'number' && user) {
+      setUser({
+        ...user,
+        xp: result.data.totalXp,
+      });
+    }
   }
 
   async function logRecommendationEvent(
@@ -762,9 +885,19 @@ export default function ToolsPage() {
   }, [recommendationRefresh, recommendationResult, selectedIntentFilter]);
 
   function openTool(tool: ToolConfig) {
+    const wasFirstUse = !usedToolIds.includes(tool.id);
     setActiveTool(tool);
     setSessionOpenedToolIds((current) => (current.includes(tool.id) ? current : [...current, tool.id]));
     registerToolUsage(tool.id);
+
+    if (wasFirstUse) {
+      void awardToolXp({
+        tool,
+        eventType: 'tool_first_use',
+        baseXP: 20,
+        idempotencyKey: `tool-first-use:${tool.id}`,
+      });
+    }
   }
 
   function openToolExperience(tool: ToolConfig) {
@@ -860,39 +993,74 @@ export default function ToolsPage() {
     ));
   }
 
-  async function handleUnlockByEmail(input: { email: string; role: ToolboxCapturedRole }) {
+  async function handleCreateAccount(input: { email: string; password: string; role: ToolboxCapturedRole }) {
     const email = input.email.trim().toLowerCase();
     if (!emailRegex.test(email)) {
       toast({ variant: 'destructive', title: 'Enter a valid email' });
       return;
     }
+    if (input.password.trim().length < 8) {
+      toast({ variant: 'destructive', title: 'Password must be at least 8 characters.' });
+      return;
+    }
 
     setIsEmailSubmitting(true);
-    const captureResult = await captureToolboxUnlockEmail({ email, role: input.role });
-    if (!captureResult.ok) {
-      console.warn('[Toolbox] unlock email capture failed:', captureResult.message);
+    try {
+      const credential = await createUserWithEmailAndPassword(firebaseAuth, email, input.password.trim());
+      const idToken = await credential.user.getIdToken(true);
+
+      await fetch('/api/auth/bootstrap-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          email,
+          name: deriveNameFromEmail(email),
+          signupRoleInterest: input.role,
+        }),
+      });
+
+      setLocalAccountProfile({ email, role: input.role });
+      refreshLocalEntitlements();
+
+      const bootstrapResult = await createToolboxFreeAccount({
+        idToken,
+        localEntries: exportTempDraftsAsEntries(),
+        toolsUsedCount: entitlements.usage.toolsUsedCount,
+        accountProfile: { email, role: input.role },
+      });
+      if (bootstrapResult.ok && bootstrapResult.data.entitlements) {
+        setServerEntitlements(bootstrapResult.data.entitlements);
+      }
+
+      touchAttribution('strong', 'account_created_tools_gate');
+      setShowEmailGate(false);
+      setShowAccountSuccess(true);
+      clearTempDrafts();
+
+      const queuedTool = pendingToolToOpen;
+      setPendingToolToOpen(null);
+      setPendingGateFeature(null);
+      if (queuedTool) {
+        openToolExperience(queuedTool);
+      } else if (!activeTool) {
+        openToolExperience(featuredTool);
+      }
+
+      toast({
+        title: 'System Unlocked',
+        description: 'Your account is active and all tools are now available.',
+      });
+    } catch (error: any) {
+      const message = error?.code === 'auth/email-already-in-use'
+        ? 'That email already has an account. Sign in to continue.'
+        : (error?.message || 'Could not create account.');
+      toast({ variant: 'destructive', title: 'Account setup failed', description: message });
+    } finally {
+      setIsEmailSubmitting(false);
     }
-
-    setLocalAccountProfile({ email, role: input.role });
-    refreshLocalEntitlements();
-    setShowEmailGate(false);
-    touchAttribution('medium', 'email_role_captured');
-
-    const queuedTool = pendingToolToOpen;
-    setPendingToolToOpen(null);
-    setPendingGateFeature(null);
-    if (queuedTool) {
-      openToolExperience(queuedTool);
-    } else if (!activeTool) {
-      openToolExperience(featuredTool);
-    }
-
-    setIsEmailSubmitting(false);
-
-    toast({
-      title: 'Account captured',
-      description: 'You now have unlimited standalone tool access.',
-    });
   }
 
   async function handleUpgrade() {
@@ -990,6 +1158,13 @@ export default function ToolsPage() {
 
     setRecentEntries((current) => [result.data.entry, ...current].slice(0, 12));
     setIsSavingEntry(false);
+
+    void awardToolXp({
+      tool: activeTool,
+      eventType: 'tool_completion',
+      baseXP: 40,
+      idempotencyKey: `tool-completion:${activeTool.id}:${new Date().toISOString().slice(0, 10)}`,
+    });
 
     toast({ title: 'Saved', description: 'Your note is now available in recent work.' });
   }
@@ -1120,7 +1295,7 @@ export default function ToolsPage() {
               className={cn(
                 'rounded-md border px-3 py-2 text-xs font-semibold',
                 draftAccessFilter === entry.value
-                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                   : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
               )}
             >
@@ -1141,7 +1316,7 @@ export default function ToolsPage() {
               className={cn(
                 'rounded-full border px-3 py-1.5 text-[11px] font-semibold',
                 draftCategoryFilters.includes(category)
-                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                   : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
               )}
             >
@@ -1185,7 +1360,7 @@ export default function ToolsPage() {
               className={cn(
                 'rounded-md border px-2 py-2 text-[11px] font-semibold',
                 draftSortBy === entry.value
-                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                   : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
               )}
             >
@@ -1199,7 +1374,7 @@ export default function ToolsPage() {
         <Button type="button" variant="ghost" className="text-[#9eb3d1] hover:bg-[#13233b]" onClick={handleClearFilters}>
           Clear
         </Button>
-        <Button type="button" className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={handleApplyFilters}>
+        <Button type="button" className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]" onClick={handleApplyFilters}>
           Apply
         </Button>
       </div>
@@ -1238,7 +1413,7 @@ export default function ToolsPage() {
               )}
             >
               <div className="inline-flex items-center gap-2 rounded-full border border-[#76ff8f]/30 bg-[#111b2d] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9bffac]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#76ff8f]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[#9DEE75]" />
                 New tool drops every week
               </div>
             </div>
@@ -1246,24 +1421,20 @@ export default function ToolsPage() {
           {/* Welcome Area */}
           <section className="mb-4">
             {shouldShowOnboarding ? (
-              <OnboardingSection 
-                onUnlock={(data) => {
-                  void handleUnlockByEmail({ email: data.email, role: data.role });
-                  setShowOnboarding(false);
-                  window.localStorage.setItem('autodrive_onboarding_dismissed', 'true');
-                  if (data.role) {
-                    const roleType = data.role === 'manager' ? 'manager' : data.role.toLowerCase().includes('service') ? 'service' : 'sales';
-                    setSelectedRoleType(roleType === 'sales' ? 'sales_advisor' : roleType as any);
-                    setSelectedRoleDetail(data.role as any);
-                  }
-                }}
+              <OnboardingSection
+                isAuthenticated={isAuthenticated}
+                onCreateAccount={() => setShowEmailGate(true)}
+                heroRole={resolvedHeroRole}
+                onHeroRoleChange={setHeroRoleSelection}
                 onDismiss={() => {
-                  setShowOnboarding(false);
-                  window.localStorage.setItem('autodrive_onboarding_dismissed', 'true');
+                  const anchor = document.getElementById('quick-diagnosis-anchor');
+                  if (anchor) {
+                    anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
                 }}
               />
             ) : (
-              <div 
+              <div
                 className={cn(
                   'space-y-1 transition-all duration-200',
                   isWorkspaceMode && 'opacity-75'
@@ -1273,10 +1444,10 @@ export default function ToolsPage() {
                   <p className="text-xs font-medium text-[#c8d8f1]">Welcome back{displayName ? `, ${displayName}` : ''}.</p>
                 )}
                 <h1 className="text-2xl font-semibold tracking-tight text-[#f6fbff] md:text-4xl">
-                  Build a system that actually moves deals.
+                  {compactHeroContent.headline}
                 </h1>
                 <p className="text-sm text-[#9db0cb]">
-                  For consultants and managers who want consistent wins.
+                  {compactHeroContent.subtext}
                 </p>
                 <p className="text-[11px] text-[#6f84a7] font-medium leading-none">
                   Pick what’s happening, we’ll guide your next move.
@@ -1315,18 +1486,6 @@ export default function ToolsPage() {
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#FFFFFF]">
                         What&apos;s happening right now?
                       </p>
-                      {selectedDiagnosis && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedDiagnosis(null);
-                            setDiagnosisFeedback(null);
-                          }}
-                          className="text-[11px] font-semibold text-[#7B2EFF] hover:text-[#a07aff]"
-                        >
-                          Show all tools
-                        </button>
-                      )}
                     </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {QUICK_DIAGNOSIS_OPTIONS.map((opt) => (
@@ -1447,7 +1606,7 @@ export default function ToolsPage() {
                       className={cn(
                         'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
                         selectedRoleType === 'sales_advisor'
-                          ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                          ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                           : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
                       )}
                     >
@@ -1466,7 +1625,7 @@ export default function ToolsPage() {
                       className={cn(
                         'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
                         selectedRoleType === 'manager'
-                          ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                          ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                           : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
                       )}
                     >
@@ -1502,7 +1661,7 @@ export default function ToolsPage() {
                             className={cn(
                               'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
                               selectedRoleDetail === roleOption.value
-                                ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                                ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                                 : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
                             )}
                           >
@@ -1684,7 +1843,7 @@ export default function ToolsPage() {
                             className="flex items-center justify-between gap-4 p-4 transition-all hover:bg-[#111f35]"
                           >
                             <div className="min-w-0 flex-1 flex items-center gap-3">
-                              <div className="h-2 w-2 rounded-full bg-[#76ff8f] shrink-0 animate-pulse" />
+                              <div className="h-2 w-2 rounded-full bg-[#9DEE75] shrink-0 animate-pulse" />
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-bold text-[#e1ecff]">{tool?.name || entry.toolId}</p>
                                 <p className="text-[10px] text-[#6f84a7] font-medium tracking-wide">
@@ -1832,7 +1991,7 @@ export default function ToolsPage() {
           defaultEmail={accountEmail}
           defaultRole={accountRole}
           onOpenChange={setShowEmailGate}
-          onSubmit={handleUnlockByEmail}
+          onSubmit={handleCreateAccount}
         />
 
         <UpgradeModal

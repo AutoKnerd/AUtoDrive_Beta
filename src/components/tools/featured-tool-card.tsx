@@ -37,7 +37,7 @@ export function FeaturedToolCard({ tool, ctaLabel, onPrimaryAction }: FeaturedTo
             {tool.description}
           </p>
           <button 
-            className="flex h-14 w-fit items-center justify-center rounded-md bg-[#5BFF3A] px-10 text-sm font-bold uppercase tracking-widest text-[#000000] shadow-[0_4px_20px_rgba(91,255,58,0.15)] transition-all duration-200 hover:scale-[1.02] hover:bg-[#4be92b] hover:shadow-[0_8px_24px_rgba(91,255,58,0.2)] active:scale-95"
+            className="flex h-14 w-fit items-center justify-center rounded-md bg-[#9DEE75] px-10 text-sm font-bold uppercase tracking-widest text-[#000000] shadow-[0_4px_20px_rgba(91,255,58,0.15)] transition-all duration-200 hover:scale-[1.02] hover:bg-[#ABF28A] hover:shadow-[0_8px_24px_rgba(91,255,58,0.2)] active:scale-95"
             onClick={onPrimaryAction}
           >
             {ctaLabel}

@@ -144,7 +144,7 @@ async function handleBootstrapFree(auth: AuthContext, body: BootstrapBody) {
   const dealershipSupported = await getDealershipSupport(auth.user);
   const currentTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' }, dealershipSupported);
   const targetTier = currentTier === 'pro' ? 'pro' : 'free';
-  const toolAccessLevel = targetTier === 'pro' ? 999 : 3;
+  const toolAccessLevel = 999;
   const normalizedToolsUsedCount = Math.max(0, Math.floor(Number(body?.toolsUsedCount || 0)));
   const capturedEmail = String(body?.accountProfile?.email || '').trim().toLowerCase();
   const capturedRole = normalizeLegacyToolboxRole(body?.accountProfile?.role);
@@ -184,7 +184,7 @@ async function handleSyncPaidStatus(auth: AuthContext, _body: SyncPaidStatusBody
   const dealershipSupported = await getDealershipSupport(auth.user);
   const detectedTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' }, dealershipSupported);
   const isPaid = detectedTier === 'pro';
-  const toolAccessLevel = isPaid ? 999 : 3;
+  const toolAccessLevel = 999;
   const toolsUsedCount = Number(auth.user.toolboxToolsUsedCount || 0);
 
   await getAdminDb().collection('users').doc(auth.uid).set({

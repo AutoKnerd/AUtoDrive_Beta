@@ -119,7 +119,7 @@ export function buildEntitlements(input: {
   localAccountProfile: ToolboxAccountProfile | null;
 }): ToolboxEntitlements {
   return getUserEntitlements({
-    hasAccount: input.isAuthenticated || !!input.localAccountProfile,
+    hasAccount: input.isAuthenticated,
     hasPaidAccess: input.hasPaidAccess,
     hasAutoDriveCX: input.hasAutoDriveCX,
     toolsUsedCount: input.toolsUsedCount,
@@ -153,7 +153,7 @@ function allowed(feature: ToolboxFeatureKey): FeatureGateResult {
 export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: ToolboxFeatureKey): FeatureGateResult {
   if (feature === FEATURES.TOOL_ACCESS) {
     if (canAccessFeature(entitlements, feature)) return allowed(feature);
-    return blocked(feature, 'account', 'fourth_tool_open', 'Create your free account to keep going. All tools unlock immediately after account setup.');
+    return blocked(feature, 'account', 'fourth_tool_open', 'Create your free account (email, password, and role) to unlock all tools.');
   }
 
   if (feature === FEATURES.SPROCKET) {
@@ -168,12 +168,12 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
 
   if (feature === FEATURES.CLOUD_SAVE) {
     if (canAccessFeature(entitlements, feature)) return allowed(feature);
-    return blocked(feature, 'account', 'first_cloud_save', 'Add your email and role to save your work.');
+    return blocked(feature, 'account', 'first_cloud_save', 'Create your free account to save your work and keep your history.');
   }
 
   if (feature === FEATURES.HISTORY) {
     if (canAccessFeature(entitlements, feature)) return allowed(feature);
-    return blocked(feature, 'account', 'first_history_access', 'Add your email and role to access history.');
+    return blocked(feature, 'account', 'first_history_access', 'Create your free account to access your saved history.');
   }
 
   if (!entitlements.hasAccount) {

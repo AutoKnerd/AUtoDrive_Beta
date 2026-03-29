@@ -327,7 +327,7 @@ export default function ClarityCheckBuilderPage() {
               <CardDescription className="text-[#f2b6b6]">Add email and role to keep using standalone tools.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={() => setShowEmailGate(true)}>
+              <Button className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]" onClick={() => setShowEmailGate(true)}>
                 Continue with Free Account
               </Button>
             </CardContent>
@@ -501,7 +501,7 @@ export default function ClarityCheckBuilderPage() {
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b1728] via-[#0b1728]/90 to-transparent" />
                 </div>
                 <Button
-                  className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
+                  className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]"
                   onClick={() => {
                     setUpgradeContextMessage('AutoDriveCX unlocks Sprocket Insight.');
                     void handleUpgrade();

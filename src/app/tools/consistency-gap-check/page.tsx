@@ -150,7 +150,7 @@ function barTone(status: 'Strong' | 'Slipping' | 'At Risk'): string {
 
 function optionButtonClass(selected: boolean): string {
   if (selected) {
-    return 'border-[#00d8e5] bg-[#00f2ff]/15 text-[#dcfaff]';
+    return 'border-[#9DEE75] bg-[#9DEE75] text-[#0A0F16] shadow-[0_0_0_1px_rgba(157,238,117,0.35),0_8px_20px_rgba(107,188,67,0.2)]';
   }
 
   return 'border-[#2d4567] bg-[#10233a] text-[#b8cde9] hover:bg-[#183154]';
@@ -192,6 +192,7 @@ function CategoryInput({
               <button
                 key={option.key}
                 type="button"
+                aria-pressed={selected}
                 onClick={() => onSelect(category.id as ConsistencyCategoryId, option.key)}
                 className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-all ${optionButtonClass(selected)}`}
               >
@@ -214,6 +215,7 @@ function CategoryInput({
           <button
             key={option.key}
             type="button"
+            aria-pressed={selected}
             onClick={() => onSelect(category.id as ConsistencyCategoryId, option.key)}
             className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all ${optionButtonClass(selected)}`}
           >
@@ -488,7 +490,7 @@ export default function ConsistencyGapCheckPage() {
               <CardDescription className="text-[#f2b6b6]">Add email and role to keep running standalone diagnostics.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={() => setShowEmailGate(true)}>
+              <Button className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]" onClick={() => setShowEmailGate(true)}>
                 Continue with Free Account
               </Button>
             </CardContent>
@@ -677,7 +679,7 @@ export default function ConsistencyGapCheckPage() {
                   </CardHeader>
                   <CardContent>
                     <Button
-                      className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
+                      className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]"
                       onClick={() => {
                         setUpgradeContextMessage('AutoDriveCX unlocks Sprocket Insight.');
                         void handleUpgrade();
