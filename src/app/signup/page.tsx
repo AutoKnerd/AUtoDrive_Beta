@@ -1,6 +1,7 @@
 
 'use client';
 
+import { Suspense } from 'react';
 import Image from 'next/image';
 import { SignupForm } from '@/components/auth/signup-form';
 import { ASSISTANT_AVATAR_SRC } from '@/lib/assistant';
@@ -23,7 +24,9 @@ export default function SignupPage() {
       <div className="mx-auto grid w-full max-w-6xl gap-4 rounded-2xl border border-white/10 bg-black/30 p-3 backdrop-blur-xl md:grid-cols-[0.95fr_1.05fr] md:gap-8 md:rounded-3xl md:p-8">
         <section className="order-2 space-y-3 md:order-2 md:space-y-4">
           <div className="rounded-2xl md:border md:border-white/10 md:bg-slate-950/70 md:p-1">
-            <SignupForm />
+            <Suspense fallback={<div className="p-4 text-sm text-slate-300">Loading signup form...</div>}>
+              <SignupForm />
+            </Suspense>
           </div>
         </section>
 
