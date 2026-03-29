@@ -1,23 +1,31 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LoginForm } from '@/components/auth/login-form';
 import { Logo } from '@/components/layout/logo';
 import { useAuth } from '@/hooks/use-auth';
 import { Spinner } from '@/components/ui/spinner';
 
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading } = useAuth();
+
+  const resolvePostLoginPath = (): string => {
+    const requested = searchParams.get('next')?.trim();
+    if (!requested) return '/';
+    if (!requested.startsWith('/') || requested.startsWith('//')) return '/';
+    return requested;
+  };
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/');
+      router.push(resolvePostLoginPath());
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, searchParams]);
   
     if (loading || user) {
     return (
@@ -52,5 +60,19 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={(
+        <div className="flex h-screen w-full items-center justify-center bg-transparent">
+          <Spinner size="lg" />
+        </div>
+      )}
+    >
+      <LoginPageContent />
+    </Suspense>
   );
 }

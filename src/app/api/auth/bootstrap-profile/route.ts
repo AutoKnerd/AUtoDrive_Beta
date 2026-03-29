@@ -32,6 +32,17 @@ function normalizeName(value?: string | null): string {
   return String(value || '').trim();
 }
 
+function deriveNameFromEmail(email: string): string {
+  const localPart = (email || '').split('@')[0] || '';
+  const cleaned = localPart.replace(/[._-]+/g, ' ').trim();
+  if (!cleaned) return 'Member';
+  return cleaned
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function normalizeConsultantReferral(value?: string | null): string | undefined {
   const resolved = resolveConsultant(value || '');
   if (resolved) return resolved.code;
@@ -72,10 +83,6 @@ export async function POST(req: Request) {
     const requestedEmail = normalizeEmail(payload?.email);
     const tokenEmail = normalizeEmail(decoded.email);
 
-    if (requestedName.length < 2) {
-      return NextResponse.json({ ok: false, message: 'Please enter your full name.' }, { status: 400 });
-    }
-
     if (!tokenEmail) {
       return NextResponse.json({ ok: false, message: 'Authenticated user email is missing.' }, { status: 400 });
     }
@@ -86,6 +93,7 @@ export async function POST(req: Request) {
 
     const signupRoleInterest = payload?.signupRoleInterest as UserRole | undefined;
     const consultantReferral = normalizeConsultantReferral(payload?.consultantReferral);
+    const resolvedName = requestedName.length >= 2 ? requestedName : deriveNameFromEmail(tokenEmail);
 
     const adminDb = getAdminDb();
     const userRef = adminDb.collection('users').doc(decoded.uid);
@@ -97,7 +105,7 @@ export async function POST(req: Request) {
     const now = new Date();
   const newUser: User = {
     userId: decoded.uid,
-    name: requestedName,
+    name: resolvedName,
     email: tokenEmail,
     role: DEFAULT_ROLE,
     signupRoleInterest,

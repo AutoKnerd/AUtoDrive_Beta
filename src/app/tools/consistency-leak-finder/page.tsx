@@ -314,7 +314,7 @@ function ConsistencyLeakFinderPageContent() {
     setIsPracticing(false);
   };
 
-  const sprocketButtonClass = 'inline-flex h-10 items-center gap-2 rounded-xl border border-[#00d8e5]/40 bg-[#00f2ff]/10 px-3 text-sm font-bold text-[#007f87] transition-colors hover:bg-[#00f2ff]/20 disabled:opacity-70 dark:text-[#7eeeff]';
+  const sprocketButtonClass = 'inline-flex h-10 items-center gap-2 rounded-xl border border-[#00d8e5]/40 bg-[#00f2ff]/10 px-3 text-sm font-bold text-[#007f87] transition-all hover:bg-[#00f2ff]/20 disabled:opacity-70 dark:text-[#7eeeff]';
 
   function handleBlockedFeature(gate: FeatureGateResult) {
     if (gate.gate === 'account') {
@@ -329,7 +329,7 @@ function ConsistencyLeakFinderPageContent() {
     if (gate.gate === 'paid') {
       toast({
         title: 'Upgrade required',
-        description: 'Sprocket is unlocked with paid Tool Shop access.',
+        description: 'Sprocket is unlocked with paid AutoShop access.',
       });
       window.open(FULL_TOOL_URL, '_blank', 'noopener,noreferrer');
       return;
@@ -371,7 +371,7 @@ function ConsistencyLeakFinderPageContent() {
         <div className="mx-auto flex w-full max-w-2xl items-center gap-2">
           <Link
             href="/tools"
-            className="rounded-xl p-2 text-slate-600 transition-colors active:bg-slate-100 dark:text-slate-300 dark:active:bg-white/10"
+            className="rounded-xl p-2 text-slate-600 transition-all active:bg-slate-100 dark:text-slate-300 dark:active:bg-white/10"
             aria-label="Back to tools"
           >
             <ChevronLeft className="h-6 w-6" />
@@ -524,7 +524,7 @@ function ConsistencyLeakFinderPageContent() {
           <button
             type="button"
             onClick={handleSave}
-            className="flex h-[52px] min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 transition-colors active:bg-slate-100 dark:border-slate-700 dark:bg-[#101928] dark:text-slate-100 dark:active:bg-[#162339]"
+            className="flex h-[52px] min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 transition-all active:bg-slate-100 dark:border-slate-700 dark:bg-[#101928] dark:text-slate-100 dark:active:bg-[#162339]"
           >
             <Save className="h-5 w-5" />
             Save My Work

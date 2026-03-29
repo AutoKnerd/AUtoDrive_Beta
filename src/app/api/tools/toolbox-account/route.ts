@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ToolboxSavedEntry } from '@/lib/tools/toolbox';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
-import type { User } from '@/lib/definitions';
+import type { Dealership, User } from '@/lib/definitions';
+import { resolveBillingAccess } from '@/lib/billing/access';
 import {
   getUserEntitlements,
   normalizeLegacyToolboxRole,
@@ -33,11 +34,27 @@ type SyncPaidStatusBody = {
   action: 'sync_paid_status';
 };
 
-function normalizeTier(user: Partial<User> & { tier?: 'free' | 'pro' }): 'free' | 'pro' {
+async function getDealershipSupport(user: User): Promise<boolean> {
+  const dealershipIds = Array.isArray(user.dealershipIds) ? user.dealershipIds.filter(Boolean) : [];
+  if (!dealershipIds.length) return false;
+
+  const adminDb = getAdminDb();
+  const refs = dealershipIds.map((id) => adminDb.collection('dealerships').doc(id));
+  const snaps = await adminDb.getAll(...refs);
+  const dealerships: Dealership[] = snaps
+    .filter((snap) => snap.exists)
+    .map((snap) => ({ id: snap.id, ...(snap.data() as Omit<Dealership, 'id'>) }));
+
+  const billing = resolveBillingAccess(user, dealerships);
+  return billing.accessGranted && billing.source === 'dealership';
+}
+
+function normalizeTier(user: Partial<User> & { tier?: 'free' | 'pro' }, dealershipSupported = false): 'free' | 'pro' {
   return resolvePaidAccess({
     tier: user.tier,
     subscriptionStatus: user.subscriptionStatus,
     giftedFullAccess: Boolean(user.toolboxGiftedFullAccess),
+    dealershipSupported,
   }) ? 'pro' : 'free';
 }
 
@@ -124,9 +141,10 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleBootstrapFree(auth: AuthContext, body: BootstrapBody) {
-  const currentTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' });
+  const dealershipSupported = await getDealershipSupport(auth.user);
+  const currentTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' }, dealershipSupported);
   const targetTier = currentTier === 'pro' ? 'pro' : 'free';
-  const toolAccessLevel = targetTier === 'pro' ? 999 : 3;
+  const toolAccessLevel = 999;
   const normalizedToolsUsedCount = Math.max(0, Math.floor(Number(body?.toolsUsedCount || 0)));
   const capturedEmail = String(body?.accountProfile?.email || '').trim().toLowerCase();
   const capturedRole = normalizeLegacyToolboxRole(body?.accountProfile?.role);
@@ -154,6 +172,7 @@ async function handleBootstrapFree(auth: AuthContext, body: BootstrapBody) {
     hasAutoDriveCX: resolveAutoDriveCxAccess({
       hasAutoDriveCX: auth.user.hasAutoDriveCX,
       giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+      dealershipSupported,
     }),
     toolsUsedCount: normalizedToolsUsedCount,
   });
@@ -162,9 +181,10 @@ async function handleBootstrapFree(auth: AuthContext, body: BootstrapBody) {
 }
 
 async function handleSyncPaidStatus(auth: AuthContext, _body: SyncPaidStatusBody) {
-  const detectedTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' });
+  const dealershipSupported = await getDealershipSupport(auth.user);
+  const detectedTier = normalizeTier(auth.user as User & { tier?: 'free' | 'pro' }, dealershipSupported);
   const isPaid = detectedTier === 'pro';
-  const toolAccessLevel = isPaid ? 999 : 3;
+  const toolAccessLevel = 999;
   const toolsUsedCount = Number(auth.user.toolboxToolsUsedCount || 0);
 
   await getAdminDb().collection('users').doc(auth.uid).set({
@@ -179,6 +199,7 @@ async function handleSyncPaidStatus(auth: AuthContext, _body: SyncPaidStatusBody
     hasAutoDriveCX: resolveAutoDriveCxAccess({
       hasAutoDriveCX: auth.user.hasAutoDriveCX,
       giftedFullAccess: auth.user.toolboxGiftedFullAccess,
+      dealershipSupported,
     }),
     toolsUsedCount,
   });

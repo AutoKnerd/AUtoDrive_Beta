@@ -68,7 +68,9 @@ export function resolvePaidAccess(input: {
   tier?: 'free' | 'pro';
   subscriptionStatus?: BillingSubscriptionStatus | null;
   giftedFullAccess?: boolean;
+  dealershipSupported?: boolean;
 }): boolean {
+  if (input.dealershipSupported) return true;
   if (input.giftedFullAccess) return true;
   if (input.tier === 'pro') return true;
   return hasActiveSubscriptionStatus(input.subscriptionStatus ?? null);
@@ -77,8 +79,9 @@ export function resolvePaidAccess(input: {
 export function resolveAutoDriveCxAccess(input: {
   hasAutoDriveCX?: boolean;
   giftedFullAccess?: boolean;
+  dealershipSupported?: boolean;
 }): boolean {
-  return Boolean(input.hasAutoDriveCX || input.giftedFullAccess);
+  return Boolean(input.dealershipSupported || input.hasAutoDriveCX || input.giftedFullAccess);
 }
 
 export function getUserEntitlements(input: {
@@ -91,9 +94,9 @@ export function getUserEntitlements(input: {
 
   const features: Record<ToolboxFeatureKey, boolean> = {
     [FEATURES.TOOL_ACCESS]: input.hasAccount || normalizedToolsUsedCount < FREE_TOOL_USAGE_LIMIT,
-    [FEATURES.SPROCKET]: input.hasAccount && input.hasPaidAccess,
-    [FEATURES.CLOUD_SAVE]: input.hasAccount && input.hasPaidAccess,
-    [FEATURES.HISTORY]: input.hasAccount && input.hasPaidAccess,
+    [FEATURES.SPROCKET]: input.hasAccount && input.hasPaidAccess && input.hasAutoDriveCX,
+    [FEATURES.CLOUD_SAVE]: input.hasAccount,
+    [FEATURES.HISTORY]: input.hasAccount,
     [FEATURES.AUTODRIVE_CX]: input.hasAccount && input.hasPaidAccess && input.hasAutoDriveCX,
   };
 
@@ -116,7 +119,7 @@ export function buildEntitlements(input: {
   localAccountProfile: ToolboxAccountProfile | null;
 }): ToolboxEntitlements {
   return getUserEntitlements({
-    hasAccount: input.isAuthenticated || !!input.localAccountProfile,
+    hasAccount: input.isAuthenticated,
     hasPaidAccess: input.hasPaidAccess,
     hasAutoDriveCX: input.hasAutoDriveCX,
     toolsUsedCount: input.toolsUsedCount,
@@ -150,7 +153,7 @@ function allowed(feature: ToolboxFeatureKey): FeatureGateResult {
 export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: ToolboxFeatureKey): FeatureGateResult {
   if (feature === FEATURES.TOOL_ACCESS) {
     if (canAccessFeature(entitlements, feature)) return allowed(feature);
-    return blocked(feature, 'account', 'fourth_tool_open', 'Create your free account to open your 4th tool.');
+    return blocked(feature, 'account', 'fourth_tool_open', 'Create your free account (email, password, and role) to unlock all tools.');
   }
 
   if (feature === FEATURES.SPROCKET) {
@@ -158,29 +161,19 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
       return blocked(feature, 'account', 'first_sprocket_use', 'Create your free account to continue with Sprocket.');
     }
     if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_sprocket_use', 'Sprocket is included with paid Tool Shop access.');
+      return blocked(feature, 'autodrive_cx', 'first_sprocket_use', 'Upgrade to AutoDriveCX intelligence for guided coaching and smarter next-move support.');
     }
     return allowed(feature);
   }
 
   if (feature === FEATURES.CLOUD_SAVE) {
-    if (!entitlements.hasAccount) {
-      return blocked(feature, 'account', 'first_cloud_save', 'Add your email and role to save your work.');
-    }
-    if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_cloud_save', 'Cloud saves require paid Tool Shop access.');
-    }
-    return allowed(feature);
+    if (canAccessFeature(entitlements, feature)) return allowed(feature);
+    return blocked(feature, 'account', 'first_cloud_save', 'Create your free account to save your work and keep your history.');
   }
 
   if (feature === FEATURES.HISTORY) {
-    if (!entitlements.hasAccount) {
-      return blocked(feature, 'account', 'first_history_access', 'Add your email and role to access history.');
-    }
-    if (!canAccessFeature(entitlements, feature)) {
-      return blocked(feature, 'paid', 'first_history_access', 'Saved history requires paid Tool Shop access.');
-    }
-    return allowed(feature);
+    if (canAccessFeature(entitlements, feature)) return allowed(feature);
+    return blocked(feature, 'account', 'first_history_access', 'Create your free account to access your saved history.');
   }
 
   if (!entitlements.hasAccount) {
@@ -188,7 +181,7 @@ export function evaluateFeatureGate(entitlements: ToolboxEntitlements, feature: 
   }
 
   if (!entitlements.hasPaidAccess) {
-    return blocked(feature, 'paid', 'first_cx_insight', 'Paid Tool Shop access is required before CX insights.');
+    return blocked(feature, 'paid', 'first_cx_insight', 'Paid AutoShop access is required before CX insights.');
   }
 
   if (!canAccessFeature(entitlements, feature)) {

@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   DESK_CUSTOMER_POSTURES,
   DESK_INVOLVEMENT_REASONS,
@@ -227,7 +228,7 @@ export default function DeskConversationPage() {
 
     if (!result.ok) {
       if (result.code === 'PAYMENT_REQUIRED') {
-        setUpgradeContextMessage('Cloud saves require paid Tool Shop access.');
+        setUpgradeContextMessage('Cloud saves require paid AutoShop access.');
         setGateModalType('paid');
       }
       toast({ variant: 'destructive', title: result.message });
@@ -239,7 +240,7 @@ export default function DeskConversationPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper desk-entry coaching.')) return;
-    setSprocketOutput(getSprocketDeskConversationEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketDeskConversationEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {
@@ -292,7 +293,7 @@ export default function DeskConversationPage() {
     <button
       type="button"
       onClick={onClick}
-      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors ${
+      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
         active
           ? 'border-cyan-300 bg-cyan-50 text-cyan-900 dark:border-[#00d8e5] dark:bg-[#00f2ff]/15 dark:text-[#e6fdff]'
           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-[#2c3e5c] dark:bg-[#101c30] dark:text-[#d2def2] dark:hover:bg-[#152743]'
@@ -311,7 +312,7 @@ export default function DeskConversationPage() {
           <Button variant="ghost" asChild className="h-10 px-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-[#b8c8e2] dark:hover:bg-[#13233b] dark:hover:text-[#e6efff]">
             <Link href="/tools">
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Tool Shop
+              AutoShop
             </Link>
           </Button>
           <Badge className="border border-[#00d8e5]/40 bg-[#00f2ff]/10 text-[#6eeef8]">AutoDriveCX</Badge>
@@ -331,7 +332,7 @@ export default function DeskConversationPage() {
               <CardDescription className="text-rose-700 dark:text-[#f2b6b6]">Add email and role to keep using standalone tools.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={() => setShowEmailGate(true)}>
+              <Button className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]" onClick={() => setShowEmailGate(true)}>
                 Continue with Free Account
               </Button>
             </CardContent>
@@ -442,7 +443,7 @@ export default function DeskConversationPage() {
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-100 via-slate-100/90 to-transparent dark:from-[#0b1728] dark:via-[#0b1728]/90" />
                 </div>
                 <Button
-                  className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
+                  className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]"
                   onClick={() => {
                     setUpgradeContextMessage('AutoDriveCX unlocks Sprocket Insight.');
                     void handleUpgrade();

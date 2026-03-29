@@ -29,7 +29,7 @@ import {
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import { getManageableUsers, getDealerships } from '@/lib/data.client';
+import { getManageableUsers, getDealerships, updateDealershipToolboxAccess } from '@/lib/data.client';
 import { RegisterDealershipForm } from '@/components/admin/register-dealership-form';
 import { RemoveUserForm } from '@/components/admin/remove-user-form';
 import { CreateDealershipForm } from '@/components/admin/create-dealership-form';
@@ -418,6 +418,12 @@ export default function DeveloperPage() {
   const [giftTargetUserId, setGiftTargetUserId] = useState<string>('');
   const [isGiftingToolbox, setIsGiftingToolbox] = useState(false);
   const [isRevertingToolbox, setIsRevertingToolbox] = useState(false);
+  const [giftAutoDriveCxTargetUserId, setGiftAutoDriveCxTargetUserId] = useState<string>('');
+  const [isGiftingAutoDriveCx, setIsGiftingAutoDriveCx] = useState(false);
+  const [isRevertingAutoDriveCx, setIsRevertingAutoDriveCx] = useState(false);
+  const [toolboxDealershipId, setToolboxDealershipId] = useState<string>('');
+  const [toolboxDealershipAccessEnabled, setToolboxDealershipAccessEnabled] = useState(true);
+  const [isSavingToolboxDealershipAccess, setIsSavingToolboxDealershipAccess] = useState(false);
   const [signalMapperUnlocks, setSignalMapperUnlocks] = useState<SignalMapperUnlockRow[]>([]);
   const [signalMapperUnlocksLoading, setSignalMapperUnlocksLoading] = useState(false);
   const [signalMapperUnlocksError, setSignalMapperUnlocksError] = useState<string | null>(null);
@@ -488,6 +494,10 @@ export default function DeveloperPage() {
   const giftableUsers = useMemo(
     () => [...manageableUsers].sort((a, b) => a.name.localeCompare(b.name)),
     [manageableUsers]
+  );
+  const selectedToolboxDealership = useMemo(
+    () => allDealerships.find((dealership) => dealership.id === toolboxDealershipId) || null,
+    [allDealerships, toolboxDealershipId]
   );
 
   useEffect(() => {
@@ -770,6 +780,26 @@ export default function DeveloperPage() {
   }, [loading, originalUser, refreshData]);
 
   useEffect(() => {
+    if (!allDealerships.length) {
+      setToolboxDealershipId('');
+      return;
+    }
+    setToolboxDealershipId((current) => (
+      current && allDealerships.some((dealership) => dealership.id === current)
+        ? current
+        : allDealerships[0].id
+    ));
+  }, [allDealerships]);
+
+  useEffect(() => {
+    if (!selectedToolboxDealership) {
+      setToolboxDealershipAccessEnabled(true);
+      return;
+    }
+    setToolboxDealershipAccessEnabled(selectedToolboxDealership.enableToolboxAccess !== false);
+  }, [selectedToolboxDealership]);
+
+  useEffect(() => {
     if (!originalUser) return;
     const timer = setInterval(() => {
       void refreshData();
@@ -942,7 +972,7 @@ export default function DeveloperPage() {
       toast({
         variant: 'destructive',
         title: 'Select a user first',
-        description: 'Choose a user to gift full Tool Shop access.',
+        description: 'Choose a user to gift full AutoShop access.',
       });
       return;
     }
@@ -951,7 +981,7 @@ export default function DeveloperPage() {
       setIsGiftingToolbox(true);
       const fbUser = firebaseAuth.currentUser;
       if (!fbUser) {
-        throw new Error('Authentication required to gift Tool Shop access.');
+        throw new Error('Authentication required to gift AutoShop access.');
       }
       const token = await fbUser.getIdToken(true);
 
@@ -966,19 +996,19 @@ export default function DeveloperPage() {
 
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to gift Tool Shop access.');
+        throw new Error(payload?.message || 'Failed to gift AutoShop access.');
       }
 
       toast({
         title: 'AutoShop gifted',
-        description: `${payload?.user?.name || 'User'} now has paid Tool Shop + Sprocket + AutoDriveCX.`,
+        description: `${payload?.user?.name || 'User'} now has paid AutoShop + Sprocket + AutoDriveCX.`,
       });
       await refreshData();
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Gift failed',
-        description: error instanceof Error ? error.message : 'Failed to gift Tool Shop access.',
+        description: error instanceof Error ? error.message : 'Failed to gift AutoShop access.',
       });
     } finally {
       setIsGiftingToolbox(false);
@@ -990,7 +1020,7 @@ export default function DeveloperPage() {
       toast({
         variant: 'destructive',
         title: 'Select a user first',
-        description: 'Choose a user to revert gifted Tool Shop access.',
+        description: 'Choose a user to revert gifted AutoShop access.',
       });
       return;
     }
@@ -999,7 +1029,7 @@ export default function DeveloperPage() {
       setIsRevertingToolbox(true);
       const fbUser = firebaseAuth.currentUser;
       if (!fbUser) {
-        throw new Error('Authentication required to revert Tool Shop access.');
+        throw new Error('Authentication required to revert AutoShop access.');
       }
       const token = await fbUser.getIdToken(true);
 
@@ -1014,24 +1044,149 @@ export default function DeveloperPage() {
 
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to revert Tool Shop gift access.');
+        throw new Error(payload?.message || 'Failed to revert AutoShop gift access.');
       }
 
       toast({
         title: 'Gift reverted',
-        description: `${payload?.user?.name || 'User'} restored to pre-gift Tool Shop access.`,
+        description: `${payload?.user?.name || 'User'} restored to pre-gift AutoShop access.`,
       });
       await refreshData();
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Revert failed',
-        description: error instanceof Error ? error.message : 'Failed to revert Tool Shop gift access.',
+        description: error instanceof Error ? error.message : 'Failed to revert AutoShop gift access.',
       });
     } finally {
       setIsRevertingToolbox(false);
     }
   }, [firebaseAuth, giftTargetUserId, refreshData, toast]);
+
+  const giftAutoDriveCxAccess = useCallback(async () => {
+    if (!giftAutoDriveCxTargetUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a user first',
+        description: 'Choose a user to gift AutoDriveCX access.',
+      });
+      return;
+    }
+
+    try {
+      setIsGiftingAutoDriveCx(true);
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required to gift AutoDriveCX access.');
+      }
+      const token = await fbUser.getIdToken(true);
+
+      const response = await fetch('/api/admin/toolbox-gift', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ scope: 'autodrivecx', targetUserId: giftAutoDriveCxTargetUserId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to gift AutoDriveCX access.');
+      }
+
+      toast({
+        title: 'AutoDriveCX gifted',
+        description: `${payload?.user?.name || 'User'} now has AutoDriveCX access.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Gift failed',
+        description: error instanceof Error ? error.message : 'Failed to gift AutoDriveCX access.',
+      });
+    } finally {
+      setIsGiftingAutoDriveCx(false);
+    }
+  }, [firebaseAuth, giftAutoDriveCxTargetUserId, refreshData, toast]);
+
+  const revertAutoDriveCxAccess = useCallback(async () => {
+    if (!giftAutoDriveCxTargetUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a user first',
+        description: 'Choose a user to revert gifted AutoDriveCX access.',
+      });
+      return;
+    }
+
+    try {
+      setIsRevertingAutoDriveCx(true);
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required to revert AutoDriveCX access.');
+      }
+      const token = await fbUser.getIdToken(true);
+
+      const response = await fetch('/api/admin/toolbox-gift', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ scope: 'autodrivecx', action: 'revert', targetUserId: giftAutoDriveCxTargetUserId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to revert AutoDriveCX gift access.');
+      }
+
+      toast({
+        title: 'AutoDriveCX gift reverted',
+        description: `${payload?.user?.name || 'User'} restored to pre-gift AutoDriveCX access.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Revert failed',
+        description: error instanceof Error ? error.message : 'Failed to revert AutoDriveCX gift access.',
+      });
+    } finally {
+      setIsRevertingAutoDriveCx(false);
+    }
+  }, [firebaseAuth, giftAutoDriveCxTargetUserId, refreshData, toast]);
+
+  const saveDealershipToolboxAccess = useCallback(async () => {
+    if (!toolboxDealershipId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a dealership first',
+        description: 'Choose a dealership to update AutoShop access.',
+      });
+      return;
+    }
+
+    try {
+      setIsSavingToolboxDealershipAccess(true);
+      await updateDealershipToolboxAccess(toolboxDealershipId, toolboxDealershipAccessEnabled);
+      toast({
+        title: 'Dealership AutoShop Updated',
+        description: `${selectedToolboxDealership?.name || 'Dealership'} ${toolboxDealershipAccessEnabled ? 'now has' : 'no longer has'} AutoShop access.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Failed to update dealership AutoShop access.',
+      });
+    } finally {
+      setIsSavingToolboxDealershipAccess(false);
+    }
+  }, [refreshData, selectedToolboxDealership?.name, toast, toolboxDealershipAccessEnabled, toolboxDealershipId]);
 
   useEffect(() => {
     if (activeSection === 'consultants') {
@@ -2722,31 +2877,119 @@ export default function DeveloperPage() {
                 </div>
               )}
               {activeSection === 'features' && (
-                <div className="mb-6 rounded-md border p-3">
-                  <p className="text-sm font-medium">Gift AutoShop Access</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Grants full Tool Shop access for the selected user, including paid Sprocket and AutoDriveCX personalization.
-                  </p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <Select value={giftTargetUserId} onValueChange={setGiftTargetUserId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select user to gift" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {giftableUsers.map((candidate) => (
-                          <SelectItem key={candidate.userId} value={candidate.userId}>
-                            {candidate.name} ({candidate.email})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" onClick={() => void giftToolboxAccess()} disabled={isGiftingToolbox || isRevertingToolbox || !giftTargetUserId}>
-                        {isGiftingToolbox ? <Spinner size="sm" /> : 'Gift AutoShop'}
-                      </Button>
-                      <Button type="button" variant="outline" onClick={() => void revertToolboxAccess()} disabled={isGiftingToolbox || isRevertingToolbox || !giftTargetUserId}>
-                        {isRevertingToolbox ? <Spinner size="sm" /> : 'Revert Gift'}
-                      </Button>
+                <div className="mb-6 space-y-3">
+                  <div className="rounded-md border p-3">
+                    <p className="text-sm font-medium">Gift AutoShop Access</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Grants full AutoShop access for the selected user, including paid Sprocket and AutoDriveCX personalization.
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <Select value={giftTargetUserId} onValueChange={setGiftTargetUserId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select user to gift" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {giftableUsers.map((candidate) => (
+                            <SelectItem key={candidate.userId} value={candidate.userId}>
+                              {candidate.name} ({candidate.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Button type="button" onClick={() => void giftToolboxAccess()} disabled={isGiftingToolbox || isRevertingToolbox || !giftTargetUserId}>
+                          {isGiftingToolbox ? <Spinner size="sm" /> : 'Gift AutoShop'}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => void revertToolboxAccess()} disabled={isGiftingToolbox || isRevertingToolbox || !giftTargetUserId}>
+                          {isRevertingToolbox ? <Spinner size="sm" /> : 'Revert Gift'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border p-3">
+                    <p className="text-sm font-medium">Dealership AutoShop Access</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Enable or disable dealership-backed AutoShop access (including Sprocket and AutoDriveCX layers) for a selected dealership.
+                    </p>
+                    <div className="mt-3 grid gap-3">
+                      <Select value={toolboxDealershipId} onValueChange={setToolboxDealershipId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select dealership" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allDealerships.map((dealership) => (
+                            <SelectItem key={dealership.id} value={dealership.id}>
+                              {dealership.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium">Enable AutoShop Access</p>
+                          <p className="text-xs text-muted-foreground">
+                            Current: {selectedToolboxDealership?.enableToolboxAccess !== false ? 'Enabled' : 'Disabled'}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={toolboxDealershipAccessEnabled}
+                          onCheckedChange={setToolboxDealershipAccessEnabled}
+                          disabled={!toolboxDealershipId || isSavingToolboxDealershipAccess}
+                          aria-label="Enable dealership AutoShop access"
+                        />
+                      </div>
+                      <div className="flex items-center justify-end">
+                        <Button
+                          type="button"
+                          onClick={() => void saveDealershipToolboxAccess()}
+                          disabled={
+                            !toolboxDealershipId
+                            || isSavingToolboxDealershipAccess
+                            || toolboxDealershipAccessEnabled === (selectedToolboxDealership?.enableToolboxAccess !== false)
+                          }
+                        >
+                          {isSavingToolboxDealershipAccess ? <Spinner size="sm" /> : 'Save Dealership AutoShop Access'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border p-3">
+                    <p className="text-sm font-medium">Gift AutoDriveCX Access</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Grants AutoDriveCX for the selected user without changing AutoShop tier settings.
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <Select value={giftAutoDriveCxTargetUserId} onValueChange={setGiftAutoDriveCxTargetUserId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select user to gift AutoDriveCX" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {giftableUsers.map((candidate) => (
+                            <SelectItem key={candidate.userId} value={candidate.userId}>
+                              {candidate.name} ({candidate.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => void giftAutoDriveCxAccess()}
+                          disabled={isGiftingAutoDriveCx || isRevertingAutoDriveCx || !giftAutoDriveCxTargetUserId}
+                        >
+                          {isGiftingAutoDriveCx ? <Spinner size="sm" /> : 'Gift AutoDriveCX'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void revertAutoDriveCxAccess()}
+                          disabled={isGiftingAutoDriveCx || isRevertingAutoDriveCx || !giftAutoDriveCxTargetUserId}
+                        >
+                          {isRevertingAutoDriveCx ? <Spinner size="sm" /> : 'Revert Gift'}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

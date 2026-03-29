@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const SUBSTITUTION_TRADEOFFS = [
   'price',
@@ -171,10 +172,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const clarity = Number(stats?.followUp ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const tone = Number(stats?.listening ?? 60);
-  const objection = Number(stats?.closing ?? 60);
+  const clarity = readCxStatScore(stats?.followUp, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const tone = readCxStatScore(stats?.listening, 60);
+  const objection = readCxStatScore(stats?.closing, 60);
 
   return {
     clarityLow: clarity > 0 && clarity < 55,

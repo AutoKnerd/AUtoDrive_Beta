@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,6 +36,7 @@ export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const firebaseAuth = useFirebaseAuth();
   const { login } = useAuth();
   const { toast } = useToast();
@@ -48,15 +49,23 @@ export function LoginForm() {
     },
   });
 
+  const resolvePostLoginPath = (): string => {
+    const requested = searchParams.get('next')?.trim();
+    if (!requested) return '/';
+    if (!requested.startsWith('/') || requested.startsWith('//')) return '/';
+    return requested;
+  };
+
   async function onSubmit(data: LoginFormValues) {
     setIsSubmitting(true);
     try {
       await login(data.email, data.password);
+      const postLoginPath = resolvePostLoginPath();
       toast({
         title: 'Login Successful',
         description: 'Welcome back! Redirecting...',
       });
-      router.push('/');
+      router.push(postLoginPath);
     } catch (error) {
       toast({
         variant: 'destructive',

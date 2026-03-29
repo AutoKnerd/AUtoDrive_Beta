@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const WAIT_EXPERIENCE_STAGES = [
   'checked in',
@@ -181,10 +182,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const tone = Number(stats?.closing ?? 60);
-  const followThrough = Number(stats?.followUp ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const pacing = Number(stats?.listening ?? 60);
+  const tone = readCxStatScore(stats?.closing, 60);
+  const followThrough = readCxStatScore(stats?.followUp, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const pacing = readCxStatScore(stats?.listening, 60);
 
   return {
     toneLow: tone > 0 && tone < 55,

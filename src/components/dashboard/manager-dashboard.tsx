@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
 import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData, getFreshUpCommandCenter, type FreshUpCommandCenterResult } from '@/lib/data.client';
@@ -368,6 +368,7 @@ function LevelDisplay({ user }: { user: User }) {
 export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const { toast } = useToast();
   const { originalUser, isTouring, firebaseUser } = useAuth();
+  const pathname = usePathname();
   const [stats, setStats] = useState<{ totalLessons: number; avgScores: Record<CxTrait, number> | null } | null>(null);
   const [teamActivity, setTeamActivity] = useState<TeamMemberStats[]>([]);
   const [dealershipActivity, setDealershipActivity] = useState<DealershipActivityEntry[]>([]);
@@ -972,6 +973,63 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     return !!value && 'snapshot' in value;
   };
 
+  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
+  const isDeveloperPreviewUser = Boolean(
+    user?.role === 'Developer'
+    || user?.role === 'Admin'
+    || originalUser?.role === 'Developer'
+    || originalUser?.role === 'Admin'
+  );
+  const hasGiftedBothSurfaces = Boolean(
+    (user as any)?.toolboxGiftedFullAccess
+    && ((user as any)?.autoDriveCxGiftedAccess || hasActiveAutoDriveCx)
+  );
+  const shouldUseNormalToggle = hasActiveAutoDriveCx || isDeveloperPreviewUser || hasGiftedBothSurfaces;
+  const shouldShowSurfaceToggle = true;
+  const trainingSurfaceHref = shouldUseNormalToggle ? '/' : 'https://app.autodrivecx.com/signup';
+  const isToolsActive = Boolean(pathname?.startsWith('/tools'));
+  const isTrainingActive = !isToolsActive;
+
+  const renderSurfaceToggle = (className?: string) => {
+    if (!shouldShowSurfaceToggle) return null;
+
+    return (
+      <div
+        className={cn(
+          'inline-flex items-center rounded-full border p-1 shadow-[0_10px_24px_rgba(0,0,0,0.32)]',
+          isTrainingActive
+            ? 'border-[#45c7ff]/85 bg-gradient-to-r from-[#0f3d72] via-[#1362b6] to-[#0f4f92]'
+            : 'border-[#1a6eb6]/85 bg-gradient-to-r from-[#061d38] via-[#092e55] to-[#072444]',
+          className
+        )}
+      >
+        <Link
+          href={trainingSurfaceHref}
+          className={cn(
+            'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
+            isTrainingActive
+              ? 'bg-gradient-to-r from-[#53d7ff] to-[#2c98ff] text-[#031a34] shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_10px_20px_rgba(18,132,228,0.5)]'
+              : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
+          )}
+          prefetch={false}
+        >
+          AutoDriveCX
+        </Link>
+        <Link
+          href="/tools"
+          className={cn(
+            'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
+            isToolsActive
+              ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
+              : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
+          )}
+        >
+          AutoShopCX
+        </Link>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8 pb-8 text-foreground">
       <ManagerGuidedTour
@@ -982,8 +1040,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         onFinish={closeGuidedTour}
       />
       <BaselineAssessmentDialog user={user} open={showBaselineAssessment} onOpenChange={setShowBaselineAssessment} onCompleted={async () => { setShowBaselineAssessment(false); setNeedsBaselineAssessment(false); await fetchData(selectedDealershipId); }} />
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="relative flex flex-wrap items-center justify-between gap-3">
           <Logo variant="full" width={183} height={61} />
+          {renderSurfaceToggle('absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:inline-flex')}
           <div className="flex items-center gap-3">
             {(canViewAllStores || (dealerships && dealerships.length > 1)) && (
               <div className="flex items-center gap-2">
@@ -1001,6 +1060,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 </Select>
               </div>
             )}
+            {renderSurfaceToggle('md:hidden')}
             <UserNav user={user} avatarClassName="h-14 w-14" />
           </div>
       </header>

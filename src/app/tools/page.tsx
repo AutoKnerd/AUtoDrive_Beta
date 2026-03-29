@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentType } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowRight, ChevronDown, CheckCircle2, Clock, FolderOpen, HelpCircle, Lock, Save, SlidersHorizontal, Sparkles, Zap } from 'lucide-react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { ArrowRight, ChevronDown, CheckCircle2, Clock, FolderOpen, HelpCircle, Save, SlidersHorizontal, Sparkles, Zap } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { EmailGateModal } from '@/components/tools/email-gate-modal';
 import { UpgradeModal } from '@/components/tools/upgrade-modal';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
@@ -17,17 +17,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { useEntitlements } from '@/hooks/use-entitlements';
+import { useAuth as useFirebaseAuth } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { useThemeMode } from '@/context/theme-provider';
 import { touchAttribution } from '@/lib/consultant-referral';
 import './tools-theme.css';
+import { OnboardingSection } from '@/components/tools/onboarding-section';
 import {
   canAccessTool,
-  ctaForFeaturedTool,
-  ctaForToolCard,
   getFeaturedTool,
   isRecentTool,
-  TOOL_INTENT_OPTIONS,
   TOOLBOX_TOOLS,
   type ToolIntentTag,
   type ToolConfig,
@@ -44,38 +43,35 @@ import {
 } from '@/lib/tools/toolbox-storage';
 import { FEATURES, resolvePaidAccess, type ToolboxCapturedRole, type ToolboxFeatureKey } from '@/lib/tools/entitlements';
 import {
-  captureToolboxUnlockEmail,
   createToolboxFreeAccount,
   fetchToolboxEntitlements,
   fetchToolboxEntries,
   saveToolboxEntry,
   syncToolboxPaidStatus,
+  trackToolXpEvent,
   trackRecommendationEventServer,
 } from '@/lib/tools/toolbox-client';
 import { getRecommendedTools } from '@/lib/tools/recommendation';
+import { readUserCxStatScore } from '@/lib/tools/cx-stats';
 import { allRoles, type UserRole } from '@/lib/definitions';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SECOND_TOOL_PROMPT_DELAY_MS = 6000;
-const FEATURED_COMPLETION_DELAY_MS = 45000;
 const TOOLBOX_UPGRADE_URL = 'https://app.autodrivecx.com/signup';
 
 const mainSiteLoginButtonStyle: CSSProperties = {
-  fontSize: '12px',
-  padding: '12px 20px',
-  borderRadius: '5px',
-  border: '1px solid rgba(122, 211, 255, 0.3)',
-  background: 'linear-gradient(180deg, #46a8df 0%, #2f88c2 100%)',
-  color: '#fff',
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  transition: 'all 0.25s ease',
-  boxShadow: '0 6px 14px rgba(28, 130, 189, 0.35), inset 0 1px 0 rgba(255,255,255,0.2)',
-  textShadow: '0 1px 0 rgba(0,0,0,0.22)',
+  fontSize: '11px',
+  padding: '9px 14px',
+  borderRadius: '8px',
+  border: '1px solid rgba(184, 184, 197, 0.26)',
+  background: 'rgba(18, 18, 26, 0.82)',
+  color: '#b8b8c5',
+  fontWeight: 700,
+  letterSpacing: '0.1em',
+  transition: 'all 0.2s ease',
   textDecoration: 'none',
   textAlign: 'center',
   whiteSpace: 'nowrap',
-  lineHeight: 1.05,
+  lineHeight: 1.1,
 };
 
 function badgeText(label: 'Premium'): string {
@@ -85,21 +81,6 @@ function badgeText(label: 'Premium'): string {
 
 function ctaLabelForTool(tool: ToolConfig, canAccess: boolean): string {
   return 'Run Tool';
-}
-
-const TAG_ACCENT_COLORS: Record<string, string> = {
-  'Fast Win': '#60B040',
-  'High Impact': '#2888B0',
-  'Stuck Deal Fix': '#6E8E49',
-  'Customer Saver': '#3E8F71',
-  'Manager Move': '#1F6F93',
-  'Confidence Builder': '#2F8F8A',
-  'Momentum Booster': '#4E9D6F',
-};
-
-function getToolAccentColor(tool: ToolConfig): string {
-  const tag = getToolConfidenceTag(tool);
-  return TAG_ACCENT_COLORS[tag] || '#60B040';
 }
 
 const INLINE_TOOL_COMPONENTS: Record<string, ComponentType> = {
@@ -159,6 +140,31 @@ const QUICK_DIAGNOSIS_OPTIONS = [
 type DiagnosisLabel = (typeof QUICK_DIAGNOSIS_OPTIONS)[number]['label'];
 type RoleTypeSelection = 'sales_advisor' | 'manager';
 type RoleDetailSelection = 'Sales Consultant' | 'Service Writer' | 'manager' | 'Service Manager' | 'Finance Manager';
+type HeroRoleSegment = 'sales' | 'service' | 'management';
+
+const MANAGEMENT_ROLE_SET = new Set<UserRole>([
+  'manager',
+  'Service Manager',
+  'Finance Manager',
+  'Parts Manager',
+  'General Manager',
+  'Owner',
+  'Trainer',
+  'Admin',
+  'Developer',
+]);
+
+const SERVICE_ROLE_SET = new Set<UserRole>([
+  'Service Writer',
+  'Parts Consultant',
+]);
+
+function mapUserRoleToHeroSegment(role: UserRole | null | undefined): HeroRoleSegment | null {
+  if (!role) return null;
+  if (MANAGEMENT_ROLE_SET.has(role)) return 'management';
+  if (SERVICE_ROLE_SET.has(role)) return 'service';
+  return 'sales';
+}
 
 const DIAGNOSIS_TOOL_PRIORITY: Record<DiagnosisLabel, string[]> = {
   'Customer is stalling': ['objection-reframe', 'parts-objection-defuser', 'commitment-ladder'],
@@ -177,94 +183,10 @@ const ROLE_DETAIL_TOOL_PRIORITY: Record<RoleDetailSelection, string[]> = {
   'Finance Manager': ['price-presentation', 'payment-comfort-mapper', 'objection-reframe', 'clarity-check-builder', 'desk-conversation'],
 };
 
-const TOOL_INTENT_ACTIONS: Record<ToolIntentTag, string> = {
-  'Move a deal forward': 'Push this deal forward',
-  'Handle an objection': 'Break through an objection',
-  'Follow up': 'Reconnect with a customer',
-  'Present numbers': 'Deliver numbers with confidence',
-  'Recover a stalled deal': 'Revive a dead deal',
-  'Improve consistency': 'Get more consistent',
-  'Coach the team': 'Coach my team now',
-};
-
-const TOOL_CONTENT_UPGRADES: Record<string, { triggers: string[]; tag: string; authorityLabel: string; roleDescription: string; bestUsedWhen?: string[] }> = {
-  'pickup-experience-designer': {
-    bestUsedWhen: ['Delivery day is approaching', 'Customer feels unsure about next steps', 'You want to create a strong final impression'],
-    triggers: ['Customer is asking what happens next', 'Delivery feels rushed or unclear', 'You want to turn this into a referral moment'],
-    tag: 'Confidence Builder',
-    authorityLabel: 'Top Performer Move',
-    roleDescription: 'Spotlight: Perfect Delivery'
-  },
-  'consistency-gap-check': {
-    bestUsedWhen: ['Performance feels inconsistent across reps', 'Customer experience varies too much', 'You’re not sure where breakdowns are happening'],
-    triggers: ['Reps are skipping steps', 'Customers ask the same questions twice', 'Follow-up feels uneven or unreliable'],
-    tag: 'Stuck Deal Fix',
-    authorityLabel: 'Most Likely Next Move',
-    roleDescription: 'Behavior Diagnosis'
-  },
-  'team-coaching-converter': {
-    bestUsedWhen: ['You observed a rep struggle in a live interaction', 'You need to turn a moment into a coaching opportunity', 'You want fast, actionable coaching'],
-    triggers: ['A rep stumbled through an objection', 'A conversation felt flat or unclear', 'You’re not sure what feedback to give'],
-    tag: 'Manager Move',
-    authorityLabel: 'Performance Accelerator',
-    roleDescription: 'Actionable Coaching'
-  },
-  'desk-conversation': {
-    bestUsedWhen: ['You’re stepping into a deal mid-conversation', 'A deal is getting complex or stuck', 'You need a clear plan before engaging'],
-    triggers: ['Customer is hesitating at numbers', 'Trade or financing is complicating the deal', 'Rep needs support closing'],
-    tag: 'High Impact',
-    authorityLabel: 'Best Next Step',
-    roleDescription: 'Live Deal Support'
-  },
-  'repair-trust-builder': {
-    triggers: ['Customer is skeptical of MPI', 'High repair estimate needs explaining', 'Building long-term loyalty'],
-    tag: 'Stuck Deal Fix',
-    authorityLabel: 'Most Likely Next Move',
-    roleDescription: 'Trust Architecture'
-  },
-  'clarity-check-builder': {
-    triggers: ['Paperwork is getting complex', 'Customer missed a detail in the contract', 'Verifying all terms are clear'],
-    tag: 'Customer Saver',
-    authorityLabel: 'Best Next Step',
-    roleDescription: 'Clarity Audit'
-  },
-  'price-presentation': {
-    triggers: ['First pencil is being delivered', 'Opening the gross discussion', 'Handling money questions early'],
-    tag: 'Momentum Booster',
-    authorityLabel: 'Top Performer Move',
-    roleDescription: 'Premium Presentation'
-  },
-};
-
-function getToolBestUsedWhen(tool: ToolConfig): string[] {
-  return TOOL_CONTENT_UPGRADES[tool.id]?.bestUsedWhen || [tool.recommendedWhen[0] || 'Handling a deal move.'];
-}
-
-function getToolTriggers(tool: ToolConfig): string[] {
-  return TOOL_CONTENT_UPGRADES[tool.id]?.triggers || [
-    'Momentum has stalled',
-    'Customer needs clarity',
-    'Next steps are unclear',
-  ];
-}
-
-function getToolConfidenceTag(tool: ToolConfig): string {
-  if (TOOL_CONTENT_UPGRADES[tool.id]?.tag) return TOOL_CONTENT_UPGRADES[tool.id]!.tag;
-  if (tool.access === 'premium') return 'High Impact';
-  return 'Fast Win';
-}
-
-function getToolAuthorityLabel(tool: ToolConfig): string {
-  return TOOL_CONTENT_UPGRADES[tool.id]?.authorityLabel || 'Best Next Step';
-}
-
-function getToolRoleDescription(tool: ToolConfig): string {
-  return TOOL_CONTENT_UPGRADES[tool.id]?.roleDescription || 'Optimization Tool';
-}
-
 export default function ToolsPage() {
   const { toast } = useToast();
   const { user, firebaseUser, loading, setUser } = useAuth();
+  const firebaseAuth = useFirebaseAuth();
   const { resolvedTheme } = useThemeMode();
   const [activeTool, setActiveTool] = useState<ToolConfig | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -297,11 +219,6 @@ export default function ToolsPage() {
 
   const [upgradeContextMessage, setUpgradeContextMessage] = useState<string | undefined>(undefined);
   const [sessionOpenedToolIds, setSessionOpenedToolIds] = useState<string[]>([]);
-  const [showSecondToolPrompt, setShowSecondToolPrompt] = useState(false);
-  const [dismissedSecondToolPrompt, setDismissedSecondToolPrompt] = useState(false);
-  const [showFeaturedCompletionPrompt, setShowFeaturedCompletionPrompt] = useState(false);
-  const [dismissedFeaturedCompletionPrompt, setDismissedFeaturedCompletionPrompt] = useState(false);
-  const [dismissedReturnBanner, setDismissedReturnBanner] = useState(false);
   const [recommendationEvents, setRecommendationEvents] = useState<RecommendationEvent[]>([]);
   const [recommendationRefresh, setRecommendationRefresh] = useState(0);
   const shownRecommendationIdsRef = useRef<Set<string>>(new Set());
@@ -329,6 +246,7 @@ export default function ToolsPage() {
   const [selectedRoleType, setSelectedRoleType] = useState<RoleTypeSelection | null>(null);
   const [selectedRoleDetail, setSelectedRoleDetail] = useState<RoleDetailSelection | null>(null);
   const [isRoleSelectorExpanded, setIsRoleSelectorExpanded] = useState(true);
+  const [heroRoleSelection, setHeroRoleSelection] = useState<HeroRoleSegment | null>(null);
   const categoryFilters: Array<'Deal Flow' | 'Objections' | 'Follow-Up' | 'Pricing' | 'CX / Process' | 'Manager Tools'> = [
     'Deal Flow', 'Objections', 'Follow-Up', 'Pricing', 'CX / Process', 'Manager Tools',
   ];
@@ -336,11 +254,11 @@ export default function ToolsPage() {
   const tools = TOOLBOX_TOOLS;
   const featuredTool = useMemo(() => getFeaturedTool(tools), [tools]);
   const isAuthenticated = !!firebaseUser;
-  const isPaidUser = resolvePaidAccess({
+  const baseHasPaidAccess = resolvePaidAccess({
     tier: user?.tier,
     subscriptionStatus: user?.subscriptionStatus,
   });
-  const hasAutoDriveCX = Boolean(user?.hasAutoDriveCX);
+  const baseHasAutoDriveCX = Boolean(user?.hasAutoDriveCX);
 
   const {
     entitlements,
@@ -354,9 +272,10 @@ export default function ToolsPage() {
     checkFeature,
   } = useEntitlements({
     isAuthenticated,
-    hasPaidAccess: isPaidUser,
-    hasAutoDriveCX,
+    hasPaidAccess: baseHasPaidAccess,
+    hasAutoDriveCX: baseHasAutoDriveCX,
   });
+  const isPaidUser = entitlements.hasPaidAccess;
 
   const unlockedToolCount = useMemo(
     () => (entitlements.hasAccount ? tools.length : Math.min(3, tools.length)),
@@ -403,16 +322,21 @@ export default function ToolsPage() {
     });
   }, [appliedAccessFilter, appliedCategoryFilters, appliedRoleFilter, searchQuery, selectedIntentFilter, tools]);
 
-  const displayName = (user?.name || '').trim().split(/\s+/)[0] || (user?.email || '');
-  const featuredCta = ctaForFeaturedTool();
   const activeDraft = activeTool ? drafts[activeTool.id] || '' : '';
   const activeToolId = activeTool?.id ?? null;
   const isWorkspaceMode = !!activeToolId;
-  const embeddedTheme = resolvedTheme === 'light' ? 'light' : 'dark';
-  const accountEmail = accountProfile?.email || '';
-  const accountRole = accountProfile?.role || 'Sales Consultant';
+  const displayName = (user?.name || '').trim().split(/\s+/)[0] || (user?.email || '');
+  const accountEmail = accountProfile?.email || user?.email || firebaseUser?.email || '';
+  const accountRole = (user?.role || accountProfile?.role || 'Sales Consultant') as ToolboxCapturedRole;
+  const storedRole = (user?.role || accountProfile?.role || null) as UserRole | null;
+  const resolvedHeroRole = useMemo(
+    () => (isAuthenticated ? mapUserRoleToHeroSegment(storedRole) : heroRoleSelection),
+    [heroRoleSelection, isAuthenticated, storedRole]
+  );
   const historyGate = checkFeature(FEATURES.HISTORY);
-  const showReturnVisitBanner = isAuthenticated && !isPaidUser && recentEntries.length > 0 && !dismissedReturnBanner;
+  const intelligenceGate = checkFeature(FEATURES.AUTODRIVE_CX);
+  const hasIntelligenceAccess = intelligenceGate.allowed;
+  const shouldShowOnboarding = !entitlements.hasAccount && !entitlements.hasPaidAccess && !entitlements.hasAutoDriveCX;
 
   const accessibleToolIds = useMemo(() => {
     return tools
@@ -428,6 +352,14 @@ export default function ToolsPage() {
     const openedIds = sessionOpenedToolIds.length > 0 ? sessionOpenedToolIds : usedToolIds;
     const lastOpenedTool = [...openedIds].reverse().find((toolId) => tools.some((tool) => tool.id === toolId));
     const lastCategoryUsed = tools.find((tool) => tool.id === lastOpenedTool)?.category || null;
+    const cxScores = {
+      empathy: readUserCxStatScore(user, 'empathy'),
+      listening: readUserCxStatScore(user, 'listening'),
+      trust: readUserCxStatScore(user, 'trust'),
+      followUp: readUserCxStatScore(user, 'followUp'),
+      closing: readUserCxStatScore(user, 'closing'),
+      relationship: readUserCxStatScore(user, 'relationship'),
+    };
 
     return getRecommendedTools({
       tools,
@@ -440,19 +372,28 @@ export default function ToolsPage() {
       recentCompletedToolIds: completedIds,
       savedToolIds: completedIds,
       lastCategoryUsed,
-      cxSignals: hasAutoDriveCX ? {
+      cxSignals: hasIntelligenceAccess ? {
         skillGaps: [
-          ...(Number(user?.stats?.trust ?? 0) > 0 && Number(user?.stats?.trust ?? 0) < 60 ? ['trust'] : []),
-          ...(Number(user?.stats?.listening ?? 0) > 0 && Number(user?.stats?.listening ?? 0) < 60 ? ['listening'] : []),
-          ...(Number(user?.stats?.followUp ?? 0) > 0 && Number(user?.stats?.followUp ?? 0) < 60 ? ['follow-up'] : []),
-          ...(Number(user?.stats?.closing ?? 0) > 0 && Number(user?.stats?.closing ?? 0) < 60 ? ['closing'] : []),
+          ...(cxScores.trust < 60 ? ['trust'] : []),
+          ...(cxScores.listening < 60 ? ['listening'] : []),
+          ...(cxScores.followUp < 60 ? ['follow-up'] : []),
+          ...(cxScores.closing < 60 ? ['closing'] : []),
+          ...(cxScores.empathy < 60 ? ['empathy'] : []),
+          ...(cxScores.relationship < 60 ? ['relationship'] : []),
         ],
-        coachingSignals: [],
-        performanceWeaknesses: [],
+        coachingSignals: [
+          ...(cxScores.listening < 55 ? ['question-led listening'] : []),
+          ...(cxScores.trust < 55 ? ['transparency framing'] : []),
+          ...(cxScores.closing < 55 ? ['commitment confidence'] : []),
+        ],
+        performanceWeaknesses: [
+          ...(cxScores.followUp < 55 ? ['follow-up consistency'] : []),
+          ...(cxScores.relationship < 55 ? ['relationship consistency'] : []),
+        ],
       } : null,
       recommendationEvents,
     });
-  }, [accessibleToolIds, accountProfile?.role, entitlements.hasAccount, entitlements.hasAutoDriveCX, hasAutoDriveCX, recentEntries, recommendationEvents, selectedIntentFilter, sessionOpenedToolIds, tools, usedToolIds, user?.role, user?.stats?.closing, user?.stats?.followUp, user?.stats?.listening, user?.stats?.trust]);
+  }, [accessibleToolIds, accountProfile?.role, entitlements.hasAccount, hasIntelligenceAccess, recentEntries, recommendationEvents, selectedIntentFilter, sessionOpenedToolIds, tools, usedToolIds, user]);
 
   const recommendedPrimaryTool = useMemo(
     () => tools.find((tool) => tool.id === recommendationResult.recommendations[0]?.toolId) || null,
@@ -468,6 +409,21 @@ export default function ToolsPage() {
   const recommendedToolIdSet = useMemo(
     () => new Set(recommendationResult.recommendations.map((row) => row.toolId)),
     [recommendationResult.recommendations]
+  );
+  const recommendationByToolId = useMemo(
+    () => new Map(recommendationResult.recommendations.map((row) => [row.toolId, row] as const)),
+    [recommendationResult.recommendations]
+  );
+  const cxScores = useMemo(
+    () => ({
+      empathy: readUserCxStatScore(user, 'empathy'),
+      listening: readUserCxStatScore(user, 'listening'),
+      trust: readUserCxStatScore(user, 'trust'),
+      followUp: readUserCxStatScore(user, 'followUp'),
+      closing: readUserCxStatScore(user, 'closing'),
+      relationship: readUserCxStatScore(user, 'relationship'),
+    }),
+    [user]
   );
   const diagnosisPriorityToolIds = useMemo(
     () => (selectedDiagnosis ? DIAGNOSIS_TOOL_PRIORITY[selectedDiagnosis] || [] : []),
@@ -531,28 +487,76 @@ export default function ToolsPage() {
     });
   }, [appliedSortBy, recommendedToolIdSet, rolePriorityToolIds, tools, visibleTools]);
 
-  const useRightNowTools = useMemo(() => {
+  const contextualTools = useMemo(() => {
+    if (!selectedDiagnosis) return [];
+
+    const selectedOption = QUICK_DIAGNOSIS_OPTIONS.find((option) => option.label === selectedDiagnosis);
+    const categoryFallback = selectedOption && selectedOption.filter !== 'all'
+      ? tools.filter((tool) => tool.category === selectedOption.filter)
+      : tools;
+
     const diagnosisTools = diagnosisPriorityToolIds
       .map((toolId) => tools.find((tool) => tool.id === toolId))
       .filter((tool): tool is ToolConfig => !!tool);
+
     const list = [
       ...diagnosisTools,
-      featuredTool,
       recommendedPrimaryTool,
-      ...recommendedSecondaryTools.slice(0, 2).map((r) => r.tool),
+      ...recommendedSecondaryTools.map((r) => r.tool),
+      ...categoryFallback,
     ].filter((t): t is ToolConfig => !!t);
+
     const seen = new Set<string>();
-    return list.filter((t) => {
-      if (seen.has(t.id)) return false;
-      seen.add(t.id);
+    return list.filter((tool) => {
+      if (seen.has(tool.id)) return false;
+      seen.add(tool.id);
       return true;
-    }).slice(0, 4);
-  }, [diagnosisPriorityToolIds, featuredTool, recommendedPrimaryTool, recommendedSecondaryTools, tools]);
+    }).slice(0, 6);
+  }, [diagnosisPriorityToolIds, recommendedPrimaryTool, recommendedSecondaryTools, selectedDiagnosis, tools]);
 
   const recentToolNameForReason = useMemo(() => {
     const recentId = [...sessionOpenedToolIds, ...usedToolIds].reverse().find((id) => tools.some((tool) => tool.id === id));
     return recentId ? (tools.find((tool) => tool.id === recentId)?.name || null) : null;
   }, [sessionOpenedToolIds, usedToolIds, tools]);
+  const diagnosisSubtitle = useMemo(() => {
+    const byDiagnosis: Partial<Record<DiagnosisLabel, string>> = {
+      'Customer is stalling': 'for breaking through this stall',
+      'Deal lost momentum': 'for restoring deal momentum',
+      'Customer pushed back': 'for handling this objection',
+      'I’m at numbers': 'for presenting numbers with confidence',
+      'Need to re-engage': 'for re-engaging this customer',
+      'Just tell me what to do': 'for the fastest next move',
+    };
+    return selectedDiagnosis ? (byDiagnosis[selectedDiagnosis] || 'for this situation') : 'for this situation';
+  }, [selectedDiagnosis]);
+
+  const compactHeroContent = useMemo(() => {
+    if (resolvedHeroRole === 'sales') {
+      return {
+        headline: 'Move more deals forward with confidence.',
+        subtext: 'Handle objections cleanly, keep momentum, and choose the best next move faster.',
+      };
+    }
+
+    if (resolvedHeroRole === 'service') {
+      return {
+        headline: 'Drive more approvals through trust and clarity.',
+        subtext: 'Communicate recommendations clearly, strengthen customer confidence, and move work forward.',
+      };
+    }
+
+    if (resolvedHeroRole === 'management') {
+      return {
+        headline: 'Coach consistency across every customer conversation.',
+        subtext: 'Build repeatable behaviors, sharpen team execution, and improve performance at scale.',
+      };
+    }
+
+    return {
+      headline: 'Build a system that actually moves deals.',
+      subtext: 'For consultants and managers who want consistent wins.',
+    };
+  }, [resolvedHeroRole]);
 
   function formatRecommendationReason(
     recommendation: (typeof recommendationResult.recommendations)[number],
@@ -575,7 +579,6 @@ export default function ToolsPage() {
     if (intentLabel) return `Useful when teams need support around ${intentLabel}.`;
     return 'Helps recover momentum when deals stall.';
   }
-
 
   useEffect(() => {
     const initialDrafts: Record<string, string> = {};
@@ -602,6 +605,7 @@ export default function ToolsPage() {
     if (typeof window === 'undefined') return;
     const storedType = window.localStorage.getItem('autodrive_role_type');
     const storedDetail = window.localStorage.getItem('autodrive_role_detail');
+    const storedHeroRole = window.localStorage.getItem('autodrive_hero_role');
 
     if (storedType === 'sales_advisor' || storedType === 'manager') {
       setSelectedRoleType(storedType);
@@ -617,6 +621,9 @@ export default function ToolsPage() {
     }
     if (storedType || storedDetail) {
       setIsRoleSelectorExpanded(false);
+    }
+    if (storedHeroRole === 'sales' || storedHeroRole === 'service' || storedHeroRole === 'management') {
+      setHeroRoleSelection(storedHeroRole);
     }
   }, []);
 
@@ -637,6 +644,15 @@ export default function ToolsPage() {
       window.localStorage.removeItem('autodrive_role_detail');
     }
   }, [selectedRoleDetail]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isAuthenticated) return;
+    if (heroRoleSelection) {
+      window.localStorage.setItem('autodrive_hero_role', heroRoleSelection);
+    } else {
+      window.localStorage.removeItem('autodrive_hero_role');
+    }
+  }, [heroRoleSelection, isAuthenticated]);
 
   useEffect(() => {
     async function loadEntries() {
@@ -712,29 +728,6 @@ export default function ToolsPage() {
   }, [firebaseUser]);
 
   useEffect(() => {
-    if (isPaidUser || dismissedSecondToolPrompt || showSecondToolPrompt) return;
-    if (!entitlements.hasAccount) return;
-    if (sessionOpenedToolIds.length < 2) return;
-
-    const timer = window.setTimeout(() => {
-      setShowSecondToolPrompt(true);
-    }, SECOND_TOOL_PROMPT_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [dismissedSecondToolPrompt, entitlements.hasAccount, isPaidUser, sessionOpenedToolIds.length, showSecondToolPrompt]);
-
-  useEffect(() => {
-    if (isPaidUser || dismissedFeaturedCompletionPrompt || showFeaturedCompletionPrompt) return;
-    if (!activeTool || activeTool.id !== featuredTool.id) return;
-
-    const timer = window.setTimeout(() => {
-      setShowFeaturedCompletionPrompt(true);
-    }, FEATURED_COMPLETION_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [activeTool, dismissedFeaturedCompletionPrompt, featuredTool.id, isPaidUser, showFeaturedCompletionPrompt]);
-
-  useEffect(() => {
     setSprocketLayerOutput(null);
     setCxLayerOutput(null);
   }, [activeToolId]);
@@ -778,6 +771,65 @@ export default function ToolsPage() {
       hour: 'numeric',
       minute: '2-digit',
     }).format(date);
+  }
+
+  function deriveNameFromEmail(email: string): string {
+    const localPart = (email || '').split('@')[0] || '';
+    const cleaned = localPart.replace(/[._-]+/g, ' ').trim();
+    if (!cleaned) return 'Member';
+    return cleaned
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  }
+
+  function skillCategoryForTool(tool: ToolConfig): 'Empathy' | 'Listening' | 'Trust' | 'Follow-Up' | 'Closing' | 'Relationship Building' {
+    if (tool.category === 'Follow-Up') return 'Follow-Up';
+    if (tool.category === 'Pricing') return 'Closing';
+    if (tool.category === 'Objections') return 'Trust';
+    if (tool.category === 'CX / Process') return 'Relationship Building';
+    if (tool.category === 'Manager Tools') return 'Listening';
+    return 'Empathy';
+  }
+
+  async function awardToolXp(input: {
+    tool: ToolConfig;
+    eventType: 'tool_first_use' | 'tool_completion' | 'tool_session_completion';
+    baseXP: number;
+    idempotencyKey: string;
+  }) {
+    if (!firebaseUser || !user?.userId) return;
+
+    const bonusXP = (entitlements.hasPaidAccess && entitlements.hasAutoDriveCX)
+      ? Math.round(input.baseXP * 0.5)
+      : 0;
+
+    const idToken = await firebaseUser.getIdToken();
+    const result = await trackToolXpEvent({
+      idToken,
+      idempotencyKey: input.idempotencyKey,
+      userId: user.userId,
+      toolId: input.tool.id,
+      eventType: input.eventType,
+      baseXP: input.baseXP,
+      bonusXP,
+      skillCategory: skillCategoryForTool(input.tool),
+      entitlementStatus: entitlements.hasPaidAccess && entitlements.hasAutoDriveCX ? 'paid' : 'free',
+      timestamp: new Date().toISOString(),
+    });
+
+    if (!result.ok) {
+      console.warn('[Toolbox XP] event failed:', result.message);
+      return;
+    }
+
+    if (typeof result.data.totalXp === 'number' && user) {
+      setUser({
+        ...user,
+        xp: result.data.totalXp,
+      });
+    }
   }
 
   async function logRecommendationEvent(
@@ -833,9 +885,19 @@ export default function ToolsPage() {
   }, [recommendationRefresh, recommendationResult, selectedIntentFilter]);
 
   function openTool(tool: ToolConfig) {
+    const wasFirstUse = !usedToolIds.includes(tool.id);
     setActiveTool(tool);
     setSessionOpenedToolIds((current) => (current.includes(tool.id) ? current : [...current, tool.id]));
     registerToolUsage(tool.id);
+
+    if (wasFirstUse) {
+      void awardToolXp({
+        tool,
+        eventType: 'tool_first_use',
+        baseXP: 20,
+        idempotencyKey: `tool-first-use:${tool.id}`,
+      });
+    }
   }
 
   function openToolExperience(tool: ToolConfig) {
@@ -931,43 +993,74 @@ export default function ToolsPage() {
     ));
   }
 
-  function handleInlineUpgradeClick(context?: string) {
-    requireFeature(FEATURES.SPROCKET, context);
-  }
-
-  async function handleUnlockByEmail(input: { email: string; role: ToolboxCapturedRole }) {
+  async function handleCreateAccount(input: { email: string; password: string; role: ToolboxCapturedRole }) {
     const email = input.email.trim().toLowerCase();
     if (!emailRegex.test(email)) {
       toast({ variant: 'destructive', title: 'Enter a valid email' });
       return;
     }
+    if (input.password.trim().length < 8) {
+      toast({ variant: 'destructive', title: 'Password must be at least 8 characters.' });
+      return;
+    }
 
     setIsEmailSubmitting(true);
-    const captureResult = await captureToolboxUnlockEmail({ email, role: input.role });
-    if (!captureResult.ok) {
-      console.warn('[Toolbox] unlock email capture failed:', captureResult.message);
+    try {
+      const credential = await createUserWithEmailAndPassword(firebaseAuth, email, input.password.trim());
+      const idToken = await credential.user.getIdToken(true);
+
+      await fetch('/api/auth/bootstrap-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          email,
+          name: deriveNameFromEmail(email),
+          signupRoleInterest: input.role,
+        }),
+      });
+
+      setLocalAccountProfile({ email, role: input.role });
+      refreshLocalEntitlements();
+
+      const bootstrapResult = await createToolboxFreeAccount({
+        idToken,
+        localEntries: exportTempDraftsAsEntries(),
+        toolsUsedCount: entitlements.usage.toolsUsedCount,
+        accountProfile: { email, role: input.role },
+      });
+      if (bootstrapResult.ok && bootstrapResult.data.entitlements) {
+        setServerEntitlements(bootstrapResult.data.entitlements);
+      }
+
+      touchAttribution('strong', 'account_created_tools_gate');
+      setShowEmailGate(false);
+      setShowAccountSuccess(true);
+      clearTempDrafts();
+
+      const queuedTool = pendingToolToOpen;
+      setPendingToolToOpen(null);
+      setPendingGateFeature(null);
+      if (queuedTool) {
+        openToolExperience(queuedTool);
+      } else if (!activeTool) {
+        openToolExperience(featuredTool);
+      }
+
+      toast({
+        title: 'System Unlocked',
+        description: 'Your account is active and all tools are now available.',
+      });
+    } catch (error: any) {
+      const message = error?.code === 'auth/email-already-in-use'
+        ? 'That email already has an account. Sign in to continue.'
+        : (error?.message || 'Could not create account.');
+      toast({ variant: 'destructive', title: 'Account setup failed', description: message });
+    } finally {
+      setIsEmailSubmitting(false);
     }
-
-    setLocalAccountProfile({ email, role: input.role });
-    refreshLocalEntitlements();
-    setShowEmailGate(false);
-    touchAttribution('medium', 'email_role_captured');
-
-    const queuedTool = pendingToolToOpen;
-    setPendingToolToOpen(null);
-    setPendingGateFeature(null);
-    if (queuedTool) {
-      openToolExperience(queuedTool);
-    } else if (!activeTool) {
-      openToolExperience(featuredTool);
-    }
-
-    setIsEmailSubmitting(false);
-
-    toast({
-      title: 'Account captured',
-      description: 'You now have unlimited standalone tool access.',
-    });
   }
 
   async function handleUpgrade() {
@@ -980,8 +1073,8 @@ export default function ToolsPage() {
     setIsUpgradeSubmitting(true);
     window.open(TOOLBOX_UPGRADE_URL, '_blank', 'noopener,noreferrer');
     toast({
-      title: 'Complete payment to unlock Pro',
-      description: 'Finish checkout, then return here. We will unlock tools as soon as payment is confirmed.',
+      title: 'Complete upgrade to unlock intelligence',
+      description: 'Finish checkout, then return here. Guided coaching and smarter recommendations will unlock automatically.',
     });
     setIsUpgradeSubmitting(false);
   }
@@ -1012,7 +1105,7 @@ export default function ToolsPage() {
       console.info('[Toolbox] upgrade_confirmed', { entitlements });
       setShowUpgradeModal(false);
       setUpgradeContextMessage(undefined);
-      toast({ title: 'Upgrade complete', description: 'All tools are now unlocked on this account.' });
+      toast({ title: 'Upgrade complete', description: 'Intelligence features are now unlocked on this account.' });
     }
 
     console.info('[Toolbox] paywall_open', { entitlements });
@@ -1059,12 +1152,6 @@ export default function ToolsPage() {
 
     if (!result.ok) {
       setIsSavingEntry(false);
-
-      if (result.code === 'SAVE_LIMIT' || result.code === 'PAYMENT_REQUIRED') {
-        setUpgradeContextMessage('You\'re building momentum. Don\'t lose it.');
-        setShowUpgradeModal(true);
-      }
-
       toast({ variant: 'destructive', title: result.message });
       return;
     }
@@ -1072,9 +1159,12 @@ export default function ToolsPage() {
     setRecentEntries((current) => [result.data.entry, ...current].slice(0, 12));
     setIsSavingEntry(false);
 
-    if (!isPaidUser && activeTool.id === featuredTool.id) {
-      setShowFeaturedCompletionPrompt(true);
-    }
+    void awardToolXp({
+      tool: activeTool,
+      eventType: 'tool_completion',
+      baseXP: 40,
+      idempotencyKey: `tool-completion:${activeTool.id}:${new Date().toISOString().slice(0, 10)}`,
+    });
 
     toast({ title: 'Saved', description: 'Your note is now available in recent work.' });
   }
@@ -1092,6 +1182,19 @@ export default function ToolsPage() {
     const lowConfidence = /(maybe|not sure|i think|probably|guess)/i.test(normalized);
     const priceFriction = /(price|payment|budget|cost)/i.test(normalized);
     const trustFriction = /(trust|concern|hesitat|nervous|unsure)/i.test(normalized);
+    const cxScores = [
+      { label: 'Empathy', score: readUserCxStatScore(user, 'empathy') },
+      { label: 'Listening', score: readUserCxStatScore(user, 'listening') },
+      { label: 'Trust', score: readUserCxStatScore(user, 'trust') },
+      { label: 'Follow-Up', score: readUserCxStatScore(user, 'followUp') },
+      { label: 'Closing', score: readUserCxStatScore(user, 'closing') },
+      { label: 'Relationship', score: readUserCxStatScore(user, 'relationship') },
+    ].sort((a, b) => a.score - b.score);
+    const weakest = cxScores[0];
+    const hasCxGap = entitlements.hasAutoDriveCX && weakest.score < 60;
+    const cxOverlay = hasCxGap
+      ? ` CX signal: ${weakest.label} is low (${Math.round(weakest.score)}), so lead with that correction first.`
+      : '';
 
     const diagnosis = trustFriction
       ? 'Trust friction is the main blocker. The customer language suggests low certainty before commitment.'
@@ -1111,8 +1214,8 @@ export default function ToolsPage() {
         'Ask for agreement before moving to details.',
         'Set one explicit time-bound follow-up.',
       ],
-      coaching: 'Lead with clarity, then confirmation, then commitment. Avoid jumping to details before alignment.',
-      prioritization: trustFriction ? 'Priority: trust -> clarity -> close' : 'Priority: clarity -> value -> close',
+      coaching: `Lead with clarity, then confirmation, then commitment. Avoid jumping to details before alignment.${cxOverlay}`,
+      prioritization: `${trustFriction ? 'Priority: trust -> clarity -> close' : 'Priority: clarity -> value -> close'}${hasCxGap ? ` | CX: ${weakest.label}` : ''}`,
     };
   }
 
@@ -1120,17 +1223,25 @@ export default function ToolsPage() {
     const normalized = input.trim().toLowerCase();
     const followUpGap = /(follow|later|tomorrow|next week)/.test(normalized);
     const listeningGap = /(i told|already said|again)/.test(normalized);
+    const followUpScore = readUserCxStatScore(user, 'followUp');
+    const listeningScore = readUserCxStatScore(user, 'listening');
+    const trustScore = readUserCxStatScore(user, 'trust');
+    const weakest = [
+      { label: 'Follow-up reliability', score: followUpScore },
+      { label: 'Listening precision', score: listeningScore },
+      { label: 'Trust framing', score: trustScore },
+    ].sort((a, b) => a.score - b.score)[0];
 
     return {
       insight: followUpGap
-        ? 'Pattern trend: follow-up timing drift is reducing momentum.'
-        : 'Pattern trend: next-step clarity is the highest leverage behavior.',
+        ? `Pattern trend: follow-up timing drift is reducing momentum. AutoDriveCX score signal: ${weakest.label} (${Math.round(weakest.score)}).`
+        : `Pattern trend: next-step clarity is the highest leverage behavior. AutoDriveCX score signal: ${weakest.label} (${Math.round(weakest.score)}).`,
       personalization: listeningGap
         ? 'Personalized coaching: mirror customer language once before advancing the conversation.'
         : 'Personalized coaching: tighten next-step statements to one action and one time.',
       focus: [
-        followUpGap ? 'Follow-up reliability' : 'Next-step precision',
-        listeningGap ? 'Listening effectiveness' : 'Tone and pacing consistency',
+        followUpGap || followUpScore < 58 ? 'Follow-up reliability' : 'Next-step precision',
+        listeningGap || listeningScore < 58 ? 'Listening effectiveness' : 'Tone and pacing consistency',
         'Trust-building micro-commitments',
       ],
     };
@@ -1184,7 +1295,7 @@ export default function ToolsPage() {
               className={cn(
                 'rounded-md border px-3 py-2 text-xs font-semibold',
                 draftAccessFilter === entry.value
-                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                   : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
               )}
             >
@@ -1205,7 +1316,7 @@ export default function ToolsPage() {
               className={cn(
                 'rounded-full border px-3 py-1.5 text-[11px] font-semibold',
                 draftCategoryFilters.includes(category)
-                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                   : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
               )}
             >
@@ -1249,7 +1360,7 @@ export default function ToolsPage() {
               className={cn(
                 'rounded-md border px-2 py-2 text-[11px] font-semibold',
                 draftSortBy === entry.value
-                  ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                  ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                   : 'border-[#2c3e5c] bg-[#0f1a2d] text-[#a4b6d2]'
               )}
             >
@@ -1263,7 +1374,7 @@ export default function ToolsPage() {
         <Button type="button" variant="ghost" className="text-[#9eb3d1] hover:bg-[#13233b]" onClick={handleClearFilters}>
           Clear
         </Button>
-        <Button type="button" className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={handleApplyFilters}>
+        <Button type="button" className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]" onClick={handleApplyFilters}>
           Apply
         </Button>
       </div>
@@ -1273,18 +1384,18 @@ export default function ToolsPage() {
   return (
     <div
       className={cn(
-        'relative min-h-screen overflow-hidden bg-[#070d18] pb-24 text-[#d9e3f5]',
+        'tools-theme relative min-h-screen overflow-hidden pb-24',
         resolvedTheme === 'light' && 'tools-theme-light'
       )}
     >
-      <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-[#76ff8f]/[0.07] blur-3xl" />
+      <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-[#7b2eff]/[0.08] blur-3xl" />
       <div className="relative z-10">
         <Header />
 
         {!loading && !isAuthenticated && (
           <div className="pointer-events-none absolute right-4 top-3 z-40 flex items-center gap-2 md:right-6">
             <a
-              href="https://app.autodrivecx.com/login"
+              href="/login?next=%2Ftools"
               className="pointer-events-auto uppercase tracking-[0.08em] hover:brightness-110"
               style={mainSiteLoginButtonStyle}
             >
@@ -1294,7 +1405,7 @@ export default function ToolsPage() {
         )}
 
         <main className="mx-auto w-full max-w-7xl space-y-6 p-4 md:space-y-8 md:p-6 lg:p-8">
-          <section className="space-y-4 transition-all duration-200">
+          <section className="relative space-y-4 transition-all duration-200">
             <div
               className={cn(
                 'flex flex-wrap items-center justify-between gap-3 transition-all duration-200',
@@ -1302,30 +1413,166 @@ export default function ToolsPage() {
               )}
             >
               <div className="inline-flex items-center gap-2 rounded-full border border-[#76ff8f]/30 bg-[#111b2d] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9bffac]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#76ff8f]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[#9DEE75]" />
                 New tool drops every week
               </div>
             </div>
 
-            <div
-              className={cn(
-                'space-y-1 transition-all duration-200',
-                isWorkspaceMode && 'opacity-75'
-              )}
-            >
-              {!loading && user && (
-                <p className="text-xs font-medium text-[#c8d8f1]">Welcome back{displayName ? `, ${displayName}` : ''}.</p>
-              )}
-              <h1 className="text-2xl font-semibold tracking-tight text-[#f6fbff] md:text-4xl">
-                Build a system that actually moves deals.
-              </h1>
-              <p className="text-sm text-[#9db0cb]">
-                For consultants and managers who want consistent wins.
-              </p>
-              <p className="text-[11px] text-[#6f84a7] font-medium leading-none">
-                Pick what’s happening, we’ll guide your next move.
-              </p>
-            </div>
+          {/* Welcome Area */}
+          <section className="mb-4">
+            {shouldShowOnboarding ? (
+              <OnboardingSection
+                isAuthenticated={isAuthenticated}
+                onCreateAccount={() => setShowEmailGate(true)}
+                heroRole={resolvedHeroRole}
+                onHeroRoleChange={setHeroRoleSelection}
+                onDismiss={() => {
+                  const anchor = document.getElementById('quick-diagnosis-anchor');
+                  if (anchor) {
+                    anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+              />
+            ) : (
+              <div
+                className={cn(
+                  'space-y-1 transition-all duration-200',
+                  isWorkspaceMode && 'opacity-75'
+                )}
+              >
+                {!loading && user && (
+                  <p className="text-xs font-medium text-[#c8d8f1]">Welcome back{displayName ? `, ${displayName}` : ''}.</p>
+                )}
+                <h1 className="text-2xl font-semibold tracking-tight text-[#f6fbff] md:text-4xl">
+                  {compactHeroContent.headline}
+                </h1>
+                <p className="text-sm text-[#9db0cb]">
+                  {compactHeroContent.subtext}
+                </p>
+                <p className="text-[11px] text-[#6f84a7] font-medium leading-none">
+                  Pick what’s happening, we’ll guide your next move.
+                </p>
+              </div>
+            )}
+          </section>
+
+            {!activeTool && (
+              <div className="tool-card-surface animate-in fade-in duration-200 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#7B2EFF]">
+                      Recommended Right Now
+                    </p>
+                    <p className="truncate text-base font-bold text-[#FFFFFF]">{featuredTool.name}</p>
+                    <p className="line-clamp-1 text-sm text-[#B8B8C5]">{featuredTool.description}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => maybeOpenTool(featuredTool)}
+                    className="h-10 w-full border-[#2f415f] bg-[#0d1728] text-xs text-[#e8f1ff] transition-all hover:bg-[#12203a] active:scale-[0.95] sm:w-auto sm:min-w-[220px]"
+                  >
+                    Run Recommended Tool
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!activeTool && (
+              <div className="animate-in fade-in duration-200" id="quick-diagnosis-anchor">
+                <div className="tool-control-panel rounded-xl p-2 md:p-3">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2 px-2 pb-1">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#FFFFFF]">
+                        What&apos;s happening right now?
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {QUICK_DIAGNOSIS_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.label}
+                          type="button"
+                          aria-pressed={selectedDiagnosis === opt.label}
+                          onClick={() => {
+                            setSelectedDiagnosis(opt.label);
+                            const feedbackByDiagnosis: Record<DiagnosisLabel, string> = {
+                              'Customer is stalling': 'Here’s how to break through this objection',
+                              'Deal lost momentum': 'Let’s get this deal moving again',
+                              'Customer pushed back': 'Here’s how to break through this objection',
+                              'I’m at numbers': 'Best next moves for this situation',
+                              'Need to re-engage': 'Here’s how to re-engage this customer',
+                              'Just tell me what to do': 'Best next moves for this situation',
+                            };
+                            setDiagnosisFeedback(feedbackByDiagnosis[opt.label]);
+                          }}
+                          className={cn(
+                            'group relative flex items-center gap-3 rounded-lg border bg-[#1A1A24] p-4 text-left transition-all duration-200 active:scale-[0.99]',
+                            'shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
+                            selectedDiagnosis === opt.label
+                              ? 'border-[#7B2EFF] bg-[#1c1630] shadow-[0_8px_18px_rgba(123,46,255,0.16)]'
+                              : 'border-[#2A2A38] hover:-translate-y-[2px] hover:border-[#7B2EFF]/50 hover:bg-[#181828]'
+                          )}
+                        >
+                          <div className={cn(
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-[#12121A] transition-all',
+                            selectedDiagnosis === opt.label
+                              ? 'border-[#7B2EFF]/60 text-[#c9a9ff]'
+                              : 'border-[#2A2A38] text-[#7B2EFF] group-hover:border-[#7B2EFF]/40'
+                          )}>
+                            {opt.filter === 'all' ? <HelpCircle className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-[#FFFFFF]">{opt.label}</p>
+                            <p className="text-[11px] text-[#B8B8C5]">{opt.description}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {selectedDiagnosis && contextualTools.length > 0 && (
+                      <div className="mt-2 border-t border-[#2A2A38] pt-4">
+                        {diagnosisFeedback && (
+                          <div className="px-1 pb-2 animate-in fade-in slide-in-from-left-4 duration-500">
+                            <p className="flex items-center gap-3 text-sm font-black tracking-wide text-[#76ff8f]">
+                              <CheckCircle2 className="h-4 w-4" />
+                              {diagnosisFeedback}
+                            </p>
+                          </div>
+                        )}
+                        <div className="px-1 pb-3">
+                          <h3 className="text-lg font-semibold text-[#FFFFFF]">Best Next Moves</h3>
+                          <p className="text-sm text-[#B8B8C5]">
+                            {diagnosisSubtitle}
+                          </p>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+                          {contextualTools.map((tool) => (
+                            <Card
+                              key={tool.id}
+                              className="tool-card-surface group relative flex h-full flex-col overflow-hidden transition-all duration-300 hover:-translate-y-[2px]"
+                            >
+                              <CardHeader className="p-4 pb-2">
+                                <CardTitle className="text-sm font-bold tracking-tight text-[#FFFFFF]">
+                                  {tool.name}
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="flex flex-1 flex-col p-4 pt-0">
+                                <p className="line-clamp-1 text-[12px] font-medium text-[#B8B8C5]">{tool.description}</p>
+                                <div className="mt-4">
+                                  <Button size="sm" className="tool-run-cta text-[11px] uppercase tracking-widest" onClick={() => maybeOpenTool(tool)}>
+                                    Run Tool
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               {roleSelectionLabel && !isRoleSelectorExpanded ? (
@@ -1348,6 +1595,7 @@ export default function ToolsPage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
+                      aria-pressed={selectedRoleType === 'sales_advisor'}
                       onClick={() => {
                         setSelectedRoleType('sales_advisor');
                         setIsRoleSelectorExpanded(false);
@@ -1358,7 +1606,7 @@ export default function ToolsPage() {
                       className={cn(
                         'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
                         selectedRoleType === 'sales_advisor'
-                          ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                          ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                           : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
                       )}
                     >
@@ -1366,6 +1614,7 @@ export default function ToolsPage() {
                     </button>
                     <button
                       type="button"
+                      aria-pressed={selectedRoleType === 'manager'}
                       onClick={() => {
                         setSelectedRoleType('manager');
                         setIsRoleSelectorExpanded(false);
@@ -1376,7 +1625,7 @@ export default function ToolsPage() {
                       className={cn(
                         'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
                         selectedRoleType === 'manager'
-                          ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                          ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                           : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
                       )}
                     >
@@ -1404,6 +1653,7 @@ export default function ToolsPage() {
                           <button
                             key={roleOption.value}
                             type="button"
+                            aria-pressed={selectedRoleDetail === roleOption.value}
                             onClick={() => {
                               setSelectedRoleDetail(roleOption.value);
                               setIsRoleSelectorExpanded(false);
@@ -1411,7 +1661,7 @@ export default function ToolsPage() {
                             className={cn(
                               'rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.97]',
                               selectedRoleDetail === roleOption.value
-                                ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
+                                ? 'border-[#76ff8f]/45 bg-[#9DEE75]/12 text-[#b4ffbf]'
                                 : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
                             )}
                           >
@@ -1425,95 +1675,7 @@ export default function ToolsPage() {
               )}
             </div>
 
-            {!activeTool && (
-              <div className="animate-in fade-in duration-200">
-                {/* QUICK DIAGNOSIS BAR */}
-                <div className="rounded-xl border border-[#2b3e5d] bg-[#0c1729]/80 p-1 backdrop-blur shadow-xl">
-                  <div className="flex flex-col gap-1 p-2">
-                    <div className="flex items-center justify-between gap-2 px-2 pb-2 pt-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#6f84a7]">
-                        What’s happening right now?
-                      </p>
-                      {selectedDiagnosis && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedDiagnosis(null);
-                            setDiagnosisFeedback(null);
-                          }}
-                          className="text-[10px] font-semibold text-[#76ff8f] hover:text-[#92ffa7]"
-                        >
-                          Show all tools
-                        </button>
-                      )}
-                    </div>
-                    {selectedDiagnosis && (
-                      <div className="px-2 pb-2 animate-in fade-in duration-200">
-                        <p className="text-[11px] font-semibold text-[#b4ffbf]">
-                          You&apos;re viewing tools for: {selectedDiagnosis}
-                        </p>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                      {QUICK_DIAGNOSIS_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.label}
-                          onClick={() => {
-                            setSelectedDiagnosis(opt.label);
-                            const feedbackByDiagnosis: Record<DiagnosisLabel, string> = {
-                              'Customer is stalling': 'Here’s how to break through this objection',
-                              'Deal lost momentum': 'Let’s get this deal moving again',
-                              'Customer pushed back': 'Here’s how to break through this objection',
-                              'I’m at numbers': 'Best next moves for this situation',
-                              'Need to re-engage': 'Here’s how to re-engage this customer',
-                              'Just tell me what to do': 'Best next moves for this situation',
-                            };
-                            setDiagnosisFeedback(feedbackByDiagnosis[opt.label]);
-                          }}
-                          className="flex items-center gap-3 rounded-lg border border-transparent bg-[#111b2d] p-3 text-left transition-all hover:border-[#37507a] hover:bg-[#15243f] active:scale-[0.98]"
-                        >
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#1a2d49] text-[#76ff8f]">
-                            {opt.filter === 'all' ? <HelpCircle className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-[#e8f1ff]">{opt.label}</p>
-                            <p className="text-[10px] text-[#9db0cb]">{opt.description}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <Button
-              variant="outline"
-              onClick={() => maybeOpenTool(featuredTool)}
-              className="h-10 border-[#2f415f] bg-[#0d1728] text-xs text-[#e8f1ff] transition-all hover:bg-[#12203a] active:scale-[0.95]"
-            >
-              Run This Week's Featured Tool
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
           </section>
-
-          {showReturnVisitBanner && (
-            <section>
-              <Card className="border-[#2b3e5d] bg-[#101d31]">
-                <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-[#dbe7fb]">Pick up where you left off, or unlock the full system.</p>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" className="bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]" onClick={() => handleInlineUpgradeClick()}>
-                      Unlock Full Access
-                    </Button>
-                    <Button size="sm" variant="ghost" className="text-[#9eb3d1] hover:bg-[#13233b]" onClick={() => setDismissedReturnBanner(true)}>
-                      Dismiss
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-          )}
 
           {showAccountSuccess && (
             <section>
@@ -1540,191 +1702,10 @@ export default function ToolsPage() {
           <div className="transition-all duration-200">
             {!isWorkspaceMode ? (
               <div className="space-y-8">
-                {/* 1. Continue where you left off */}
-                {recentEntries.length > 0 && historyGate.allowed && (
-                  <section className="space-y-4">
-                    <p className="px-1 text-xs font-bold uppercase tracking-[0.2em] text-[#6484b3]">
-                      Continue Work
-                    </p>
-                    <div className="divide-y divide-[#1a2d49] rounded-xl border border-[#1a2d49] bg-[#0a1527] overflow-hidden">
-                      {recentEntries.slice(0, 3).map((entry) => {
-                        const tool = tools.find((t) => t.id === entry.toolId);
-                        return (
-                          <div
-                            key={entry.id}
-                            className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-[#111f35]"
-                          >
-                            <div className="min-w-0 flex-1 flex items-center gap-3">
-                              <div className="h-2 w-2 rounded-full bg-[#76ff8f] shrink-0 animate-pulse" />
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-bold text-[#e1ecff]">{tool?.name || entry.toolId}</p>
-                                <p className="text-[10px] text-[#6f84a7] font-medium tracking-wide">
-                                  OPENED {formatLastEdited(entry.createdAt).toUpperCase()}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              className="tool-run-cta h-8 shrink-0 px-3 text-[11px] uppercase tracking-widest"
-                              onClick={() => {
-                                if (tool) setActiveTool(tool);
-                                setDrafts((current) => ({ ...current, [entry.toolId]: entry.content }));
-                              }}
-                            >
-                              Run Tool
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-                )}
-
-                {/* 2. Use Right Now */}
-                <section className="space-y-6 pt-2">
-                  {diagnosisFeedback && (
-                    <div className="px-1 animate-in fade-in slide-in-from-left-4 duration-500">
-                      <p className="text-sm font-black text-[#76ff8f] flex items-center gap-3 tracking-wide">
-                        <CheckCircle2 className="h-4 w-4" />
-                        {diagnosisFeedback}
-                      </p>
-                    </div>
-                  )}
-                  <p className="px-1 text-xs font-bold uppercase tracking-[0.25em] text-[#76ff8f]">
-                    Essential Moves — Use Right Now
-                  </p>
-                  <div className="grid gap-4 pb-2 sm:grid-cols-2 lg:gap-6">
-                    {useRightNowTools.map((tool) => {
-                      const hasAccess = canOpenTool(tool);
-                      const accentColor = getToolAccentColor(tool);
-                      return (
-                        <Card
-                          key={tool.id}
-                          className={cn(
-                            'group relative w-full overflow-hidden border-[#2b3e5d] bg-[#0f1b30] transition-all duration-300',
-                            'shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-opacity-50 hover:border-opacity-100',
-                            hasAccess && 'hover:bg-[#15243f] hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.25)]'
-                          )}
-                        >
-                          {/* Intensity Strip */}
-                          <div 
-                            className="absolute left-0 top-0 h-full w-[3px]" 
-                            style={{ backgroundColor: accentColor, opacity: 0.4 }} 
-                          />
-                          
-                          <CardHeader className="space-y-2 p-5 pb-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9bffac]">
-                                {getToolAuthorityLabel(tool)}
-                              </p>
-                              <Badge 
-                                className="shrink-0 whitespace-nowrap bg-[#070d18] text-white border-none text-[8px] uppercase tracking-widest font-black h-5 px-2"
-                                style={{ borderLeft: `2px solid ${accentColor}` }}
-                              >
-                                {getToolConfidenceTag(tool)}
-                              </Badge>
-                            </div>
-                            <div className="pt-1">
-                              <CardTitle className="text-xl font-black text-white leading-tight tracking-tight">
-                                {tool.name}
-                              </CardTitle>
-                              <p className="text-[11px] font-bold text-[#6f84a7] uppercase tracking-[0.1em] mt-1.5 flex items-center gap-2">
-                                <span className="h-1 w-1 rounded-full" style={{ backgroundColor: accentColor }} />
-                                {getToolRoleDescription(tool)}
-                              </p>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-4 p-5 pt-0">
-                            <div className="space-y-2.5">
-                              <p className="text-[10px] font-medium uppercase tracking-widest text-[#6f84a7]">
-                                Best used when:
-                              </p>
-                              <ul className="space-y-1.5">
-                                {getToolBestUsedWhen(tool).map((item, i) => (
-                                  <li key={i} className="flex items-start gap-2.5 text-[11px] font-bold text-[#e1ecff] leading-tight">
-                                    <ArrowRight className="h-3 w-3 mt-0.5 shrink-0 text-[#76ff8f]" />
-                                    {item}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-
-                            <div className="rounded-lg bg-[#070d18]/70 p-4 border border-[#1a2d49] shadow-inner">
-                              <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#6f84a7]/80 mb-3 flex items-center gap-2">
-                                <Sparkles className="h-3 w-3 text-[#76ff8f]/60" />
-                                You might be here if:
-                              </p>
-                              <ul className="space-y-2">
-                                {getToolTriggers(tool).map((trigger, i) => (
-                                  <li key={i} className="text-[10px] font-bold text-[#a9bbd8] leading-snug flex items-start gap-2">
-                                    <span className="mt-1 h-1 w-1 rounded-full bg-[#76ff8f]/70 shrink-0" />
-                                    <span>{trigger}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-
-                            <p className="line-clamp-2 text-[12px] font-medium leading-relaxed text-[#869bbd]">{tool.description}</p>
-                            
-                            <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                              <Badge variant="outline" className="border-[#2a3f5f] bg-transparent px-2.5 py-0.5 text-[9px] font-black uppercase tracking-tighter text-[#8ea2c1]">
-                                {tool.category}
-                              </Badge>
-                              <Button
-                                size="sm"
-                                className="tool-run-cta h-10 w-full text-[12px] uppercase tracking-widest sm:w-auto sm:min-w-[180px]"
-                                onClick={() => maybeOpenTool(tool)}
-                              >
-                                Run Tool
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                {/* 3. Quick Action Navigation */}
-                <section className="space-y-3">
-                  <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#90a8cc]">
-                    What do you need right now?
-                  </p>
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                    {TOOL_INTENT_OPTIONS.map((intent) => (
-                      <button
-                        key={intent}
-                        onClick={() => {
-                          const isTogglingOff = selectedIntentFilter === intent;
-                          setSelectedIntentFilter((prev) => (isTogglingOff ? null : intent));
-                          setSelectedDiagnosis(null);
-                          setIsAllToolsExpanded(true);
-                          setDiagnosisFeedback(isTogglingOff ? null : ({
-                            'Move a deal forward': 'Let’s get this deal moving again',
-                            'Handle an objection': 'Here’s how to break through this objection',
-                            'Follow up': 'Here’s how to re-engage this customer',
-                            'Present numbers': 'Best next moves for this situation',
-                            'Recover a stalled deal': 'Let’s get this deal moving again',
-                            'Improve consistency': 'Best next moves for this situation',
-                            'Coach the team': 'Best next moves for this situation',
-                          } as Record<ToolIntentTag, string>)[intent]);
-                        }}
-                        className={cn(
-                          'shrink-0 rounded-full border px-4 py-2 text-[11px] font-semibold tracking-wide transition-all active:scale-[0.95]',
-                          selectedIntentFilter === intent
-                            ? 'border-[#76ff8f]/45 bg-[#76ff8f]/12 text-[#b4ffbf]'
-                            : 'border-[#2f466a] bg-[#0e1a30] text-[#a4b6d2] hover:bg-[#15243f]'
-                        )}
-                      >
-                        {TOOL_INTENT_ACTIONS[intent]}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                {/* 4. Browse All Tools (Collapsed Entry) */}
+                {/* 3. Tool Library (Secondary) */}
                 <section className="pt-2" id="all-tools-anchor">
-                  <div className="tool-control-panel rounded-xl border border-[#253956] bg-[#0d182b] p-4 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#11213a]/40 md:p-5">
+                  <p className="px-1 pb-3 text-sm font-semibold text-[#B8B8C5]">Or browse all tools</p>
+                  <div className="tool-control-panel rounded-xl border border-[#253956] bg-[#0d182b] p-4 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all hover:bg-[#11213a]/40 md:p-5">
                     <button
                       type="button"
                       onClick={() => setIsAllToolsExpanded(!isAllToolsExpanded)}
@@ -1736,7 +1717,7 @@ export default function ToolsPage() {
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-base font-bold tracking-tight text-[#f5f9ff]">
-                            Find the right tool fast <span className="text-[#6484b3] font-medium ml-1">({tools.length})</span>
+                            Find the right tool fast
                           </span>
                           <p className="text-[11px] font-bold uppercase tracking-wider text-[#6f84a7]">
                             Search, filter, or jump straight to the right move
@@ -1803,76 +1784,32 @@ export default function ToolsPage() {
 
                           return (
                             <div key={group.label} className="space-y-4">
-                              <h3 className="flex items-center gap-2 px-1 text-lg font-bold text-[#f2f8ff]">
-                                <span className="h-4 w-1 rounded-full bg-[#76ff8f]" />
+                              <h3 className="tool-section-header flex items-center gap-2 px-1 text-lg font-bold">
+                                <span className="h-4 w-1 rounded-full bg-[#7B2EFF]" />
                                 {group.label}
                               </h3>
-                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                 {groupTools.map((tool) => {
-                                  const hasAccess = canOpenTool(tool);
                                   return (
                                     <Card
                                       key={tool.id}
-                                      className="group relative flex flex-col overflow-hidden border-[#263b5a] bg-[#0d192c] transition-all hover:bg-[#0f1d31] hover:translate-y-[-2px] hover:shadow-lg"
+                                      className="tool-card-surface group relative flex flex-col overflow-hidden transition-all"
                                     >
-                                      <div 
-                                        className="absolute top-0 left-0 w-full h-[2px]" 
-                                        style={{ backgroundColor: getToolAccentColor(tool), opacity: 0.3 }} 
-                                      />
                                       <CardHeader className="p-4 pb-2">
-                                        <div className="mb-1 flex items-center justify-between gap-2">
-                                          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-[#6484b3]">
-                                            {tool.category} • {getToolConfidenceTag(tool)}
-                                          </p>
-                                        </div>
-                                        <CardTitle className="text-sm font-black text-[#f2f8ff] tracking-tight">{tool.name}</CardTitle>
+                                        <CardTitle className="text-sm font-black tracking-tight text-[#ffffff]">{tool.name}</CardTitle>
                                       </CardHeader>
-                                      <CardContent className="flex flex-1 flex-col space-y-3 p-4 pt-0">
-                                        <div className="space-y-1">
-                                          <p className="text-[9px] font-black uppercase tracking-widest text-[#76ff8f]/50">
-                                            Best used when:
-                                          </p>
-                                          <p className="text-[10px] font-bold text-[#e1ecff] leading-snug">
-                                            {tool.recommendedWhen[0]}
-                                          </p>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                          <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-[#6f84a7]/90">
-                                            You might be here if:
-                                          </p>
-                                          <ul className="space-y-1.5 mt-2">
-                                            {getToolTriggers(tool).slice(0, 2).map((trigger, i) => (
-                                              <li key={i} className="text-[10px] font-bold text-[#a9bbd8] leading-snug flex items-start gap-2">
-                                                <span className="mt-1 h-1 w-1 rounded-full bg-[#76ff8f]/70 shrink-0" />
-                                                <span>{trigger}</span>
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                        <p className="line-clamp-2 text-[11px] font-medium leading-relaxed text-[#a7b7d1]">{tool.description}</p>
-                                        <div className="mt-auto pt-3">
+                                      <CardContent className="flex flex-1 flex-col p-4 pt-0">
+                                        <p className="line-clamp-1 text-[12px] font-medium text-[#B8B8C5]">{tool.description}</p>
+                                        <div className="mt-4 pt-1">
                                           <Button
                                             size="sm"
-                                            className="tool-run-cta h-8 w-full text-[10px] uppercase tracking-widest"
+                                            className="tool-run-cta h-9 w-full text-[11px] uppercase tracking-widest"
                                             onClick={() => maybeOpenTool(tool)}
                                           >
                                             Run Tool
                                           </Button>
                                         </div>
                                       </CardContent>
-                                      {!hasAccess && (
-                                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0a1220]/75 backdrop-blur-[2px] p-4 text-center">
-                                          <Lock className="mb-2 h-4 w-4 text-[#9db0cb]" />
-                                          <p className="text-[10px] font-black text-[#d8e3f5] uppercase tracking-[0.2em]">Restricted Access</p>
-                                          <Button
-                                            variant="link"
-                                            className="h-auto p-0 mt-2 text-[10px] font-black uppercase tracking-widest text-[#76ff8f] hover:no-underline"
-                                            onClick={() => maybeOpenTool(tool)}
-                                          >
-                                            Unlock Tool
-                                          </Button>
-                                        </div>
-                                      )}
                                     </Card>
                                   );
                                 })}
@@ -1890,6 +1827,46 @@ export default function ToolsPage() {
                     </div>
                   </div>
                 </section>
+
+                {/* 4. Continue where you left off */}
+                {recentEntries.length > 0 && historyGate.allowed && (
+                  <section className="space-y-4">
+                    <p className="px-1 text-xs font-bold uppercase tracking-[0.2em] text-[#6484b3]">
+                      Continue Work
+                    </p>
+                    <div className="divide-y divide-[#1a2d49] rounded-xl border border-[#1a2d49] bg-[#0a1527] overflow-hidden">
+                      {recentEntries.slice(0, 3).map((entry) => {
+                        const tool = tools.find((t) => t.id === entry.toolId);
+                        return (
+                          <div
+                            key={entry.id}
+                            className="flex items-center justify-between gap-4 p-4 transition-all hover:bg-[#111f35]"
+                          >
+                            <div className="min-w-0 flex-1 flex items-center gap-3">
+                              <div className="h-2 w-2 rounded-full bg-[#9DEE75] shrink-0 animate-pulse" />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-bold text-[#e1ecff]">{tool?.name || entry.toolId}</p>
+                                <p className="text-[10px] text-[#6f84a7] font-medium tracking-wide">
+                                  OPENED {formatLastEdited(entry.createdAt).toUpperCase()}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="tool-run-cta h-8 shrink-0 px-3 text-[11px] uppercase tracking-widest"
+                              onClick={() => {
+                                if (tool) setActiveTool(tool);
+                                setDrafts((current) => ({ ...current, [entry.toolId]: entry.content }));
+                              }}
+                            >
+                              Run Tool
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
               </div>
             ) : (
               <section className={cn('grid gap-4', activeTool ? 'grid-cols-1' : 'md:grid-cols-[280px_minmax(0,1fr)]')}>
@@ -1898,14 +1875,14 @@ export default function ToolsPage() {
                   <Card className="border-[#263b5a] bg-[#0d192c]">
                     <CardHeader className="border-b border-[#203352] bg-[#111f35] py-4">
                       <CardTitle className="flex items-center justify-between text-base text-[#edf5ff]">
-                        <span>Toolbox</span>
+                        <span>AutoShop</span>
                         <Button
                           size="sm"
                           variant="ghost"
                           className="text-[#9eb3d1] hover:bg-[#1a2d49]"
                           onClick={() => setActiveTool(null)}
                         >
-                          Back to Toolbox
+                          Back to AutoShop
                         </Button>
                       </CardTitle>
                     </CardHeader>
@@ -1920,7 +1897,7 @@ export default function ToolsPage() {
                               maybeOpenTool(tool);
                             }}
                             className={cn(
-                              'relative w-full rounded-md border px-3 py-2 text-left transition-colors',
+                              'relative w-full rounded-md border px-3 py-2 text-left transition-all',
                               activeToolId === tool.id
                                 ? 'border-[#76ff8f]/50 bg-[#14273e] text-[#e9f5ff]'
                                 : 'border-[#2a3f5f] bg-[#0a1527] text-[#b4c7e3] hover:bg-[#12203a]',
@@ -1957,7 +1934,7 @@ export default function ToolsPage() {
                         className="w-full border-[#2f445f] bg-transparent text-[#dbe7fb] hover:bg-[#1a2d49]"
                         onClick={() => setActiveTool(null)}
                       >
-                        Back to Toolbox
+                        Back to AutoShop
                       </Button>
                     </CardContent>
                   </Card>
@@ -1979,7 +1956,7 @@ export default function ToolsPage() {
                             className="text-[#9eb3d1] hover:bg-[#1a2d49]"
                             onClick={() => setActiveTool(null)}
                           >
-                            ← Back to Toolbox
+                            ← Back to AutoShop
                           </Button>
                         </div>
                       </div>
@@ -2002,37 +1979,6 @@ export default function ToolsPage() {
                     </section>
                   )}
 
-                  {showSecondToolPrompt && !dismissedSecondToolPrompt && !isPaidUser && (
-                    <Card className="border-[#2b3e5d] bg-[#101d31]">
-                      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-sm text-[#dbe7fb]">Want access to every tool? Unlock the full toolbox.</p>
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" className="bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]" onClick={() => handleInlineUpgradeClick()}>
-                            Unlock Full Access
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-[#9eb3d1] hover:bg-[#13233b]" onClick={() => setDismissedSecondToolPrompt(true)}>
-                            Dismiss
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {activeTool && showFeaturedCompletionPrompt && !dismissedFeaturedCompletionPrompt && !isPaidUser && activeTool.id === featuredTool.id && (
-                    <Card className="border-[#2b3e5d] bg-[#101d31]">
-                      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-sm text-[#dbe7fb]">You've started building your system. Keep going.</p>
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" className="bg-[#172845] text-[#eaf2ff] hover:bg-[#22375a]" onClick={() => handleInlineUpgradeClick()}>
-                            Unlock Full Access
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-[#9eb3d1] hover:bg-[#13233b]" onClick={() => setDismissedFeaturedCompletionPrompt(true)}>
-                            Dismiss
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
                 </div>
               </section>
             )}
@@ -2045,7 +1991,7 @@ export default function ToolsPage() {
           defaultEmail={accountEmail}
           defaultRole={accountRole}
           onOpenChange={setShowEmailGate}
-          onSubmit={handleUnlockByEmail}
+          onSubmit={handleCreateAccount}
         />
 
         <UpgradeModal

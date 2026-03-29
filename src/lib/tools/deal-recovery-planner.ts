@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const RECOVERY_SITUATIONS = [
   'customer went cold',
@@ -386,10 +387,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const trust = Number(stats?.trust ?? 60);
-  const listening = Number(stats?.listening ?? 60);
-  const followUp = Number(stats?.followUp ?? 60);
-  const control = Number(stats?.closing ?? 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const listening = readCxStatScore(stats?.listening, 60);
+  const followUp = readCxStatScore(stats?.followUp, 60);
+  const control = readCxStatScore(stats?.closing, 60);
 
   return {
     trustLow: trust > 0 && trust < 55,

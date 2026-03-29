@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const REPAIR_TRUST_URGENCY = [
   'low',
@@ -199,10 +200,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const trust = Number(stats?.trust ?? 60);
-  const clarity = Number(stats?.listening ?? 60);
-  const tone = Number(stats?.closing ?? 60);
-  const objection = Number(stats?.followUp ?? 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const clarity = readCxStatScore(stats?.listening, 60);
+  const tone = readCxStatScore(stats?.closing, 60);
+  const objection = readCxStatScore(stats?.followUp, 60);
 
   return {
     trustLow: trust > 0 && trust < 55,

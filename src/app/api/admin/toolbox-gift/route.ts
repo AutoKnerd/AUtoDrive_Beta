@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => null);
     const action = String(body?.action || 'gift').trim().toLowerCase();
+    const scope = String(body?.scope || 'autoshop').trim().toLowerCase();
     const targetUserId = String(body?.targetUserId || '').trim();
     if (!targetUserId) {
       return NextResponse.json({ message: 'Bad Request: targetUserId is required.' }, { status: 400 });
@@ -58,8 +59,58 @@ export async function POST(req: NextRequest) {
       toolboxGiftPreviousToolAccessLevel?: number;
       toolboxGiftPreviousHasAutoDriveCX?: boolean;
       toolboxGiftPreviousSubscriptionStatus?: BillingSubscriptionStatus;
+      autoDriveCxGiftedAccess?: boolean;
+      autoDriveCxGiftPreviousHasAutoDriveCX?: boolean;
     };
     const nowIso = new Date().toISOString();
+
+    if (scope === 'autodrivecx') {
+      if (action === 'revert') {
+        const restoredAutoDriveCx = typeof target.autoDriveCxGiftPreviousHasAutoDriveCX === 'boolean'
+          ? target.autoDriveCxGiftPreviousHasAutoDriveCX
+          : false;
+
+        await targetRef.set({
+          hasAutoDriveCX: restoredAutoDriveCx,
+          autoDriveCxGiftedAccess: false,
+          autoDriveCxGiftRevertedAt: nowIso,
+          autoDriveCxGiftRevertedBy: auth.actorId,
+          updatedAt: nowIso,
+        }, { merge: true });
+      } else {
+        const shouldCapturePreviousState = target.autoDriveCxGiftedAccess !== true;
+        const payload: Record<string, unknown> = {
+          hasAutoDriveCX: true,
+          autoDriveCxGiftedAccess: true,
+          autoDriveCxGiftedAt: nowIso,
+          autoDriveCxGiftedBy: auth.actorId,
+          autoDriveCxGiftSource: 'developer_settings',
+          updatedAt: nowIso,
+        };
+
+        if (shouldCapturePreviousState) {
+          payload.autoDriveCxGiftPreviousHasAutoDriveCX = Boolean(target.hasAutoDriveCX);
+        }
+
+        await targetRef.set(payload, { merge: true });
+      }
+
+      const updatedSnap = await targetRef.get();
+      const updated = updatedSnap.data() as User;
+      return NextResponse.json({
+        ok: true,
+        scope: 'autodrivecx',
+        action: action === 'revert' ? 'revert' : 'gift',
+        user: {
+          userId: targetUserId,
+          name: updated.name,
+          email: updated.email,
+          tier: updated.tier,
+          hasAutoDriveCX: Boolean(updated.hasAutoDriveCX),
+          toolAccessLevel: updated.toolAccessLevel ?? 3,
+        },
+      }, { status: 200 });
+    }
 
     if (action === 'revert') {
       const restoredTier = target.toolboxGiftPreviousTier
@@ -113,6 +164,7 @@ export async function POST(req: NextRequest) {
     const updated = updatedSnap.data() as User;
     return NextResponse.json({
       ok: true,
+      scope: 'autoshop',
       action: action === 'revert' ? 'revert' : 'gift',
       user: {
         userId: targetUserId,
@@ -124,6 +176,6 @@ export async function POST(req: NextRequest) {
       },
     }, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json({ message: error?.message || 'Failed to gift Tool Shop access.' }, { status: 500 });
+    return NextResponse.json({ message: error?.message || 'Failed to process gift access request.' }, { status: 500 });
   }
 }

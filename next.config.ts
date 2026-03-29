@@ -62,3 +62,5 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+// Trigger re-init

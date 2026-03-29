@@ -21,9 +21,12 @@ import {
 } from '@/lib/tools/entitlements';
 import {
   captureToolboxUnlockEmail,
+  enhanceSprocketInsight,
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
+import { readUserCxStatScore } from '@/lib/tools/cx-stats';
 import {
   PICKUP_CHECKPOINTS,
   PICKUP_IMPRESSIONS,
@@ -244,7 +247,7 @@ export default function PickupExperienceDesignerPage() {
 
     if (!result.ok) {
       if (result.code === 'PAYMENT_REQUIRED') {
-        setUpgradeContextMessage('Cloud saves require paid Tool Shop access.');
+        setUpgradeContextMessage('Cloud saves require paid AutoShop access.');
         setGateModalType('paid');
       }
       toast({ variant: 'destructive', title: result.message });
@@ -255,8 +258,37 @@ export default function PickupExperienceDesignerPage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper pickup-friction diagnosis and recap coaching.')) return;
-    setSprocketOutput(getSprocketPickupExperienceEnhancement(input, plan));
-  }, [input, plan, requireFeature]);
+    const baseOutput = applySprocketCxOverlay(getSprocketPickupExperienceEnhancement(input, plan), user);
+
+    const cxSummary = user?.hasAutoDriveCX
+      ? `Trust ${Math.round(readUserCxStatScore(user, 'trust'))}, Listening ${Math.round(readUserCxStatScore(user, 'listening'))}, Follow-Up ${Math.round(readUserCxStatScore(user, 'followUp'))}, Closing ${Math.round(readUserCxStatScore(user, 'closing'))}`
+      : undefined;
+
+    setSprocketOutput(baseOutput);
+
+    void (async () => {
+      const aiResult = await enhanceSprocketInsight({
+        toolId: TOOL_ID,
+        userRole: user?.role,
+        cxSummary,
+        output: {
+          likelyFriction: baseOutput.likelyFriction,
+          smarterReset: baseOutput.smarterReset,
+          recapRewrite: baseOutput.recapRewrite,
+          coachingAdjustment: baseOutput.coachingAdjustment,
+        },
+      });
+
+      if (!aiResult.ok) return;
+
+      setSprocketOutput({
+        likelyFriction: aiResult.data.output.likelyFriction || baseOutput.likelyFriction,
+        smarterReset: aiResult.data.output.smarterReset || baseOutput.smarterReset,
+        recapRewrite: aiResult.data.output.recapRewrite || baseOutput.recapRewrite,
+        coachingAdjustment: aiResult.data.output.coachingAdjustment || baseOutput.coachingAdjustment,
+      });
+    })();
+  }, [input, plan, requireFeature, user]);
 
   const handleRunAutoDrive = useCallback(() => {
     if (!requireFeature(FEATURES.AUTODRIVE_CX, 'Upgrade to AutoDriveCX for personalized pickup-experience adaptation.')) return;
@@ -307,10 +339,10 @@ export default function PickupExperienceDesignerPage() {
     <button
       type="button"
       onClick={onClick}
-      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors ${
+      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
         active
-          ? 'border-[#00d8e5] bg-[#00f2ff]/15 text-[#e6fdff]'
-          : 'border-[#2c3e5c] bg-[#101c30] text-[#d2def2] hover:bg-[#152743]'
+          ? 'border-[#9DEE75] bg-[#9DEE75] text-[#041106] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_0_0_1px_rgba(157,238,117,0.45),0_8px_20px_rgba(157,238,117,0.22)]'
+          : 'border-[#2c3e5c] bg-[#101c30] text-[#d2def2] hover:border-[#4b2b9a] hover:bg-[#152743] hover:text-[#e6e0ff]'
       }`}
     >
       {label}
@@ -326,7 +358,7 @@ export default function PickupExperienceDesignerPage() {
           <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
             <Link href="/tools">
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Tool Shop
+              AutoShop
             </Link>
           </Button>
           <Badge className="border border-[#00d8e5]/40 bg-[#00f2ff]/10 text-[#6eeef8]">AutoDriveCX</Badge>
@@ -346,7 +378,7 @@ export default function PickupExperienceDesignerPage() {
               <CardDescription className="text-[#f2b6b6]">Add email and role to keep using standalone tools.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={() => setShowEmailGate(true)}>
+              <Button className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]" onClick={() => setShowEmailGate(true)}>
                 Continue with Free Account
               </Button>
             </CardContent>
@@ -423,7 +455,7 @@ export default function PickupExperienceDesignerPage() {
                         key={checkpoint}
                         type="button"
                         onClick={() => toggleCheckpoint(checkpoint)}
-                        className={`rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${
+                        className={`rounded-full border px-3 py-2 text-xs font-semibold transition-all ${
                           active
                             ? 'border-[#00d8e5] bg-[#00f2ff]/15 text-[#dffaff]'
                             : 'border-[#2d4567] bg-[#10233a] text-[#b8cde9] hover:bg-[#183154]'
@@ -537,7 +569,7 @@ export default function PickupExperienceDesignerPage() {
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b1728] via-[#0b1728]/90 to-transparent" />
                 </div>
                 <Button
-                  className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
+                  className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]"
                   onClick={() => {
                     setUpgradeContextMessage('AutoDriveCX unlocks Sprocket Insight.');
                     void handleUpgrade();

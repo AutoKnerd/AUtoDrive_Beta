@@ -24,6 +24,7 @@ import {
   saveToolboxEntry,
 } from '@/lib/tools/toolbox-client';
 import { clearFullToolHandoff, readFullToolHandoff } from '@/lib/tools/toolbox-storage';
+import { applySprocketCxOverlay } from '@/lib/tools/sprocket-cx-overlay';
 import {
   SUBSTITUTION_CUSTOMER_TYPES,
   SUBSTITUTION_TRADEOFFS,
@@ -252,7 +253,7 @@ export default function InventorySubstitutionGuidePage() {
 
     if (!result.ok) {
       if (result.code === 'PAYMENT_REQUIRED') {
-        setUpgradeContextMessage('Cloud saves require paid Tool Shop access.');
+        setUpgradeContextMessage('Cloud saves require paid AutoShop access.');
         setGateModalType('paid');
       }
       toast({ variant: 'destructive', title: result.message });
@@ -263,7 +264,7 @@ export default function InventorySubstitutionGuidePage() {
 
   const handleRunSprocket = useCallback(() => {
     if (!requireFeature(FEATURES.SPROCKET, 'Unlock Sprocket for deeper tradeoff diagnosis and recommendation framing.')) return;
-    setSprocketOutput(getSprocketInventorySubstitutionEnhancement(input, plan));
+    setSprocketOutput(applySprocketCxOverlay(getSprocketInventorySubstitutionEnhancement(input, plan), user));
   }, [input, plan, requireFeature]);
 
   const handleRunAutoDrive = useCallback(() => {
@@ -313,10 +314,10 @@ export default function InventorySubstitutionGuidePage() {
     <button
       type="button"
       onClick={onClick}
-      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors ${
+      className={`min-h-[44px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-all ${
         active
-          ? 'border-[#00d8e5] bg-[#00f2ff]/15 text-[#e6fdff]'
-          : 'border-[#2c3e5c] bg-[#101c30] text-[#d2def2] hover:bg-[#152743]'
+          ? 'border-[#9DEE75] bg-[#9DEE75] text-[#041106] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_0_0_1px_rgba(157,238,117,0.45),0_8px_20px_rgba(157,238,117,0.22)]'
+          : 'border-[#2c3e5c] bg-[#101c30] text-[#d2def2] hover:border-[#4b2b9a] hover:bg-[#152743] hover:text-[#e6e0ff]'
       }`}
     >
       {label}
@@ -332,7 +333,7 @@ export default function InventorySubstitutionGuidePage() {
           <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
             <Link href="/tools">
               <ChevronLeft className="mr-1 h-4 w-4" />
-              Tool Shop
+              AutoShop
             </Link>
           </Button>
           <Badge className="border border-[#00d8e5]/40 bg-[#00f2ff]/10 text-[#6eeef8]">AutoDriveCX</Badge>
@@ -352,7 +353,7 @@ export default function InventorySubstitutionGuidePage() {
               <CardDescription className="text-[#f2b6b6]">Add email and role to keep using standalone tools.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]" onClick={() => setShowEmailGate(true)}>
+              <Button className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]" onClick={() => setShowEmailGate(true)}>
                 Continue with Free Account
               </Button>
             </CardContent>
@@ -533,7 +534,7 @@ export default function InventorySubstitutionGuidePage() {
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b1728] via-[#0b1728]/90 to-transparent" />
                 </div>
                 <Button
-                  className="bg-[#76ff8f] text-[#0d1d11] hover:bg-[#92ffa7]"
+                  className="bg-[#9DEE75] text-[#0d1d11] hover:bg-[#ABF28A]"
                   onClick={() => {
                     setUpgradeContextMessage('AutoDriveCX unlocks Sprocket Insight.');
                     void handleUpgrade();

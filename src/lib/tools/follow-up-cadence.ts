@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const FOLLOW_UP_DEAL_STATUSES = [
   'No decision after visit',
@@ -333,9 +334,9 @@ type SkillSignal = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignal {
   const stats = user?.stats;
-  const followUp = Number(stats?.followUp ?? 60);
-  const trust = Number(stats?.trust ?? 60);
-  const listening = Number(stats?.listening ?? 60);
+  const followUp = readCxStatScore(stats?.followUp, 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const listening = readCxStatScore(stats?.listening, 60);
 
   return {
     followUpLow: followUp > 0 && followUp < 55,

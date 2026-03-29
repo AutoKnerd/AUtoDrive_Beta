@@ -1,4 +1,5 @@
 import type { User } from '@/lib/definitions';
+import { readCxStatScore } from '@/lib/tools/cx-stats';
 
 export const GROSS_DEAL_PRESSURE_LEVELS = [
   'low',
@@ -209,10 +210,10 @@ type SkillSignals = {
 
 function readSkillSignals(user: User | null | undefined): SkillSignals {
   const stats = user?.stats;
-  const trust = Number(stats?.trust ?? 60);
-  const tone = Number(stats?.listening ?? 60);
-  const negotiation = Number(stats?.closing ?? 60);
-  const valueControl = Number(stats?.followUp ?? 60);
+  const trust = readCxStatScore(stats?.trust, 60);
+  const tone = readCxStatScore(stats?.listening, 60);
+  const negotiation = readCxStatScore(stats?.closing, 60);
+  const valueControl = readCxStatScore(stats?.followUp, 60);
 
   return {
     trustLow: trust > 0 && trust < 55,
