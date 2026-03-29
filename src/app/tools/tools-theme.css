@@ -154,6 +154,15 @@
   border-color: rgba(0, 0, 0, 0.3) !important;
 }
 
+/* Keep diagnosis cards readable in the dark panel when selected. */
+:is(.tools-theme, .tools-theme-light) .tool-control-panel button[aria-pressed="true"] {
+  color: #ffffff !important;
+}
+
+:is(.tools-theme, .tools-theme-light) .tool-control-panel button[aria-pressed="true"] * {
+  color: #ffffff !important;
+}
+
 :is(.tools-theme, .tools-theme-light) input,
 :is(.tools-theme, .tools-theme-light) textarea,
 :is(.tools-theme, .tools-theme-light) select,
