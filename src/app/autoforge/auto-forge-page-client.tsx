@@ -62,7 +62,7 @@ const painCards: PainCard[] = [
   },
   {
     icon: Gauge,
-    title: 'Training spend evaporates',
+    title: 'Training spending evaporates',
     body: 'Thousands spent on training disappears before it ever hits the floor.',
   },
   {
@@ -199,7 +199,7 @@ export default function AutoForgePageClient() {
         <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[rgba(10,10,10,0.78)] backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
             <a href="/autoforge" className="inline-flex items-center" aria-label="AutoForge">
-              <img src="/AutoForge%20logo.png" alt="AutoForge" className="h-12 w-auto md:h-14" />
+              <img src="/AutoForge%20logo.png" alt="AutoForge" className="h-[4.05rem] w-auto md:h-[4.75rem]" />
             </a>
 
             <a
@@ -262,7 +262,7 @@ export default function AutoForgePageClient() {
                 <span className="text-[#cc0000]">Execution is.</span>
               </h2>
               <p className="mt-4 max-w-xl text-base leading-8 text-white/75 md:text-lg">
-                Dealerships spend thousands on training that never sticks. Without a system to reinforce
+                Dealerships spending thousands on training that never sticks. Without a system to reinforce
                 behavior weekly, teams fall back into old habits.
               </p>
               <a

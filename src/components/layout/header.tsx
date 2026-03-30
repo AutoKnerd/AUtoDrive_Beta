@@ -57,23 +57,32 @@ export function Header() {
     if (!shouldShowSurfaceToggle) return null;
 
     return (
-      <div
-        className={cn(
-          'inline-flex items-center rounded-full border p-1 shadow-[0_10px_24px_rgba(0,0,0,0.32)]',
-          isTrainingActive
-            ? 'border-[#45c7ff]/85 bg-gradient-to-r from-[#0f3d72] via-[#1362b6] to-[#0f4f92]'
-            : 'border-[#1a6eb6]/85 bg-gradient-to-r from-[#061d38] via-[#092e55] to-[#072444]',
+        <div
+          className={cn(
+            'inline-flex items-center rounded-full border p-1 shadow-[0_10px_24px_rgba(0,0,0,0.32)]',
+            isTrainingActive
+            ? 'border-[#1a6eb6]/85 bg-gradient-to-r from-[#061d38] via-[#092e55] to-[#072444]'
+            : 'border-[#7B2EFF]/85 bg-gradient-to-r from-[#2b0d52] via-[#4b1f8a] to-[#31135d]',
           showAutoDriveBadgePulse && 'animate-pulse ring-2 ring-[#63e36f]/45',
           className
         )}
         title={shouldUseNormalToggle ? 'Open AutoDriveCX dashboard' : 'Start AutoDriveCX'}
       >
         <Link
+          href="/tools"
+          className={cn(
+            'rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
+            isToolsActive
+              ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
+              : 'text-[#d7c4ff] hover:bg-[#7B2EFF]/16'
+          )}
+        >Shop</Link>
+        <Link
           href={trainingSurfaceHref}
           className={cn(
-            'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
+            'rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
             isTrainingActive
-              ? 'bg-gradient-to-r from-[#53d7ff] to-[#2c98ff] text-[#031a34] shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_10px_20px_rgba(18,132,228,0.5)]'
+              ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
               : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
           )}
           onClick={() => {
@@ -83,16 +92,7 @@ export function Header() {
             setShowAutoDriveBadgePulse(false);
           }}
           prefetch={false}
-        >AutoDriveCX</Link>
-        <Link
-          href="/tools"
-          className={cn(
-            'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
-            isToolsActive
-              ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
-              : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
-          )}
-        >AutoShopCX</Link>
+        >Drive</Link>
       </div>
     );
   };
