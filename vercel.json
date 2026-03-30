@@ -2,7 +2,24 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "redirects": [
     {
-      "source": "/(.*)",
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "autoshopcx.com"
+        }
+      ],
+      "destination": "https://app.autodrivecx.com/tools",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.autoshopcx.com"
+        }
+      ],
       "destination": "https://app.autodrivecx.com/tools",
       "permanent": true
     }
