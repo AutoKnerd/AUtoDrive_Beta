@@ -5,6 +5,7 @@ import Implementation from './pages/Implementation';
 import SampleRolloutPlan from './pages/SampleRolloutPlan';
 import IndividualTrial from './pages/IndividualTrial';
 import TrialSuccess from './pages/TrialSuccess';
+import AutoForge from './pages/AutoForge';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -29,6 +30,7 @@ const App: React.FC = () => {
           <Route path="/individual-trial" element={<IndividualTrial />} />
           <Route path="/start-trial" element={<IndividualTrial />} />
           <Route path="/trial-success" element={<TrialSuccess />} />
+          <Route path="/autoforge" element={<AutoForge />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </div>

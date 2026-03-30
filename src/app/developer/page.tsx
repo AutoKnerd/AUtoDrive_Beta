@@ -38,6 +38,7 @@ import { AssignDealershipsForm } from '@/components/admin/assign-dealerships-for
 import { ManageDealershipForm } from '@/components/admin/ManageDealershipForm';
 import { EditUserForm } from '@/components/admin/edit-user-form';
 import { PppProtocolSettings } from '@/components/admin/ppp-protocol-settings';
+import { AutoForgeLeadsPanel } from '@/components/developer/autoforge-leads-panel';
 import { SprocketActivityPanel } from '@/components/developer/sprocket-activity-panel';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -2847,6 +2848,7 @@ export default function DeveloperPage() {
     return (
       <div className="space-y-6">
         {(activeSection === 'operations') && renderWatchlistCard()}
+        {activeSection === 'operations' && <AutoForgeLeadsPanel />}
         {activeSection === 'operations' && <SprocketActivityPanel />}
         {activeSection !== 'operations' && (
           <Card>

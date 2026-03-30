@@ -1,6 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+import { getAdminDb } from '@/firebase/admin';
 
 export type ConsultantRecord = {
   id: string;
@@ -20,6 +18,7 @@ type CreateConsultantInput = {
   referralCode: string;
   firebaseUid?: string;
 };
+
 type UpdateConsultantInput = {
   name: string;
   email: string;
@@ -27,55 +26,22 @@ type UpdateConsultantInput = {
   firebaseUid?: string;
 };
 
-const CONSULTANTS_FILE_PATH = path.join(process.cwd(), 'data', 'consultants.json');
+const CONSULTANTS_COLLECTION = 'consultants';
 
-async function ensureConsultantsFile() {
-  await fs.mkdir(path.dirname(CONSULTANTS_FILE_PATH), { recursive: true });
-
-  try {
-    await fs.access(CONSULTANTS_FILE_PATH);
-  } catch {
-    await fs.writeFile(CONSULTANTS_FILE_PATH, '[]\n', 'utf8');
-  }
+function normalizeReferralCode(value: unknown): string {
+  return String(value || '').trim().toLowerCase();
 }
 
-async function readConsultants(): Promise<ConsultantRecord[]> {
-  await ensureConsultantsFile();
-  const raw = await fs.readFile(CONSULTANTS_FILE_PATH, 'utf8');
-
-  try {
-    const parsed = JSON.parse(raw);
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return (parsed as Record<string, unknown>[]).map((row) => normalizeConsultantRecord(row));
-  } catch {
-    return [];
-  }
-}
-
-async function writeConsultants(consultants: ConsultantRecord[]) {
-  await ensureConsultantsFile();
-  const serialized = consultants.map((consultant) => ({
-    id: consultant.id,
-    name: consultant.name,
-    email: consultant.email,
-    referral_code: consultant.referral_code,
-    firebase_uid: consultant.firebase_uid,
-    created_at: consultant.created_at,
-  }));
-  await fs.writeFile(CONSULTANTS_FILE_PATH, JSON.stringify(serialized, null, 2) + '\n', 'utf8');
-}
-
-function normalizeConsultantRecord(row: Record<string, unknown>): ConsultantRecord {
-  const referralCode = String(row.referral_code || row.referralCode || '').trim().toLowerCase();
+function normalizeConsultantRecord(
+  id: string,
+  row: Record<string, unknown>
+): ConsultantRecord {
+  const referralCode = normalizeReferralCode(row.referral_code || row.referralCode);
   const firebaseUid = String(row.firebase_uid || row.firebaseUid || '').trim();
   const createdAt = String(row.created_at || row.createdAt || '');
 
   return {
-    id: String(row.id || ''),
+    id,
     name: String(row.name || ''),
     email: String(row.email || ''),
     referral_code: referralCode,
@@ -87,95 +53,100 @@ function normalizeConsultantRecord(row: Record<string, unknown>): ConsultantReco
   };
 }
 
+async function findConsultantByReferralCode(referralCode: string) {
+  const adminDb = getAdminDb();
+  return adminDb
+    .collection(CONSULTANTS_COLLECTION)
+    .where('referral_code', '==', normalizeReferralCode(referralCode))
+    .limit(1)
+    .get();
+}
+
 export async function listConsultants(): Promise<ConsultantRecord[]> {
-  const consultants = await readConsultants();
-  return [...consultants].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const adminDb = getAdminDb();
+  const snapshot = await adminDb.collection(CONSULTANTS_COLLECTION).get();
+
+  return snapshot.docs
+    .map((doc) => normalizeConsultantRecord(doc.id, doc.data() as Record<string, unknown>))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function createConsultant(input: CreateConsultantInput): Promise<ConsultantRecord> {
   const name = input.name.trim();
   const email = input.email.trim();
-  const referralCode = input.referralCode.trim().toLowerCase();
+  const referralCode = normalizeReferralCode(input.referralCode);
   const firebaseUid = String(input.firebaseUid || '').trim();
 
   if (!name || !email || !referralCode) {
     throw new Error('Name, email, and referral code are required.');
   }
 
-  const consultants = await readConsultants();
-
-  const exists = consultants.some((consultant) => consultant.referralCode.toLowerCase() === referralCode);
-  if (exists) {
+  const existing = await findConsultantByReferralCode(referralCode);
+  if (!existing.empty) {
     throw new Error('Referral code already exists.');
   }
 
-  const consultant: ConsultantRecord = {
-    id: randomUUID(),
+  const createdAt = new Date().toISOString();
+  const adminDb = getAdminDb();
+  const ref = adminDb.collection(CONSULTANTS_COLLECTION).doc();
+  const consultant = {
     name,
     email,
     referral_code: referralCode,
     firebase_uid: firebaseUid,
-    created_at: new Date().toISOString(),
-    referralCode,
-    firebaseUid,
-    createdAt: new Date().toISOString(),
+    created_at: createdAt,
   };
 
-  consultants.push(consultant);
-  await writeConsultants(consultants);
-
-  return consultant;
+  await ref.set(consultant);
+  return normalizeConsultantRecord(ref.id, consultant);
 }
 
 export async function updateConsultant(id: string, input: UpdateConsultantInput): Promise<ConsultantRecord> {
   const name = input.name.trim();
   const email = input.email.trim();
-  const referralCode = input.referralCode.trim().toLowerCase();
+  const referralCode = normalizeReferralCode(input.referralCode);
   const firebaseUid = String(input.firebaseUid || '').trim();
 
   if (!name || !email || !referralCode) {
     throw new Error('Name, email, and referral code are required.');
   }
 
-  const consultants = await readConsultants();
-  const index = consultants.findIndex((consultant) => consultant.id === id);
+  const adminDb = getAdminDb();
+  const ref = adminDb.collection(CONSULTANTS_COLLECTION).doc(id);
+  const existing = await ref.get();
 
-  if (index === -1) {
+  if (!existing.exists) {
     throw new Error('Consultant not found.');
   }
 
-  const exists = consultants.some(
-    (consultant) => consultant.id !== id && consultant.referralCode.toLowerCase() === referralCode
-  );
-  if (exists) {
+  const duplicate = await findConsultantByReferralCode(referralCode);
+  if (!duplicate.empty && duplicate.docs[0].id !== id) {
     throw new Error('Referral code already exists.');
   }
 
-  const updated: ConsultantRecord = {
-    ...consultants[index],
+  const previous = normalizeConsultantRecord(id, existing.data() as Record<string, unknown>);
+  const updated = {
     name,
     email,
     referral_code: referralCode,
     firebase_uid: firebaseUid,
-    referralCode,
-    firebaseUid,
+    created_at: previous.created_at,
   };
 
-  consultants[index] = updated;
-  await writeConsultants(consultants);
-
-  return updated;
+  await ref.set(updated, { merge: true });
+  return normalizeConsultantRecord(id, updated);
 }
 
 export async function deleteConsultant(id: string): Promise<void> {
-  const consultants = await readConsultants();
-  const nextConsultants = consultants.filter((consultant) => consultant.id !== id);
+  const adminDb = getAdminDb();
+  const ref = adminDb.collection(CONSULTANTS_COLLECTION).doc(id);
+  const existing = await ref.get();
 
-  if (nextConsultants.length === consultants.length) {
+  if (!existing.exists) {
     throw new Error('Consultant not found.');
   }
 
-  await writeConsultants(nextConsultants);
+  await ref.delete();
 }
 
 export async function getConsultantByFirebaseUid(firebaseUid: string): Promise<ConsultantRecord | null> {
@@ -184,18 +155,27 @@ export async function getConsultantByFirebaseUid(firebaseUid: string): Promise<C
     return null;
   }
 
-  const consultants = await readConsultants();
-  const consultant = consultants.find((row) => row.firebase_uid === normalizedUid);
-  return consultant || null;
-}
+  const adminDb = getAdminDb();
+  const snapshot = await adminDb
+    .collection(CONSULTANTS_COLLECTION)
+    .where('firebase_uid', '==', normalizedUid)
+    .limit(1)
+    .get();
 
-export async function getConsultantByReferralCode(referralCode: string): Promise<ConsultantRecord | null> {
-  const normalizedCode = referralCode.trim().toLowerCase();
-  if (!normalizedCode) {
+  if (snapshot.empty) {
     return null;
   }
 
-  const consultants = await readConsultants();
-  const consultant = consultants.find((row) => row.referral_code === normalizedCode);
-  return consultant || null;
+  const doc = snapshot.docs[0];
+  return normalizeConsultantRecord(doc.id, doc.data() as Record<string, unknown>);
+}
+
+export async function getConsultantByReferralCode(referralCode: string): Promise<ConsultantRecord | null> {
+  const snapshot = await findConsultantByReferralCode(referralCode);
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const doc = snapshot.docs[0];
+  return normalizeConsultantRecord(doc.id, doc.data() as Record<string, unknown>);
 }

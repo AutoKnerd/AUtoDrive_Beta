@@ -23,9 +23,11 @@ The `/start-trial` button redirects to `/api/create-checkout-session`, which cre
 Required environment variables (Vercel Project Settings -> Environment Variables):
 - `STRIPE_SECRET_KEY` = your Stripe secret key
 - `STRIPE_PRICE_ID` = Stripe price ID (defaults in code to `price_1SsMKIIqxH0CMe02hpGHxYq0`)
+- `AUTODRIVE_APP_URL` = canonical URL for the main app, used to forward Stripe webhooks to the real billing handler
 
 Optional:
 - `PUBLIC_SITE_URL` = canonical site URL used when request headers are unavailable
+- `AUTODRIVE_STRIPE_WEBHOOK_FORWARD_URL` = explicit webhook forwarding target if you do not want to derive it from `AUTODRIVE_APP_URL`
 
 ## Vercel auto-deploy troubleshooting
 

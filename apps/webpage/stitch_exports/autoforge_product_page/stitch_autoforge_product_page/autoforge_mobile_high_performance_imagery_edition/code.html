@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>AutoForge | High-Performance Dealership Execution</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "surface": "#0a0a0a",
+                "primary-container": "#cc0000",
+                "secondary-container": "#00FF00",
+                "on-surface-variant": "#e8bdb6",
+                "surface-container": "rgba(32, 31, 31, 0.6)",
+                "on-surface": "#e5e2e1",
+                "background": "#0a0a0a",
+              },
+              fontFamily: {
+                "headline": ["Space Grotesk"],
+                "body": ["Inter"],
+                "label": ["Inter"],
+                "mono": ["JetBrains Mono"]
+              },
+              borderRadius: {"DEFAULT": "0px", "lg": "0px", "xl": "0px", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #e5e2e1; -webkit-font-smoothing: antialiased; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .glass-card {
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .liquid-border-red {
+            border: 1px solid rgba(204, 0, 0, 0.4);
+        }
+        
+        .liquid-border-green {
+            border: 1px solid rgba(0, 255, 0, 0.4);
+        }
+
+        .btn-primary {
+            background: #00FF00;
+            color: #000000;
+            border: 1px solid #00FF00;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .tech-grid {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .carbon-pattern {
+            background-image: 
+                linear-gradient(45deg, #111 25%, transparent 25%), 
+                linear-gradient(-45deg, #111 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #111 75%), 
+                linear-gradient(-45deg, transparent 75%, #111 75%);
+            background-size: 4px 4px;
+            background-color: #0a0a0a;
+        }
+
+        button, a {
+            min-height: 54px; 
+        }
+
+        .step-line::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 40px;
+            bottom: 0;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .step-line:last-child::before {
+            display: none;
+        }
+
+        .bg-overlay-dark {
+            background: linear-gradient(to bottom, rgba(10,10,10,0.4) 0%, rgba(10,10,10,0.95) 100%);
+        }
+        
+        .motion-blur-img {
+            filter: blur(4px) grayscale(0.4) brightness(0.6);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="overflow-x-hidden tech-grid selection:bg-primary-container selection:text-white">
+<header class="fixed top-0 w-full z-[70] flex justify-between items-center px-4 h-16 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#CC0000] scale-90" data-icon="precision_manufacturing">precision_manufacturing</span>
+<span class="font-['Space_Grotesk'] font-black text-white tracking-widest text-lg uppercase">AutoForge</span>
+</div>
+<button class="bg-[#CC0000] text-white px-4 py-2 font-['Space_Grotesk'] uppercase tracking-widest font-bold text-[10px] active:scale-95 transition-all">
+        GET STARTED
+    </button>
+</header>
+<main class="pt-16 pb-20">
+<!-- HERO SECTION -->
+<section class="relative min-h-[75vh] flex flex-col justify-center px-6 py-8 overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="High speed motion blur" class="w-full h-full object-cover motion-blur-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbpfkYDFpK6q1XMULoHhOzN9gwqLPVIpI5RH7Lqr8WgDdCWbVJpS6UW5GzDt07aGztdg41fhnsIxNyyTolSL2fdXsjY-pvIOdQfh03XP1IywizkPKNUOdaRf_GwzW8RUpzg3RqyViU2CGKoDGFsW_vb-4OBL6a-ZVHJ0RRociibha99JG_u_prXxo92jEh90vQ6kl2eroYlKROCeJfTNBUpu20HR9n1sIpQsXjhGIgLdEP7ICvgBE2g1iGRb_rRAHWTAaIO4_ipB9D"/>
+<div class="absolute inset-0 bg-overlay-dark"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-surface via-transparent to-surface opacity-60"></div>
+</div>
+<div class="relative z-10 space-y-6">
+<h1 class="font-headline font-black text-[38px] leading-[1.05] tracking-tight uppercase text-white">
+                Turn Training Into Weekly <span class="text-primary-container">Execution</span>
+</h1>
+<p class="font-body text-base text-secondary-container font-bold leading-tight max-w-sm">
+                If your team isn’t improving every week, your dealership is falling behind.
+            </p>
+<div class="flex flex-col gap-3 pt-2">
+<button class="btn-primary w-full py-4 font-headline font-black uppercase tracking-tight text-base active:scale-95 transition-all shadow-[0_0_20px_rgba(0,255,0,0.2)]">
+                    SEE WEEKLY CX MISSIONS
+                </button>
+<button class="btn-secondary w-full py-4 font-headline font-black uppercase tracking-tight text-base active:scale-95 transition-all">
+                    START WITH FREE TOOLS
+                </button>
+</div>
+<p class="font-body text-sm text-on-surface/60 leading-relaxed max-w-sm">
+                AutoForge gives managers a system to coach behavior and align teams every single week.
+            </p>
+</div>
+</section>
+<!-- PROBLEM SECTION -->
+<section class="bg-surface px-6 py-12 relative overflow-hidden">
+<div class="absolute inset-0 opacity-15 pointer-events-none">
+<img alt="Close up engine part" class="w-full h-full object-cover grayscale blur-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCW2jX2DKwsHMtzXu1RqcFlbQlM29vw2lT0BTwqXdF5k0CufySLauZmSUDyuJtMKFmrbHtWCX5Sqh_5a-YU0lKkYYQWsiC-6WFEl3uuDqKxDGjptLSU9Z0Hq6eudOHZXAPE0aXDyXa3V7rPlwbH5UZHq5vxBcuqX1eOD4bCbTYGDjElQ-YGIV74ZviqRsL8vHaPhDztxNYnpZNVH-7zgu0lk9xtxs4oOlqtOZ4bJuotdujkMA_R6ONwZvsJu3hgblJ02y76ARXYvEW6"/>
+<div class="absolute inset-0 bg-surface/80"></div>
+</div>
+<div class="relative z-10 mb-8 text-center">
+<h2 class="font-headline font-black text-2xl uppercase tracking-tight leading-none mb-2 text-white/90 text-center">Training isn’t your problem.</h2>
+<h3 class="font-headline font-black text-4xl uppercase tracking-tight text-primary-container leading-none text-center">Execution is.</h3>
+</div>
+<div class="relative z-10 grid gap-4">
+<div class="glass-card p-5 border-l-2 border-primary-container">
+<span class="material-symbols-outlined text-primary-container mb-2 text-2xl" data-icon="error">error</span>
+<p class="text-white font-body text-sm font-bold leading-tight">Customers get different experiences depending on who they talk to.</p>
+</div>
+<div class="glass-card p-5 border-l-2 border-primary-container">
+<span class="material-symbols-outlined text-primary-container mb-2 text-2xl" data-icon="payments">payments</span>
+<p class="text-white font-body text-sm font-bold leading-tight">Thousands spent on training that disappears within days.</p>
+</div>
+<div class="glass-card p-5 border-l-2 border-primary-container">
+<span class="material-symbols-outlined text-primary-container mb-2 text-2xl" data-icon="timer_off">timer_off</span>
+<p class="text-white font-body text-sm font-bold leading-tight">Your team forgets most training within a week.</p>
+</div>
+</div>
+</section>
+<!-- PERFORMANCE GAP SECTION -->
+<section class="px-6 py-8 relative carbon-pattern">
+<div class="bg-primary-container/10 backdrop-blur-md border border-primary-container/30 p-6 relative z-10">
+<h4 class="font-headline font-black text-primary-container uppercase text-sm tracking-widest mb-2">The Performance Gap</h4>
+<p class="font-body text-lg text-white font-light leading-snug">
+                Most dealerships don’t fail because of lack of knowledge. They fail because there is <span class="font-bold text-white underline decoration-primary-container">no system</span> to reinforce behavior weekly.
+            </p>
+</div>
+</section>
+<!-- SYSTEM SECTION -->
+<section class="relative py-12 px-6 border-y border-white/5 overflow-hidden">
+<div class="absolute inset-0 opacity-25 z-0">
+<img alt="Brake disc detail" class="w-full h-full object-cover grayscale brightness-75" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7EhpvVf1VGGx0Bo-FmBAAVaJsBceB0jLeC73J7IgGgpQlmS4gyyPA7CqtBhVIaXEY3s4wOrfz4k8hnoE-Hr1I7hdj3qbYOdPztD08-bXothk7hn51VzGgpu1VTOS4breX181ypyVYjnGqilZd_BR7DuZGm_6AqZxkqDTDsXdpj4j5VBDSbXCMr0bH2w5Uh7uYnPdVzjhs9xSjCN37qVRtbHtAdEMPujZ9PDDm_pAzfJhjas6FxKaqdQsA1zBnG1VVrsp-6OgdANBX"/>
+<div class="absolute inset-0 bg-[#0f0f0f]/90"></div>
+</div>
+<div class="relative z-10">
+<h2 class="font-headline font-black text-3xl uppercase tracking-tight leading-tight mb-6">
+                How your dealership <span class="text-secondary-container">improves every week</span>
+</h2>
+<div class="space-y-4">
+<p class="font-body text-base text-white/90 font-light leading-relaxed">
+                    We turn your store into a high-performance engine by standardizing the behavior of every employee, every day.
+                </p>
+<div class="glass-card p-5 liquid-border-green">
+<ul class="space-y-3">
+<li class="flex items-center gap-3 text-sm font-bold">
+<span class="material-symbols-outlined text-secondary-container text-xl" data-icon="check_circle">check_circle</span>
+                            Guaranteed CSI Growth
+                        </li>
+<li class="flex items-center gap-3 text-sm font-bold">
+<span class="material-symbols-outlined text-secondary-container text-xl" data-icon="check_circle">check_circle</span>
+                            Eliminate Manager Burnout
+                        </li>
+<li class="flex items-center gap-3 text-sm font-bold">
+<span class="material-symbols-outlined text-secondary-container text-xl" data-icon="check_circle">check_circle</span>
+                            Predictable Front-End Gross
+                        </li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<!-- HOW IT WORKS -->
+<section class="bg-surface px-6 py-12 relative overflow-hidden">
+<div class="absolute inset-0 opacity-10 carbon-pattern"></div>
+<h2 class="relative z-10 font-headline font-black text-3xl uppercase tracking-tight mb-10">
+            The Process
+            <span class="block h-1 w-12 bg-primary-container mt-2"></span>
+</h2>
+<div class="relative z-10 space-y-0">
+<!-- Step 1 -->
+<div class="relative flex gap-6 pb-10 step-line">
+<div class="relative z-10 w-10 h-10 flex-shrink-0 bg-primary-container flex items-center justify-center rounded-none shadow-lg">
+<span class="material-symbols-outlined text-white text-xl" data-icon="search">search</span>
+</div>
+<div class="flex items-center">
+<h5 class="font-headline font-bold text-lg uppercase">01. Identify Leakage</h5>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative flex gap-6 pb-10 step-line">
+<div class="relative z-10 w-10 h-10 flex-shrink-0 bg-white/10 border border-white/20 backdrop-blur-sm flex items-center justify-center rounded-none">
+<span class="material-symbols-outlined text-white text-xl" data-icon="send">send</span>
+</div>
+<div class="flex items-center">
+<h5 class="font-headline font-bold text-lg uppercase">02. Deploy Mission</h5>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative flex gap-6 pb-10 step-line">
+<div class="relative z-10 w-10 h-10 flex-shrink-0 bg-white/10 border border-white/20 backdrop-blur-sm flex items-center justify-center rounded-none">
+<span class="material-symbols-outlined text-white text-xl" data-icon="groups">groups</span>
+</div>
+<div class="flex items-center">
+<h5 class="font-headline font-bold text-lg uppercase">03. 10-Min Session</h5>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="relative flex gap-6 pb-10 step-line">
+<div class="relative z-10 w-10 h-10 flex-shrink-0 bg-white/10 border border-white/20 backdrop-blur-sm flex items-center justify-center rounded-none">
+<span class="material-symbols-outlined text-white text-xl" data-icon="fact_check">fact_check</span>
+</div>
+<div class="flex items-center">
+<h5 class="font-headline font-bold text-lg uppercase">04. Verify Behavior</h5>
+</div>
+</div>
+<!-- Step 5 -->
+<div class="relative flex gap-6">
+<div class="relative z-10 w-10 h-10 flex-shrink-0 bg-secondary-container flex items-center justify-center rounded-none shadow-[0_0_15px_rgba(0,255,0,0.3)]">
+<span class="material-symbols-outlined text-black text-xl" data-icon="shield">shield</span>
+</div>
+<div class="flex items-center">
+<h5 class="font-headline font-bold text-lg uppercase text-secondary-container">05. Standardize</h5>
+</div>
+</div>
+</div>
+</section>
+<!-- FINAL CTA -->
+<section class="bg-black py-20 px-6 text-center relative overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="Race track blurred" class="w-full h-full object-cover opacity-30 brightness-50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-8C8CyQtTqGYWvOZVUh7YsKwFXtKL3QmqXrSEb09uKGx7GE_OYHgX7vVXwr5v-sSQvHuvVWncARmqcfrGcJqYcUsJZbExqmeGuHS4JVOkHVxnRb9w6xRbnkW7Jizzr_TCmdDYB612-vhrBAvVCC0dUkuiXD5jWWGYSTOvdGcrthsekL0amajoWsWE132Buz3_47ZnWnD6THcgdzPN_POwh9Ytki-y_BhskAQj4JvC7fuUVhV4p3LBCky1UqljF0hgYR1R8RuBa9eJ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
+</div>
+<div class="relative z-10 space-y-8">
+<h2 class="font-headline font-black text-3xl uppercase tracking-tight leading-tight text-white">
+                If your team isn’t improving every week, you don’t have a system.
+            </h2>
+<div class="space-y-4">
+<button class="btn-primary w-full py-5 font-headline font-black uppercase tracking-tight text-lg shadow-[0_0_30px_rgba(0,255,0,0.15)]">
+                    SEE WEEKLY CX MISSIONS
+                </button>
+<p class="font-mono text-[10px] uppercase font-bold text-white/40 tracking-[0.3em]">STOP GUESSING. START FORGING.</p>
+</div>
+</div>
+</section>
+</main>
+<nav class="fixed bottom-0 left-0 w-full z-[70] flex justify-around items-stretch h-20 bg-[#0a0a0a]/95 backdrop-blur-2xl border-t border-white/5 safe-area-inset-bottom">
+<a class="flex flex-col items-center justify-center h-full w-full relative group active:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-primary-container mb-1" data-icon="calendar_today">calendar_today</span>
+<span class="font-['JetBrains_Mono'] text-[9px] font-bold tracking-widest text-white/60">BOOK DEMO</span>
+</a>
+<a class="flex flex-col items-center justify-center h-full w-full relative group active:bg-white/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-secondary-container mb-1" data-icon="bolt">bolt</span>
+<span class="font-['JetBrains_Mono'] text-[9px] font-bold tracking-widest text-white/60">UPGRADE</span>
+</a>
+</nav>
+<script>
+    document.querySelectorAll('.glass-card, button').forEach(el => {
+        el.addEventListener('touchstart', () => {
+            el.style.transform = 'scale(0.98)';
+            el.style.transition = 'transform 0.1s ease';
+        });
+        el.addEventListener('touchend', () => {
+            el.style.transform = 'scale(1)';
+        });
+    });
+</script>
+</body></html>

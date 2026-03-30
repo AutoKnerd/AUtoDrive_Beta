@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AutoForge | Dealership Execution System</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "execution-green": "#00FF00",
+                        "on-secondary-container": "#0f6d00",
+                        "on-error-container": "#ffdad6",
+                        "background": "#0a0a0a",
+                        "tertiary": "#c7c6c6",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-surface": "#e5e2e1",
+                        "secondary-fixed-dim": "#2ae500",
+                        "on-primary": "#690000",
+                        "error-container": "#93000a",
+                        "on-primary-container": "#ffdad4",
+                        "on-secondary": "#053900",
+                        "primary-fixed-dim": "#ffb4a8",
+                        "secondary-container": "#00FF00",
+                        "outline-variant": "#5e3f3a",
+                        "on-secondary-fixed-variant": "#095300",
+                        "outline": "#ae8882",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "surface-dim": "#131313",
+                        "inverse-primary": "#c00000",
+                        "surface": "#131313",
+                        "error": "#ffb4ab",
+                        "on-background": "#e5e2e1",
+                        "surface-bright": "#3a3939",
+                        "on-primary-fixed": "#410000",
+                        "on-tertiary": "#2f3131",
+                        "on-secondary-fixed": "#022100",
+                        "on-tertiary-container": "#e3e3e3",
+                        "tertiary-fixed": "#e3e2e2",
+                        "on-error": "#690005",
+                        "surface-container-highest": "#353534",
+                        "secondary-fixed": "#79ff5b",
+                        "secondary": "#d7ffc5",
+                        "primary-fixed": "#ffdad4",
+                        "tertiary-container": "#646565",
+                        "inverse-on-surface": "#313030",
+                        "surface-variant": "#353534",
+                        "surface-tint": "#ffb4a8",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-container": "#1a1a1a",
+                        "primary": "#ffb4a8",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container-lowest": "#050505",
+                        "surface-container-low": "#111111",
+                        "on-surface-variant": "#e8bdb6",
+                        "on-primary-fixed-variant": "#930000",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "primary-container": "#cc0000"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: {"DEFAULT": "0px", "lg": "0px", "xl": "0px", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(26, 26, 26, 0.7);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        .technical-grid {
+            background-image: linear-gradient(rgba(204, 0, 0, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(204, 0, 0, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        .scan-line {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00FF00, transparent);
+            position: absolute;
+            top: 0;
+            opacity: 0.2;
+        }
+        .carbon-texture {
+            background-image: linear-gradient(45deg, #111 25%, transparent 25%), linear-gradient(-45deg, #111 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #111 75%), linear-gradient(-45deg, transparent 75%, #111 75%);
+            background-size: 4px 4px;
+            background-color: #0a0a0a;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-execution-green selection:text-black overflow-x-hidden">
+<nav class="fixed top-0 w-full z-50 bg-black/90 backdrop-blur-2xl border-b border-zinc-800 flex justify-between items-center px-8 h-20">
+<div class="text-2xl font-black italic text-white tracking-tight font-headline">AutoForge</div>
+<div class="hidden md:flex gap-12 items-center">
+<a class="font-headline uppercase tracking-tighter font-bold text-zinc-400 hover:text-white transition-colors" href="#">Dashboard</a>
+<a class="font-headline uppercase tracking-tighter font-bold text-zinc-400 hover:text-white transition-colors" href="#">System</a>
+<a class="font-headline uppercase tracking-tighter font-bold text-zinc-400 hover:text-white transition-colors" href="#">Missions</a>
+<a class="font-headline uppercase tracking-tighter font-bold text-zinc-400 hover:text-white transition-colors" href="#">Analytics</a>
+</div>
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined text-zinc-400 hover:text-execution-green cursor-pointer transition-all active:scale-95" data-icon="search">search</span>
+<span class="material-symbols-outlined text-zinc-400 hover:text-execution-green cursor-pointer transition-all active:scale-95" data-icon="account_circle">account_circle</span>
+</div>
+</nav>
+<main class="relative pt-20">
+<!-- Hero Section -->
+<section class="relative min-h-[90vh] flex items-center overflow-hidden border-b border-white/5 py-24">
+<div class="absolute inset-0 z-0">
+<img alt="Motion Blur Performance Car" class="w-full h-full object-cover opacity-35 grayscale brightness-50 scale-110 blur-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrPeL72sI4RNZv7AlDZZBUAN_xbgW9cKb4cdDSXxUG9QjB-XaagynWSZhcjpeV79ywH6oasQRiBAa6BEl4Cx1uNiaf6sRrIsgMbPC3oeBh-fMchIa_VW3SCxReddMdPaSI5AU-3-uKrZLcY4KaWQ-pMczfKC1kj-iicbK27q_D8dZH3h3xwPHd_id5QnUEgimV4mCiozOYg1C49o34TdnlCp5J9t8FyXLJGSCsYMW5MVpWzjNc8nSZ0EqAjjhk5oJoArNdgi-Fn0vg"/>
+<div class="absolute inset-0 bg-gradient-to-r from-background via-transparent to-background opacity-80"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-background via-background/60 to-background"></div>
+<div class="absolute inset-0 technical-grid opacity-20"></div>
+</div>
+<div class="container mx-auto px-8 relative z-10">
+<div class="max-w-6xl space-y-12">
+<h1 class="text-7xl md:text-[10rem] font-headline font-black uppercase italic tracking-tighter text-white leading-[0.85] drop-shadow-2xl">
+                        Execution <br/>is <span class="text-execution-green">Profit.</span>
+</h1>
+<div class="space-y-4">
+<p class="text-2xl md:text-4xl text-white max-w-4xl font-headline font-bold uppercase tracking-tight">
+                            If your team isn’t improving every week, your dealership is falling behind.
+                        </p>
+<p class="text-xl text-tertiary max-w-3xl font-light leading-relaxed">
+                            AutoForge gives your managers a plug-and-play system to coach behavior, align teams, and improve customer experience every single week.
+                        </p>
+</div>
+<div class="flex flex-col sm:flex-row gap-6 pt-6">
+<button class="bg-execution-green text-black px-12 py-6 font-headline font-black uppercase tracking-widest text-xl hover:bg-white transition-all active:scale-95 shadow-[0_0_40px_rgba(0,255,0,0.2)]">
+                            SEE WEEKLY CX MISSIONS
+                        </button>
+<button class="border-2 border-zinc-700 text-white px-12 py-6 font-headline font-black uppercase tracking-widest text-xl hover:bg-zinc-800 transition-all active:scale-95">
+                            START WITH FREE TOOLS
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Problem Section -->
+<section class="py-40 bg-surface relative overflow-hidden">
+<div class="absolute inset-0 carbon-texture opacity-10"></div>
+<div class="absolute right-0 top-0 w-1/3 h-full overflow-hidden opacity-25">
+<img alt="Brake Disc Detail" class="w-full h-full object-cover grayscale brightness-50 blur-[2px]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGbUZq34xmfJiikuvYndigAmPDHfiyKAKnnfsWbBHwbuEdIHh5RIxBTn4-oV3jF_ivReZpK8g2dMC_g2lUSWUf-TeJ9cRFpujBRA_NnuZCukUd1PU2_wU8P7KgK5dnBtSeaawSff1VOMRHHzDvNF1AKQBHkE0sBzeYeO83aen65i5QkHG6E8tAvQr2wORiKNWRXgf7FMqW8AW5xCTuTdeuJXtBfPREY94E86uNsSqYdt0pj451J9oww4Dy71O2pecYWkoE0bfbZB6J"/>
+</div>
+<div class="container mx-auto px-8 relative z-10">
+<div class="grid grid-cols-12 gap-16 items-center">
+<div class="col-span-12 lg:col-span-6 space-y-10">
+<h2 class="text-5xl font-headline font-black uppercase italic text-primary-container leading-tight">
+                            Training isn’t your problem. <br/>Execution is.
+                        </h2>
+<p class="text-tertiary text-xl leading-relaxed">
+                            Dealerships spend thousands on "one-and-done" training events that never stick. Without a weekly system to enforce behavior, your team reverts to old habits before the trainers even leave the building.
+                        </p>
+<div class="group cursor-pointer">
+<span class="font-mono text-execution-green uppercase tracking-widest text-sm flex items-center gap-2 group-hover:gap-4 transition-all">
+                                SEE HOW THIS WOULD WORK IN YOUR STORE <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</span>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-6">
+<div class="grid grid-cols-1 gap-4">
+<div class="bg-surface-container/90 backdrop-blur-sm p-10 border border-white/5 hover:border-primary-container/50 transition-colors">
+<span class="material-symbols-outlined text-primary-container text-4xl mb-4" data-icon="group_off">group_off</span>
+<h3 class="text-2xl font-headline font-black text-white uppercase">Inconsistent Experience</h3>
+<p class="text-tertiary mt-2">Customers get different experiences depending on who they talk to.</p>
+</div>
+<div class="bg-surface-container/90 backdrop-blur-sm p-10 border border-white/5 hover:border-primary-container/50 transition-colors">
+<span class="material-symbols-outlined text-primary-container text-4xl mb-4" data-icon="payments">payments</span>
+<h3 class="text-2xl font-headline font-black text-white uppercase">Wasted Training Budget</h3>
+<p class="text-tertiary mt-2">Thousands spent on training that disappears within days.</p>
+</div>
+<div class="bg-surface-container/90 backdrop-blur-sm p-10 border border-white/5 hover:border-primary-container/50 transition-colors">
+<span class="material-symbols-outlined text-primary-container text-4xl mb-4" data-icon="memory">memory</span>
+<h3 class="text-2xl font-headline font-black text-white uppercase">The 7-Day Memory Gap</h3>
+<p class="text-tertiary mt-2">Your team forgets most training within a week without enforcement.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Performance Gap Section -->
+<section class="py-32 bg-primary-container relative overflow-hidden">
+<div class="absolute inset-0 opacity-25">
+<img alt="Track Surface Texture" class="w-full h-full object-cover mix-blend-overlay" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWGlTNXEcrTiQYKuzGGHmHQwcngIpYB7fao_cm6PuDQ8WepOfg4zd-fCURgfOeuzY1QiD6D4vWa7FifgCU_IGVkOQ-q5y8DN2UWcz_Pxnaw2MVpjzNDdIVhC3ZSBOW1JGICuJ_m7-dsWdYy0PXkeKv9n6nm4rcZzI8a-BfSu7jW5I38HPtvdf297ScF_Oc4T31fMXiYPeBihhmQIkq8qvF6ox2AJYiWOPMZ37uWPsZZPXyj0T4LtUavoL9ohJ8_3Wg5xA_6JbeeqHj"/>
+</div>
+<div class="absolute inset-0 opacity-10 technical-grid"></div>
+<div class="container mx-auto px-8 relative z-10">
+<div class="max-w-5xl mx-auto text-center space-y-8">
+<h2 class="text-4xl md:text-6xl font-headline font-black uppercase italic text-white">The Performance Gap</h2>
+<p class="text-2xl md:text-4xl text-on-primary-container font-light leading-snug">
+                        Most dealerships don’t fail because of lack of knowledge. <br class="hidden md:block"/>
+<span class="text-white font-bold">They fail because there is no system to reinforce behavior weekly.</span>
+</p>
+<div class="pt-8">
+<div class="inline-block h-1 w-24 bg-white"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- System Section -->
+<section class="py-40 bg-surface-container-low relative overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="Car Wheel Detail" class="w-full h-full object-cover opacity-20 grayscale brightness-50 blur-[1px]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiaXxs1RBEVX6QAuuylHT79HCntd56nHwAWRlac30P1MSGJaVS3ULR3dY7PDfgsbg3KStnyDW5Ze7E1dz9aGdNgS0v5ERTULtb8RyCgTVufvM_sFuEeZ3kijyrm46is5usgyexMy-IRz1zG2LZHAWQgEmjynqJDZkyrj3NKNIg8E3rOOVp9fmjb5PDQ0iegTl3D4cb2NdGU8nqAMBbHozM0UdcdfVNHw1LjJ-PyDo651yyH2QAFDpFXZMT1tvoKjLYNpc7OKfVauHs"/>
+<div class="absolute inset-0 bg-black/60"></div>
+</div>
+<div class="container mx-auto px-8 relative z-10">
+<div class="text-center mb-24 space-y-4">
+<h2 class="text-6xl font-headline font-black uppercase italic text-white">Here’s how your dealership improves every week</h2>
+<p class="text-tertiary text-xl font-mono">Measurable outcomes. Total visibility. Zero guesswork.</p>
+</div>
+<div class="grid grid-cols-12 gap-8 h-auto lg:min-h-[700px]">
+<div class="col-span-12 lg:col-span-8 relative group overflow-hidden bg-surface-container border border-white/5">
+<img alt="Execution Dashboard" class="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:scale-105 transition-transform duration-1000" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWlH9oFo4pgFsfrZBlot6cZPDXxFxw1XQlJjdKf38wQub_s-Ft87qXdKJIjJanUriqT8DGffcyvgDi-1HBCO-CtfhLIBwq-bcPW4KqzsTAq54niSZSMZMLx_9oyLzWJNuxh4T1MnhS_cRP1WNBl56AgkzRsuadJrmDeZM8wSx9O8f3uOPoHyJwVBUMeUXgpw3sfQGEJcM1ZBiIoMgD163vq53CUK1VPxXCQOluLWIcId6ct6_3dVMFJhNS4iEtkod7uG021awegR88"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-12">
+<h3 class="text-4xl font-headline font-black text-white uppercase mb-4">Centralized Command</h3>
+<p class="text-tertiary text-xl max-w-xl font-mono">Monitor weekly mission completion rates across your entire dealership group in one view.</p>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-8">
+<div class="bg-primary-container p-12 flex-1 flex flex-col justify-end">
+<span class="material-symbols-outlined text-6xl text-white mb-6" data-icon="assignment_turned_in">assignment_turned_in</span>
+<h3 class="text-3xl font-headline font-black text-white uppercase">Behavior Audit</h3>
+<p class="text-white/90 mt-4 text-lg">Verify that training is actually happening on the showroom floor.</p>
+</div>
+<div class="bg-surface-container-highest p-12 flex-1 flex flex-col justify-center border-l-8 border-execution-green">
+<div class="font-mono text-5xl text-execution-green font-black mb-4">92%</div>
+<h3 class="text-2xl font-headline font-black text-white uppercase">Avg. Lift in CX Score</h3>
+<p class="text-tertiary mt-2">Sustained improvement through consistent weekly coaching.</p>
+</div>
+</div>
+</div>
+<div class="mt-16 text-center">
+<div class="group cursor-pointer inline-flex items-center gap-4">
+<span class="font-mono text-tertiary uppercase tracking-widest text-sm">See how this would work in your store</span>
+<span class="material-symbols-outlined text-execution-green">arrow_circle_right</span>
+</div>
+</div>
+</div>
+</section>
+<!-- How It Works Section -->
+<section class="py-40 bg-surface relative overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="High Speed Motion" class="w-full h-full object-cover opacity-25 grayscale brightness-50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnFmZ_OXyt3xc2zZP5xMU5dR-qiXZywP6IuXdmw4iOS_xelWrh1H-Pt_pk1xZ-o5Uywf6Ewth56PBXZrnp5y0HiNYf7ou65EH5-uCzkGRtK3kwsnpg-Zoy3qDAhfU3ev2WARxqjYwZ8-1JOa1DTasFANu-K89hThKhpbNeS3b78mhxOcnmYtgjrPJPII-yv9Pa75axBIfntNEPr-oxZ4lcM9Zn3z3damkDJNAzazeZdOpmOQgycHRIIQ0OYHilh97mXDcs5KlvOIhR"/>
+<div class="absolute inset-0 bg-gradient-to-l from-black via-black/80 to-transparent"></div>
+</div>
+<div class="scan-line"></div>
+<div class="container mx-auto px-8 relative z-10">
+<div class="grid lg:grid-cols-2 gap-24 items-center">
+<div class="space-y-16">
+<h2 class="text-6xl font-headline font-black uppercase italic text-white leading-tight">Fast Implementation. <br/>Immediate Impact.</h2>
+<div class="grid gap-8">
+<div class="flex gap-6 items-center p-6 bg-surface-container-low/90 backdrop-blur-md border border-zinc-800">
+<div class="bg-execution-green text-black w-14 h-14 flex items-center justify-center font-headline text-2xl font-black shrink-0">01</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-execution-green text-3xl" data-icon="list_alt">list_alt</span>
+<h4 class="text-2xl font-headline font-black text-white uppercase">Select Your Missions</h4>
+</div>
+</div>
+<div class="flex gap-6 items-center p-6 bg-surface-container-low/90 backdrop-blur-md border border-zinc-800">
+<div class="bg-execution-green text-black w-14 h-14 flex items-center justify-center font-headline text-2xl font-black shrink-0">02</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-execution-green text-3xl" data-icon="send_to_mobile">send_to_mobile</span>
+<h4 class="text-2xl font-headline font-black text-white uppercase">Automate Assignments</h4>
+</div>
+</div>
+<div class="flex gap-6 items-center p-6 bg-surface-container-low/90 backdrop-blur-md border border-zinc-800">
+<div class="bg-execution-green text-black w-14 h-14 flex items-center justify-center font-headline text-2xl font-black shrink-0">03</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-execution-green text-3xl" data-icon="visibility">visibility</span>
+<h4 class="text-2xl font-headline font-black text-white uppercase">Track &amp; Verify</h4>
+</div>
+</div>
+</div>
+</div>
+<div class="relative">
+<div class="bg-zinc-900 p-2 border border-zinc-700">
+<div class="bg-surface-container p-12 relative overflow-hidden">
+<h3 class="text-3xl font-headline font-black text-white uppercase mb-10">Manager Dashboard</h3>
+<div class="space-y-8">
+<div class="bg-black/50 p-6 border-l-8 border-execution-green">
+<div class="flex justify-between items-center">
+<span class="font-mono text-sm uppercase text-tertiary">Weekly Mission Progress</span>
+<span class="font-mono text-execution-green font-bold">88% DONE</span>
+</div>
+<div class="h-2 bg-zinc-800 mt-4">
+<div class="h-full bg-execution-green w-[88%]"></div>
+</div>
+</div>
+<div class="bg-black/50 p-6 border-l-8 border-primary-container">
+<div class="flex justify-between items-center">
+<span class="font-mono text-sm uppercase text-tertiary">Active Skill Gaps</span>
+<span class="font-mono text-primary-container font-bold">3 ALERTS</span>
+</div>
+<div class="h-2 bg-zinc-800 mt-4">
+<div class="h-full bg-primary-container w-[35%]"></div>
+</div>
+</div>
+</div>
+<div class="mt-10 pt-10 border-t border-white/10 flex justify-between items-center">
+<span class="font-mono text-xs text-tertiary uppercase">System Status: Active</span>
+<span class="font-mono text-xs text-execution-green uppercase font-black">All Teams Synchronized</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Outcomes -->
+<section class="py-40 bg-surface-container-lowest relative overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="F1 Racing Track Detail" class="w-full h-full object-cover opacity-30 grayscale brightness-50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDa56sS5masWLxfXZLaHL2hddfy2LLgHo5BDnkGH8Q0lFUMqm2YI4Wg4R-4FugIRCZqsZ8h5mBh4lbbNyaJycSwmCHzj6MiPF4OKfkPazjXthltcQXOfLXq6edDkmZmA8CEaeW14W6-2YqJ9ML7MVjjh7P2UpltGFAwfDouQXU58YmfwmiOZGt4H_uIoNas1kygPRzC2BtnBjFBo85u7PZnzolS9arTNLNh-XA1Q-ezw3cGuBvU3eCEnjqvykY6Nl-8XohQCPKXq96X"/>
+<div class="absolute inset-0 bg-black/70"></div>
+<div class="absolute inset-0 carbon-texture opacity-5"></div>
+</div>
+<div class="container mx-auto px-8 relative z-10">
+<div class="grid lg:grid-cols-12 gap-20">
+<div class="lg:col-span-5 space-y-10">
+<h2 class="text-5xl font-headline font-black uppercase italic text-white leading-tight">The Outcome of Real Execution</h2>
+<p class="text-tertiary text-xl leading-relaxed">Stop guessing if your team is following the process. AutoForge provides the operational visibility you need to drive growth.</p>
+<ul class="space-y-6">
+<li class="flex items-center gap-4 text-execution-green">
+<span class="material-symbols-outlined font-black" data-icon="done_all">done_all</span>
+<span class="font-headline font-bold text-xl uppercase text-white">Consistent Sales Workflow</span>
+</li>
+<li class="flex items-center gap-4 text-execution-green">
+<span class="material-symbols-outlined font-black" data-icon="done_all">done_all</span>
+<span class="font-headline font-bold text-xl uppercase text-white">Locked-in Service Experience</span>
+</li>
+<li class="flex items-center gap-4 text-execution-green">
+<span class="material-symbols-outlined font-black" data-icon="done_all">done_all</span>
+<span class="font-headline font-bold text-xl uppercase text-white">Verified Management Accountability</span>
+</li>
+</ul>
+<div class="pt-4 group cursor-pointer">
+<span class="font-mono text-execution-green uppercase tracking-widest text-sm flex items-center gap-2">
+                                SEE HOW THIS WOULD WORK IN YOUR STORE <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</span>
+</div>
+</div>
+<div class="lg:col-span-7">
+<div class="overflow-x-auto border border-white/5 bg-black/40 backdrop-blur-md">
+<table class="w-full text-left font-mono">
+<thead>
+<tr class="bg-surface-container/60 border-b border-zinc-700 text-tertiary">
+<th class="py-6 px-8 uppercase tracking-widest font-black text-xs">Metric</th>
+<th class="py-6 px-8 uppercase tracking-widest font-black text-xs">Legacy Training</th>
+<th class="py-6 px-8 uppercase tracking-widest font-black text-xs text-white">AutoForge System</th>
+</tr>
+</thead>
+<tbody class="text-tertiary text-lg">
+<tr class="border-b border-zinc-800 hover:bg-surface-container/40 transition-colors">
+<td class="py-6 px-8">Retention Rate</td>
+<td class="py-6 px-8">~15%</td>
+<td class="py-6 px-8 text-execution-green font-black">90% +</td>
+</tr>
+<tr class="border-b border-zinc-800 hover:bg-surface-container/40 transition-colors">
+<td class="py-6 px-8">Implementation</td>
+<td class="py-6 px-8">Manual/Random</td>
+<td class="py-6 px-8 text-white">Weekly Automated</td>
+</tr>
+<tr class="border-b border-zinc-800 hover:bg-surface-container/40 transition-colors">
+<td class="py-6 px-8">Visibility</td>
+<td class="py-6 px-8">Non-existent</td>
+<td class="py-6 px-8 text-execution-green font-black">Group-Wide View</td>
+</tr>
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-6 px-8">Management Time</td>
+<td class="py-6 px-8">High Friction</td>
+<td class="py-6 px-8 text-white">Plug-and-Play</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA -->
+<section class="py-48 relative bg-black overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="Abstract Car Light Streaks" class="w-full h-full object-cover opacity-35 scale-110 blur-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkmTSX_odmvYoLBh1gy3TRsapUmC5hX6fi646Qtt-fO0p6GLgrOPYKHE3iQ4tZasaliiQ7n754o2l2SHRbiRQjARgKDMrJ6_5rc1MggCuqBWSauSOyy4vpBcRidh_4BhPpt8p3_owB41WUiVr9-yoParsvnh8GrxOOTPfId6451f8pc40AqYb1qCAjU8GDjXRHzW2DHPysK-FhhhV5LVskpsLZsh80sWnOIdzm51UFWAPkpAh9-eqsCllt4zrM8O6Qrd-KiOvnfsEv"/>
+<div class="absolute inset-0 bg-black/80"></div>
+<div class="absolute inset-0 technical-grid opacity-10"></div>
+</div>
+<div class="container mx-auto px-8 relative z-10 text-center space-y-16">
+<h2 class="text-6xl md:text-9xl font-headline font-black uppercase italic tracking-tighter text-white">
+                    Execution Is <span class="text-execution-green">Everything</span>
+</h2>
+<p class="text-tertiary text-2xl max-w-3xl mx-auto font-light leading-relaxed">
+                    The most successful dealerships don't have smarter people—they have better systems. Deploy the AutoForge weekly execution protocol today.
+                </p>
+<div class="flex flex-col md:flex-row gap-8 justify-center items-center">
+<button class="bg-execution-green text-black px-16 py-8 font-headline font-black uppercase tracking-[0.2em] text-3xl hover:bg-white transition-all active:scale-95 shadow-[0_0_60px_rgba(0,255,0,0.3)]">
+                        DEPLOY SYSTEM
+                    </button>
+<div class="text-left font-mono text-sm text-white/50 uppercase border-l border-zinc-800 pl-8">
+                        Available for: <br/>
+                        Franchise Dealers <br/>
+                        Large Auto Groups <br/>
+                        Global Distribution
+                    </div>
+</div>
+</div>
+</section>
+</main>
+<footer class="bg-black w-full py-20 px-8 border-t border-zinc-900 relative overflow-hidden">
+<div class="absolute inset-0 z-0 carbon-texture opacity-5"></div>
+<div class="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 relative z-10">
+<div class="space-y-6">
+<div class="text-2xl font-bold text-white font-headline tracking-widest uppercase">AutoForge</div>
+<div class="font-mono text-sm uppercase tracking-widest text-zinc-500 leading-relaxed max-w-sm">
+                    The Operational System for Automotive Excellence. Built to solve the execution gap.
+                </div>
+<div class="font-mono text-xs uppercase tracking-widest text-zinc-600">
+                    © 2024 AUTOFORGE SOLUTIONS. ALL RIGHTS RESERVED.
+                </div>
+</div>
+<div class="grid grid-cols-2 gap-8">
+<div class="flex flex-col gap-4">
+<a class="font-mono text-sm uppercase tracking-widest text-zinc-400 hover:text-execution-green transition-colors" href="#">Missions Catalog</a>
+<a class="font-mono text-sm uppercase tracking-widest text-zinc-400 hover:text-execution-green transition-colors" href="#">System Access</a>
+</div>
+<div class="flex flex-col gap-4">
+<a class="font-mono text-sm uppercase tracking-widest text-zinc-400 hover:text-execution-green transition-colors" href="#">Execution Report</a>
+<a class="font-mono text-sm uppercase tracking-widest text-zinc-400 hover:text-execution-green transition-colors" href="#">Contact Support</a>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

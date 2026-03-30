@@ -258,6 +258,627 @@ section {
 }
 
 /* Animations */
+
+/* AutoForge Page */
+.autoforge-page {
+  --forge-bg: #0a0a0a;
+  --forge-surface: #121212;
+  --forge-surface-strong: #1a1a1a;
+  --forge-surface-soft: rgba(24, 24, 24, 0.84);
+  --forge-border: rgba(255, 255, 255, 0.1);
+  --forge-text: #ece8e4;
+  --forge-text-soft: rgba(236, 232, 228, 0.74);
+  --forge-red: #cc0000;
+  --forge-green: #00ff66;
+  color: var(--forge-text);
+  background:
+    radial-gradient(circle at top right, rgba(204, 0, 0, 0.12), transparent 32%),
+    radial-gradient(circle at left 20%, rgba(0, 255, 102, 0.06), transparent 26%),
+    var(--forge-bg);
+}
+
+.autoforge-main {
+  position: relative;
+  overflow: hidden;
+}
+
+.autoforge-section,
+.autoforge-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.autoforge-hero {
+  min-height: 92vh;
+  display: flex;
+  align-items: center;
+  padding: 8rem 5% 5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.autoforge-section {
+  padding: clamp(4.5rem, 9vw, 8rem) 5%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.autoforge-media,
+.autoforge-section-art {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+
+.autoforge-media img,
+.autoforge-section-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.autoforge-media::after,
+.autoforge-section-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 10, 10, 0.28), rgba(10, 10, 10, 0.88)),
+    linear-gradient(90deg, rgba(10, 10, 10, 0.92), rgba(10, 10, 10, 0.44) 54%, rgba(10, 10, 10, 0.92));
+}
+
+.autoforge-hero::before,
+.autoforge-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 42px 42px;
+  pointer-events: none;
+}
+
+.autoforge-kicker {
+  margin: 0 0 1rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.autoforge-hero-copy {
+  max-width: 78rem;
+}
+
+.autoforge-hero h1,
+.autoforge-section h2,
+.autoforge-section h3,
+.autoforge-step-row h3 {
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: -0.04em;
+}
+
+.autoforge-hero h1 {
+  margin: 0;
+  max-width: 9ch;
+  font-size: clamp(3.4rem, 11vw, 8.5rem);
+  line-height: 0.88;
+}
+
+.autoforge-hero h1 span,
+.autoforge-section h2 span,
+.autoforge-table-accent,
+.autoforge-dashboard-footer span:last-child {
+  color: var(--forge-green);
+}
+
+.autoforge-lead {
+  margin: 1.5rem 0 0;
+  max-width: 45rem;
+  font-family: var(--font-heading);
+  font-size: clamp(1.35rem, 3vw, 2.2rem);
+  line-height: 1.08;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: #fff;
+}
+
+.autoforge-body,
+.autoforge-copy-block p,
+.autoforge-section-heading p,
+.autoforge-cta p {
+  margin: 1rem 0 0;
+  max-width: 42rem;
+  color: var(--forge-text-soft);
+  line-height: 1.7;
+  font-size: 1.02rem;
+}
+
+.autoforge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.autoforge-actions-center {
+  justify-content: center;
+}
+
+.autoforge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.75rem;
+  padding: 1rem 1.4rem;
+  border: 1px solid transparent;
+  font-family: var(--font-heading);
+  font-size: 0.84rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition:
+    transform 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.autoforge-btn:hover {
+  transform: translateY(-1px);
+}
+
+.autoforge-btn-primary {
+  background: var(--forge-green);
+  color: #050505;
+  box-shadow: 0 0 34px rgba(0, 255, 102, 0.16);
+}
+
+.autoforge-btn-secondary {
+  background: var(--forge-red);
+  color: #fff;
+  box-shadow: 0 0 34px rgba(204, 0, 0, 0.18);
+}
+
+.autoforge-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.03);
+  color: #fff;
+}
+
+.autoforge-two-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: start;
+}
+
+.autoforge-two-column-wide {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.autoforge-copy-block h2,
+.autoforge-section-heading h2,
+.autoforge-gap-card h2,
+.autoforge-cta h2 {
+  margin: 0;
+  font-size: clamp(2.15rem, 5vw, 4.4rem);
+  line-height: 0.96;
+}
+
+.autoforge-copy-block h2 span,
+.autoforge-gap-card h2 + p {
+  color: var(--forge-red);
+}
+
+.autoforge-inline-link {
+  margin-top: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--forge-green);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.autoforge-card-grid,
+.autoforge-stack,
+.autoforge-system-side {
+  display: grid;
+  gap: 1rem;
+}
+
+.autoforge-panel,
+.autoforge-side-card,
+.autoforge-implementation-row,
+.autoforge-gap-card,
+.autoforge-dashboard-card,
+.autoforge-table-wrap,
+.autoforge-step-list,
+.autoforge-cta-content {
+  border: 1px solid var(--forge-border);
+  background: var(--forge-surface-soft);
+  backdrop-filter: blur(18px);
+}
+
+.autoforge-panel {
+  padding: 1.6rem;
+}
+
+.autoforge-panel svg {
+  color: var(--forge-red);
+}
+
+.autoforge-panel h3,
+.autoforge-side-card h3,
+.autoforge-implementation-row h3,
+.autoforge-dashboard-card h3 {
+  margin: 1rem 0 0.55rem;
+  font-size: 1.18rem;
+  line-height: 1;
+  color: #fff;
+}
+
+.autoforge-panel p,
+.autoforge-side-card p,
+.autoforge-dashboard-card p,
+.autoforge-implementation-row p {
+  margin: 0;
+  color: var(--forge-text-soft);
+  line-height: 1.65;
+}
+
+.autoforge-gap {
+  background: linear-gradient(180deg, rgba(204, 0, 0, 0.18), rgba(10, 10, 10, 0.25));
+}
+
+.autoforge-gap .autoforge-section-art::after {
+  background:
+    linear-gradient(180deg, rgba(204, 0, 0, 0.35), rgba(10, 10, 10, 0.84)),
+    linear-gradient(90deg, rgba(10, 10, 10, 0.92), rgba(10, 10, 10, 0.28), rgba(10, 10, 10, 0.92));
+}
+
+.autoforge-gap-card {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: clamp(1.75rem, 4vw, 2.6rem);
+  text-align: center;
+}
+
+.autoforge-gap-card p {
+  margin: 1rem auto 0;
+  max-width: 44rem;
+  font-size: clamp(1.08rem, 2vw, 1.45rem);
+}
+
+.autoforge-section-heading {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.autoforge-section-heading p {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.autoforge-system-grid,
+.autoforge-process-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: clamp(1.25rem, 4vw, 2rem);
+}
+
+.autoforge-dashboard-card {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    rgba(18, 18, 18, 0.78);
+}
+
+.autoforge-dashboard-copy p {
+  max-width: 32rem;
+}
+
+.autoforge-metric-block {
+  margin-top: 1.5rem;
+  padding: 1rem 1rem 1.1rem;
+  border-left: 4px solid var(--forge-green);
+  background: rgba(0, 0, 0, 0.46);
+}
+
+.autoforge-metric-block-alert {
+  border-left-color: var(--forge-red);
+}
+
+.autoforge-metric-block-alert strong,
+.autoforge-metric-block-alert .autoforge-progress span,
+.autoforge-copy-block h2 span {
+  color: var(--forge-red);
+}
+
+.autoforge-metric-block-alert .autoforge-progress span {
+  background: var(--forge-red);
+}
+
+.autoforge-metric-row,
+.autoforge-dashboard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+}
+
+.autoforge-metric-row span,
+.autoforge-dashboard-footer span:first-child {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.autoforge-metric-row strong {
+  color: var(--forge-green);
+}
+
+.autoforge-progress {
+  margin-top: 0.9rem;
+  height: 0.45rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.autoforge-progress span {
+  display: block;
+  height: 100%;
+  background: var(--forge-green);
+}
+
+.autoforge-dashboard-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.autoforge-side-card,
+.autoforge-implementation-row {
+  display: grid;
+  grid-template-columns: 4.25rem 1fr;
+  gap: 1rem;
+  padding: 1.1rem 1.15rem;
+  align-items: center;
+}
+
+.autoforge-side-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  background: var(--forge-green);
+  color: #050505;
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.autoforge-step-list {
+  padding: 1.1rem 1.15rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    rgba(12, 12, 12, 0.72);
+}
+
+.autoforge-step-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.autoforge-step-row + .autoforge-step-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.autoforge-step-marker {
+  width: 3.2rem;
+  height: 3.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.autoforge-step-row:last-child .autoforge-step-marker {
+  background: var(--forge-green);
+  color: #050505;
+}
+
+.autoforge-step-row span {
+  display: block;
+  margin-bottom: 0.28rem;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.autoforge-step-row h3 {
+  margin: 0;
+  font-size: 1.03rem;
+  letter-spacing: -0.02em;
+}
+
+.autoforge-implementation-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.autoforge-implementation-copy svg {
+  color: var(--forge-green);
+}
+
+.autoforge-outcome-list {
+  display: grid;
+  gap: 0.9rem;
+  margin: 1.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.autoforge-outcome-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: var(--font-heading);
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.autoforge-outcome-list svg {
+  color: var(--forge-green);
+}
+
+.autoforge-table-wrap {
+  overflow-x: auto;
+  background: rgba(5, 5, 5, 0.56);
+}
+
+.autoforge-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 38rem;
+}
+
+.autoforge-table th,
+.autoforge-table td {
+  padding: 1rem 1.1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.95rem;
+}
+
+.autoforge-table th {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.autoforge-table td {
+  color: var(--forge-text-soft);
+}
+
+.autoforge-cta {
+  text-align: center;
+}
+
+.autoforge-cta .autoforge-section-art::after {
+  background:
+    linear-gradient(180deg, rgba(10, 10, 10, 0.26), rgba(10, 10, 10, 0.92)),
+    linear-gradient(90deg, rgba(10, 10, 10, 0.85), rgba(10, 10, 10, 0.45), rgba(10, 10, 10, 0.85));
+}
+
+.autoforge-cta-content {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: clamp(1.8rem, 4vw, 3.25rem);
+}
+
+.autoforge-cta p {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.autoforge-cta-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem 1.5rem;
+  margin-top: 1.6rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.autoforge-cta-meta div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.autoforge-cta-meta svg {
+  color: var(--forge-green);
+}
+
+@media (max-width: 960px) {
+  .autoforge-two-column,
+  .autoforge-two-column-wide,
+  .autoforge-system-grid,
+  .autoforge-process-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .autoforge-hero {
+    min-height: auto;
+    padding-top: 7rem;
+  }
+
+  .autoforge-hero h1 {
+    max-width: 10ch;
+    font-size: clamp(2.85rem, 16vw, 5.4rem);
+  }
+
+  .autoforge-lead {
+    font-size: clamp(1.1rem, 5vw, 1.6rem);
+  }
+}
+
+@media (max-width: 700px) {
+  .autoforge-section,
+  .autoforge-hero {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .autoforge-btn {
+    width: 100%;
+  }
+
+  .autoforge-side-card,
+  .autoforge-implementation-row,
+  .autoforge-step-row {
+    grid-template-columns: 1fr;
+  }
+
+  .autoforge-side-index,
+  .autoforge-step-marker {
+    width: 3rem;
+    height: 3rem;
+    min-height: 3rem;
+  }
+
+  .autoforge-table {
+    min-width: 31rem;
+  }
+
+  .autoforge-cta-content {
+    padding: 1.5rem 1rem;
+  }
+}
 @keyframes pulse-soft {
 
   0%,
