@@ -25,7 +25,7 @@ export function FeaturedToolCard({ tool, ctaLabel, onPrimaryAction }: FeaturedTo
         <CardHeader className="space-y-5 pb-0 md:space-y-6">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#7B2EFF]/30 bg-[#7B2EFF]/12 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#7B2EFF] shadow-sm backdrop-blur-sm">
             <Sparkles className="h-4 w-4" />
-            This Week's Drop
+            This Week&apos;s Featured Tool
           </div>
           <CardTitle className="font-['Manrope'] text-4xl font-extrabold tracking-tighter text-[#FFFFFF] md:text-5xl lg:text-6xl">
             {tool.name}

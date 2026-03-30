@@ -119,7 +119,12 @@ export function Header() {
               />
             </div>
           ) : (
-            <Logo variant="full" width={292} height={96} />
+            <Logo
+              variant="full"
+              width={292}
+              height={96}
+              className="h-16 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(44,152,255,0.4)]"
+            />
           )}
         </Link>
         {renderSurfaceToggle('absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:inline-flex')}

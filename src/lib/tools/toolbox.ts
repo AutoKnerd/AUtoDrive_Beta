@@ -119,7 +119,7 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
     estimatedTime = 9;
   }
 
-  if (id.includes('price-presentation') || id.includes('payment') || id.includes('gross') || id.includes('trade-value') || id.includes('next-move') || id.includes('objection') || id.includes('commitment')) {
+  if (id.includes('price-presentation') || id.includes('payment') || id.includes('gross') || id.includes('trade-value') || id.includes('next-move') || id.includes('objection') || id.includes('commitment') || id.includes('fee-transparency')) {
     category = 'Pricing';
     skillTags = ['objection control', 'trust', 'closing'];
     intentTags = ['Present numbers', 'Handle an objection', 'Move a deal forward'];
@@ -203,6 +203,14 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
 }
 
 const TOOL_SEED: ToolSeed[] = [
+  {
+    id: 'fee-transparency-coach',
+    name: 'Fee Transparency Coach',
+    description: 'Handle fee objections with clear explanations, better de-escalation, and stronger trust protection.',
+    access: 'free',
+    hasFullVersion: true,
+    createdAt: '2026-04-25T09:00:00.000Z',
+  },
   {
     id: 'pickup-experience-designer',
     name: 'Pickup Experience Designer',
@@ -477,7 +485,7 @@ const TOOL_SEED: ToolSeed[] = [
   },
 ];
 
-const WEEKLY_FEATURED_TOOL_ID = 'consistency-gap-check';
+const WEEKLY_FEATURED_TOOL_ID = 'fee-transparency-coach';
 export const TOOLBOX_TOOLS: ToolConfig[] = buildToolConfig(TOOL_SEED);
 
 export function buildToolConfig(seed: ToolSeed[]): ToolConfig[] {

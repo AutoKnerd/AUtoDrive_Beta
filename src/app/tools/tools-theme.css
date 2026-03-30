@@ -72,11 +72,28 @@
   width: 100%;
 }
 
+:is(.tools-theme, .tools-theme-light) .featured-tool-banner {
+  border-color: rgba(157, 238, 117, 0.55) !important;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(157, 238, 117, 0.28),
+    0 0 24px rgba(157, 238, 117, 0.12),
+    0 12px 30px rgba(157, 238, 117, 0.12) !important;
+}
+
 :is(.tools-theme, .tools-theme-light) .tool-card-surface:hover,
 :is(.tools-theme, .tools-theme-light) .tool-control-panel:hover {
   transform: translateY(-2px);
   border-color: rgba(123, 46, 255, 0.5) !important;
   box-shadow: 0 10px 24px rgba(123, 46, 255, 0.12) !important;
+}
+
+:is(.tools-theme, .tools-theme-light) .featured-tool-banner:hover {
+  border-color: rgba(123, 46, 255, 0.8) !important;
+  box-shadow:
+    0 10px 24px rgba(123, 46, 255, 0.12),
+    0 0 0 1px rgba(123, 46, 255, 0.36),
+    0 14px 38px rgba(123, 46, 255, 0.2) !important;
 }
 
 :is(.tools-theme, .tools-theme-light) .tool-control-panel-icon {
@@ -152,6 +169,31 @@
 :is(.tools-theme, .tools-theme-light) button[aria-pressed="true"] [class*="border-"],
 :is(.tools-theme, .tools-theme-light) button[aria-selected="true"] [class*="border-"] {
   border-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+:is(.tools-theme, .tools-theme-light) .diagnosis-card[aria-pressed="true"] {
+  background: #1c1630 !important;
+  border-color: #7b2eff !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(123, 46, 255, 0.16) !important;
+}
+
+:is(.tools-theme, .tools-theme-light) .diagnosis-card[aria-pressed="true"] * {
+  color: inherit !important;
+}
+
+:is(.tools-theme, .tools-theme-light) .diagnosis-card[aria-pressed="true"] p:first-child {
+  color: #ffffff !important;
+}
+
+:is(.tools-theme, .tools-theme-light) .diagnosis-card[aria-pressed="true"] p:last-child {
+  color: #b8b8c5 !important;
+}
+
+:is(.tools-theme, .tools-theme-light) .diagnosis-card[aria-pressed="true"] > div:first-child {
+  background: #12121a !important;
+  border-color: rgba(123, 46, 255, 0.6) !important;
+  color: #c9a9ff !important;
 }
 
 :is(.tools-theme, .tools-theme-light) input,

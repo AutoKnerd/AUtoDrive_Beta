@@ -84,6 +84,7 @@ function ctaLabelForTool(tool: ToolConfig, canAccess: boolean): string {
 }
 
 const INLINE_TOOL_COMPONENTS: Record<string, ComponentType> = {
+  'fee-transparency-coach': dynamic(() => import('@/app/tools/fee-transparency-coach/page'), { ssr: false }),
   'pickup-experience-designer': dynamic(() => import('@/app/tools/pickup-experience-designer/page'), { ssr: false }),
   'repair-trust-builder': dynamic(() => import('@/app/tools/repair-trust-builder/page'), { ssr: false }),
   'wait-experience-coach': dynamic(() => import('@/app/tools/wait-experience-coach/page'), { ssr: false }),
@@ -167,12 +168,12 @@ function mapUserRoleToHeroSegment(role: UserRole | null | undefined): HeroRoleSe
 }
 
 const DIAGNOSIS_TOOL_PRIORITY: Record<DiagnosisLabel, string[]> = {
-  'Customer is stalling': ['objection-reframe', 'parts-objection-defuser', 'commitment-ladder'],
+  'Customer is stalling': ['fee-transparency-coach', 'objection-reframe', 'parts-objection-defuser', 'commitment-ladder'],
   'Deal lost momentum': ['objection-reframe', 'follow-up-cadence', 'status-update', 'loyalty-loop'],
-  'Customer pushed back': ['objection-reframe', 'parts-objection-defuser', 'next-move-engine'],
-  'I’m at numbers': ['desk-conversation', 'objection-reframe', 'price-presentation'],
+  'Customer pushed back': ['fee-transparency-coach', 'objection-reframe', 'parts-objection-defuser', 'next-move-engine'],
+  'I’m at numbers': ['fee-transparency-coach', 'desk-conversation', 'objection-reframe', 'price-presentation'],
   'Need to re-engage': ['follow-up-cadence', 'status-update', 'loyalty-loop', 'deal-recovery'],
-  'Just tell me what to do': ['consistency-gap-check', 'objection-reframe', 'next-move-engine'],
+  'Just tell me what to do': ['fee-transparency-coach', 'consistency-gap-check', 'objection-reframe', 'next-move-engine'],
 };
 
 const ROLE_DETAIL_TOOL_PRIORITY: Record<RoleDetailSelection, string[]> = {
@@ -1457,11 +1458,11 @@ export default function ToolsPage() {
           </section>
 
             {!activeTool && (
-              <div className="tool-card-surface animate-in fade-in duration-200 p-4">
+              <div className="tool-card-surface featured-tool-banner animate-in fade-in duration-200 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#7B2EFF]">
-                      Recommended Right Now
+                      This Week&apos;s Featured Tool
                     </p>
                     <p className="truncate text-base font-bold text-[#FFFFFF]">{featuredTool.name}</p>
                     <p className="line-clamp-1 text-sm text-[#B8B8C5]">{featuredTool.description}</p>
@@ -1471,7 +1472,7 @@ export default function ToolsPage() {
                     onClick={() => maybeOpenTool(featuredTool)}
                     className="h-10 w-full border-[#2f415f] bg-[#0d1728] text-xs text-[#e8f1ff] transition-all hover:bg-[#12203a] active:scale-[0.95] sm:w-auto sm:min-w-[220px]"
                   >
-                    Run Recommended Tool
+                    Open Featured Tool
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -1506,7 +1507,7 @@ export default function ToolsPage() {
                             setDiagnosisFeedback(feedbackByDiagnosis[opt.label]);
                           }}
                           className={cn(
-                            'group relative flex items-center gap-3 rounded-lg border bg-[#1A1A24] p-4 text-left transition-all duration-200 active:scale-[0.99]',
+                            'diagnosis-card group relative flex items-center gap-3 rounded-lg border bg-[#1A1A24] p-4 text-left transition-all duration-200 active:scale-[0.99]',
                             'shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
                             selectedDiagnosis === opt.label
                               ? 'border-[#7B2EFF] bg-[#1c1630] shadow-[0_8px_18px_rgba(123,46,255,0.16)]'
