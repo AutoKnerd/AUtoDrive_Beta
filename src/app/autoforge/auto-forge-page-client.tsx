@@ -262,7 +262,7 @@ export default function AutoForgePageClient() {
                 <span className="text-[#cc0000]">Execution is.</span>
               </h2>
               <p className="mt-4 max-w-xl text-base leading-8 text-white/75 md:text-lg">
-                Dealerships spending thousands on training that never sticks. Without a system to reinforce
+                Dealerships are spending thousands on training that never sticks. Without a system to reinforce
                 behavior weekly, teams fall back into old habits.
               </p>
               <a
