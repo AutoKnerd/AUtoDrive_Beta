@@ -19,6 +19,15 @@ import { Switch } from '../ui/switch';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import isEqual from 'lodash.isequal';
 
+type ConsultantRecord = {
+  id: string;
+  name: string;
+  email: string;
+  referralCode: string;
+  firebaseUid: string;
+  createdAt: string;
+};
+
 const editUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   email: z.string().email(),
@@ -43,7 +52,20 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
   const [isForcingSprocketTour, setIsForcingSprocketTour] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [consultants, setConsultants] = useState<ConsultantRecord[]>([]);
+  const [consultantsLoading, setConsultantsLoading] = useState(true);
+  const [isAutoKnerdConsultant, setIsAutoKnerdConsultant] = useState(false);
+  const [consultantMode, setConsultantMode] = useState<'existing' | 'new'>('new');
+  const [selectedConsultantId, setSelectedConsultantId] = useState('');
+  const [consultantReferralCode, setConsultantReferralCode] = useState('');
+  const [consultantProfileName, setConsultantProfileName] = useState('');
+  const [consultantProfileEmail, setConsultantProfileEmail] = useState('');
   const { toast } = useToast();
+
+  const suggestionReferralCodeFromEmail = (email: string): string => {
+    const localPart = (email || '').split('@')[0] || '';
+    return localPart.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  };
 
   const toFormValues = (u: User): EditUserFormValues => ({
     name: u.name || '',
@@ -65,6 +87,55 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
     if (selectedUser) form.reset(toFormValues(selectedUser));
   }, [selectedUser, form]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadConsultants() {
+      try {
+        setConsultantsLoading(true);
+        const response = await fetch('/api/admin/consultants');
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Failed to load consultants.');
+        }
+        if (cancelled) return;
+        const normalized = ((payload.consultants as Array<Record<string, unknown>>) || [])
+          .map((row) => ({
+            id: String(row.id || '').trim(),
+            name: String(row.name || '').trim(),
+            email: String(row.email || '').trim(),
+            referralCode: String(row.referral_code || row.referralCode || '').trim().toLowerCase(),
+            firebaseUid: String(row.firebase_uid || row.firebaseUid || '').trim(),
+            createdAt: String(row.created_at || row.createdAt || '').trim(),
+          }))
+          .filter((row) => row.id && row.referralCode);
+        setConsultants(normalized);
+      } catch (error) {
+        if (!cancelled) {
+          toast({
+            variant: 'destructive',
+            title: 'Consultant records unavailable',
+            description: (error as Error).message,
+          });
+        }
+      } finally {
+        if (!cancelled) setConsultantsLoading(false);
+      }
+    }
+
+    void loadConsultants();
+    return () => {
+      cancelled = true;
+    };
+  }, [toast]);
+
+  const consultantAssignedToSelectedUser = useMemo(() => {
+    if (!selectedUser) return null;
+    return consultants.find((consultant) => consultant.firebaseUid === selectedUser.userId)
+      || consultants.find((consultant) => consultant.email.toLowerCase() === selectedUser.email.toLowerCase())
+      || null;
+  }, [consultants, selectedUser]);
+
   const filteredUsers = useMemo(() => {
     if (!searchTerm) return [];
     const term = searchTerm.toLowerCase();
@@ -76,6 +147,26 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
     setSelectedUser(u);
     setSearchTerm('');
   };
+
+  useEffect(() => {
+    if (!selectedUser) {
+      setIsAutoKnerdConsultant(false);
+      setConsultantMode('new');
+      setSelectedConsultantId('');
+      setConsultantReferralCode('');
+      setConsultantProfileName('');
+      setConsultantProfileEmail('');
+      return;
+    }
+
+    const matchedConsultant = consultantAssignedToSelectedUser;
+    setIsAutoKnerdConsultant(!!matchedConsultant);
+    setConsultantMode(matchedConsultant ? 'existing' : 'new');
+    setSelectedConsultantId(matchedConsultant?.id || '');
+    setConsultantReferralCode(matchedConsultant?.referralCode || suggestionReferralCodeFromEmail(selectedUser.email || ''));
+    setConsultantProfileName(matchedConsultant?.name || selectedUser.name || '');
+    setConsultantProfileEmail(matchedConsultant?.email || selectedUser.email || '');
+  }, [consultantAssignedToSelectedUser, selectedUser]);
 
   async function onSubmit(data: EditUserFormValues) {
     if (!selectedUser) return;
@@ -98,6 +189,61 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
       }
 
       await Promise.all(updates);
+
+      if (isAutoKnerdConsultant) {
+        const consultantPayload = {
+          name: consultantProfileName.trim() || data.name.trim(),
+          email: consultantProfileEmail.trim() || data.email.trim(),
+          referralCode: consultantReferralCode.trim().toLowerCase(),
+          firebaseUid: selectedUser.userId,
+        };
+
+        if (!consultantPayload.referralCode) {
+          throw new Error('Referral code is required when AutoKnerd Consultant is enabled.');
+        }
+
+        if (consultantMode === 'existing') {
+          if (!selectedConsultantId) {
+            throw new Error('Select an existing consultant profile.');
+          }
+
+          const response = await fetch(`/api/admin/consultants/${encodeURIComponent(selectedConsultantId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(consultantPayload),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload?.error || 'Failed to update consultant access.');
+          }
+        } else {
+          const response = await fetch('/api/admin/consultants', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(consultantPayload),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload?.error || 'Failed to create consultant access.');
+          }
+        }
+      } else if (consultantAssignedToSelectedUser) {
+        const response = await fetch(`/api/admin/consultants/${encodeURIComponent(consultantAssignedToSelectedUser.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: consultantAssignedToSelectedUser.name,
+            email: consultantAssignedToSelectedUser.email,
+            referralCode: consultantAssignedToSelectedUser.referralCode,
+            firebaseUid: '',
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Failed to remove consultant access.');
+        }
+      }
+
       toast({ title: 'User Updated', description: `${data.name} saved successfully.` });
       onUserUpdated?.();
       setSelectedUser(null);
@@ -171,6 +317,96 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
             <div className="grid gap-2 border rounded-md p-3">
                 <FormField control={form.control} name="isPrivate" render={({ field }) => <FormItem className="flex items-center justify-between"><FormLabel>Hide from Managers</FormLabel><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>} />
                 <FormField control={form.control} name="showDealerCriticalOnly" render={({ field }) => <FormItem className="flex items-center justify-between"><FormLabel>Critical Data Only</FormLabel><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>} />
+            </div>
+            <div className="rounded-md border p-3 space-y-2">
+              <p className="text-sm font-medium">AutoKnerd Consultant Access</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-sm">Assign as AutoKnerd Consultant</p>
+                  <p className="text-xs text-muted-foreground">
+                    Enables a linked consultant referral code and AK Consultant Dashboard.
+                  </p>
+                </div>
+                <Switch checked={isAutoKnerdConsultant} onCheckedChange={setIsAutoKnerdConsultant} />
+              </div>
+              {isAutoKnerdConsultant ? (
+                <div className="grid gap-4 pt-2">
+                  {consultantAssignedToSelectedUser ? (
+                    <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+                      Currently linked to consultant profile `{consultantAssignedToSelectedUser.name}` with referral code `{consultantAssignedToSelectedUser.referralCode}`.
+                    </div>
+                  ) : null}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <FormLabel>Consultant Profile</FormLabel>
+                      <Select value={consultantMode} onValueChange={(value: 'existing' | 'new') => setConsultantMode(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">Create New Consultant Profile</SelectItem>
+                          <SelectItem value="existing">Use Existing Consultant Profile</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {consultantMode === 'existing' ? (
+                      <div className="space-y-2">
+                        <FormLabel>Existing Consultant</FormLabel>
+                        <Select
+                          value={selectedConsultantId}
+                          onValueChange={(value) => {
+                            setSelectedConsultantId(value);
+                            const match = consultants.find((consultant) => consultant.id === value);
+                            if (!match) return;
+                            setConsultantProfileName(match.name);
+                            setConsultantProfileEmail(match.email);
+                            setConsultantReferralCode(match.referralCode);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={consultantsLoading ? 'Loading consultants...' : 'Select consultant profile'} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {consultants.length === 0 ? (
+                              <SelectItem value="none" disabled>No consultant profiles found</SelectItem>
+                            ) : (
+                              consultants.map((consultant) => (
+                                <SelectItem key={consultant.id} value={consultant.id}>
+                                  {consultant.name} ({consultant.referralCode})
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <FormLabel>Dashboard Name</FormLabel>
+                      <Input value={consultantProfileName} onChange={(e) => setConsultantProfileName(e.target.value)} placeholder="Lee Johnson" />
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel>Consultant Email</FormLabel>
+                      <Input value={consultantProfileEmail} onChange={(e) => setConsultantProfileEmail(e.target.value)} placeholder="lee@example.com" />
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel>Referral Code</FormLabel>
+                      <Input value={consultantReferralCode} onChange={(e) => setConsultantReferralCode(e.target.value.toLowerCase())} placeholder="lee" />
+                    </div>
+                  </div>
+                  {consultantReferralCode ? (
+                    <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+                      <p>Dashboard: `/consultant/{consultantReferralCode}`</p>
+                      <p>Referral signup: `/join/{consultantReferralCode}`</p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : consultantAssignedToSelectedUser ? (
+                <p className="text-xs text-muted-foreground">
+                  Saving with this switch off will remove this user’s linked consultant dashboard access.
+                </p>
+              ) : null}
             </div>
             <div className="rounded-md border p-3 space-y-2">
               <p className="text-sm font-medium">Sprocket Tour Controls</p>

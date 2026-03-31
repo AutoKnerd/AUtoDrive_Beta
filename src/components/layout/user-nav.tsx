@@ -119,15 +119,13 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                 return;
             }
 
-            const role = String(user.role || '').toLowerCase();
-            if (role === 'admin' || role === 'developer') {
-                setConsultantReferralCode(null);
-                return;
-            }
+            const fallbackReferralCode = String(user.consultant_referral || '')
+                .trim()
+                .toLowerCase();
 
             try {
                 if (!firebaseUser) {
-                    if (!cancelled) setConsultantReferralCode(null);
+                    if (!cancelled) setConsultantReferralCode(fallbackReferralCode || null);
                     return;
                 }
                 const token = await firebaseUser.getIdToken(true);
@@ -138,7 +136,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                 });
                 const payload = await response.json() as { consultant?: { referral_code?: string; referralCode?: string } };
                 if (!response.ok) {
-                    if (!cancelled) setConsultantReferralCode(null);
+                    if (!cancelled) setConsultantReferralCode(fallbackReferralCode || null);
                     return;
                 }
 
@@ -146,11 +144,11 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                     .trim()
                     .toLowerCase();
                 if (!cancelled) {
-                    setConsultantReferralCode(referralCode || null);
+                    setConsultantReferralCode(referralCode || fallbackReferralCode || null);
                 }
             } catch {
                 if (!cancelled) {
-                    setConsultantReferralCode(null);
+                    setConsultantReferralCode(fallbackReferralCode || null);
                 }
             }
         }
@@ -160,7 +158,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
         return () => {
             cancelled = true;
         };
-    }, [user?.userId, user?.role, isClient, firebaseUser]);
+    }, [user?.userId, user?.role, user?.consultant_referral, isClient, firebaseUser]);
 
     const handleMessagesDialogOpen = (open: boolean) => {
         setIsDialogOpen(open);
