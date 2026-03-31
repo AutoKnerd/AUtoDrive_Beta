@@ -157,14 +157,14 @@ export function SignupForm() {
   }
 
   return (
-    <Card className="border-slate-700/70 bg-slate-900/85 text-slate-100 shadow-none">
+    <Card className="border-[hsl(var(--border))] bg-[rgba(243,240,234,0.96)] text-[hsl(var(--foreground))] shadow-[0_18px_50px_rgba(66,53,27,0.06)]">
       <CardHeader className="space-y-2 pb-4">
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/90">
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
           Secure Account Setup
         </p>
-        <CardTitle className="text-center text-2xl font-semibold tracking-tight text-white">Create your Pro account</CardTitle>
-        <p className="text-center text-sm font-semibold text-emerald-200">30-day free trial</p>
-        <p className="text-center text-sm text-slate-300">Then $12.99/month. Cancel anytime.</p>
+        <CardTitle className="text-center text-2xl font-semibold tracking-tight text-[hsl(var(--foreground))]">Create your Pro account</CardTitle>
+        <p className="text-center text-sm font-semibold text-[hsl(var(--primary))]">30-day free trial</p>
+        <p className="text-center text-sm text-[hsl(var(--muted-foreground))]">Then $12.99/month. Cancel anytime.</p>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -174,11 +174,11 @@ export function SignupForm() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-slate-200">Full Name</FormLabel>
+                  <FormLabel className="text-[hsl(var(--foreground))]">Full Name</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="John Doe"
-                      className="h-11 border-slate-700 bg-slate-950/80 text-slate-50 placeholder:text-slate-500 focus-visible:ring-cyan-400 focus-visible:ring-offset-slate-900"
+                      className="h-11 border-[hsl(var(--border))] bg-[rgba(235,232,226,0.95)] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-[rgb(243,240,234)]"
                       {...field}
                     />
                   </FormControl>
@@ -191,11 +191,11 @@ export function SignupForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-slate-200">Email</FormLabel>
+                  <FormLabel className="text-[hsl(var(--foreground))]">Email</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="name@example.com"
-                      className="h-11 border-slate-700 bg-slate-950/80 text-slate-50 placeholder:text-slate-500 focus-visible:ring-cyan-400 focus-visible:ring-offset-slate-900"
+                      className="h-11 border-[hsl(var(--border))] bg-[rgba(235,232,226,0.95)] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-[rgb(243,240,234)]"
                       {...field}
                     />
                   </FormControl>
@@ -208,10 +208,10 @@ export function SignupForm() {
               name="role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-slate-200">Role</FormLabel>
+                  <FormLabel className="text-[hsl(var(--foreground))]">Role</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger className="h-11 border-slate-700 bg-slate-950/80 text-slate-50 focus-visible:ring-cyan-400 focus-visible:ring-offset-slate-900">
+                      <SelectTrigger className="h-11 border-[hsl(var(--border))] bg-[rgba(235,232,226,0.95)] text-[hsl(var(--foreground))] focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-[rgb(243,240,234)]">
                         <SelectValue placeholder="Select your role" />
                       </SelectTrigger>
                     </FormControl>
@@ -232,12 +232,12 @@ export function SignupForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-slate-200">Password</FormLabel>
+                  <FormLabel className="text-[hsl(var(--foreground))]">Password</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
                       placeholder="••••••••"
-                      className="h-11 border-slate-700 bg-slate-950/80 text-slate-50 placeholder:text-slate-500 focus-visible:ring-cyan-400 focus-visible:ring-offset-slate-900"
+                      className="h-11 border-[hsl(var(--border))] bg-[rgba(235,232,226,0.95)] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-[rgb(243,240,234)]"
                       {...field}
                     />
                   </FormControl>
@@ -250,12 +250,12 @@ export function SignupForm() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-slate-200">Confirm Password</FormLabel>
+                  <FormLabel className="text-[hsl(var(--foreground))]">Confirm Password</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
                       placeholder="••••••••"
-                      className="h-11 border-slate-700 bg-slate-950/80 text-slate-50 placeholder:text-slate-500 focus-visible:ring-cyan-400 focus-visible:ring-offset-slate-900"
+                      className="h-11 border-[hsl(var(--border))] bg-[rgba(235,232,226,0.95)] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-[rgb(243,240,234)]"
                       {...field}
                     />
                   </FormControl>
@@ -267,15 +267,15 @@ export function SignupForm() {
           <CardFooter className="flex flex-col gap-3">
             <Button
               type="submit"
-              className="h-12 w-full bg-gradient-to-r from-cyan-400 to-emerald-400 text-[15px] font-semibold text-slate-950 transition-all hover:from-cyan-300 hover:to-emerald-300"
+              className="h-12 w-full bg-[hsl(var(--primary))] text-[15px] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_12px_30px_rgba(117,191,36,0.22)] transition-all hover:bg-[hsl(var(--primary)/0.92)]"
               disabled={isSubmitting}
             >
               {isSubmitting ? <Spinner size="sm" /> : 'Sign Up & Start Trial'}
             </Button>
-            <p className="text-center text-xs text-slate-400">No charge today. Secure checkout via Stripe.</p>
-            <p className="text-center text-sm text-slate-300">
+            <p className="text-center text-xs text-[hsl(var(--muted-foreground))]">No charge today. Secure checkout via Stripe.</p>
+            <p className="text-center text-sm text-[hsl(var(--muted-foreground))]">
               Already have an account?{' '}
-              <Button asChild variant="link" className="h-auto px-1 py-0 text-cyan-300 hover:text-cyan-200">
+              <Button asChild variant="link" className="h-auto px-1 py-0 text-[hsl(var(--primary))] hover:text-[hsl(var(--foreground))]">
                 <Link href="/login">Sign In</Link>
               </Button>
             </p>

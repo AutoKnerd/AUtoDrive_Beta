@@ -105,9 +105,9 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="bg-card/80 backdrop-blur-sm">
+    <Card className="border-[hsl(var(--border))] bg-[linear-gradient(180deg,rgba(26,24,17,0.96),rgba(18,17,12,0.92))] text-[hsl(var(--card-foreground))] shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-center text-xl font-semibold tracking-tight">Sign in to your account</CardTitle>
+        <CardTitle className="text-center text-xl font-semibold tracking-tight text-[hsl(var(--accent))]">Sign in to your account</CardTitle>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -117,9 +117,13 @@ export function LoginForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel className="text-[hsl(var(--foreground))]">Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="name@example.com" {...field} />
+                    <Input
+                      placeholder="name@example.com"
+                      className="border-[hsl(var(--border))] bg-[rgba(232,226,206,0.04)] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-[hsl(var(--background))]"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -131,18 +135,23 @@ export function LoginForm() {
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between">
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="text-[hsl(var(--foreground))]">Password</FormLabel>
                     <button
                       type="button"
                       onClick={handleForgotPassword}
                       disabled={isSubmitting || isResettingPassword}
-                      className="text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                      className="text-xs font-medium text-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isResettingPassword ? 'Sending...' : 'Forgot password?'}
                     </button>
                   </div>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      className="border-[hsl(var(--border))] bg-[rgba(232,226,206,0.04)] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-[hsl(var(--background))]"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -150,7 +159,11 @@ export function LoginForm() {
             />
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              className="w-full border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_10px_30px_rgba(117,191,36,0.28)] transition-transform duration-200 hover:translate-y-[-1px] hover:bg-[hsl(var(--primary)/0.9)]"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? <Spinner size="sm" /> : 'Sign In'}
             </Button>
           </CardFooter>

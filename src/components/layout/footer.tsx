@@ -15,7 +15,7 @@ export function Footer() {
     }, []);
 
     return (
-        <footer className="p-4 text-center text-xs text-muted-foreground border-t">
+        <footer className="border-t border-[rgba(232,226,206,0.12)] bg-black p-4 text-center text-xs text-muted-foreground">
             <Link href="/privacy" className="hover:text-primary underline-offset-4 hover:underline">Privacy Policy</Link>
             <span className="mx-2">|</span>
             <span suppressHydrationWarning className="inline-block h-4">
