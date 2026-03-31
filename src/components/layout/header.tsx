@@ -76,7 +76,7 @@ export function Header() {
               ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
               : 'text-[#d7c4ff] hover:bg-[#7B2EFF]/16'
           )}
-        >Shop</Link>
+        >Tools</Link>
         <Link
           href={trainingSurfaceHref}
           className={cn(
