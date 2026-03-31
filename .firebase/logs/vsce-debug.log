@@ -54230,3 +54230,41 @@ For CI servers and headless environments, generate a new token with firebase log
 For CI servers and headless environments, generate a new token with firebase login:ci
 [error] [Firebase Plugin] error:  {}
 [info] [Firebase Plugin] Stopping Data Connect toolkit
+[debug] [2026-03-31T02:53:05.432Z] [Firebase Plugin] Activating Firebase extension.
+[debug] [2026-03-31T02:53:06.313Z] [Firebase Plugin] requireAuthWrapper
+[debug] [2026-03-31T02:53:06.313Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-31T02:53:06.313Z] > authorizing via signed-in user (andrew@autoknerd.com)
+[debug] [2026-03-31T02:53:06.314Z] Checked if tokens are valid: false, expires at: 1773700830435
+[debug] [2026-03-31T02:53:06.314Z] Checked if tokens are valid: false, expires at: 1773700830435
+[debug] [2026-03-31T02:53:06.314Z] > refreshing access token with scopes: []
+[debug] [2026-03-31T02:53:06.315Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-31T02:53:06.315Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-31T02:53:06.317Z] [Firebase Plugin] VSCode notification server listening on port 40001
+[info] [Firebase Plugin] Starting Data Connect toolkit (version 3.2.1) on port 50001
+[debug] [2026-03-31T02:53:06.443Z] 'fdc build' failed with error: Unable to build your Data Connect schema and connectors (exit code 1): E0330 22:53:06.442885    5000 cmd.go:43] Error loading data connect config: could not find dataconnect.yaml in `/Users/autoknerd/Desktop/autodrive-dev/dataconnect`
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"'fdc build' failed with error: Unable to build your Data Connect schema and connectors (exit code 1): E0330 22:53:06.442885    5000 cmd.go:43] Error loading data connect config: could not find dataconnect.yaml in `/Users/autoknerd/Desktop/autodrive-dev/dataconnect`\n"}}
+[debug] [2026-03-31T02:53:06.444Z] Ignoring unsupported arg: auto_download {"metadata":{"emulator":{"name":"dataconnect"},"message":"Ignoring unsupported arg: auto_download"}}
+[debug] [2026-03-31T02:53:06.444Z] Ignoring unsupported arg: port {"metadata":{"emulator":{"name":"dataconnect"},"message":"Ignoring unsupported arg: port"}}
+[debug] [2026-03-31T02:53:06.444Z] Starting Data Connect Emulator with command {"binary":"/Users/autoknerd/.cache/firebase/emulators/dataconnect-emulator-3.2.1","args":["--logtostderr","-v=2","dev","--listen=localhost:50001","--config_dir=/Users/autoknerd/Desktop/autodrive-dev/dataconnect","--enable_output_schema_extensions=true","--enable_output_generated_sdk=true"],"optionalArgs":["listen","config_dir","enable_output_schema_extensions","enable_output_generated_sdk"],"joinArgs":true,"shell":false,"port":9399} {"metadata":{"emulator":{"name":"dataconnect"},"message":"Starting Data Connect Emulator with command {\"binary\":\"/Users/autoknerd/.cache/firebase/emulators/dataconnect-emulator-3.2.1\",\"args\":[\"--logtostderr\",\"-v=2\",\"dev\",\"--listen=localhost:50001\",\"--config_dir=/Users/autoknerd/Desktop/autodrive-dev/dataconnect\",\"--enable_output_schema_extensions=true\",\"--enable_output_generated_sdk=true\"],\"optionalArgs\":[\"listen\",\"config_dir\",\"enable_output_schema_extensions\",\"enable_output_generated_sdk\"],\"joinArgs\":true,\"shell\":false,\"port\":9399}"}}
+[info] i  dataconnect: Data Connect Emulator logging to dataconnect-debug.log {"metadata":{"emulator":{"name":"dataconnect"},"message":"Data Connect Emulator logging to dataconnect-debug.log"}}
+[debug] [2026-03-31T02:53:06.456Z] E0330 22:53:06.455551    5003 dev.go:83] Failed to load initial config from "/Users/autoknerd/Desktop/autodrive-dev/dataconnect": could not find dataconnect.yaml in `/Users/autoknerd/Desktop/autodrive-dev/dataconnect`
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"E0330 22:53:06.455551    5003 dev.go:83] Failed to load initial config from \"/Users/autoknerd/Desktop/autodrive-dev/dataconnect\": could not find dataconnect.yaml in `/Users/autoknerd/Desktop/autodrive-dev/dataconnect`\n"}}
+[debug] [2026-03-31T02:53:06.456Z] E0330 22:53:06.456345    5003 watch.go:116] watchAllDir unable to walk dir `/Users/autoknerd/Desktop/autodrive-dev/dataconnect`: lstat /Users/autoknerd/Desktop/autodrive-dev/dataconnect: no such file or directory
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"E0330 22:53:06.456345    5003 watch.go:116] watchAllDir unable to walk dir `/Users/autoknerd/Desktop/autodrive-dev/dataconnect`: lstat /Users/autoknerd/Desktop/autodrive-dev/dataconnect: no such file or directory\n"}}
+[debug] [2026-03-31T02:53:06.457Z] I0330 22:53:06.457184    5003 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50001
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0330 22:53:06.457184    5003 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50001\n"}}
+[debug] [2026-03-31T02:53:06.552Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-03-31T02:53:06.552Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] [Firebase Plugin] requireAuth error: Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] [Firebase Plugin] error:  {}
+[debug] [2026-03-31T02:53:16.458Z] E0330 22:53:16.458003    5003 watch.go:40] Failed to load config from "/Users/autoknerd/Desktop/autodrive-dev/dataconnect": could not find dataconnect.yaml in `/Users/autoknerd/Desktop/autodrive-dev/dataconnect`
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"E0330 22:53:16.458003    5003 watch.go:40] Failed to load config from \"/Users/autoknerd/Desktop/autodrive-dev/dataconnect\": could not find dataconnect.yaml in `/Users/autoknerd/Desktop/autodrive-dev/dataconnect`\n"}}
+[info] [Firebase Plugin] Stopping Data Connect toolkit
