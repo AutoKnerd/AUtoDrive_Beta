@@ -11,25 +11,14 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 export function Header() {
-  const { user, originalUser } = useAuth();
+  const { user } = useAuth();
   const pathname = usePathname();
   const isToolsSurface = pathname?.startsWith('/tools');
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
-  const isDeveloperPreviewUser = Boolean(
-    user?.role === 'Developer'
-    || user?.role === 'Admin'
-    || originalUser?.role === 'Developer'
-    || originalUser?.role === 'Admin'
-  );
-  const hasGiftedBothSurfaces = Boolean(
-    (user as any)?.toolboxGiftedFullAccess
-    && ((user as any)?.autoDriveCxGiftedAccess || hasActiveAutoDriveCx)
-  );
-  const shouldUseNormalToggle = hasActiveAutoDriveCx || isDeveloperPreviewUser || hasGiftedBothSurfaces;
   const shouldShowSurfaceToggle = Boolean(user);
   const [showAutoDriveBadgePulse, setShowAutoDriveBadgePulse] = useState(false);
 
-  const trainingSurfaceHref = shouldUseNormalToggle ? '/' : 'https://app.autodrivecx.com/signup';
+  const trainingSurfaceHref = '/';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
@@ -66,7 +55,7 @@ export function Header() {
           showAutoDriveBadgePulse && 'animate-pulse ring-2 ring-[#63e36f]/45',
           className
         )}
-        title={shouldUseNormalToggle ? 'Open AutoDriveCX dashboard' : 'Start AutoDriveCX'}
+        title="Open training dashboard"
       >
         <Link
           href="/tools"

@@ -306,7 +306,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [canRetakeRecommendedTesting, setCanRetakeRecommendedTesting] = useState(false);
   const [canUseNewRecommendedTesting, setCanUseNewRecommendedTesting] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
-  const { isTouring, setUser, originalUser } = useAuth();
+  const { isTouring, setUser } = useAuth();
   const pathname = usePathname();
   const [showTourWelcome, setShowTourWelcome] = useState(false);
   const [showSprocketTour, setShowSprocketTour] = useState(false);
@@ -687,20 +687,8 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const freshUpAvailable = user.freshUpAvailable === true;
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
   const upMeterProgress = getUpMeterProgress(freshUpMeter);
-  const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
-  const isDeveloperPreviewUser = Boolean(
-    user?.role === 'Developer'
-    || user?.role === 'Admin'
-    || originalUser?.role === 'Developer'
-    || originalUser?.role === 'Admin'
-  );
-  const hasGiftedBothSurfaces = Boolean(
-    (user as any)?.toolboxGiftedFullAccess
-    && ((user as any)?.autoDriveCxGiftedAccess || hasActiveAutoDriveCx)
-  );
-  const shouldUseNormalToggle = hasActiveAutoDriveCx || isDeveloperPreviewUser || hasGiftedBothSurfaces;
   const shouldShowSurfaceToggle = true;
-  const trainingSurfaceHref = shouldUseNormalToggle ? '/' : 'https://app.autodrivecx.com/signup';
+  const trainingSurfaceHref = '/';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
 
@@ -838,7 +826,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           )}
           prefetch={false}
         >
-          AutoDriveCX
+          Drive
         </Link>
         <Link
           href="/tools"
@@ -849,7 +837,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
               : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
           )}
         >
-          AutoShopCX
+          Tools
         </Link>
       </div>
     );

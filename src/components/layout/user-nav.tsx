@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Message, managerialRoles } from '@/lib/definitions';
+import { User, Message } from '@/lib/definitions';
 import { useAuth } from '@/hooks/use-auth';
 import { getMessagesForUser } from '@/lib/data.client';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,7 +20,6 @@ import { LogOut, User as UserIcon, MessageSquare, CreditCard, Undo2, Home, BarCh
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AvatarSoundRing } from '@/components/profile/avatar-sound-ring';
 import { cn } from '@/lib/utils';
-import { hasDealershipAssignment } from '@/lib/billing/access';
 
 function MessageItem({ message }: { message: Message }) {
     const [relativeTime, setRelativeTime] = useState('');
@@ -199,13 +198,9 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
     }, [avatarScores]);
 
     const trainingDashboardPath = useMemo(() => {
-        const isAssigned = hasDealershipAssignment(user);
-        if (!isAssigned) return '/';
-
-        if (user.role === 'Owner') return '/dealer/owner';
-        if (managerialRoles.includes(user.role)) return '/dealer/gm';
-        return '/dealer/me';
-    }, [user]);
+        if (user.role === 'Developer' || user.role === 'Admin') return '/developer';
+        return '/';
+    }, [user.role]);
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleMessagesDialogOpen}>
