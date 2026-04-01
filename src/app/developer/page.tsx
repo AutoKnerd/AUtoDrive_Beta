@@ -61,7 +61,15 @@ import { CONVERSATION_TEMPO_PROFILES } from '@/config/conversationTempoProfiles'
 import { buildConsultantOutreachLink } from '@/lib/consultant-share-links';
 
 type DashboardMode = 'role_based' | 'single_user';
-type SectionId = 'overview' | 'access' | 'organizations' | 'features' | 'consultants' | 'tour_emails' | 'operations' | 'sandbox' | 'danger';
+type SectionId =
+  | 'dashboard'
+  | 'people_access'
+  | 'dealerships'
+  | 'revenue_growth'
+  | 'product_controls'
+  | 'monitoring'
+  | 'sandbox'
+  | 'danger';
 type ToolId =
   | 'create_user'
   | 'edit_user'
@@ -121,53 +129,61 @@ const BENCHMARK_PRESET: LiveCxScores = {
 };
 
 const SECTION_LABELS: Record<SectionId, string> = {
-  overview: 'Overview',
-  access: 'Access',
-  organizations: 'Organizations',
-  features: 'Programs & Features',
-  consultants: 'AK Consultants',
-  tour_emails: 'Unlock Emails',
-  operations: 'Operations',
+  dashboard: 'Dashboard',
+  people_access: 'People & Access',
+  dealerships: 'Dealerships',
+  revenue_growth: 'Revenue & Growth',
+  product_controls: 'Product Controls',
+  monitoring: 'Monitoring',
   sandbox: 'Sandbox',
   danger: 'Danger Zone',
 };
 
 const SECTION_DESCRIPTIONS: Record<SectionId, string> = {
-  overview: 'System-level pulse and quick actions.',
-  access: 'Manage users, roles, invitations, and assignments.',
-  organizations: 'Manage dealerships, groups, and billing settings.',
-  features: 'Configure PPP and controlled feature rollouts.',
-  consultants: 'Consultant subscription dashboards and Stripe-backed sales endpoints.',
-  tour_emails: 'Captured emails from Signal Mapper free-tool unlock submissions.',
-  operations: 'Watchlists, exports, and diagnostics.',
+  dashboard: 'System pulse, quick actions, and the most common admin jumps.',
+  people_access: 'Manage users, roles, invitations, assignments, and access changes.',
+  dealerships: 'Create dealerships and manage dealership-level settings.',
+  revenue_growth: 'Consultant performance, public links, lead capture, and growth surfaces.',
+  product_controls: 'Feature access, PPP configuration, and product-level controls.',
+  monitoring: 'Operational watchlists, activity streams, exports, and diagnostics.',
   sandbox: 'Safe preview tools for impersonation and CX simulation.',
   danger: 'High-risk operations with explicit confirmation.',
 };
 
 const SECTION_ICONS: Record<SectionId, ComponentType<{ className?: string }>> = {
-  overview: Home,
-  access: Users,
-  organizations: Building2,
-  features: Settings2,
-  consultants: BarChart3,
-  tour_emails: Users,
-  operations: Activity,
+  dashboard: Home,
+  people_access: Users,
+  dealerships: Building2,
+  revenue_growth: BarChart3,
+  product_controls: Settings2,
+  monitoring: Activity,
   sandbox: FlaskConical,
   danger: AlertTriangle,
 };
 
-const TOOLS: Array<{ id: ToolId; label: string; section: SectionId }> = [
-  { id: 'create_user', label: 'Create User', section: 'access' },
-  { id: 'edit_user', label: 'Edit User', section: 'access' },
-  { id: 'assign_dealerships', label: 'Assign Dealerships', section: 'access' },
-  { id: 'invite', label: 'Invitations', section: 'access' },
-  { id: 'remove', label: 'Remove User', section: 'danger' },
-  { id: 'create_dealership', label: 'Create Dealership', section: 'organizations' },
-  { id: 'manage_dealerships', label: 'Dealership Settings', section: 'organizations' },
-  { id: 'ppp_global', label: 'PPP Global', section: 'features' },
+const SECTION_ORDER: SectionId[] = [
+  'dashboard',
+  'people_access',
+  'dealerships',
+  'revenue_growth',
+  'product_controls',
+  'monitoring',
+  'sandbox',
+  'danger',
 ];
 
-const BOTTOM_NAV_SECTIONS: SectionId[] = ['overview', 'access', 'organizations', 'consultants'];
+const TOOLS: Array<{ id: ToolId; label: string; section: SectionId }> = [
+  { id: 'create_user', label: 'Create User', section: 'people_access' },
+  { id: 'edit_user', label: 'Edit User', section: 'people_access' },
+  { id: 'assign_dealerships', label: 'Assign Dealerships', section: 'people_access' },
+  { id: 'invite', label: 'Invitations', section: 'people_access' },
+  { id: 'remove', label: 'Remove User', section: 'danger' },
+  { id: 'create_dealership', label: 'Create Dealership', section: 'dealerships' },
+  { id: 'manage_dealerships', label: 'Dealership Settings', section: 'dealerships' },
+  { id: 'ppp_global', label: 'PPP Global', section: 'product_controls' },
+];
+
+const BOTTOM_NAV_SECTIONS: SectionId[] = ['dashboard', 'people_access', 'dealerships', 'revenue_growth', 'product_controls', 'monitoring', 'sandbox'];
 const SANDBOX_SOURCE_TYPES: Array<{ value: FreshUpSandboxConfig['sourceType']; label: string }> = [
   { value: 'procedural', label: 'Procedural Customer' },
   { value: 'signature', label: 'Signature Scenario' },
@@ -392,7 +408,7 @@ export default function DeveloperPage() {
   const [allDealerships, setAllDealerships] = useState<Dealership[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  const [activeSection, setActiveSection] = useState<SectionId>('overview');
+  const [activeSection, setActiveSection] = useState<SectionId>('dashboard');
   const [activeTool, setActiveTool] = useState<ToolId>('create_user');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -1190,13 +1206,13 @@ export default function DeveloperPage() {
   }, [refreshData, selectedToolboxDealership?.name, toast, toolboxDealershipAccessEnabled, toolboxDealershipId]);
 
   useEffect(() => {
-    if (activeSection === 'consultants') {
+    if (activeSection === 'revenue_growth') {
       void loadConsultantMetrics();
     }
   }, [activeSection, loadConsultantMetrics]);
 
   useEffect(() => {
-    if (activeSection === 'tour_emails') {
+    if (activeSection === 'revenue_growth') {
       void loadSignalMapperUnlocks();
     }
   }, [activeSection, loadSignalMapperUnlocks]);
@@ -2502,7 +2518,7 @@ export default function DeveloperPage() {
     return <ManageDealershipForm dealerships={allDealerships} onDealershipManaged={refreshData} />;
   };
 
-  const renderOverview = () => (
+  const renderDashboard = () => (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
@@ -2533,17 +2549,18 @@ export default function DeveloperPage() {
       <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Jump directly to high-frequency workflows.</CardDescription>
+          <CardDescription>Jump directly to the most common admin workflows.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => goToSection('access', 'create_user')}>Create User</Button>
-          <Button variant="outline" onClick={() => goToSection('access', 'invite')}>Send Invitation</Button>
-          <Button variant="outline" onClick={() => goToSection('organizations', 'create_dealership')}>Create Dealership</Button>
-          <Button variant="outline" onClick={() => goToSection('features', 'ppp_global')}>PPP Global Setting</Button>
+          <Button variant="outline" onClick={() => goToSection('people_access', 'create_user')}>Create User</Button>
+          <Button variant="outline" onClick={() => goToSection('people_access', 'invite')}>Send Invitation</Button>
+          <Button variant="outline" onClick={() => goToSection('dealerships', 'create_dealership')}>Create Dealership</Button>
+          <Button variant="outline" onClick={() => goToSection('product_controls', 'ppp_global')}>PPP Global Setting</Button>
+          <Button variant="outline" onClick={() => goToSection('revenue_growth')}>Consultant Metrics</Button>
+          <Button variant="outline" onClick={() => goToSection('monitoring')}>Open Monitoring</Button>
           <Button variant="outline" onClick={() => goToSection('sandbox')}>Open Sandbox</Button>
         </CardContent>
       </Card>
-      {renderWatchlistCard()}
     </div>
   );
 
@@ -2579,9 +2596,9 @@ export default function DeveloperPage() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>AK Consultants</CardTitle>
+          <CardTitle>Consultant Revenue</CardTitle>
           <CardDescription>
-            Open consultant performance dashboards and Stripe-powered API outputs.
+            Open consultant performance dashboards and Stripe-backed revenue views.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -2837,49 +2854,77 @@ export default function DeveloperPage() {
     );
   };
 
+  const renderRevenueGrowth = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Growth Links</CardTitle>
+          <CardDescription>Public and internal links used for acquisition and conversion testing.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border p-3">
+            <p className="text-sm font-medium">Testing Link: Signup Page</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Open or copy the signup flow used to test Stripe checkout and conversion paths.
+            </p>
+            <div className="mt-3 flex flex-wrap items-end gap-2">
+              <Button type="button" variant="outline" onClick={handleCopyTempProSignupLink}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Link
+              </Button>
+              <Button type="button" variant="outline" onClick={() => window.open(tempProSignupUrl, '_blank', 'noopener,noreferrer')}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Open
+              </Button>
+            </div>
+            <div className="mt-3 rounded bg-muted px-3 py-2 text-xs break-all">
+              {tempProSignupUrl}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      {renderConsultants()}
+      {renderTourEmails()}
+      <AutoForgeLeadsPanel />
+    </div>
+  );
+
+  const renderMonitoring = () => (
+    <div className="space-y-6">
+      {renderWatchlistCard()}
+      <SprocketActivityPanel />
+      <Card>
+        <CardHeader>
+          <CardTitle>System Diagnostics</CardTitle>
+          <CardDescription>Operational checks and health endpoints.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Admin health endpoints and deeper diagnostics can be linked here as this surface expands.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderMainSection = () => {
-    if (activeSection === 'overview') return renderOverview();
-    if (activeSection === 'consultants') return renderConsultants();
-    if (activeSection === 'tour_emails') return renderTourEmails();
+    if (activeSection === 'dashboard') return renderDashboard();
+    if (activeSection === 'revenue_growth') return renderRevenueGrowth();
+    if (activeSection === 'monitoring') return renderMonitoring();
     if (activeSection === 'sandbox') return renderSandbox();
 
     const sectionTools = TOOLS.filter((tool) => tool.section === activeSection || (activeSection === 'danger' && tool.id === 'remove'));
 
     return (
       <div className="space-y-6">
-        {(activeSection === 'operations') && renderWatchlistCard()}
-        {activeSection === 'operations' && <AutoForgeLeadsPanel />}
-        {activeSection === 'operations' && <SprocketActivityPanel />}
-        {activeSection !== 'operations' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{SECTION_LABELS[activeSection]} Tools</CardTitle>
-              <CardDescription>Select a workflow to open the corresponding management panel.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {activeSection === 'access' && (
-                <div className="mb-6 rounded-md border p-3">
-                  <p className="text-sm font-medium">Testing Link: Signup Page</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Open or copy the signup flow to test Stripe checkout.
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-end gap-2">
-                    <Button type="button" variant="outline" onClick={handleCopyTempProSignupLink}>
-                      <Copy className="mr-2 h-4 w-4" />
-                      Copy Link
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => window.open(tempProSignupUrl, '_blank', 'noopener,noreferrer')}>
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Open
-                    </Button>
-                  </div>
-                  <div className="mt-3 rounded bg-muted px-3 py-2 text-xs break-all">
-                    {tempProSignupUrl}
-                  </div>
-                </div>
-              )}
-              {activeSection === 'features' && (
-                <div className="mb-6 space-y-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>{SECTION_LABELS[activeSection]} Tools</CardTitle>
+            <CardDescription>Select a workflow to open the corresponding management panel.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {activeSection === 'product_controls' && (
+              <div className="mb-6 space-y-3">
                   <div className="rounded-md border p-3">
                     <p className="text-sm font-medium">Gift AutoShop Access</p>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -2994,37 +3039,22 @@ export default function DeveloperPage() {
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-              <div className="mb-6 flex flex-wrap gap-2">
-                {sectionTools.map((tool) => (
-                  <Button
-                    key={tool.id}
-                    variant={activeTool === tool.id ? 'default' : 'outline'}
-                    onClick={() => setActiveTool(tool.id)}
-                  >
-                    {tool.label}
-                  </Button>
-                ))}
               </div>
-              {dataLoading ? <Spinner /> : renderToolPanel()}
-            </CardContent>
-          </Card>
-        )}
-
-        {activeSection === 'operations' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>System Diagnostics</CardTitle>
-              <CardDescription>Operational checks and health endpoints.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Admin health endpoints and deeper diagnostics can be linked here as this surface expands.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+            )}
+            <div className="mb-6 flex flex-wrap gap-2">
+              {sectionTools.map((tool) => (
+                <Button
+                  key={tool.id}
+                  variant={activeTool === tool.id ? 'default' : 'outline'}
+                  onClick={() => setActiveTool(tool.id)}
+                >
+                  {tool.label}
+                </Button>
+              ))}
+            </div>
+            {dataLoading ? <Spinner /> : renderToolPanel()}
+          </CardContent>
+        </Card>
 
         {activeSection === 'danger' && (
           <Card className="border-destructive/40">
@@ -3058,7 +3088,7 @@ export default function DeveloperPage() {
               <div>
                 <CardTitle className="text-2xl text-[#8DC63F]">Developer Console</CardTitle>
                 <CardDescription className="text-[#8DC63F]/80">
-                  Structured admin controls across access, organizations, features, operations, and sandboxing.
+                  Organized around people, dealerships, revenue, product controls, monitoring, and sandboxing.
                 </CardDescription>
               </div>
             </div>
@@ -3072,10 +3102,10 @@ export default function DeveloperPage() {
           <Card className="hidden md:block">
             <CardHeader>
               <CardTitle>Sections</CardTitle>
-              <CardDescription>Navigate by workflow intent.</CardDescription>
+              <CardDescription>Navigate by admin job to be done.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {(Object.keys(SECTION_LABELS) as SectionId[]).map((section) => {
+              {SECTION_ORDER.map((section) => {
                 const Icon = SECTION_ICONS[section];
                 return (
                   <Button
@@ -3108,10 +3138,10 @@ export default function DeveloperPage() {
         <SheetContent side="left" className="w-[88vw] max-w-sm p-0">
           <SheetHeader className="border-b p-4">
             <SheetTitle>Developer Sections</SheetTitle>
-            <SheetDescription>Choose where you want to work.</SheetDescription>
+            <SheetDescription>Choose the admin area you want to work in.</SheetDescription>
           </SheetHeader>
           <div className="space-y-2 p-4">
-            {(Object.keys(SECTION_LABELS) as SectionId[]).map((section) => {
+            {SECTION_ORDER.map((section) => {
               const Icon = SECTION_ICONS[section];
               return (
                 <Button
@@ -3130,7 +3160,7 @@ export default function DeveloperPage() {
       </Sheet>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-2 backdrop-blur md:hidden">
-        <div className="grid grid-cols-4 gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {BOTTOM_NAV_SECTIONS.map((section) => {
             const Icon = SECTION_ICONS[section];
             return (
@@ -3138,7 +3168,7 @@ export default function DeveloperPage() {
                 key={section}
                 variant={activeSection === section ? 'default' : 'outline'}
                 size="sm"
-                className="h-10"
+                className="h-10 shrink-0"
                 onClick={() => goToSection(section)}
               >
                 <Icon className="mr-1 h-4 w-4" />

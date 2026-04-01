@@ -559,6 +559,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
   const lessonStarted = useRef(false);
   const finalizingLesson = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const promptLessonRole = lesson.role === 'global' && user?.role ? user.role : lesson.role;
   const aisRoleType = useMemo(
@@ -810,6 +811,11 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (isLoading || inputDisabled || isCompleted || (isFreshUp && !freshUpStarted)) return;
+    inputRef.current?.focus();
+  }, [isLoading, inputDisabled, isCompleted, isFreshUp, freshUpStarted]);
 
   useEffect(() => {
     async function fetchScores() {
@@ -1799,6 +1805,7 @@ export function LessonView({ lesson, isRecommended, isFreshUp = false, freshUpPr
                     <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
                         <Input
                             id="message"
+                            ref={inputRef}
                             placeholder="Type your response..."
                             className="flex-1"
                             autoComplete="off"

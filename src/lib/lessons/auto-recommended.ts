@@ -161,7 +161,14 @@ function pickScenario(role: LessonRole, trait: CxTrait, key: string): string {
   const metrics = SUCCESS_METRICS[trait];
   const successMetric = metrics[hashSeed(`${role}:${trait}:${key}:success`) % metrics.length];
 
-  return `${templates[index]} ${customerProfile} ${channelConstraint} Success target: ${successMetric} Context: ${role} role, customer-first standards, and ethical communication.`;
+  return [
+    templates[index],
+    '',
+    `${customerProfile} ${channelConstraint}`,
+    '',
+    `Your goal: ${successMetric}`,
+    `Keep the interaction grounded in the ${role} role, customer-first standards, and ethical communication.`,
+  ].join('\n');
 }
 
 function pickDailyTitle(role: LessonRole, trait: CxTrait, key: string): string {
@@ -236,7 +243,12 @@ export function buildUniqueRecommendedTestingLesson(
     role,
     associatedTrait: trait,
     category: pickCategory(role, trait, entropyKey),
-    customScenario: `${baseScenario} Additional constraint: ${twist} Scenario ID: ${entropyKey}.`,
+    customScenario: [
+      baseScenario,
+      '',
+      `Additional constraint: ${twist}`,
+      `Scenario ID: ${entropyKey}.`,
+    ].join('\n'),
     createdByUserId: 'system-ai-testing',
   };
 }

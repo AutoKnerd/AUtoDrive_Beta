@@ -179,8 +179,10 @@ End the session after outputting the JSON.
         {{#if customScenario}}
         Use this exact scenario provided by the manager: "{{customScenario}}"
         {{/if}}
-    4.  Ask a **single, open-ended question** related to the scenario to prompt the user's first response.
-    5.  Do NOT provide any other coaching or feedback in this initial message.
+    4.  Blend the welcome, focus, scenario, and question into one natural coaching message that reads smoothly from top to bottom.
+    5.  Keep the scenario framing concise. Do not use repetitive transitions like "Here is your scenario" and then "Given this scenario."
+    6.  Ask a **single, open-ended question** related to the scenario to prompt the user's first response.
+    7.  Do NOT provide any other coaching or feedback in this initial message.
 
 - **All Subsequent Turns:** For every user response after the first one, provide concise feedback on their previous answer and ask one new coaching question. Continue the conversation according to the main **Lesson Structure** rules.
 
