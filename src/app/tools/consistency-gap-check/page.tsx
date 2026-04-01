@@ -507,6 +507,17 @@ export default function ConsistencyGapCheckPage() {
           <CardContent className="space-y-2 text-sm text-[#c8d9f3]">
             <p>Rate each execution category once. This scan is built for live dealership use and finishes in under two minutes.</p>
             <p>Primary output gives one strongest behavior, one biggest gap, one impact, one fix, and one next move.</p>
+            <p>
+              Want to find your gaps?{' '}
+              <a
+                href="https://app.autodrivecx.com/tools/consistency-gap-check"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[#7eeeff] underline underline-offset-4 hover:text-[#9af5ff]"
+              >
+                https://app.autodrivecx.com/tools/consistency-gap-check
+              </a>
+            </p>
           </CardContent>
         </Card>
 
