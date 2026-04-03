@@ -13,6 +13,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
     const showTourFooter = isTouring && pathname !== '/login' && pathname !== '/register';
+    const isAutoknerdSurface = Boolean(pathname?.startsWith('/Autoknerd'));
 
     useEffect(() => {
         const resolved = parseConsultantFromURL(`${pathname}${window.location.search}`);
@@ -28,7 +29,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="relative flex min-h-screen flex-col">
             <div className="flex-1">{children}</div>
-            {!loading && (showTourFooter ? <TourFooter /> : <Footer />)}
+            {!loading && !isAutoknerdSurface && (showTourFooter ? <TourFooter /> : <Footer />)}
         </div>
     );
 }

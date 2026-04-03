@@ -4,6 +4,8 @@
 
 @layer base {
   :root {
+    --font-primary: 'Space Grotesk', sans-serif;
+    --font-secondary: 'Inter', sans-serif;
     --background: 207 56% 97%;
     --foreground: 220 47% 11%;
     --surface: 0 0% 100%;
@@ -100,6 +102,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-secondary);
     color-scheme: light dark;
     transition:
       background-color 180ms ease,
@@ -112,6 +115,133 @@
   }
   .dark body {
     background-image: none;
+  }
+
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined', sans-serif;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  nav,
+  nav a,
+  nav button,
+  .nav,
+  .nav a,
+  .nav button,
+  .navbar,
+  .navbar a,
+  .navbar button,
+  .header,
+  .header a,
+  .header button,
+  .title,
+  .card-title {
+    font-family: var(--font-primary);
+  }
+
+  body,
+  p,
+  span,
+  button,
+  input,
+  textarea,
+  label,
+  .ui-text,
+  .subtext {
+    font-family: var(--font-secondary);
+  }
+
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(to right, rgba(24, 26, 26, 0.4) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(24, 26, 26, 0.4) 1px, transparent 1px),
+      radial-gradient(rgba(189, 252, 0, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px, 4px 4px;
+  }
+
+  .grid-bg {
+    background-image: radial-gradient(circle at 2px 2px, #464848 1px, transparent 0);
+    background-size: 40px 40px;
+  }
+
+  .technical-grid {
+    background-image:
+      linear-gradient(to right, rgba(70, 72, 72, 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(70, 72, 72, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .glow-primary-hover:hover {
+    box-shadow: 0 0 30px rgba(189, 252, 0, 0.6);
+  }
+
+  .glass-card {
+    background: rgba(35, 38, 38, 0.6);
+    backdrop-filter: blur(20px);
+  }
+
+  .fade-in-section {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+  }
+
+  .fade-in-section.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .nav-glass {
+    background: rgba(9, 9, 11, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .scan-line {
+    background: linear-gradient(to bottom, transparent 0%, rgba(189, 252, 0, 0.08) 50%, transparent 100%);
+    height: 150px;
+    width: 100%;
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .system-connector-line {
+    background: linear-gradient(90deg, transparent, rgba(189, 252, 0, 0.15) 20%, rgba(189, 252, 0, 0.15) 80%, transparent);
+  }
+
+  .dropdown-animate {
+    transition: all 0.2s ease-out;
+    transform: translateY(10px);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .dropdown-group:hover .dropdown-animate {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .loading-shimmer {
+    background: linear-gradient(90deg, #181a1a 25%, #232626 50%, #181a1a 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
   }
 }
 
@@ -129,6 +259,58 @@
 
 .lesson-ready-pulse {
   animation: lesson-ready-pulse 2s ease-in-out infinite;
+}
+
+@keyframes autoknerd-scan {
+  0%,
+  100% {
+    opacity: 0.05;
+    transform: scaleX(0.8);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scaleX(1.1);
+  }
+}
+
+@keyframes autoknerd-system-pulse {
+  0%,
+  100% {
+    opacity: 0.03;
+  }
+  50% {
+    opacity: 0.08;
+  }
+}
+
+@keyframes autoknerd-fast-scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-autoknerd-scan {
+  animation: autoknerd-scan 4s ease-in-out infinite;
+}
+
+.animate-autoknerd-system-pulse {
+  animation: autoknerd-system-pulse 6s ease-in-out infinite;
+}
+
+.animate-autoknerd-fast-scan {
+  animation: autoknerd-fast-scan 4s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
