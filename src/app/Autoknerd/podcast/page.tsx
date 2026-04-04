@@ -347,7 +347,7 @@ export default function AutoknerdPodcastPage() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {[
               ['inventory_2', 'Performance Tooling', 'AutoShop', 'The tactical arm of the system. Access every calculator, script, and sheet mentioned in our episodes.', 'Apply it this week', '/tools', 'Launch AutoShop'],
-              ['hub', 'Core Platform', 'AutoDriveCX', 'A unified platform for monitoring behavior change and customer experience metrics in real-time.', 'Train your team', '/login?next=/', 'Explore Platform'],
+              ['hub', 'Core Platform', 'AutoDriveCX', 'A unified platform for monitoring behavior change and customer experience metrics in real-time.', 'Train your team', '/login', 'Explore Platform'],
               ['precision_manufacturing', 'Diagnostics', 'AutoForge', 'Custom dealership performance architecture. We forge high-efficiency sales teams from the ground up.', 'Fix it across the dealership', '/autoforge', 'Start Diagnostic'],
             ].map(([icon, eyebrow, title, copy, kicker, href, cta]) => (
               <div key={title} className="group flex flex-col gap-6 border border-[#464848]/20 bg-[#0d0f0f] p-8 transition-all duration-500 hover:border-[#bdfc00]">
@@ -381,7 +381,7 @@ export default function AutoknerdPodcastPage() {
             <Link href="/tools" className="bg-[#bdfc00] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#445d00] transition-transform hover:scale-[1.02] active:scale-[0.98]">
               Get This Week&apos;s Tool
             </Link>
-            <Link href="/login?next=/" className="bg-[#f4f3f3] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#0d0f0f] transition-transform hover:scale-[1.02] active:scale-[0.98]">
+            <Link href="/login" className="bg-[#f4f3f3] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#0d0f0f] transition-transform hover:scale-[1.02] active:scale-[0.98]">
               Start AutoDriveCX
             </Link>
             <Link href="/autoforge" className="border border-[#464848] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-transform hover:scale-[1.02] hover:bg-[#1d2020] active:scale-[0.98]">

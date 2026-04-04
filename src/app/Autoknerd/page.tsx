@@ -1,10 +1,44 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
+const ecosystemProducts = [
+  {
+    key: 'autoshop',
+    label: 'TOOLS',
+    title: 'AutoShop',
+    copy: 'Integrated diagnostic suite for baseline performance metrics and friction identification.',
+    image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAaQWyznSaC_YzxqCMTDx7r8IlD1ccktn7iGxRsIa_WPD-11K6hi9Y2Tfx0blIA2BTtEfGvQmctlMKvvOJ2mwrSBlHvda6U0lXDs8nY4SgJlGGutROg5MbAT-qDnQppaS_Lsbv7T9zXg8I46EO7Zb1m3rQE-6HBOaJXovqk2awvRo0bQMyg3k8HNMbt61ATGJRNhxICjGdCjFCvXbrlOjYN3ZOOjkzeBBseQqC_BMuropUWG59iQElVYv5X-MOE0P97oUWIHczvoC8')",
+    icon: null,
+  },
+  {
+    key: 'autodrivecx',
+    label: 'PLATFORM',
+    title: 'AutoDriveCX',
+    copy: 'The central nervous system. Unified behavioral training designed for scale and consistency.',
+    image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTw-h2OTfPHdg19cY-HzLdqnDuxvXj8uWO8T7EK87rJnbjPD9qZo_l8wHKzA-YF7BAWpBSIfTZaaS779w24oWVPEPfLFY7tJvy7S6hWF4UmFPDRXPiTsbsmbHolmQiXmkEgAOGfQt1S5NC3jjIki0AxGkvAjI3m2Dv9CQt-uMt5aXCsB8QtccX1n4GSFwVtYiNoaIpieyoT3rbLarb5E6P_oUELaobTdTo86pET7KEtmi0izS13KqH6l7qcKyL2tHdJx8lKL3kCwk')",
+    icon: 'psychology',
+  },
+  {
+    key: 'autoforge',
+    label: 'DEPLOYMENT',
+    title: 'AutoForge',
+    copy: 'Hardware and logic deployment for on-site execution. Hard-coding high performance into facility DNA.',
+    image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDxYDoYgM51GjeNF4Nk0qYF5cXudT1dpop9rQfWzlsjBcrGcWxS0LHB5W6sCVk0MizM3i81qkwZCzeaFEjhU8r3ab5GvWBpKQwclLwK3B4GShUMva4jcRqRlU8tog8ZQrIlWAh5LpKECme1TeeqNNxssy12S8FEPGdY-vVMi4pmIqvASiqTYWg_vroYi77x0x93W86jK-OIre7D_ts29QM0NR6DRHQIbkCVKVxIjvdrttpQKoxZkqU_g-AimrUBlEMT-PljG4bvxvQ')",
+    icon: null,
+  },
+] as const;
+
 export default function AutoknerdPage() {
+  const [activeProduct, setActiveProduct] = useState<(typeof ecosystemProducts)[number]['key']>('autodrivecx');
+  const productRefs = useRef<Record<(typeof ecosystemProducts)[number]['key'], HTMLButtonElement | null>>({
+    autoshop: null,
+    autodrivecx: null,
+    autoforge: null,
+  });
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -21,6 +55,62 @@ export default function AutoknerdPage() {
     sections.forEach((section) => observer.observe(section));
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    let frameId = 0;
+
+    const syncActiveCard = () => {
+      if (!mediaQuery.matches) {
+        setActiveProduct('autodrivecx');
+        return;
+      }
+
+      const viewportCenter = window.innerHeight * 0.5;
+      let closestKey: (typeof ecosystemProducts)[number]['key'] = 'autodrivecx';
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      ecosystemProducts.forEach((product) => {
+        const node = productRefs.current[product.key];
+        if (!node) return;
+
+        const rect = node.getBoundingClientRect();
+        const cardCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(cardCenter - viewportCenter);
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestKey = product.key;
+        }
+      });
+
+      setActiveProduct((current) => (current === closestKey ? current : closestKey));
+    };
+
+    const requestSync = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0;
+        syncActiveCard();
+      });
+    };
+
+    requestSync();
+    window.addEventListener('scroll', requestSync, { passive: true });
+    window.addEventListener('resize', requestSync);
+    mediaQuery.addEventListener('change', requestSync);
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener('scroll', requestSync);
+      window.removeEventListener('resize', requestSync);
+      mediaQuery.removeEventListener('change', requestSync);
+    };
   }, []);
 
   return (
@@ -81,55 +171,86 @@ export default function AutoknerdPage() {
               <span className="material-symbols-outlined mr-[28%] text-xs text-[#eaffb8]/30">arrow_forward</span>
             </div>
             <div className="relative z-10 grid grid-cols-1 items-center gap-8 md:grid-cols-3">
-              <div className="group flex flex-col space-y-2 opacity-80 transition-opacity hover:opacity-100">
-                <span className="px-1 text-[10px] uppercase tracking-widest text-zinc-600">TOOLS</span>
-                <div className="flex h-full flex-col border border-[#464848]/10 bg-[#121414] p-8 transition-all duration-500 hover:-translate-y-2 hover:border-[#eaffb8]/20 hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-                  <h3 className="mb-3 text-2xl">AutoShop</h3>
-                  <p className="mb-8 line-clamp-2 text-sm text-[#aaabab]">
-                    Integrated diagnostic suite for baseline performance metrics and friction identification.
-                  </p>
-                  <div className="flex h-32 items-center justify-center overflow-hidden border border-[#464848]/5 bg-black">
-                    <div
-                      className="h-full w-full bg-cover bg-center opacity-20"
-                      style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAaQWyznSaC_YzxqCMTDx7r8IlD1ccktn7iGxRsIa_WPD-11K6hi9Y2Tfx0blIA2BTtEfGvQmctlMKvvOJ2mwrSBlHvda6U0lXDs8nY4SgJlGGutROg5MbAT-qDnQppaS_Lsbv7T9zXg8I46EO7Zb1m3rQE-6HBOaJXovqk2awvRo0bQMyg3k8HNMbt61ATGJRNhxICjGdCjFCvXbrlOjYN3ZOOjkzeBBseQqC_BMuropUWG59iQElVYv5X-MOE0P97oUWIHczvoC8')" }}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="group z-20 flex scale-105 flex-col space-y-2 md:scale-[1.13]">
-                <span className="px-1 text-[10px] font-bold uppercase tracking-widest text-[#bdfc00]">PLATFORM</span>
-                <div className="relative h-full overflow-hidden border-2 border-lime-400 bg-[#232626] p-8 shadow-[0_0_60px_rgba(189,252,0,0.25)] transition-all duration-500 hover:-translate-y-4 hover:shadow-[0_0_80px_rgba(189,252,0,0.4)]">
-                  <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#eaffb8]/25 blur-3xl" />
-                  <h3 className="mb-3 text-3xl text-white">AutoDriveCX</h3>
-                  <p className="mb-8 line-clamp-2 text-base font-medium leading-relaxed text-white">
-                    The central nervous system. Unified behavioral training designed for scale and consistency.
-                  </p>
-                  <div className="relative flex h-40 items-center justify-center border border-[#eaffb8]/40 bg-black">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center opacity-70"
-                      style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTw-h2OTfPHdg19cY-HzLdqnDuxvXj8uWO8T7EK87rJnbjPD9qZo_l8wHKzA-YF7BAWpBSIfTZaaS779w24oWVPEPfLFY7tJvy7S6hWF4UmFPDRXPiTsbsmbHolmQiXmkEgAOGfQt1S5NC3jjIki0AxGkvAjI3m2Dv9CQt-uMt5aXCsB8QtccX1n4GSFwVtYiNoaIpieyoT3rbLarb5E6P_oUELaobTdTo86pET7KEtmi0izS13KqH6l7qcKyL2tHdJx8lKL3kCwk')" }}
-                    />
-                    <span className="material-symbols-outlined relative z-10 text-5xl text-[#bdfc00] drop-shadow-[0_0_20px_rgba(189,252,0,0.8)]" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>
-                      psychology
+              {ecosystemProducts.map((product) => {
+                const isActive = activeProduct === product.key;
+                const isPlatform = product.key === 'autodrivecx';
+
+                return (
+                  <button
+                    key={product.key}
+                    type="button"
+                    onClick={() => setActiveProduct(product.key)}
+                    ref={(node) => {
+                      productRefs.current[product.key] = node;
+                    }}
+                    data-product-key={product.key}
+                    className={[
+                      'group flex h-full flex-col space-y-2 text-left transition-all duration-500 ease-out',
+                      isActive
+                        ? 'z-20 scale-100 opacity-100 md:scale-[1.13]'
+                        : 'z-10 opacity-70 md:scale-[0.94] hover:opacity-100',
+                    ].join(' ')}
+                    aria-pressed={isActive}
+                  >
+                    <span
+                      className={[
+                        'px-1 text-[10px] uppercase tracking-widest transition-colors duration-500',
+                        isActive ? 'font-bold text-[#bdfc00]' : 'text-zinc-600',
+                      ].join(' ')}
+                    >
+                      {product.label}
                     </span>
-                  </div>
-                </div>
-              </div>
-              <div className="group flex flex-col space-y-2 opacity-80 transition-opacity hover:opacity-100">
-                <span className="px-1 text-[10px] uppercase tracking-widest text-zinc-600">DEPLOYMENT</span>
-                <div className="flex h-full flex-col border border-[#464848]/10 bg-[#121414] p-8 transition-all duration-500 hover:-translate-y-2 hover:border-[#eaffb8]/20 hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-                  <h3 className="mb-3 text-2xl">AutoForge</h3>
-                  <p className="mb-8 line-clamp-2 text-sm text-[#aaabab]">
-                    Hardware and logic deployment for on-site execution. Hard-coding high performance into facility DNA.
-                  </p>
-                  <div className="flex h-32 items-center justify-center overflow-hidden border border-[#464848]/5 bg-black">
                     <div
-                      className="h-full w-full bg-cover bg-center opacity-20"
-                      style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDxYDoYgM51GjeNF4Nk0qYF5cXudT1dpop9rQfWzlsjBcrGcWxS0LHB5W6sCVk0MizM3i81qkwZCzeaFEjhU8r3ab5GvWBpKQwclLwK3B4GShUMva4jcRqRlU8tog8ZQrIlWAh5LpKECme1TeeqNNxssy12S8FEPGdY-vVMi4pmIqvASiqTYWg_vroYi77x0x93W86jK-OIre7D_ts29QM0NR6DRHQIbkCVKVxIjvdrttpQKoxZkqU_g-AimrUBlEMT-PljG4bvxvQ')" }}
-                    />
-                  </div>
-                </div>
-              </div>
+                      className={[
+                        'relative flex h-full flex-col overflow-hidden p-8 transition-all duration-500 ease-out',
+                        isActive
+                          ? 'border-2 border-lime-400 bg-[#232626] shadow-[0_0_60px_rgba(189,252,0,0.25)] md:-translate-y-3 md:shadow-[0_0_80px_rgba(189,252,0,0.32)]'
+                          : 'border border-[#464848]/10 bg-[#121414] md:translate-y-3 hover:border-[#eaffb8]/20 hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]',
+                      ].join(' ')}
+                    >
+                      {isActive && <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#eaffb8]/25 blur-3xl" />}
+                      <h3 className={isActive ? 'mb-3 text-3xl text-white' : 'mb-3 text-2xl text-[#f4f3f3]'}>
+                        {product.title}
+                      </h3>
+                      <p
+                        className={[
+                          'mb-8 line-clamp-2 transition-all duration-500',
+                          isActive ? 'text-base font-medium leading-relaxed text-white' : 'text-sm text-[#aaabab]',
+                        ].join(' ')}
+                      >
+                        {product.copy}
+                      </p>
+                      <div
+                        className={[
+                          'relative flex items-center justify-center overflow-hidden bg-black transition-all duration-500',
+                          isActive ? 'h-40 border border-[#eaffb8]/40' : 'h-32 border border-[#464848]/5',
+                        ].join(' ')}
+                      >
+                        <div
+                          className={[
+                            'absolute inset-0 bg-cover bg-center transition-all duration-500',
+                            isActive ? 'opacity-70' : 'opacity-20',
+                          ].join(' ')}
+                          style={{ backgroundImage: product.image }}
+                        />
+                        {isPlatform && (
+                          <span
+                            className={[
+                              'material-symbols-outlined relative z-10 transition-all duration-500',
+                              isActive
+                                ? 'text-5xl text-[#bdfc00] drop-shadow-[0_0_20px_rgba(189,252,0,0.8)]'
+                                : 'text-4xl text-[#bdfc00]/25',
+                            ].join(' ')}
+                            style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+                          >
+                            {product.icon}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -241,7 +362,7 @@ export default function AutoknerdPage() {
                   </div>
                   <span className="material-symbols-outlined transition-transform group-hover:translate-x-2">arrow_forward</span>
                 </Link>
-                <Link className="group flex items-center justify-between border border-[#464848]/20 bg-[#0d0f0f] p-8 transition-all hover:border-[#eaffb8]/40 hover:shadow-[0_0_30px_rgba(189,252,0,0.05)]" href="/login?next=/">
+                <Link className="group flex items-center justify-between border border-[#464848]/20 bg-[#0d0f0f] p-8 transition-all hover:border-[#eaffb8]/40 hover:shadow-[0_0_30px_rgba(189,252,0,0.05)]" href="/login">
                   <div className="flex items-center space-x-8">
                     <span className="font-bold text-[#eaffb8]">02</span>
                     <span className="text-xl font-medium">Start AutoDriveCX</span>

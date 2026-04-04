@@ -204,7 +204,7 @@ export function FindYourFit() {
         secondaryHref: '/tools',
         tertiaryTitle: 'Build the operating system underneath the results',
         tertiaryDescription: 'Use AutoDriveCX to monitor behavior patterns, reinforce standards, and keep the team aligned while the larger diagnostic is underway.',
-        tertiaryHref: '/login?next=/',
+        tertiaryHref: '/login',
       };
     }
 
@@ -218,14 +218,14 @@ export function FindYourFit() {
         secondaryHref: '/tools',
         tertiaryTitle: 'Fix this across your entire team with AutoDriveCX',
         tertiaryDescription: 'When you need coaching visibility and ongoing behavior feedback, this is the layer that keeps performance from slipping.',
-        tertiaryHref: '/login?next=/',
+        tertiaryHref: '/login',
       };
     }
 
     return {
       primaryTitle: 'Start with AutoDriveCX',
       primaryDescription: 'This is what turns inconsistency into predictable performance.',
-      primaryHref: '/login?next=/',
+      primaryHref: '/login',
       secondaryTitle: 'Fix your biggest gaps in the next 7 days with AutoShop tools',
       secondaryDescription: 'Quick-deployment utility kit for immediate shop floor optimization and technician tracking.',
       secondaryHref: '/tools',

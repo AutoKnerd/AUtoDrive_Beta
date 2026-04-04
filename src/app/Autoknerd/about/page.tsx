@@ -129,7 +129,7 @@ export default function AutoknerdAboutPage() {
             <div className="absolute left-2/3 top-1/2 hidden h-0.5 w-12 -translate-y-1/2 bg-[#eaffb8]/30 md:block" />
             {[
               ['Phase 01', 'AutoShop', 'TOOLS', 'Precision instruments designed to standardize interaction and capture behavioral data in real-time.', '/tools', 'View Tools'],
-              ['Phase 02', 'AutoDriveCX', 'PLATFORM', 'The intelligence layer that converts data into visible trends and actionable coaching directives.', '/login?next=/', 'Explore Platform'],
+              ['Phase 02', 'AutoDriveCX', 'PLATFORM', 'The intelligence layer that converts data into visible trends and actionable coaching directives.', '/login', 'Explore Platform'],
               ['Phase 03', 'AutoForge', 'DEPLOYMENT', 'High-intensity execution cycles where behavior is hardened through expert-led accountability.', '/autoforge', 'See Deployment'],
             ].map(([phase, title, eyebrow, copy, href, cta], index) => (
               <div
@@ -233,7 +233,7 @@ export default function AutoknerdAboutPage() {
               <Link href="/Autoknerd/find-your-fit" className="bg-[#f4f3f3] px-8 py-5 text-lg font-bold text-[#0d0f0f] transition-all hover:bg-white">
                 Find Your Fit
               </Link>
-              <Link href="/login?next=/" className="border-2 border-[#445d00] px-8 py-5 text-lg font-bold transition-all hover:bg-[#445d00] hover:text-[#bdfc00]">
+              <Link href="/login" className="border-2 border-[#445d00] px-8 py-5 text-lg font-bold transition-all hover:bg-[#445d00] hover:text-[#bdfc00]">
                 Start AutoDriveCX
               </Link>
               <Link href="/autoforge" className="border-2 border-[#445d00] px-8 py-5 text-lg font-bold transition-all hover:bg-[#445d00] hover:text-[#bdfc00]">
