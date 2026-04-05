@@ -14,6 +14,16 @@ const ecosystemProducts = [
     href: '/tools',
     ariaLabel: 'Explore AutoShop diagnostic suite',
     cta: 'Explore Tools',
+    accentText: 'text-[#9d19ff]',
+    accentMutedText: 'text-[#9d19ff]/75',
+    accentHoverText: 'group-hover:text-[#9d19ff]',
+    accentLabelInactive: 'text-zinc-600',
+    accentBorder: 'border-[#9d19ff]',
+    accentGlow: 'shadow-[0_0_60px_rgba(157,25,255,0.26)] md:shadow-[0_0_80px_rgba(157,25,255,0.32)]',
+    accentOrb: 'bg-[#9d19ff]/20',
+    accentImageBorder: 'border-[#9d19ff]/35',
+    accentIconActive: 'text-[#9d19ff] drop-shadow-[0_0_20px_rgba(157,25,255,0.72)]',
+    accentIconInactive: 'text-[#9d19ff]/25',
     image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAaQWyznSaC_YzxqCMTDx7r8IlD1ccktn7iGxRsIa_WPD-11K6hi9Y2Tfx0blIA2BTtEfGvQmctlMKvvOJ2mwrSBlHvda6U0lXDs8nY4SgJlGGutROg5MbAT-qDnQppaS_Lsbv7T9zXg8I46EO7Zb1m3rQE-6HBOaJXovqk2awvRo0bQMyg3k8HNMbt61ATGJRNhxICjGdCjFCvXbrlOjYN3ZOOjkzeBBseQqC_BMuropUWG59iQElVYv5X-MOE0P97oUWIHczvoC8')",
     icon: null,
   },
@@ -25,6 +35,16 @@ const ecosystemProducts = [
     href: 'https://autodrivecx.com',
     ariaLabel: 'Explore AutoDriveCX platform',
     cta: 'Explore the System',
+    accentText: 'text-[#bdfc00]',
+    accentMutedText: 'text-[#bdfc00]/75',
+    accentHoverText: 'group-hover:text-[#bdfc00]',
+    accentLabelInactive: 'text-zinc-600',
+    accentBorder: 'border-lime-400',
+    accentGlow: 'shadow-[0_0_60px_rgba(189,252,0,0.25)] md:shadow-[0_0_80px_rgba(189,252,0,0.32)]',
+    accentOrb: 'bg-[#eaffb8]/25',
+    accentImageBorder: 'border-[#eaffb8]/40',
+    accentIconActive: 'text-[#bdfc00] drop-shadow-[0_0_20px_rgba(189,252,0,0.8)]',
+    accentIconInactive: 'text-[#bdfc00]/25',
     image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTw-h2OTfPHdg19cY-HzLdqnDuxvXj8uWO8T7EK87rJnbjPD9qZo_l8wHKzA-YF7BAWpBSIfTZaaS779w24oWVPEPfLFY7tJvy7S6hWF4UmFPDRXPiTsbsmbHolmQiXmkEgAOGfQt1S5NC3jjIki0AxGkvAjI3m2Dv9CQt-uMt5aXCsB8QtccX1n4GSFwVtYiNoaIpieyoT3rbLarb5E6P_oUELaobTdTo86pET7KEtmi0izS13KqH6l7qcKyL2tHdJx8lKL3kCwk')",
     icon: 'psychology',
   },
@@ -36,6 +56,16 @@ const ecosystemProducts = [
     href: '/autoforge',
     ariaLabel: 'Explore AutoForge deployment system',
     cta: 'See It in Action',
+    accentText: 'text-[#e00000]',
+    accentMutedText: 'text-[#e00000]/75',
+    accentHoverText: 'group-hover:text-[#e00000]',
+    accentLabelInactive: 'text-zinc-600',
+    accentBorder: 'border-[#e00000]',
+    accentGlow: 'shadow-[0_0_60px_rgba(224,0,0,0.24)] md:shadow-[0_0_80px_rgba(224,0,0,0.30)]',
+    accentOrb: 'bg-[#e00000]/18',
+    accentImageBorder: 'border-[#e00000]/35',
+    accentIconActive: 'text-[#e00000] drop-shadow-[0_0_20px_rgba(224,0,0,0.65)]',
+    accentIconInactive: 'text-[#e00000]/25',
     image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDxYDoYgM51GjeNF4Nk0qYF5cXudT1dpop9rQfWzlsjBcrGcWxS0LHB5W6sCVk0MizM3i81qkwZCzeaFEjhU8r3ab5GvWBpKQwclLwK3B4GShUMva4jcRqRlU8tog8ZQrIlWAh5LpKECme1TeeqNNxssy12S8FEPGdY-vVMi4pmIqvASiqTYWg_vroYi77x0x93W86jK-OIre7D_ts29QM0NR6DRHQIbkCVKVxIjvdrttpQKoxZkqU_g-AimrUBlEMT-PljG4bvxvQ')",
     icon: null,
   },
@@ -388,7 +418,7 @@ export default function AutoknerdPage() {
                     <span
                       className={[
                         'px-1 text-[10px] uppercase tracking-widest transition-colors duration-500',
-                        isActive ? 'font-bold text-[#bdfc00]' : 'text-zinc-600',
+                        isActive ? `font-bold ${product.accentText}` : product.accentLabelInactive,
                       ].join(' ')}
                     >
                       {product.label}
@@ -397,11 +427,11 @@ export default function AutoknerdPage() {
                       className={[
                         'relative flex h-full flex-col overflow-hidden p-8 transition-all duration-500 ease-out',
                         isActive
-                          ? 'border-2 border-lime-400 bg-[#232626] shadow-[0_0_60px_rgba(189,252,0,0.25)] md:-translate-y-3 md:shadow-[0_0_80px_rgba(189,252,0,0.32)]'
+                          ? `border-2 ${product.accentBorder} bg-[#232626] ${product.accentGlow} md:-translate-y-3`
                           : 'border border-[#464848]/10 bg-[#121414] md:translate-y-3 hover:border-[#eaffb8]/20 hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]',
                       ].join(' ')}
                     >
-                      {isActive && <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#eaffb8]/25 blur-3xl" />}
+                      {isActive && <div className={`absolute right-0 top-0 h-32 w-32 rounded-full ${product.accentOrb} blur-3xl`} />}
                       <h3 className={isActive ? 'mb-3 text-3xl text-white' : 'mb-3 text-2xl text-[#f4f3f3]'}>
                         {product.title}
                       </h3>
@@ -416,7 +446,7 @@ export default function AutoknerdPage() {
                       <div
                         className={[
                           'relative flex items-center justify-center overflow-hidden bg-black transition-all duration-500',
-                          isActive ? 'h-40 border border-[#eaffb8]/40' : 'h-32 border border-[#464848]/5',
+                          isActive ? `h-40 border ${product.accentImageBorder}` : 'h-32 border border-[#464848]/5',
                         ].join(' ')}
                       >
                         <div
@@ -431,8 +461,8 @@ export default function AutoknerdPage() {
                             className={[
                               'material-symbols-outlined relative z-10 transition-all duration-500',
                               isActive
-                                ? 'text-5xl text-[#bdfc00] drop-shadow-[0_0_20px_rgba(189,252,0,0.8)]'
-                                : 'text-4xl text-[#bdfc00]/25',
+                                ? `text-5xl ${product.accentIconActive}`
+                                : `text-4xl ${product.accentIconInactive}`,
                             ].join(' ')}
                             style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
                           >
@@ -443,7 +473,7 @@ export default function AutoknerdPage() {
                       <span
                         className={[
                           'card-cta mt-5 inline-flex items-center gap-2 self-start text-xs font-bold uppercase tracking-[0.18em] transition-all duration-300',
-                          isActive ? 'text-[#bdfc00]' : 'text-[#bdfc00]/75 group-hover:text-[#bdfc00]',
+                          isActive ? product.accentText : `${product.accentMutedText} ${product.accentHoverText}`,
                           product.key === 'autodrivecx' ? 'opacity-95' : 'opacity-85',
                           'pointer-events-none group-hover:translate-x-1 group-hover:opacity-100',
                         ].join(' ')}

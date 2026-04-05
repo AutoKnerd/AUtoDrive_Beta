@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { AutoknerdHeaderMenu } from '@/components/autoknerd/autoknerd-header-menu';
 import { AutoforgeLeadDialog } from '@/components/autoforge/autoforge-lead-dialog';
 
 type PainCard = {
@@ -110,9 +111,19 @@ export default function AutoForgePageClient() {
     <>
       <main className="min-h-screen bg-[#0a0a0a] text-[#ece8e4]">
         <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[rgba(10,10,10,0.78)] backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
-            <a href="/autoforge" className="inline-flex items-center" aria-label="AutoForge">
-              <img src="/AutoForge%20logo.png" alt="AutoForge" className="h-[4.05rem] w-auto md:h-[4.75rem]" />
+          <div className="relative mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
+            <AutoknerdHeaderMenu
+              mobileMenuTitle="AutoForge"
+              mobileMenuDescription="Product navigation and system links"
+            />
+            <a
+              href="/autoforge"
+              className="absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center"
+              aria-label="AutoForge"
+            >
+              <span className="flex h-14 w-[240px] items-center justify-center md:h-16 md:w-[280px]">
+                <img src="/AutoForge%20logo.png" alt="AutoForge" className="max-h-full w-auto object-contain" />
+              </span>
             </a>
 
             <a

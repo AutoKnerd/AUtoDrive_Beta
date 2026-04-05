@@ -9,6 +9,7 @@ import { UserNav } from './user-nav';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { AutoknerdHeaderMenu } from '@/components/autoknerd/autoknerd-header-menu';
 
 export function Header() {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ export function Header() {
   const trainingSurfaceHref = '/';
   const isToolsActive = Boolean(pathname?.startsWith('/tools'));
   const isTrainingActive = !isToolsActive;
+  const brandHref = isToolsSurface ? '/tools' : '/';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -95,15 +97,25 @@ export function Header() {
       }`}
     >
       <div className="relative mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
-        <Link href="/" className="flex items-center font-semibold text-[#FFFFFF]">
+        <div className="flex min-w-0 items-center gap-4">
+          <AutoknerdHeaderMenu
+            mobileMenuTitle={isToolsSurface ? 'AutoShop' : 'AutoDriveCX'}
+            mobileMenuDescription="AutoKnerd navigation and product links"
+            tone={isToolsSurface ? 'light' : 'dark'}
+          />
+        </div>
+        <Link
+          href={brandHref}
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center font-semibold text-[#FFFFFF]"
+        >
           {isToolsSurface ? (
-            <div className="relative flex items-center">
-              <Image 
+            <div className="relative flex h-14 w-[240px] items-center justify-center md:h-16 md:w-[280px]">
+              <Image
                 src="/Autoshop logo.png"
                 alt="AutoShopCX"
                 width={320}
                 height={80}
-                className="h-16 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(123,46,255,0.4)]"
+                className="max-h-full w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(123,46,255,0.4)]"
                 priority
               />
             </div>
@@ -112,13 +124,20 @@ export function Header() {
               variant="full"
               width={292}
               height={96}
-              className="h-16 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(44,152,255,0.4)]"
+              className="h-14 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(44,152,255,0.4)] md:h-16"
             />
           )}
         </Link>
-        {renderSurfaceToggle('absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:inline-flex')}
-        <div className="ml-auto flex items-center gap-2">
-          {renderSurfaceToggle('md:hidden')}
+        <div className="ml-auto flex items-center gap-2 md:gap-3">
+          {renderSurfaceToggle()}
+          {!user && isToolsSurface && (
+            <Link
+              href="/login"
+              className="inline-flex min-h-[46px] items-center justify-center bg-[#7B2EFF] px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] text-white shadow-[0_0_24px_rgba(123,46,255,0.24)] transition hover:bg-[#9d19ff]"
+            >
+              Log In
+            </Link>
+          )}
           {user && (
             <UserNav user={user} avatarClassName="h-9 w-9" />
           )}
