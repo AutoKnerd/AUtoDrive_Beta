@@ -11,7 +11,7 @@ const ecosystemProducts = [
     label: 'TOOLS',
     title: 'AutoShop',
     copy: 'Integrated diagnostic suite for baseline performance metrics and friction identification.',
-    href: '/tools',
+    href: '/autoshop',
     ariaLabel: 'Explore AutoShop diagnostic suite',
     cta: 'Explore Tools',
     accentText: 'text-[#9d19ff]',
@@ -763,7 +763,17 @@ export default function AutoknerdPage() {
           </div>
         </section>
       </main>
-      <AutoforgeLeadDialog open={isAutoforgeLeadModalOpen} onOpenChange={setIsAutoforgeLeadModalOpen} />
+      <AutoforgeLeadDialog
+        open={isAutoforgeLeadModalOpen}
+        onOpenChange={setIsAutoforgeLeadModalOpen}
+        titleContent={
+          <>
+            Deploy The <span className="text-[#bdfc00]">AutoKnerd CX System</span> in your Dealership
+          </>
+        }
+        description="Tell us a bit about your store and we&apos;ll show you exactly how this works for you."
+        submitButtonClassName="bg-[#bdfc00] text-[#445d00] hover:bg-[#bdfc00]/90"
+      />
       <footer className="w-full border-t border-zinc-900 bg-black">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-8 px-8 py-16 md:flex-row">
           <div className="text-lg font-bold uppercase tracking-widest text-lime-500">AutoKnerd</div>

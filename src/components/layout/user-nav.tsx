@@ -267,7 +267,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                 <CreditCard className="mr-2 h-4 w-4" />
                 <span>Score Card</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push('/tools')}>
+            <DropdownMenuItem onSelect={() => router.push('/autoshop')}>
                 <Zap className="mr-2 h-4 w-4" />
                 <span>AutoShop</span>
             </DropdownMenuItem>

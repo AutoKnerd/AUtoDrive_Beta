@@ -309,7 +309,7 @@ export default function WaitExperienceCoachPage() {
       <main className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-24 pt-4 sm:px-5 md:space-y-6 md:px-8 md:pt-8">
         <div className="flex items-center justify-between gap-3">
           <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
-            <Link href="/tools">
+            <Link href="/autoshop">
               <ChevronLeft className="mr-1 h-4 w-4" />
               AutoShop
             </Link>

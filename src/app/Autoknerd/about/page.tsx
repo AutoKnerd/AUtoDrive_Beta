@@ -128,7 +128,7 @@ export default function AutoknerdAboutPage() {
             <div className="absolute left-1/3 top-1/2 hidden h-0.5 w-12 -translate-y-1/2 bg-[#eaffb8]/30 md:block" />
             <div className="absolute left-2/3 top-1/2 hidden h-0.5 w-12 -translate-y-1/2 bg-[#eaffb8]/30 md:block" />
             {[
-              ['Phase 01', 'AutoShop', 'TOOLS', 'Precision instruments designed to standardize interaction and capture behavioral data in real-time.', '/tools', 'View Tools'],
+              ['Phase 01', 'AutoShop', 'TOOLS', 'Precision instruments designed to standardize interaction and capture behavioral data in real-time.', '/autoshop', 'View Tools'],
               ['Phase 02', 'AutoDriveCX', 'PLATFORM', 'The intelligence layer that converts data into visible trends and actionable coaching directives.', '/login', 'Explore Platform'],
               ['Phase 03', 'AutoForge', 'DEPLOYMENT', 'High-intensity execution cycles where behavior is hardened through expert-led accountability.', '/autoforge', 'See Deployment'],
             ].map(([phase, title, eyebrow, copy, href, cta], index) => (

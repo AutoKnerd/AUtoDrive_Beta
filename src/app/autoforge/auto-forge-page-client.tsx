@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { AutoknerdHeaderMenu } from '@/components/autoknerd/autoknerd-header-menu';
 import { AutoforgeLeadDialog } from '@/components/autoforge/autoforge-lead-dialog';
+import { ProductHeader } from '@/components/marketing/product-header';
 
 type PainCard = {
   icon: LucideIcon;
@@ -110,30 +110,23 @@ export default function AutoForgePageClient() {
   return (
     <>
       <main className="min-h-screen bg-[#0a0a0a] text-[#ece8e4]">
-        <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[rgba(10,10,10,0.78)] backdrop-blur-xl">
-          <div className="relative mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
-            <AutoknerdHeaderMenu
-              mobileMenuTitle="AutoForge"
-              mobileMenuDescription="Product navigation and system links"
-            />
-            <a
-              href="/autoforge"
-              className="absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center"
-              aria-label="AutoForge"
-            >
-              <span className="flex h-14 w-[240px] items-center justify-center md:h-16 md:w-[280px]">
-                <img src="/AutoForge%20logo.png" alt="AutoForge" className="max-h-full w-auto object-contain" />
-              </span>
-            </a>
-
-            <a
-              href="/login"
-              className="inline-flex min-h-[46px] items-center justify-center bg-[#cc0000] px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] text-white shadow-[0_0_24px_rgba(204,0,0,0.24)] transition hover:bg-[#e00000]"
-            >
-              Log In
-            </a>
-          </div>
-        </header>
+        <ProductHeader
+          brandHref="/autoforge"
+          brandSrc="/AutoForge logo.png"
+          brandAlt="AutoForge"
+        brandWidth={610}
+        brandHeight={203}
+        mobileMenuTitle="AutoForge"
+        mobileMenuDescription="Product navigation and system links"
+        currentSystem="autoforge"
+        loginHref="/login"
+        trialCta={{
+          href: 'https://app.autodrivecx.com/signup',
+          label: 'Start Trial',
+        }}
+        loginClassName="bg-[#cc0000] text-white shadow-[0_0_24px_rgba(204,0,0,0.24)] hover:bg-[#e00000]"
+        trialClassName="bg-[#00ff66] text-black shadow-[0_0_28px_rgba(0,255,102,0.24)] hover:brightness-105"
+      />
 
         <section className="relative overflow-hidden border-b border-white/10">
           <div className="absolute inset-0">
@@ -166,7 +159,7 @@ export default function AutoForgePageClient() {
                   Deploy the System
                 </button>
                 <a
-                  href="/tools"
+                  href="/autoshop"
                   className="inline-flex min-h-[60px] items-center justify-center border border-white/25 bg-white/5 px-6 py-4 font-[family-name:var(--font-heading)] text-sm font-black uppercase tracking-[0.14em] text-white"
                 >
                   Start With Free Tools
@@ -479,7 +472,17 @@ export default function AutoForgePageClient() {
         </Section>
       </main>
 
-      <AutoforgeLeadDialog open={isLeadModalOpen} onOpenChange={setIsLeadModalOpen} />
+      <AutoforgeLeadDialog
+        open={isLeadModalOpen}
+        onOpenChange={setIsLeadModalOpen}
+        titleContent={
+          <>
+            Deploy The <span className="text-[#00ff66]">AutoKnerd CX System</span> in your Dealership
+          </>
+        }
+        description="Tell us a bit about your store and we&apos;ll show you exactly how this works for you."
+        submitButtonClassName="bg-[#00ff66] text-black hover:bg-[#00ff66]/90"
+      />
     </>
   );
 }

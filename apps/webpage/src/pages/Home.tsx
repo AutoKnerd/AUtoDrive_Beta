@@ -114,7 +114,7 @@ const Home: React.FC = () => {
                         </div>
 
                         <div style={{ display: 'flex', gap: 'clamp(1rem, 3vw, 2rem)', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <a href="https://calendar.app.google/QWRXFH9k24iZnBZWA" target="_blank" rel="noopener" className="btn btn-primary" style={{ padding: 'clamp(1rem, 3vw, 1.4rem) clamp(2rem, 5vw, 2.8rem)', fontSize: 'clamp(0.8rem, 2vw, 1rem)' }}>Schedule Dealership Implementation</a>
+                            <a href="#dealership-implementation" className="btn btn-primary" style={{ padding: 'clamp(1rem, 3vw, 1.4rem) clamp(2rem, 5vw, 2.8rem)', fontSize: 'clamp(0.8rem, 2vw, 1rem)' }}>Schedule Dealership Implementation</a>
                             <Link to="/individual-trial" className="btn btn-ghost" style={{ padding: 'clamp(1rem, 3vw, 1.4rem) clamp(2rem, 5vw, 2.8rem)', textDecoration: 'none', fontSize: 'clamp(0.8rem, 2vw, 1rem)' }}>
                                 Start Individual Trial
                             </Link>
@@ -355,7 +355,7 @@ const Home: React.FC = () => {
                         <p style={{ fontSize: '1.08rem', color: '#111827', lineHeight: 1.65, marginBottom: '1.25rem' }}>
                             Want to see how these operational signals would look inside your dealership?
                         </p>
-                        <a href="https://calendar.app.google/QWRXFH9k24iZnBZWA" target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none' }}>
+                        <a href="#dealership-implementation" className="btn btn-primary" style={{ textDecoration: 'none' }}>
                             Schedule Implementation Call
                         </a>
                     </div>
@@ -652,7 +652,7 @@ const Home: React.FC = () => {
                         <p style={{ fontSize: '1.02rem', color: '#4b5563', lineHeight: 1.65, marginBottom: '1.25rem', maxWidth: '760px', marginLeft: 'auto', marginRight: 'auto' }}>
                             Most dealerships start with a short implementation conversation to pressure-test how the system would install inside their environment.
                         </p>
-                        <a href="https://calendar.app.google/QWRXFH9k24iZnBZWA" target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none' }}>
+                        <a href="#dealership-implementation" className="btn btn-primary" style={{ textDecoration: 'none' }}>
                             Schedule Implementation Call
                         </a>
                     </div>
@@ -680,7 +680,7 @@ const Home: React.FC = () => {
                         ))}
                     </div>
                     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '2rem' }}>
-                        <a href="https://calendar.app.google/QWRXFH9k24iZnBZWA" target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none' }}>
+                        <a href="#dealership-implementation" className="btn btn-primary" style={{ textDecoration: 'none' }}>
                             Schedule Implementation Call
                         </a>
                         <Link to="/sample-rollout-plan" className="btn btn-ghost-dark" style={{ textDecoration: 'none' }}>
@@ -708,16 +708,14 @@ const Home: React.FC = () => {
                         Protected at the executive level.
                     </p>
                     <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                        <a href="https://calendar.app.google/QWRXFH9k24iZnBZWA" target="_blank" rel="noopener" className="btn btn-primary">Schedule Implementation Call</a>
+                        <a href="#dealership-implementation" className="btn btn-primary">Schedule Implementation Call</a>
                         <Link to="/sample-rollout-plan" className="btn btn-ghost" style={{ textDecoration: 'none' }}>View Sample Rollout Plan</Link>
                     </div>
                 </div>
             </section>
 
             <a
-                href="https://calendar.app.google/QWRXFH9k24iZnBZWA"
-                target="_blank"
-                rel="noopener"
+                href="#dealership-implementation"
                 aria-label="Schedule Implementation Call"
                 style={{
                     position: 'fixed',

@@ -14,15 +14,15 @@ import { AutoknerdHeaderMenu } from '@/components/autoknerd/autoknerd-header-men
 export function Header() {
   const { user } = useAuth();
   const pathname = usePathname();
-  const isToolsSurface = pathname?.startsWith('/tools');
+  const isToolsSurface = Boolean(pathname?.startsWith('/tools') || pathname?.startsWith('/autoshop'));
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
   const shouldShowSurfaceToggle = Boolean(user);
   const [showAutoDriveBadgePulse, setShowAutoDriveBadgePulse] = useState(false);
 
   const trainingSurfaceHref = '/';
-  const isToolsActive = Boolean(pathname?.startsWith('/tools'));
+  const isToolsActive = isToolsSurface;
   const isTrainingActive = !isToolsActive;
-  const brandHref = isToolsSurface ? '/tools' : '/';
+  const brandHref = isToolsSurface ? '/autoshop' : '/';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -60,14 +60,14 @@ export function Header() {
         title="Open training dashboard"
       >
         <Link
-          href="/tools"
+          href="/autoshop"
           className={cn(
             'rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
             isToolsActive
               ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
               : 'text-[#d7c4ff] hover:bg-[#7B2EFF]/16'
           )}
-        >Tools</Link>
+        >AutoShop</Link>
         <Link
           href={trainingSurfaceHref}
           className={cn(
@@ -102,6 +102,7 @@ export function Header() {
             mobileMenuTitle={isToolsSurface ? 'AutoShop' : 'AutoDriveCX'}
             mobileMenuDescription="AutoKnerd navigation and product links"
             tone={isToolsSurface ? 'light' : 'dark'}
+            currentSystem={isToolsSurface ? 'tools' : undefined}
           />
         </div>
         <Link
@@ -109,7 +110,7 @@ export function Header() {
           className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center font-semibold text-[#FFFFFF]"
         >
           {isToolsSurface ? (
-            <div className="relative flex h-14 w-[240px] items-center justify-center md:h-16 md:w-[280px]">
+            <div className="relative flex h-16 w-[322px] items-center justify-center md:h-[4.6rem] md:w-[368px]">
               <Image
                 src="/Autoshop logo.png"
                 alt="AutoShopCX"
@@ -131,12 +132,20 @@ export function Header() {
         <div className="ml-auto flex items-center gap-2 md:gap-3">
           {renderSurfaceToggle()}
           {!user && isToolsSurface && (
-            <Link
-              href="/login"
-              className="inline-flex min-h-[46px] items-center justify-center bg-[#7B2EFF] px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] text-white shadow-[0_0_24px_rgba(123,46,255,0.24)] transition hover:bg-[#9d19ff]"
-            >
-              Log In
-            </Link>
+            <>
+              <Link
+                href="/login"
+                className="inline-flex min-h-[46px] items-center justify-center border border-[#7B2EFF]/40 bg-[rgba(25,16,40,0.86)] px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] text-[#e9dcff] shadow-[0_0_20px_rgba(123,46,255,0.16)] transition hover:border-[#9d19ff] hover:bg-[rgba(40,20,70,0.92)] hover:text-white"
+              >
+                Log In
+              </Link>
+              <Link
+                href="https://app.autodrivecx.com/signup"
+                className="hidden min-h-[46px] items-center justify-center bg-[#7B2EFF] px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] text-white shadow-[0_0_24px_rgba(123,46,255,0.24)] transition hover:bg-[#9d19ff] md:inline-flex"
+              >
+                Start Trial
+              </Link>
+            </>
           )}
           {user && (
             <UserNav user={user} avatarClassName="h-9 w-9" />

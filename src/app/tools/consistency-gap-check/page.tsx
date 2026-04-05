@@ -468,7 +468,7 @@ export default function ConsistencyGapCheckPage() {
       <main className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-28 pt-4 sm:px-5 md:space-y-6 md:px-8 md:pt-8">
         <div className="flex items-center justify-between gap-3">
           <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
-            <Link href="/tools">
+            <Link href="/autoshop">
               <ChevronLeft className="mr-1 h-4 w-4" />
               AutoShop
             </Link>
@@ -510,12 +510,12 @@ export default function ConsistencyGapCheckPage() {
             <p>
               Want to find your gaps?{' '}
               <a
-                href="https://app.autodrivecx.com/tools/consistency-gap-check"
+                href="https://app.autodrivecx.com/autoshop/consistency-gap-check"
                 target="_blank"
                 rel="noreferrer"
                 className="font-semibold text-[#7eeeff] underline underline-offset-4 hover:text-[#9af5ff]"
               >
-                https://app.autodrivecx.com/tools/consistency-gap-check
+                https://app.autodrivecx.com/autoshop/consistency-gap-check
               </a>
             </p>
           </CardContent>

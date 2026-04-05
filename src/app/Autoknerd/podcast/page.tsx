@@ -167,7 +167,7 @@ export default function AutoknerdPodcastPage() {
               </span>
               Listen to Latest Episode
             </button>
-            <Link href="/tools" className="border border-[#464848]/30 px-10 py-5 text-center text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-all hover:bg-[#1d2020]">
+            <Link href="/autoshop" className="border border-[#464848]/30 px-10 py-5 text-center text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-all hover:bg-[#1d2020]">
               Get This Week&apos;s Tool
             </Link>
           </div>
@@ -255,7 +255,7 @@ export default function AutoknerdPodcastPage() {
                       </span>
                       Play Episode
                     </button>
-                    <Link href="/tools" className="border border-[#464848] px-8 py-4 text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-colors hover:border-[#bdfc00]">
+                    <Link href="/autoshop" className="border border-[#464848] px-8 py-4 text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-colors hover:border-[#bdfc00]">
                       Get the tool from this episode
                     </Link>
                   </div>
@@ -275,7 +275,7 @@ export default function AutoknerdPodcastPage() {
                 Download the <strong>&quot;CRM Leak Auditor&quot;</strong> template mentioned in the latest show. Stop the bleeding in under 15 minutes of auditing.
               </p>
             </div>
-            <Link href="/tools" className="flex w-full shrink-0 items-center justify-center gap-3 bg-[#bdfc00] px-10 py-5 text-sm font-black uppercase tracking-tighter text-[#445d00] md:w-auto">
+            <Link href="/autoshop" className="flex w-full shrink-0 items-center justify-center gap-3 bg-[#bdfc00] px-10 py-5 text-sm font-black uppercase tracking-tighter text-[#445d00] md:w-auto">
               <span className="material-symbols-outlined">download</span>
               Download Tool
             </Link>
@@ -326,7 +326,7 @@ export default function AutoknerdPodcastPage() {
                   </div>
                   <div className="flex items-center gap-6">
                     <span className="font-mono text-xs text-[#aaabab]/60">{episode.duration}</span>
-                    <Link className="whitespace-nowrap border-b border-[#bdfc00]/20 pb-1 text-xs font-bold uppercase tracking-widest text-[#bdfc00] transition-all hover:border-[#bdfc00]" href="/tools">
+                    <Link className="whitespace-nowrap border-b border-[#bdfc00]/20 pb-1 text-xs font-bold uppercase tracking-widest text-[#bdfc00] transition-all hover:border-[#bdfc00]" href="/autoshop">
                       Get Tool
                     </Link>
                   </div>
@@ -346,7 +346,7 @@ export default function AutoknerdPodcastPage() {
           <h2 className="mb-12 text-center text-3xl font-bold uppercase tracking-tighter md:text-4xl">Turn what you learn into performance</h2>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {[
-              ['inventory_2', 'Performance Tooling', 'AutoShop', 'The tactical arm of the system. Access every calculator, script, and sheet mentioned in our episodes.', 'Apply it this week', '/tools', 'Launch AutoShop'],
+              ['inventory_2', 'Performance Tooling', 'AutoShop', 'The tactical arm of the system. Access every calculator, script, and sheet mentioned in our episodes.', 'Apply it this week', '/autoshop', 'Launch AutoShop'],
               ['hub', 'Core Platform', 'AutoDriveCX', 'A unified platform for monitoring behavior change and customer experience metrics in real-time.', 'Train your team', '/login', 'Explore Platform'],
               ['precision_manufacturing', 'Diagnostics', 'AutoForge', 'Custom dealership performance architecture. We forge high-efficiency sales teams from the ground up.', 'Fix it across the dealership', '/autoforge', 'Start Diagnostic'],
             ].map(([icon, eyebrow, title, copy, kicker, href, cta]) => (
@@ -378,7 +378,7 @@ export default function AutoknerdPodcastPage() {
           </h2>
           <p className="mx-auto mb-16 max-w-2xl text-sm text-[#aaabab]/70">Execution is the only differentiator. Choose your pathway to performance.</p>
           <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
-            <Link href="/tools" className="bg-[#bdfc00] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#445d00] transition-transform hover:scale-[1.02] active:scale-[0.98]">
+            <Link href="/autoshop" className="bg-[#bdfc00] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#445d00] transition-transform hover:scale-[1.02] active:scale-[0.98]">
               Get This Week&apos;s Tool
             </Link>
             <Link href="/login" className="bg-[#f4f3f3] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#0d0f0f] transition-transform hover:scale-[1.02] active:scale-[0.98]">

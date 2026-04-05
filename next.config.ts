@@ -26,6 +26,32 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   /* config options here */
   outputFileTracingRoot: path.resolve(__dirname),
+  async redirects() {
+    return [
+      {
+        source: '/tools',
+        destination: '/autoshop',
+        permanent: true,
+      },
+      {
+        source: '/tools/:path*',
+        destination: '/autoshop/:path*',
+        permanent: true,
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/autoshop',
+        destination: '/tools',
+      },
+      {
+        source: '/autoshop/:path*',
+        destination: '/tools/:path*',
+      },
+    ];
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION:
       process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.npm_package_version ?? '0.0.0',

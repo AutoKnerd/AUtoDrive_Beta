@@ -51,7 +51,7 @@ export function buildConsultantOutreachLink(type: ConsultantOutreachLinkType, co
   }
 
   if (type === 'tools') {
-    return `${getAppBaseUrl()}/tools/${encodedSlug}`;
+    return `${getAppBaseUrl()}/autoshop/${encodedSlug}`;
   }
 
   return `${getAppBaseUrl()}/tour/${encodedSlug}`;

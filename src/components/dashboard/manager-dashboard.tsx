@@ -975,7 +975,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const shouldShowSurfaceToggle = true;
   const trainingSurfaceHref = '/';
-  const isToolsActive = Boolean(pathname?.startsWith('/tools'));
+  const isToolsActive = Boolean(pathname?.startsWith('/tools') || pathname?.startsWith('/autoshop'));
   const isTrainingActive = !isToolsActive;
 
   const renderSurfaceToggle = (className?: string) => {
@@ -1004,7 +1004,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           Drive
         </Link>
         <Link
-          href="/tools"
+          href="/autoshop"
           className={cn(
             'rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
             isToolsActive
@@ -1012,7 +1012,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
           )}
         >
-          Tools
+          AutoShop
         </Link>
       </div>
     );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentType } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { ArrowRight, ChevronDown, CheckCircle2, Clock, FolderOpen, HelpCircle, Save, SlidersHorizontal, Sparkles, Zap } from 'lucide-react';
@@ -57,22 +57,6 @@ import { allRoles, type UserRole } from '@/lib/definitions';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOOLBOX_UPGRADE_URL = 'https://app.autodrivecx.com/signup';
-
-const mainSiteLoginButtonStyle: CSSProperties = {
-  fontSize: '11px',
-  padding: '9px 14px',
-  borderRadius: '8px',
-  border: '1px solid rgba(184, 184, 197, 0.26)',
-  background: 'rgba(18, 18, 26, 0.82)',
-  color: '#b8b8c5',
-  fontWeight: 700,
-  letterSpacing: '0.1em',
-  transition: 'all 0.2s ease',
-  textDecoration: 'none',
-  textAlign: 'center',
-  whiteSpace: 'nowrap',
-  lineHeight: 1.1,
-};
 
 function badgeText(label: 'Premium'): string {
   if (label === 'Premium') return 'Advanced';
@@ -1392,18 +1376,6 @@ export default function ToolsPage() {
       <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-[#7b2eff]/[0.08] blur-3xl" />
       <div className="relative z-10">
         <Header />
-
-        {!loading && !isAuthenticated && (
-          <div className="pointer-events-none absolute right-4 top-3 z-40 flex items-center gap-2 md:right-6">
-            <a
-              href="/login?next=%2Ftools"
-              className="pointer-events-auto uppercase tracking-[0.08em] hover:brightness-110"
-              style={mainSiteLoginButtonStyle}
-            >
-              LOG IN
-            </a>
-          </div>
-        )}
 
         <main className="mx-auto w-full max-w-7xl space-y-6 p-4 md:space-y-8 md:p-6 lg:p-8">
           <section className="relative space-y-4 transition-all duration-200">

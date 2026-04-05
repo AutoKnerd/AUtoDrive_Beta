@@ -14,9 +14,11 @@ import {
 } from '@/components/ui/sheet';
 
 export type AutoknerdNavKey = 'home' | 'about' | 'podcast' | 'fit';
+export type ProductSurfaceKey = 'autoknerd' | 'autodrive' | 'autoforge' | 'tools';
 
 type AutoknerdHeaderMenuProps = {
   active?: AutoknerdNavKey;
+  currentSystem?: ProductSurfaceKey;
   className?: string;
   mobileMenuTitle?: string;
   mobileMenuDescription?: string;
@@ -30,13 +32,15 @@ const navItems = [
 ] as const;
 
 const systemItems = [
-  { href: '/tools', title: 'AutoShop', subtitle: 'Diagnostic Suite' },
-  { href: 'https://autodrivecx.com', title: 'AutoDriveCX', subtitle: 'Behavioral Platform' },
-  { href: '/autoforge', title: 'AutoForge', subtitle: 'Hardware Deployment' },
+  { href: '/Autoknerd', title: 'AutoKnerd', subtitle: 'Performance Intelligence', key: 'autoknerd' },
+  { href: '/autoshop', title: 'AutoShop', subtitle: 'Diagnostic Suite', key: 'tools' },
+  { href: '/autodrive', title: 'AutoDriveCX', subtitle: 'Behavioral Platform', key: 'autodrive' },
+  { href: '/autoforge', title: 'AutoForge', subtitle: 'Hardware Deployment', key: 'autoforge' },
 ] as const;
 
 export function AutoknerdHeaderMenu({
   active,
+  currentSystem,
   className,
   mobileMenuTitle = 'AutoKnerd',
   mobileMenuDescription = 'Performance intelligence navigation',
@@ -47,6 +51,55 @@ export function AutoknerdHeaderMenu({
     ? { href: '/Autoknerd/find-your-fit', label: 'Find Your Fit' }
     : { href: '/login', label: 'Login' };
   const isLightTone = tone === 'light';
+  const visibleSystemItems = systemItems.filter((item) => item.key !== currentSystem);
+  const systemDropdownClassName = (() => {
+    switch (currentSystem) {
+      case 'autoknerd':
+        return 'border-[#bdfc00]/20 bg-[rgba(13,15,15,0.96)]';
+      case 'autoforge':
+        return 'border-[#cc0000]/20 bg-[rgba(18,10,10,0.96)]';
+      case 'autodrive':
+        return 'border-[#3488BA]/24 bg-[rgba(8,18,30,0.96)]';
+      case 'tools':
+        return 'border-[#7B2EFF]/24 bg-[rgba(32,14,56,0.78)] backdrop-blur-xl';
+      default:
+        return isLightTone ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-950';
+    }
+  })();
+  const systemItemHoverClassName = (() => {
+    switch (currentSystem) {
+      case 'autoknerd':
+        return 'hover:bg-[#bdfc00]/8';
+      case 'autoforge':
+        return 'hover:bg-[#cc0000]/10';
+      case 'autodrive':
+        return 'hover:bg-[#3488BA]/12';
+      case 'tools':
+        return 'hover:bg-[#7B2EFF]/12';
+      default:
+        return isLightTone ? 'hover:bg-slate-100' : 'hover:bg-zinc-900';
+    }
+  })();
+  const systemTitleClassName = (() => {
+    switch (currentSystem) {
+      case 'autoknerd':
+        return 'text-[#bdfc00]';
+      case 'autoforge':
+        return 'text-[#ff6b6b]';
+      case 'autodrive':
+        return 'text-[#8dd6ff]';
+      case 'tools':
+        return 'text-[#c56bff]';
+      default:
+        return 'text-lime-400';
+    }
+  })();
+  const systemSubtitleClassName =
+    currentSystem === 'tools'
+      ? 'text-[#b7a8d1]'
+      : isLightTone
+        ? 'text-slate-500'
+        : 'text-zinc-500';
 
   return (
     <div className={cn('flex items-center gap-8 md:min-w-0', className)}>
@@ -98,7 +151,7 @@ export function AutoknerdHeaderMenu({
             <div className="mt-4 border-t border-zinc-800 pt-4">
               <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">System</p>
               <div className="flex flex-col gap-3">
-                {systemItems.map((item) => (
+                {visibleSystemItems.map((item) => (
                   <Link
                     key={item.title}
                     href={item.href}
@@ -127,20 +180,20 @@ export function AutoknerdHeaderMenu({
           <div
             className={cn(
               'dropdown-animate absolute left-0 top-full flex w-64 flex-col space-y-2 border p-4 shadow-2xl',
-              isLightTone ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-950'
+              systemDropdownClassName
             )}
           >
-            {systemItems.map((item) => (
+            {visibleSystemItems.map((item) => (
               <Link
                 key={item.title}
                 className={cn(
                   'group flex flex-col p-3 transition-colors',
-                  isLightTone ? 'hover:bg-slate-100' : 'hover:bg-zinc-900'
+                  systemItemHoverClassName
                 )}
                 href={item.href}
               >
-                <span className="mb-1 block text-xs font-bold uppercase tracking-widest text-lime-400">{item.title}</span>
-                <span className={cn('block text-[10px] uppercase', isLightTone ? 'text-slate-500' : 'text-zinc-500')}>
+                <span className={cn('mb-1 block text-xs font-bold uppercase tracking-widest', systemTitleClassName)}>{item.title}</span>
+                <span className={cn('block text-[10px] uppercase', systemSubtitleClassName)}>
                   {item.subtitle}
                 </span>
               </Link>

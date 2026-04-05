@@ -215,7 +215,7 @@ const IndividualTrial: React.FC = () => {
                         <p style={{ color: '#4B5563', lineHeight: 1.7, marginBottom: '2rem', fontSize: '1.1rem' }}>
                             In those cases, the best next step is a short implementation call so we can map the system to your dealership structure.
                         </p>
-                        <a href="https://calendar.app.google/QWRXFH9k24iZnBZWA" target="_blank" rel="noopener" className="btn btn-primary" style={{ padding: '1.1rem 2.4rem' }}>
+                        <a href="#dealership-implementation" className="btn btn-primary" style={{ padding: '1.1rem 2.4rem' }}>
                             Schedule Dealership Implementation
                         </a>
                     </div>
@@ -312,7 +312,7 @@ const IndividualTrial: React.FC = () => {
                     <p style={{ color: '#6B7280', lineHeight: 1.7, marginBottom: '3rem', fontSize: '1.1rem', maxWidth: '720px', margin: '0 auto 3.5rem' }}>
                         Many professionals begin with the individual trial and later introduce AutoDriveCX to their managers or dealer principals.
                     </p>
-                    <a href="https://calendar.app.google/QWRXFH9k24iZnBZWA" target="_blank" rel="noopener" className="btn btn-primary" style={{ padding: '1.2rem 3rem' }}>
+                    <a href="#dealership-implementation" className="btn btn-primary" style={{ padding: '1.2rem 3rem' }}>
                         Schedule Dealership Implementation
                     </a>
                 </div>

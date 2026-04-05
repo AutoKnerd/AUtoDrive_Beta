@@ -85,9 +85,7 @@ const SampleRolloutPlan: React.FC = () => {
 
                         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                             <a
-                                href="https://calendar.app.google/QWRXFH9k24iZnBZWA"
-                                target="_blank"
-                                rel="noopener"
+                                href="#dealership-implementation"
                                 className="btn btn-primary"
                                 style={{ textDecoration: 'none', padding: '1rem 2rem' }}
                             >
@@ -186,9 +184,7 @@ const SampleRolloutPlan: React.FC = () => {
                             Schedule a short implementation call to walk through how deployment would look in your store.
                         </p>
                         <a
-                            href="https://calendar.app.google/QWRXFH9k24iZnBZWA"
-                            target="_blank"
-                            rel="noopener"
+                            href="#dealership-implementation"
                             className="btn btn-primary"
                             style={{ textDecoration: 'none' }}
                         >
@@ -439,9 +435,7 @@ const SampleRolloutPlan: React.FC = () => {
                     </p>
                     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                         <a
-                            href="https://calendar.app.google/QWRXFH9k24iZnBZWA"
-                            target="_blank"
-                            rel="noopener"
+                            href="#dealership-implementation"
                             className="btn btn-primary"
                             style={{ textDecoration: 'none' }}
                         >

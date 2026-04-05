@@ -310,7 +310,7 @@ export default function DeskConversationPage() {
       <main className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-24 pt-4 sm:px-5 md:space-y-6 md:px-8 md:pt-8">
         <div className="flex items-center justify-between gap-3">
           <Button variant="ghost" asChild className="h-10 px-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-[#b8c8e2] dark:hover:bg-[#13233b] dark:hover:text-[#e6efff]">
-            <Link href="/tools">
+            <Link href="/autoshop">
               <ChevronLeft className="mr-1 h-4 w-4" />
               AutoShop
             </Link>

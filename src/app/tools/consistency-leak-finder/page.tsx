@@ -370,7 +370,7 @@ function ConsistencyLeakFinderPageContent() {
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#0a1220]/95">
         <div className="mx-auto flex w-full max-w-2xl items-center gap-2">
           <Link
-            href="/tools"
+            href="/autoshop"
             className="rounded-xl p-2 text-slate-600 transition-all active:bg-slate-100 dark:text-slate-300 dark:active:bg-white/10"
             aria-label="Back to tools"
           >

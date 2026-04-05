@@ -39,9 +39,20 @@ const GOOGLE_BOOKING_URL =
 type AutoforgeLeadDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
+  description?: string;
+  titleContent?: React.ReactNode;
+  submitButtonClassName?: string;
 };
 
-export function AutoforgeLeadDialog({ open, onOpenChange }: AutoforgeLeadDialogProps) {
+export function AutoforgeLeadDialog({
+  open,
+  onOpenChange,
+  title = 'Deploy AutoForge in Your Dealership',
+  description = 'Tell us a bit about your store and we&apos;ll show you exactly how this works for you.',
+  titleContent,
+  submitButtonClassName,
+}: AutoforgeLeadDialogProps) {
   const { toast } = useToast();
   const [modalStep, setModalStep] = useState<'form' | 'schedule'>('form');
   const [leadForm, setLeadForm] = useState<LeadFormState>(initialLeadForm);
@@ -104,10 +115,10 @@ export function AutoforgeLeadDialog({ open, onOpenChange }: AutoforgeLeadDialogP
           <div className="p-6 sm:p-8">
             <DialogHeader className="text-left">
               <DialogTitle className="font-[family-name:var(--font-heading)] text-3xl font-black uppercase tracking-[-0.03em] text-white">
-                Deploy AutoForge in Your Dealership
+                {titleContent ?? title}
               </DialogTitle>
               <DialogDescription className="mt-3 text-base leading-7 text-white/70">
-                Tell us a bit about your store and we&apos;ll show you exactly how this works for you.
+                {description}
               </DialogDescription>
             </DialogHeader>
 
@@ -190,7 +201,10 @@ export function AutoforgeLeadDialog({ open, onOpenChange }: AutoforgeLeadDialogP
               <Button
                 type="submit"
                 disabled={isSubmittingLead}
-                className="mt-2 h-12 bg-[#00ff66] font-[family-name:var(--font-heading)] text-sm font-black uppercase tracking-[0.14em] text-black hover:bg-[#00ff66]/90"
+                className={[
+                  'mt-2 h-12 font-[family-name:var(--font-heading)] text-sm font-black uppercase tracking-[0.14em] text-black',
+                  submitButtonClassName ?? 'bg-[#00ff66] hover:bg-[#00ff66]/90',
+                ].join(' ')}
               >
                 {isSubmittingLead ? 'Saving...' : 'Continue'}
               </Button>
