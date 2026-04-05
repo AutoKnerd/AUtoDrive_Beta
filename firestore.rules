@@ -138,6 +138,12 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
+    match /autoforge_leads/{leadId} {
+      allow read: if hasAnyRole(['Admin', 'Developer']);
+      allow update: if hasAnyRole(['Admin', 'Developer']);
+      allow create, delete: if false;
+    }
+
     match /dealer_pipeline/{leadId} {
       allow read, create, update: if hasAnyRole(['Admin', 'Developer']);
       allow delete: if false;

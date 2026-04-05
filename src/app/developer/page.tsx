@@ -66,6 +66,7 @@ type SectionId =
   | 'people_access'
   | 'dealerships'
   | 'revenue_growth'
+  | 'leads'
   | 'product_controls'
   | 'monitoring'
   | 'sandbox'
@@ -133,6 +134,7 @@ const SECTION_LABELS: Record<SectionId, string> = {
   people_access: 'People & Access',
   dealerships: 'Dealerships',
   revenue_growth: 'Revenue & Growth',
+  leads: 'Leads',
   product_controls: 'Product Controls',
   monitoring: 'Monitoring',
   sandbox: 'Sandbox',
@@ -144,6 +146,7 @@ const SECTION_DESCRIPTIONS: Record<SectionId, string> = {
   people_access: 'Manage users, roles, invitations, assignments, and access changes.',
   dealerships: 'Create dealerships and manage dealership-level settings.',
   revenue_growth: 'Consultant performance, public links, lead capture, and growth surfaces.',
+  leads: 'All captured lead flows, inboxes, activity streams, and source-specific pipelines.',
   product_controls: 'Feature access, PPP configuration, and product-level controls.',
   monitoring: 'Operational watchlists, activity streams, exports, and diagnostics.',
   sandbox: 'Safe preview tools for impersonation and CX simulation.',
@@ -155,6 +158,7 @@ const SECTION_ICONS: Record<SectionId, ComponentType<{ className?: string }>> = 
   people_access: Users,
   dealerships: Building2,
   revenue_growth: BarChart3,
+  leads: Activity,
   product_controls: Settings2,
   monitoring: Activity,
   sandbox: FlaskConical,
@@ -166,6 +170,7 @@ const SECTION_ORDER: SectionId[] = [
   'people_access',
   'dealerships',
   'revenue_growth',
+  'leads',
   'product_controls',
   'monitoring',
   'sandbox',
@@ -183,7 +188,7 @@ const TOOLS: Array<{ id: ToolId; label: string; section: SectionId }> = [
   { id: 'ppp_global', label: 'PPP Global', section: 'product_controls' },
 ];
 
-const BOTTOM_NAV_SECTIONS: SectionId[] = ['dashboard', 'people_access', 'dealerships', 'revenue_growth', 'product_controls', 'monitoring', 'sandbox'];
+const BOTTOM_NAV_SECTIONS: SectionId[] = ['dashboard', 'people_access', 'dealerships', 'revenue_growth', 'leads', 'product_controls', 'monitoring', 'sandbox'];
 const SANDBOX_SOURCE_TYPES: Array<{ value: FreshUpSandboxConfig['sourceType']; label: string }> = [
   { value: 'procedural', label: 'Procedural Customer' },
   { value: 'signature', label: 'Signature Scenario' },
@@ -2885,14 +2890,30 @@ export default function DeveloperPage() {
       </Card>
       {renderConsultants()}
       {renderTourEmails()}
+    </div>
+  );
+
+  const renderLeads = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Lead Pipelines</CardTitle>
+          <CardDescription>Unified view of lead capture across AutoForge, Sprocket, and future inbound sources.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Use this section as the single place to review incoming leads, source quality, and follow-up opportunities across products.
+          </p>
+        </CardContent>
+      </Card>
       <AutoForgeLeadsPanel />
+      <SprocketActivityPanel />
     </div>
   );
 
   const renderMonitoring = () => (
     <div className="space-y-6">
       {renderWatchlistCard()}
-      <SprocketActivityPanel />
       <Card>
         <CardHeader>
           <CardTitle>System Diagnostics</CardTitle>
@@ -2910,6 +2931,7 @@ export default function DeveloperPage() {
   const renderMainSection = () => {
     if (activeSection === 'dashboard') return renderDashboard();
     if (activeSection === 'revenue_growth') return renderRevenueGrowth();
+    if (activeSection === 'leads') return renderLeads();
     if (activeSection === 'monitoring') return renderMonitoring();
     if (activeSection === 'sandbox') return renderSandbox();
 

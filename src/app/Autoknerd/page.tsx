@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { AutoforgeLeadDialog } from '@/components/autoforge/autoforge-lead-dialog';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 const ecosystemProducts = [
@@ -10,6 +11,9 @@ const ecosystemProducts = [
     label: 'TOOLS',
     title: 'AutoShop',
     copy: 'Integrated diagnostic suite for baseline performance metrics and friction identification.',
+    href: '/tools',
+    ariaLabel: 'Explore AutoShop diagnostic suite',
+    cta: 'Explore Tools',
     image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAaQWyznSaC_YzxqCMTDx7r8IlD1ccktn7iGxRsIa_WPD-11K6hi9Y2Tfx0blIA2BTtEfGvQmctlMKvvOJ2mwrSBlHvda6U0lXDs8nY4SgJlGGutROg5MbAT-qDnQppaS_Lsbv7T9zXg8I46EO7Zb1m3rQE-6HBOaJXovqk2awvRo0bQMyg3k8HNMbt61ATGJRNhxICjGdCjFCvXbrlOjYN3ZOOjkzeBBseQqC_BMuropUWG59iQElVYv5X-MOE0P97oUWIHczvoC8')",
     icon: null,
   },
@@ -18,6 +22,9 @@ const ecosystemProducts = [
     label: 'PLATFORM',
     title: 'AutoDriveCX',
     copy: 'The central nervous system. Unified behavioral training designed for scale and consistency.',
+    href: 'https://autodrivecx.com',
+    ariaLabel: 'Explore AutoDriveCX platform',
+    cta: 'Explore the System',
     image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTw-h2OTfPHdg19cY-HzLdqnDuxvXj8uWO8T7EK87rJnbjPD9qZo_l8wHKzA-YF7BAWpBSIfTZaaS779w24oWVPEPfLFY7tJvy7S6hWF4UmFPDRXPiTsbsmbHolmQiXmkEgAOGfQt1S5NC3jjIki0AxGkvAjI3m2Dv9CQt-uMt5aXCsB8QtccX1n4GSFwVtYiNoaIpieyoT3rbLarb5E6P_oUELaobTdTo86pET7KEtmi0izS13KqH6l7qcKyL2tHdJx8lKL3kCwk')",
     icon: 'psychology',
   },
@@ -26,17 +33,85 @@ const ecosystemProducts = [
     label: 'DEPLOYMENT',
     title: 'AutoForge',
     copy: 'Hardware and logic deployment for on-site execution. Hard-coding high performance into facility DNA.',
+    href: '/autoforge',
+    ariaLabel: 'Explore AutoForge deployment system',
+    cta: 'See It in Action',
     image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDxYDoYgM51GjeNF4Nk0qYF5cXudT1dpop9rQfWzlsjBcrGcWxS0LHB5W6sCVk0MizM3i81qkwZCzeaFEjhU8r3ab5GvWBpKQwclLwK3B4GShUMva4jcRqRlU8tog8ZQrIlWAh5LpKECme1TeeqNNxssy12S8FEPGdY-vVMi4pmIqvASiqTYWg_vroYi77x0x93W86jK-OIre7D_ts29QM0NR6DRHQIbkCVKVxIjvdrttpQKoxZkqU_g-AimrUBlEMT-PljG4bvxvQ')",
     icon: null,
   },
 ] as const;
 
+const frictionCards = [
+  {
+    key: 'guarded',
+    icon: 'security_update_warning',
+    title: 'Customers feel guarded',
+    copy: 'Lack of transparency creates immediate psychological friction at sale.',
+  },
+  {
+    key: 'inconsistent',
+    icon: 'voice_over_off',
+    title: 'Consultants sound inconsistent',
+    copy: 'Varied messaging across teams dilutes brand authority metrics.',
+  },
+  {
+    key: 'reactive',
+    icon: 'trending_down',
+    title: 'Coaching is reactive',
+    copy: 'Managers respond to missed quotas instead of correcting patterns early.',
+  },
+  {
+    key: 'siloed',
+    icon: 'settings_input_component',
+    title: 'Data is siloed',
+    copy: 'Valuable insights trapped in legacy systems with zero actionable output.',
+  },
+] as const;
+
+const processCards = [
+  {
+    key: 'input',
+    step: '01',
+    title: 'Input',
+    copy: 'Diagnostic phase. We audit current workflows via AutoShop to find gaps.',
+  },
+  {
+    key: 'processing',
+    step: '02',
+    title: 'Processing',
+    copy: 'Intelligence phase. AutoDriveCX recalibrates behavior and team alignment.',
+  },
+  {
+    key: 'deployment',
+    step: '03',
+    title: 'Deployment',
+    copy: 'Execution phase. AutoForge implements the permanent high-performance OS.',
+  },
+] as const;
+
 export default function AutoknerdPage() {
   const [activeProduct, setActiveProduct] = useState<(typeof ecosystemProducts)[number]['key']>('autodrivecx');
-  const productRefs = useRef<Record<(typeof ecosystemProducts)[number]['key'], HTMLButtonElement | null>>({
+  const [hoveredProduct, setHoveredProduct] = useState<(typeof ecosystemProducts)[number]['key'] | null>(null);
+  const [activeFrictionCard, setActiveFrictionCard] = useState<(typeof frictionCards)[number]['key']>('guarded');
+  const [hoveredFrictionCard, setHoveredFrictionCard] = useState<(typeof frictionCards)[number]['key'] | null>(null);
+  const [activeProcessCard, setActiveProcessCard] = useState<(typeof processCards)[number]['key']>('processing');
+  const [hoveredProcessCard, setHoveredProcessCard] = useState<(typeof processCards)[number]['key'] | null>(null);
+  const [isAutoforgeLeadModalOpen, setIsAutoforgeLeadModalOpen] = useState(false);
+  const productRefs = useRef<Record<(typeof ecosystemProducts)[number]['key'], HTMLAnchorElement | null>>({
     autoshop: null,
     autodrivecx: null,
     autoforge: null,
+  });
+  const frictionRefs = useRef<Record<(typeof frictionCards)[number]['key'], HTMLButtonElement | null>>({
+    guarded: null,
+    inconsistent: null,
+    reactive: null,
+    siloed: null,
+  });
+  const processRefs = useRef<Record<(typeof processCards)[number]['key'], HTMLButtonElement | null>>({
+    input: null,
+    processing: null,
+    deployment: null,
   });
 
   useEffect(() => {
@@ -88,6 +163,118 @@ export default function AutoknerdPage() {
       });
 
       setActiveProduct((current) => (current === closestKey ? current : closestKey));
+    };
+
+    const requestSync = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0;
+        syncActiveCard();
+      });
+    };
+
+    requestSync();
+    window.addEventListener('scroll', requestSync, { passive: true });
+    window.addEventListener('resize', requestSync);
+    mediaQuery.addEventListener('change', requestSync);
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener('scroll', requestSync);
+      window.removeEventListener('resize', requestSync);
+      mediaQuery.removeEventListener('change', requestSync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    let frameId = 0;
+
+    const syncActiveCard = () => {
+      if (!mediaQuery.matches) {
+        setActiveProcessCard('processing');
+        return;
+      }
+
+      const viewportCenter = window.innerHeight * 0.5;
+      let closestKey: (typeof processCards)[number]['key'] = 'processing';
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      processCards.forEach((card) => {
+        const node = processRefs.current[card.key];
+        if (!node) return;
+
+        const rect = node.getBoundingClientRect();
+        const cardCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(cardCenter - viewportCenter);
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestKey = card.key;
+        }
+      });
+
+      setActiveProcessCard((current) => (current === closestKey ? current : closestKey));
+    };
+
+    const requestSync = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0;
+        syncActiveCard();
+      });
+    };
+
+    requestSync();
+    window.addEventListener('scroll', requestSync, { passive: true });
+    window.addEventListener('resize', requestSync);
+    mediaQuery.addEventListener('change', requestSync);
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener('scroll', requestSync);
+      window.removeEventListener('resize', requestSync);
+      mediaQuery.removeEventListener('change', requestSync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    let frameId = 0;
+
+    const syncActiveCard = () => {
+      if (!mediaQuery.matches) {
+        setActiveFrictionCard('guarded');
+        return;
+      }
+
+      const viewportCenter = window.innerHeight * 0.5;
+      let closestKey: (typeof frictionCards)[number]['key'] = 'guarded';
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      frictionCards.forEach((card) => {
+        const node = frictionRefs.current[card.key];
+        if (!node) return;
+
+        const rect = node.getBoundingClientRect();
+        const cardCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(cardCenter - viewportCenter);
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestKey = card.key;
+        }
+      });
+
+      setActiveFrictionCard((current) => (current === closestKey ? current : closestKey));
     };
 
     const requestSync = () => {
@@ -172,25 +359,31 @@ export default function AutoknerdPage() {
             </div>
             <div className="relative z-10 grid grid-cols-1 items-center gap-8 md:grid-cols-3">
               {ecosystemProducts.map((product) => {
-                const isActive = activeProduct === product.key;
+                const isActive = (hoveredProduct ?? activeProduct) === product.key;
                 const isPlatform = product.key === 'autodrivecx';
+                const isExternal = product.href.startsWith('http');
 
                 return (
-                  <button
+                  <Link
                     key={product.key}
-                    type="button"
-                    onClick={() => setActiveProduct(product.key)}
+                    href={product.href}
+                    aria-label={product.ariaLabel}
+                    onMouseEnter={() => setHoveredProduct(product.key)}
+                    onMouseLeave={() => setHoveredProduct(null)}
+                    onFocus={() => setHoveredProduct(product.key)}
+                    onBlur={() => setHoveredProduct(null)}
                     ref={(node) => {
                       productRefs.current[product.key] = node;
                     }}
                     data-product-key={product.key}
+                    target={isExternal ? '_blank' : undefined}
+                    rel={isExternal ? 'noreferrer' : undefined}
                     className={[
-                      'group flex h-full flex-col space-y-2 text-left transition-all duration-500 ease-out',
+                      'group flex h-full flex-col space-y-2 text-left no-underline outline-none transition-all duration-500 ease-out focus-visible:ring-2 focus-visible:ring-[#bdfc00]/80 focus-visible:ring-offset-4 focus-visible:ring-offset-[#0d0f0f]',
                       isActive
-                        ? 'z-20 scale-100 opacity-100 md:scale-[1.13]'
-                        : 'z-10 opacity-70 md:scale-[0.94] hover:opacity-100',
+                        ? 'z-20 scale-100 cursor-pointer opacity-100 md:scale-[1.13]'
+                        : 'z-10 cursor-pointer opacity-70 md:scale-[0.94] hover:opacity-100',
                     ].join(' ')}
-                    aria-pressed={isActive}
                   >
                     <span
                       className={[
@@ -214,8 +407,8 @@ export default function AutoknerdPage() {
                       </h3>
                       <p
                         className={[
-                          'mb-8 line-clamp-2 transition-all duration-500',
-                          isActive ? 'text-base font-medium leading-relaxed text-white' : 'text-sm text-[#aaabab]',
+                          'mb-8 transition-all duration-500',
+                          isActive ? 'text-base font-medium leading-relaxed text-white' : 'line-clamp-2 text-sm text-[#aaabab]',
                         ].join(' ')}
                       >
                         {product.copy}
@@ -247,8 +440,19 @@ export default function AutoknerdPage() {
                           </span>
                         )}
                       </div>
+                      <span
+                        className={[
+                          'card-cta mt-5 inline-flex items-center gap-2 self-start text-xs font-bold uppercase tracking-[0.18em] transition-all duration-300',
+                          isActive ? 'text-[#bdfc00]' : 'text-[#bdfc00]/75 group-hover:text-[#bdfc00]',
+                          product.key === 'autodrivecx' ? 'opacity-95' : 'opacity-85',
+                          'pointer-events-none group-hover:translate-x-1 group-hover:opacity-100',
+                        ].join(' ')}
+                      >
+                        {product.cta}
+                        <span className="cta-arrow text-sm leading-none">→</span>
+                      </span>
                     </div>
-                  </button>
+                  </Link>
                 );
               })}
             </div>
@@ -268,19 +472,58 @@ export default function AutoknerdPage() {
               </p>
             </div>
             <div className="grid grid-cols-1 gap-0.5 border border-[#464848]/10 bg-[#464848]/5 md:grid-cols-2 lg:grid-cols-4">
-              {[
-                ['security_update_warning', 'Customers feel guarded', 'Lack of transparency creates immediate psychological friction at sale.'],
-                ['voice_over_off', 'Consultants sound inconsistent', 'Varied messaging across teams dilutes brand authority metrics.'],
-                ['trending_down', 'Coaching is reactive', 'Managers respond to missed quotas instead of correcting patterns early.'],
-                ['settings_input_component', 'Data is siloed', 'Valuable insights trapped in legacy systems with zero actionable output.'],
-              ].map(([icon, title, copy]) => (
-                <div key={title} className="group relative overflow-hidden bg-[#0d0f0f] p-10 transition-all duration-300 hover:bg-[#2a2d2d]">
-                  <span className="material-symbols-outlined mb-6 block text-3xl text-zinc-600 transition-colors group-hover:text-[#eaffb8]">{icon}</span>
-                  <h4 className="mb-4 text-xl font-medium">{title}</h4>
-                  <div className="mb-4 h-px w-0 bg-[#eaffb8]/30 transition-all duration-500 group-hover:w-full" />
-                  <p className="text-sm leading-relaxed text-[#aaabab] opacity-0 transition-opacity duration-300 group-hover:opacity-100">{copy}</p>
-                </div>
-              ))}
+              {frictionCards.map((card) => {
+                const isActive = (hoveredFrictionCard ?? activeFrictionCard) === card.key;
+
+                return (
+                  <button
+                    key={card.key}
+                    type="button"
+                    onClick={() => setActiveFrictionCard(card.key)}
+                    onMouseEnter={() => setHoveredFrictionCard(card.key)}
+                    onMouseLeave={() => setHoveredFrictionCard(null)}
+                    onFocus={() => setHoveredFrictionCard(card.key)}
+                    onBlur={() => setHoveredFrictionCard(null)}
+                    ref={(node) => {
+                      frictionRefs.current[card.key] = node;
+                    }}
+                    className={[
+                      'group relative overflow-hidden bg-[#0d0f0f] p-10 text-left transition-all duration-500 ease-out',
+                      isActive
+                        ? 'border-2 border-[#bdfc00] bg-[#161919] shadow-[0_0_40px_rgba(189,252,0,0.12)]'
+                        : 'border border-transparent hover:border-[#eaffb8]/20 hover:bg-[#2a2d2d]',
+                    ].join(' ')}
+                    aria-pressed={isActive}
+                  >
+                    {isActive && <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 rounded-full bg-[#bdfc00]/12 blur-3xl" />}
+                    <span
+                      className={[
+                        'material-symbols-outlined mb-6 block text-3xl transition-colors duration-500',
+                        isActive ? 'text-[#bdfc00]' : 'text-zinc-600',
+                      ].join(' ')}
+                    >
+                      {card.icon}
+                    </span>
+                    <h4 className={isActive ? 'mb-4 text-xl font-medium text-[#f4f3f3]' : 'mb-4 text-xl font-medium text-[#f4f3f3]'}>
+                      {card.title}
+                    </h4>
+                    <div
+                      className={[
+                        'mb-4 h-px transition-all duration-500',
+                        isActive ? 'w-full bg-[#bdfc00]/40' : 'w-0 bg-[#eaffb8]/30 group-hover:w-full',
+                      ].join(' ')}
+                    />
+                    <p
+                      className={[
+                        'text-sm leading-relaxed text-[#aaabab] transition-all duration-300',
+                        isActive ? 'max-h-24 opacity-100' : 'max-h-0 overflow-hidden opacity-0 group-hover:max-h-24 group-hover:opacity-100',
+                      ].join(' ')}
+                    >
+                      {card.copy}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -289,25 +532,109 @@ export default function AutoknerdPage() {
           <div className="mx-auto max-w-7xl">
             <div className="relative">
               <div className="absolute left-0 top-1/2 hidden h-px w-full bg-[#464848]/20 md:block" />
+              <div className="pointer-events-none absolute left-0 top-1/2 hidden h-px w-full -translate-y-1/2 overflow-hidden md:block">
+                <div className="animate-autoknerd-travel h-full w-40 bg-gradient-to-r from-transparent via-[#bdfc00] to-transparent opacity-70 blur-[1px]" />
+              </div>
               <div className="relative z-10 grid grid-cols-1 gap-12 md:grid-cols-3">
-                {[
-                  ['01', 'Input', 'Diagnostic phase. We audit current workflows via AutoShop to find gaps.', false],
-                  ['02', 'Processing', 'Intelligence phase. AutoDriveCX recalibrates behavior and team alignment.', true],
-                  ['03', 'Deployment', 'Execution phase. AutoForge implements the permanent high-performance OS.', false],
-                ].map(([step, title, copy, active]) => (
-                  <div
-                    key={step}
-                    className={active
-                      ? 'border border-[#eaffb8]/20 bg-[#0d0f0f] p-12 text-center shadow-[0_0_30px_rgba(189,252,0,0.05)]'
-                      : 'group border border-[#464848]/10 bg-[#0d0f0f] p-12 text-center transition-all duration-500 hover:border-[#eaffb8]/20'}
+                {processCards.map((card) => {
+                  const isActive = (hoveredProcessCard ?? activeProcessCard) === card.key;
+
+                  return (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={() => setActiveProcessCard(card.key)}
+                      onMouseEnter={() => setHoveredProcessCard(card.key)}
+                      onMouseLeave={() => setHoveredProcessCard(null)}
+                      onFocus={() => setHoveredProcessCard(card.key)}
+                      onBlur={() => setHoveredProcessCard(null)}
+                      ref={(node) => {
+                        processRefs.current[card.key] = node;
+                      }}
+                      className={[
+                        'group relative text-center transition-all duration-500 ease-out',
+                        isActive
+                          ? 'z-20 scale-100 md:scale-[1.06]'
+                          : 'z-10 md:scale-[0.96]',
+                      ].join(' ')}
+                      aria-pressed={isActive}
+                    >
+                      <div
+                        className={[
+                          'relative overflow-hidden p-12 transition-all duration-500 ease-out',
+                          isActive
+                            ? 'border-2 border-[#bdfc00] bg-[#0d0f0f] shadow-[0_0_40px_rgba(189,252,0,0.12)]'
+                            : 'border border-[#464848]/10 bg-[#0d0f0f] hover:border-[#eaffb8]/20',
+                        ].join(' ')}
+                      >
+                        {isActive && <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 rounded-full bg-[#bdfc00]/10 blur-3xl" />}
+                        <span
+                          className={[
+                            'mb-6 block text-4xl font-black transition-colors duration-500',
+                            isActive ? 'text-[#eaffb8]' : 'text-[#eaffb8]/10 group-hover:text-[#eaffb8]/30',
+                          ].join(' ')}
+                        >
+                          {card.step}
+                        </span>
+                        <h3 className="mb-4 text-2xl uppercase tracking-tighter">{card.title}</h3>
+                        <div
+                          className={[
+                            'mx-auto mb-4 h-px transition-all duration-500',
+                            isActive ? 'w-24 bg-[#bdfc00]/40' : 'w-0 bg-[#eaffb8]/30 group-hover:w-16',
+                          ].join(' ')}
+                        />
+                        <p
+                          className={[
+                            'leading-relaxed transition-all duration-300',
+                            isActive
+                              ? 'max-h-32 text-[#f4f3f3] opacity-100'
+                              : 'max-h-0 overflow-hidden text-[#aaabab] opacity-0 group-hover:max-h-32 group-hover:opacity-100 md:max-h-20 md:opacity-80',
+                          ].join(' ')}
+                        >
+                          {card.copy}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="fade-in-section px-8 pb-24">
+          <div className="mx-auto max-w-6xl">
+            <div className="relative overflow-hidden border border-[#464848]/15 bg-[#121414] px-8 py-12 md:px-14 md:py-16">
+              <div className="pointer-events-none absolute -left-20 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-[#bdfc00]/10 blur-[90px]" />
+              <div className="pointer-events-none absolute right-0 top-0 h-44 w-44 rounded-full bg-[#eaffb8]/8 blur-[80px]" />
+              <div className="relative z-10 flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
+                <div className="max-w-3xl">
+                  <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.28em] text-[#bdfc00]">Choose Your Next Step</p>
+                  <h2 className="mb-4 text-3xl tracking-tighter text-[#f4f3f3] md:text-5xl">
+                    Not sure which path fits your dealership best?
+                  </h2>
+                  <p className="max-w-2xl text-base leading-relaxed text-[#aaabab] md:text-lg">
+                    Start with a guided fit check if you want clarity, or book a diagnostic if you already know you need a deeper deployment conversation.
+                  </p>
+                </div>
+                <div className="flex w-full flex-col gap-4 md:w-auto md:min-w-[320px]">
+                  <Link
+                    href="/Autoknerd/find-your-fit"
+                    className="glow-primary-hover inline-flex items-center justify-center bg-[#bdfc00] px-8 py-4 text-sm font-bold uppercase tracking-[0.16em] text-[#445d00] transition-all duration-300 hover:brightness-110 active:scale-95"
                   >
-                    <span className={active ? 'mb-6 block text-4xl font-black text-[#eaffb8]' : 'mb-6 block text-4xl font-black text-[#eaffb8]/10 transition-colors group-hover:text-[#eaffb8]/30'}>
-                      {step}
-                    </span>
-                    <h3 className="mb-4 text-2xl uppercase tracking-tighter">{title}</h3>
-                    <p className={active ? 'leading-relaxed text-[#f4f3f3]' : 'leading-relaxed text-[#aaabab]'}>{copy}</p>
-                  </div>
-                ))}
+                    Find Your Fit
+                  </Link>
+                  <Link
+                    href="/autoforge"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setIsAutoforgeLeadModalOpen(true);
+                    }}
+                    className="inline-flex items-center justify-center border border-[#eaffb8]/30 px-8 py-4 text-sm font-bold uppercase tracking-[0.16em] text-[#f4f3f3] transition-all duration-300 hover:border-[#bdfc00]/50 hover:bg-[#1d2020] hover:text-[#eaffb8] active:scale-95"
+                  >
+                    Book AutoForge Diagnostic
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -352,38 +679,64 @@ export default function AutoknerdPage() {
         <section className="fade-in-section px-8 py-48">
           <div className="relative mx-auto max-w-7xl overflow-hidden border border-[#464848]/10 bg-[#1d2020] p-12 md:p-24">
             <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#eaffb8]/5 blur-[100px]" />
-            <div className="relative z-10 max-w-2xl">
-              <h2 className="mb-16 text-4xl tracking-tighter md:text-6xl">Not sure where to start?</h2>
-              <div className="space-y-4">
-                <Link className="group flex items-center justify-between border border-[#464848]/20 bg-[#0d0f0f] p-8 transition-all hover:border-[#eaffb8]/40 hover:shadow-[0_0_30px_rgba(189,252,0,0.05)]" href="/Autoknerd/find-your-fit">
-                  <div className="flex items-center space-x-8">
-                    <span className="font-bold text-[#eaffb8]">01</span>
-                    <span className="text-xl font-medium">Take the CX Friction Check</span>
+            <div className="relative z-10 grid gap-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
+              <div className="max-w-3xl">
+                <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.28em] text-[#bdfc00]">What Changes Next</p>
+                <h2 className="mb-8 text-4xl tracking-tighter md:text-6xl">
+                  AutoKnerd turns good intentions into visible operating standards.
+                </h2>
+                <p className="max-w-2xl text-lg leading-relaxed text-[#aaabab] md:text-xl">
+                  The point is not another round of inspiration. The point is creating a dealership environment where customers experience the same clarity, consistency, and follow-through every single time.
+                </p>
+              </div>
+              <div className="grid gap-4">
+                {[
+                  ['01', 'Standards become visible', 'Expectations stop living in memory and start showing up inside the daily workflow.'],
+                  ['02', 'Coaching gets specific', 'Managers can correct patterns earlier instead of reacting after performance slips.'],
+                  ['03', 'Execution compounds', 'The system keeps reinforcing the behaviors that create trust, speed, and stronger conversion.'],
+                ].map(([step, title, copy]) => (
+                  <div
+                    key={step}
+                    className="border border-[#464848]/20 bg-[#0d0f0f] p-8 transition-all hover:border-[#eaffb8]/30 hover:bg-[#111414]"
+                  >
+                    <div className="mb-4 flex items-center gap-4">
+                      <span className="text-sm font-black uppercase tracking-[0.22em] text-[#bdfc00]">{step}</span>
+                      <div className="h-px flex-1 bg-[#bdfc00]/15" />
+                    </div>
+                    <h3 className="mb-3 text-xl font-medium text-[#f4f3f3]">{title}</h3>
+                    <p className="text-sm leading-relaxed text-[#aaabab]">{copy}</p>
                   </div>
-                  <span className="material-symbols-outlined transition-transform group-hover:translate-x-2">arrow_forward</span>
-                </Link>
-                <Link className="group flex items-center justify-between border border-[#464848]/20 bg-[#0d0f0f] p-8 transition-all hover:border-[#eaffb8]/40 hover:shadow-[0_0_30px_rgba(189,252,0,0.05)]" href="/login">
-                  <div className="flex items-center space-x-8">
-                    <span className="font-bold text-[#eaffb8]">02</span>
-                    <span className="text-xl font-medium">Start AutoDriveCX</span>
-                  </div>
-                  <span className="material-symbols-outlined transition-transform group-hover:translate-x-2">arrow_forward</span>
-                </Link>
-                <Link className="group flex items-center justify-between border border-[#464848]/20 bg-[#0d0f0f] p-8 transition-all hover:border-[#eaffb8]/40 hover:shadow-[0_0_30px_rgba(189,252,0,0.05)]" href="/autoforge">
-                  <div className="flex items-center space-x-8">
-                    <span className="font-bold text-[#eaffb8]">03</span>
-                    <span className="text-xl font-medium">Book an AutoForge Diagnostic</span>
-                  </div>
-                  <span className="material-symbols-outlined transition-transform group-hover:translate-x-2">arrow_forward</span>
-                </Link>
+                ))}
               </div>
             </div>
           </div>
         </section>
+
+        <section className="fade-in-section px-8 pb-20">
+          <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2">
+            <Link
+              href="/Autoknerd/find-your-fit"
+              className="glow-primary-hover inline-flex min-h-[112px] items-center justify-center bg-[#bdfc00] px-8 py-6 text-center text-2xl font-black uppercase tracking-[0.22em] text-[#445d00] transition-all duration-300 hover:brightness-110 active:scale-[0.99]"
+            >
+              Find Your Fit
+            </Link>
+            <Link
+              href="/autoforge"
+              onClick={(event) => {
+                event.preventDefault();
+                setIsAutoforgeLeadModalOpen(true);
+              }}
+              className="inline-flex min-h-[112px] items-center justify-center border border-[#6e7652] bg-transparent px-8 py-6 text-center text-2xl font-black uppercase tracking-[0.18em] text-[#f4f3f3] transition-all duration-300 hover:border-[#bdfc00]/50 hover:bg-[#171919] hover:text-[#eaffb8] active:scale-[0.99]"
+            >
+              Book AutoForge Diagnostic
+            </Link>
+          </div>
+        </section>
       </main>
+      <AutoforgeLeadDialog open={isAutoforgeLeadModalOpen} onOpenChange={setIsAutoforgeLeadModalOpen} />
       <footer className="w-full border-t border-zinc-900 bg-black">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-8 px-8 py-16 md:flex-row">
-          <div className="text-lg font-bold uppercase tracking-widest text-lime-500">AutoKnerd AI</div>
+          <div className="text-lg font-bold uppercase tracking-widest text-lime-500">AutoKnerd</div>
           <div className="flex flex-wrap justify-center gap-10">
             <Link className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="/privacy">Privacy Policy</Link>
             <a className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="#">Terms of Service</a>
@@ -392,7 +745,7 @@ export default function AutoknerdPage() {
             <a className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="#">Contact</a>
           </div>
           <div className="text-[10px] uppercase tracking-widest text-zinc-700 opacity-80">
-            © 2024 AutoKnerd AI. High-Performance Automotive Intelligence.
+            © 2024 AutoKnerd LLC Dealership CX Development.
           </div>
         </div>
       </footer>

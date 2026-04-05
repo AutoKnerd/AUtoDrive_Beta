@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ArrowRight,
   Bolt,
@@ -18,22 +18,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { AutoforgeLeadDialog } from '@/components/autoforge/autoforge-lead-dialog';
 
 type PainCard = {
   icon: LucideIcon;
@@ -45,13 +30,6 @@ type Step = {
   number: string;
   icon: LucideIcon;
   title: string;
-};
-
-type LeadFormState = {
-  name: string;
-  email: string;
-  dealershipName: string;
-  role: string;
 };
 
 const painCards: PainCard[] = [
@@ -92,13 +70,6 @@ const outcomes = [
   'Verified management accountability',
 ];
 
-const initialLeadForm: LeadFormState = {
-  name: '',
-  email: '',
-  dealershipName: '',
-  role: '',
-};
-
 function Section({
   image,
   children,
@@ -129,68 +100,10 @@ function Kicker({ children }: { children: ReactNode }) {
 }
 
 export default function AutoForgePageClient() {
-  const { toast } = useToast();
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
-  const [modalStep, setModalStep] = useState<'form' | 'schedule'>('form');
-  const [leadForm, setLeadForm] = useState<LeadFormState>(initialLeadForm);
-  const [submittedLead, setSubmittedLead] = useState<LeadFormState | null>(null);
-  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
 
   const openLeadModal = () => {
-    setModalStep('form');
     setIsLeadModalOpen(true);
-  };
-
-  const handleDialogOpenChange = (open: boolean) => {
-    setIsLeadModalOpen(open);
-    if (!open) {
-      setModalStep('form');
-    }
-  };
-
-  const handleLeadSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!leadForm.name || !leadForm.email || !leadForm.dealershipName || !leadForm.role || isSubmittingLead) {
-      return;
-    }
-
-    const payload = { ...leadForm };
-    setIsSubmittingLead(true);
-
-    try {
-      const response = await fetch('/api/autoforge/leads', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const result = (await response.json().catch(() => null)) as { error?: string } | null;
-      if (!response.ok) {
-        throw new Error(result?.error || 'Unable to save your AutoForge request.');
-      }
-
-      setSubmittedLead(payload);
-      window.sessionStorage.setItem('autoforgeLead', JSON.stringify(payload));
-      setModalStep('schedule');
-    } catch (error) {
-      toast({
-        title: 'Lead capture failed',
-        description: error instanceof Error ? error.message : 'Unable to save your AutoForge request.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSubmittingLead(false);
-    }
-  };
-
-  const handleScheduleRedirect = () => {
-    if (submittedLead) {
-      window.sessionStorage.setItem('autoforgeLead', JSON.stringify(submittedLead));
-    }
-    setIsLeadModalOpen(false);
-    window.location.href = 'https://calendar.app.google/zjo3gkPHR74buJ7f9';
   };
 
   return (
@@ -555,126 +468,7 @@ export default function AutoForgePageClient() {
         </Section>
       </main>
 
-      <Dialog open={isLeadModalOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="border-white/10 bg-[#101010] p-0 text-white sm:max-w-[540px]">
-          {modalStep === 'form' ? (
-            <div className="p-6 sm:p-8">
-              <DialogHeader className="text-left">
-                <DialogTitle className="font-[family-name:var(--font-heading)] text-3xl font-black uppercase tracking-[-0.03em] text-white">
-                  Deploy AutoForge in Your Dealership
-                </DialogTitle>
-                <DialogDescription className="mt-3 text-base leading-7 text-white/70">
-                  Tell us a bit about your store and we’ll show you exactly how this works for you.
-                </DialogDescription>
-              </DialogHeader>
-
-              <form className="mt-6 grid gap-4" onSubmit={handleLeadSubmit}>
-                <div className="grid gap-2">
-                  <label htmlFor="autoforge-name" className="text-sm font-semibold text-white/80">
-                    Name
-                  </label>
-                  <Input
-                    id="autoforge-name"
-                    type="text"
-                    required
-                    value={leadForm.name}
-                    onChange={(event) =>
-                      setLeadForm((current) => ({ ...current, name: event.target.value }))
-                    }
-                    className="h-12 border-white/10 bg-[#181818] text-white placeholder:text-white/35"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label htmlFor="autoforge-email" className="text-sm font-semibold text-white/80">
-                    Email
-                  </label>
-                  <Input
-                    id="autoforge-email"
-                    type="email"
-                    required
-                    value={leadForm.email}
-                    onChange={(event) =>
-                      setLeadForm((current) => ({ ...current, email: event.target.value }))
-                    }
-                    className="h-12 border-white/10 bg-[#181818] text-white placeholder:text-white/35"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label htmlFor="autoforge-dealership" className="text-sm font-semibold text-white/80">
-                    Dealership Name
-                  </label>
-                  <Input
-                    id="autoforge-dealership"
-                    type="text"
-                    required
-                    value={leadForm.dealershipName}
-                    onChange={(event) =>
-                      setLeadForm((current) => ({
-                        ...current,
-                        dealershipName: event.target.value,
-                      }))
-                    }
-                    className="h-12 border-white/10 bg-[#181818] text-white placeholder:text-white/35"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-white/80">Role</label>
-                  <Select
-                    value={leadForm.role}
-                    onValueChange={(value) =>
-                      setLeadForm((current) => ({
-                        ...current,
-                        role: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger className="h-12 border-white/10 bg-[#181818] text-white">
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent className="border-white/10 bg-[#181818] text-white">
-                      <SelectItem value="Sales">Sales</SelectItem>
-                      <SelectItem value="Manager">Manager</SelectItem>
-                      <SelectItem value="Fixed Ops">Fixed Ops</SelectItem>
-                      <SelectItem value="Owner">Owner</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isSubmittingLead}
-                  className="mt-2 h-12 bg-[#00ff66] font-[family-name:var(--font-heading)] text-sm font-black uppercase tracking-[0.14em] text-black hover:bg-[#00ff66]/90"
-                >
-                  {isSubmittingLead ? 'Saving...' : 'Continue'}
-                </Button>
-              </form>
-            </div>
-          ) : (
-            <div className="p-6 sm:p-8">
-              <DialogHeader className="text-left">
-                <DialogTitle className="font-[family-name:var(--font-heading)] text-3xl font-black uppercase tracking-[-0.03em] text-white">
-                  Want to walk through this live?
-                </DialogTitle>
-                <DialogDescription className="mt-3 text-base leading-7 text-white/70">
-                  We’ll use what you shared to tailor the walkthrough to your store.
-                </DialogDescription>
-              </DialogHeader>
-
-              <Button
-                type="button"
-                onClick={handleScheduleRedirect}
-                className="mt-6 h-12 w-full bg-[#00ff66] font-[family-name:var(--font-heading)] text-sm font-black uppercase tracking-[0.14em] text-black hover:bg-[#00ff66]/90"
-              >
-                See Available Times
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <AutoforgeLeadDialog open={isLeadModalOpen} onOpenChange={setIsLeadModalOpen} />
     </>
   );
 }

@@ -292,6 +292,23 @@
   }
 }
 
+@keyframes autoknerd-travel {
+  0% {
+    transform: translateX(-20%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.75;
+  }
+  85% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateX(calc(100vw - 12rem));
+    opacity: 0;
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: 200% 0;
@@ -313,8 +330,18 @@
   animation: autoknerd-fast-scan 4s linear infinite;
 }
 
+.animate-autoknerd-travel {
+  animation: autoknerd-travel 1.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lesson-ready-pulse {
+    animation: none;
+  }
+  .animate-autoknerd-scan,
+  .animate-autoknerd-system-pulse,
+  .animate-autoknerd-fast-scan,
+  .animate-autoknerd-travel {
     animation: none;
   }
 }
