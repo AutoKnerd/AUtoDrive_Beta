@@ -80,7 +80,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      router.push('/Autoknerd');
     } else if (!loading && user && requiresIndividualCheckout(user)) {
       router.push('/subscribe');
     } else if (!loading && !isConsultantRouteChecking && consultantRoute) {
