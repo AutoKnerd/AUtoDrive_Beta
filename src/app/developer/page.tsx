@@ -40,6 +40,7 @@ import { EditUserForm } from '@/components/admin/edit-user-form';
 import { PppProtocolSettings } from '@/components/admin/ppp-protocol-settings';
 import { AutoForgeLeadsPanel } from '@/components/developer/autoforge-leads-panel';
 import { SprocketActivityPanel } from '@/components/developer/sprocket-activity-panel';
+import { ToolUsageMonitoringPanel } from '@/components/developer/tool-usage-monitoring-panel';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -443,6 +444,9 @@ export default function DeveloperPage() {
   const [giftAutoDriveCxTargetUserId, setGiftAutoDriveCxTargetUserId] = useState<string>('');
   const [isGiftingAutoDriveCx, setIsGiftingAutoDriveCx] = useState(false);
   const [isRevertingAutoDriveCx, setIsRevertingAutoDriveCx] = useState(false);
+  const [siteTrafficTargetUserId, setSiteTrafficTargetUserId] = useState<string>('');
+  const [isGrantingSiteTraffic, setIsGrantingSiteTraffic] = useState(false);
+  const [isRevokingSiteTraffic, setIsRevokingSiteTraffic] = useState(false);
   const [toolboxDealershipId, setToolboxDealershipId] = useState<string>('');
   const [toolboxDealershipAccessEnabled, setToolboxDealershipAccessEnabled] = useState(true);
   const [isSavingToolboxDealershipAccess, setIsSavingToolboxDealershipAccess] = useState(false);
@@ -1180,6 +1184,102 @@ export default function DeveloperPage() {
       setIsRevertingAutoDriveCx(false);
     }
   }, [firebaseAuth, giftAutoDriveCxTargetUserId, refreshData, toast]);
+
+  const grantSiteTrafficAccess = useCallback(async () => {
+    if (!siteTrafficTargetUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a user first',
+        description: 'Choose a user to grant Site Traffic access.',
+      });
+      return;
+    }
+
+    try {
+      setIsGrantingSiteTraffic(true);
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required to grant Site Traffic access.');
+      }
+      const token = await fbUser.getIdToken(true);
+
+      const response = await fetch('/api/admin/site-traffic-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targetUserId: siteTrafficTargetUserId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to grant Site Traffic access.');
+      }
+
+      toast({
+        title: 'Site Traffic access granted',
+        description: `${payload?.user?.name || 'User'} can now open Site Traffic from the avatar menu.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Grant failed',
+        description: error instanceof Error ? error.message : 'Failed to grant Site Traffic access.',
+      });
+    } finally {
+      setIsGrantingSiteTraffic(false);
+    }
+  }, [firebaseAuth, refreshData, siteTrafficTargetUserId, toast]);
+
+  const revokeSiteTrafficAccess = useCallback(async () => {
+    if (!siteTrafficTargetUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a user first',
+        description: 'Choose a user to revoke Site Traffic access.',
+      });
+      return;
+    }
+
+    try {
+      setIsRevokingSiteTraffic(true);
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required to revoke Site Traffic access.');
+      }
+      const token = await fbUser.getIdToken(true);
+
+      const response = await fetch('/api/admin/site-traffic-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'revoke', targetUserId: siteTrafficTargetUserId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to revoke Site Traffic access.');
+      }
+
+      toast({
+        title: 'Site Traffic access revoked',
+        description: `${payload?.user?.name || 'User'} no longer has Site Traffic access.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Revoke failed',
+        description: error instanceof Error ? error.message : 'Failed to revoke Site Traffic access.',
+      });
+    } finally {
+      setIsRevokingSiteTraffic(false);
+    }
+  }, [firebaseAuth, refreshData, siteTrafficTargetUserId, toast]);
 
   const saveDealershipToolboxAccess = useCallback(async () => {
     if (!toolboxDealershipId) {
@@ -2913,6 +3013,7 @@ export default function DeveloperPage() {
 
   const renderMonitoring = () => (
     <div className="space-y-6">
+      <ToolUsageMonitoringPanel />
       {renderWatchlistCard()}
       <Card>
         <CardHeader>
@@ -2945,6 +3046,47 @@ export default function DeveloperPage() {
             <CardDescription>Select a workflow to open the corresponding management panel.</CardDescription>
           </CardHeader>
           <CardContent>
+            {activeSection === 'people_access' && (
+              <div className="mb-6 space-y-3">
+                  <div className="rounded-md border p-3">
+                    <p className="text-sm font-medium">Grant Site Traffic Access</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Adds a Site Traffic destination to the selected user&apos;s avatar dropdown without exposing the full Admin Intelligence dashboard.
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <Select value={siteTrafficTargetUserId} onValueChange={setSiteTrafficTargetUserId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select user for Site Traffic" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {giftableUsers.map((candidate) => (
+                            <SelectItem key={candidate.userId} value={candidate.userId}>
+                              {candidate.name} ({candidate.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => void grantSiteTrafficAccess()}
+                          disabled={isGrantingSiteTraffic || isRevokingSiteTraffic || !siteTrafficTargetUserId}
+                        >
+                          {isGrantingSiteTraffic ? <Spinner size="sm" /> : 'Grant Site Traffic'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void revokeSiteTrafficAccess()}
+                          disabled={isGrantingSiteTraffic || isRevokingSiteTraffic || !siteTrafficTargetUserId}
+                        >
+                          {isRevokingSiteTraffic ? <Spinner size="sm" /> : 'Revoke Access'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+              </div>
+            )}
             {activeSection === 'product_controls' && (
               <div className="mb-6 space-y-3">
                   <div className="rounded-md border p-3">

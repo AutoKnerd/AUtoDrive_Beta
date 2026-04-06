@@ -28,6 +28,31 @@ type FreshUpSessionRecord = {
   completionStatus?: string;
 };
 
+type SiteTrafficEventRecord = {
+  pathname: string;
+  surface: string;
+  referrer: string | null;
+  previousPath: string | null;
+  utmSource: string | null;
+  utmCampaign: string | null;
+  deviceType: 'mobile' | 'tablet' | 'desktop';
+  visitorId: string | null;
+  sessionId: string | null;
+  userId: string | null;
+  isLandingPage: boolean;
+  geo: {
+    continent: string | null;
+    country: string | null;
+    region: string | null;
+    city: string | null;
+    timezone: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    maskedIp: string | null;
+  };
+  createdAt: Date;
+};
+
 type DealerAggregate = {
   dealerId: string;
   dealerName: string;
@@ -122,6 +147,41 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function normalizeReferrerLabel(value: string | null): string {
+  if (!value) return 'Direct';
+  try {
+    const parsed = new URL(value);
+    if (parsed.hostname.includes('autodrivecx.com')) return 'Internal';
+    return parsed.hostname || 'Direct';
+  } catch {
+    return value.trim() || 'Direct';
+  }
+}
+
+function topCounts<T extends string>(values: T[], limit = 5): Array<{ label: string; count: number }> {
+  const counts = new Map<string, number>();
+  values.forEach((value) => {
+    const key = value || 'Unknown';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+  return Array.from(counts.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+function countUniquePageSessions(items: Array<{ pathname: string; sessionId: string | null; visitorId: string | null }>): number {
+  return new Set(
+    items
+      .map((item) => {
+        const actorId = item.sessionId || item.visitorId;
+        if (!actorId || !item.pathname) return null;
+        return `${actorId}::${item.pathname}`;
+      })
+      .filter((value): value is string => Boolean(value)),
+  ).size;
+}
+
 async function requireAdminOrDeveloper(req: Request): Promise<{ ok: true } | { ok: false; response: NextResponse }> {
   const authorization = req.headers.get('authorization') ?? req.headers.get('Authorization');
   if (!authorization) {
@@ -193,7 +253,7 @@ export async function GET(req: Request) {
       };
     }).filter((row) => row.timestamp instanceof Date);
 
-    const inWindow = (items: FreshUpSessionRecord[], start: Date, end: Date) => (
+    const inWindow = <T extends { timestamp?: Date }>(items: T[], start: Date, end: Date): T[] => (
       items.filter((item) => {
         const ts = item.timestamp?.getTime();
         if (!ts) return false;
@@ -230,7 +290,22 @@ export async function GET(req: Request) {
     const averageConversationLength = roundToOne(average(sessions30.map((row) => row.conversationLength)));
     const averageUpMeterPeak = roundToOne(average(sessions30.map((row) => row.upMeterPeak)));
 
-    const usersSnap = await adminDb.collection('users').limit(5000).get();
+    const [
+      usersSnap,
+      siteTrafficSnap,
+      marketingEventsSnap,
+      toolUsageSnap,
+      autoforgeLeadsSnap,
+      sprocketSessionsSnap,
+    ] = await Promise.all([
+      adminDb.collection('users').limit(5000).get(),
+      adminDb.collection('siteTrafficEvents').where('createdAtTs', '>=', Timestamp.fromDate(start180)).get(),
+      adminDb.collection('consultant_marketing_events').limit(5000).get(),
+      adminDb.collection('toolboxToolUsageEvents').where('createdAt', '>=', start180.toISOString()).get(),
+      adminDb.collection('autoforge_leads').limit(5000).get(),
+      adminDb.collection('sprocket_sessions').limit(5000).get(),
+    ]);
+
     const dealerAssignedConsultants = new Map<string, Set<string>>();
     usersSnap.docs.forEach((userDoc) => {
       const data = userDoc.data() as Record<string, unknown>;
@@ -251,6 +326,196 @@ export async function GET(req: Request) {
       const data = docSnap.data() as Record<string, unknown>;
       dealerNameById.set(docSnap.id, String(data.name || data.dealerName || 'Unknown Dealer'));
     });
+
+    const siteTrafficEvents: SiteTrafficEventRecord[] = siteTrafficSnap.docs
+      .map((docSnap) => {
+        const data = docSnap.data() as Record<string, unknown>;
+        const createdAt = toDate(data.createdAtTs) ?? toDate(data.createdAt);
+        if (!createdAt) return null;
+        return {
+          pathname: String(data.pathname || '/'),
+          surface: String(data.surface || 'unknown'),
+          referrer: typeof data.referrer === 'string' ? data.referrer : null,
+          previousPath: typeof data.previousPath === 'string' ? data.previousPath : null,
+          utmSource: typeof data.utmSource === 'string' ? data.utmSource : null,
+          utmCampaign: typeof data.utmCampaign === 'string' ? data.utmCampaign : null,
+          deviceType: data.deviceType === 'mobile' || data.deviceType === 'tablet' ? data.deviceType : 'desktop',
+          visitorId: typeof data.visitorId === 'string' ? data.visitorId : null,
+          sessionId: typeof data.sessionId === 'string' ? data.sessionId : null,
+          userId: typeof data.userId === 'string' ? data.userId : null,
+          isLandingPage: data.isLandingPage === true,
+          geo: {
+            continent: typeof (data.geo as Record<string, unknown> | undefined)?.continent === 'string' ? String((data.geo as Record<string, unknown>).continent) : null,
+            country: typeof (data.geo as Record<string, unknown> | undefined)?.country === 'string' ? String((data.geo as Record<string, unknown>).country) : null,
+            region: typeof (data.geo as Record<string, unknown> | undefined)?.region === 'string' ? String((data.geo as Record<string, unknown>).region) : null,
+            city: typeof (data.geo as Record<string, unknown> | undefined)?.city === 'string' ? String((data.geo as Record<string, unknown>).city) : null,
+            timezone: typeof (data.geo as Record<string, unknown> | undefined)?.timezone === 'string' ? String((data.geo as Record<string, unknown>).timezone) : null,
+            latitude: Number.isFinite(Number((data.geo as Record<string, unknown> | undefined)?.latitude)) ? Number((data.geo as Record<string, unknown>).latitude) : null,
+            longitude: Number.isFinite(Number((data.geo as Record<string, unknown> | undefined)?.longitude)) ? Number((data.geo as Record<string, unknown>).longitude) : null,
+            maskedIp: typeof (data.geo as Record<string, unknown> | undefined)?.maskedIp === 'string' ? String((data.geo as Record<string, unknown>).maskedIp) : null,
+          },
+          createdAt,
+        } as SiteTrafficEventRecord;
+      })
+      .filter((row): row is SiteTrafficEventRecord => row !== null);
+
+    const traffic7 = inWindow(
+      siteTrafficEvents.map((row) => ({ ...row, timestamp: row.createdAt })),
+      start7,
+      now,
+    );
+    const trafficPrev7 = inWindow(
+      siteTrafficEvents.map((row) => ({ ...row, timestamp: row.createdAt })),
+      start14,
+      start7,
+    );
+    const traffic30 = inWindow(
+      siteTrafficEvents.map((row) => ({ ...row, timestamp: row.createdAt })),
+      start30,
+      now,
+    );
+    const trafficPrev30 = inWindow(
+      siteTrafficEvents.map((row) => ({ ...row, timestamp: row.createdAt })),
+      start60,
+      start30,
+    );
+    const traffic90 = inWindow(
+      siteTrafficEvents.map((row) => ({ ...row, timestamp: row.createdAt })),
+      start90,
+      now,
+    );
+    const trafficPrev90 = inWindow(
+      siteTrafficEvents.map((row) => ({ ...row, timestamp: row.createdAt })),
+      start180,
+      start90,
+    );
+
+    const traffic30Rows = traffic30;
+    const uniqueVisitors30 = new Set(traffic30Rows.map((row) => row.visitorId).filter(Boolean)).size;
+    const uniqueSessions30 = new Set(traffic30Rows.map((row) => row.sessionId).filter(Boolean)).size;
+    const authenticatedVisitors30 = new Set(traffic30Rows.map((row) => row.userId).filter(Boolean)).size;
+    const topPages = topCounts(traffic30Rows.map((row) => row.pathname), 8).map((row) => ({
+      ...row,
+      uniqueSessions: new Set(
+        traffic30Rows.filter((event) => event.pathname === row.label).map((event) => event.sessionId).filter(Boolean),
+      ).size,
+    }));
+    const landingPages = topCounts(
+      traffic30Rows.filter((row) => row.isLandingPage).map((row) => row.pathname),
+      8,
+    );
+    const topReferrers = topCounts(traffic30Rows.map((row) => normalizeReferrerLabel(row.referrer)), 6);
+    const topCampaigns = topCounts(
+      traffic30Rows
+        .map((row) => row.utmCampaign || row.utmSource || '')
+        .filter((value) => value.trim().length > 0),
+      6,
+    );
+    const topCountries = topCounts(
+      traffic30Rows.map((row) => row.geo.country || '').filter((value) => value.trim().length > 0),
+      8,
+    );
+    const topRegions = topCounts(
+      traffic30Rows
+        .map((row) => {
+          if (!row.geo.country && !row.geo.region) return '';
+          return row.geo.region ? `${row.geo.country || 'Unknown'}-${row.geo.region}` : (row.geo.country || '');
+        })
+        .filter((value) => value.trim().length > 0),
+      8,
+    );
+    const topCities = topCounts(
+      traffic30Rows
+        .map((row) => {
+          if (!row.geo.city && !row.geo.region && !row.geo.country) return '';
+          return [row.geo.city, row.geo.region, row.geo.country].filter(Boolean).join(', ');
+        })
+        .filter((value) => value.trim().length > 0),
+      8,
+    );
+    const geoRows = traffic30Rows.filter((row) => row.geo.latitude !== null && row.geo.longitude !== null);
+    const geoCenter = geoRows.length > 0
+      ? {
+          latitude: roundToOne(average(geoRows.map((row) => row.geo.latitude || 0))),
+          longitude: roundToOne(average(geoRows.map((row) => row.geo.longitude || 0))),
+          sampleSize: geoRows.length,
+        }
+      : null;
+    const fromPages = topCounts(
+      traffic30Rows
+        .map((row) => row.previousPath || normalizeReferrerLabel(row.referrer))
+        .filter((value) => value.trim().length > 0),
+      8,
+    );
+
+    const sessionFlows = new Map<string, SiteTrafficEventRecord[]>();
+    traffic30Rows.forEach((row) => {
+      const key = row.sessionId || row.visitorId;
+      if (!key) return;
+      if (!sessionFlows.has(key)) sessionFlows.set(key, []);
+      sessionFlows.get(key)?.push(row);
+    });
+    const transitionPairs: string[] = [];
+    sessionFlows.forEach((rows) => {
+      const ordered = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      for (let index = 0; index < ordered.length - 1; index += 1) {
+        const current = ordered[index];
+        const next = ordered[index + 1];
+        if (!current.pathname || !next.pathname) continue;
+        transitionPairs.push(`${current.pathname} -> ${next.pathname}`);
+      }
+    });
+    const topNextSteps = topCounts(transitionPairs, 8).map((row) => {
+      const [from, to] = row.label.split(' -> ');
+      return {
+        from,
+        to,
+        count: row.count,
+      };
+    });
+    const deviceBreakdownBase = topCounts(traffic30Rows.map((row) => row.deviceType), 3);
+    const deviceBreakdown = ['desktop', 'mobile', 'tablet'].map((label) => ({
+      label,
+      count: deviceBreakdownBase.find((row) => row.label === label)?.count || 0,
+    }));
+    const surfaceBreakdown = topCounts(traffic30Rows.map((row) => row.surface || 'unknown'), 8);
+
+    const trafficTimeline = Array.from({ length: 14 }).map((_, index) => {
+      const bucketStart = new Date(now.getTime() - ((13 - index) * dayMs));
+      bucketStart.setHours(0, 0, 0, 0);
+      const bucketEnd = new Date(bucketStart.getTime() + dayMs);
+      const rows = traffic30Rows.filter((row) => row.createdAt >= bucketStart && row.createdAt < bucketEnd);
+      return {
+        date: bucketStart.toISOString().slice(0, 10),
+        pageViews: rows.length,
+        uniqueVisitors: new Set(rows.map((row) => row.visitorId).filter(Boolean)).size,
+      };
+    });
+
+    const marketingEvents30 = marketingEventsSnap.docs
+      .map((docSnap) => docSnap.data() as Record<string, unknown>)
+      .filter((row) => {
+        const createdAt = toDate(row.created_at);
+        return createdAt && createdAt >= start30 && createdAt < now;
+      });
+    const toolUsage30 = toolUsageSnap.docs
+      .map((docSnap) => docSnap.data() as Record<string, unknown>)
+      .filter((row) => {
+        const createdAt = toDate(row.createdAt);
+        return createdAt && createdAt >= start30 && createdAt < now;
+      });
+    const autoforgeLeads30 = autoforgeLeadsSnap.docs
+      .map((docSnap) => docSnap.data() as Record<string, unknown>)
+      .filter((row) => {
+        const createdAt = toDate(row.created_at);
+        return createdAt && createdAt >= start30 && createdAt < now;
+      });
+    const sprocketSessions30 = sprocketSessionsSnap.docs
+      .map((docSnap) => docSnap.data() as Record<string, unknown>)
+      .filter((row) => {
+        const createdAt = toDate(row.last_activity) ?? toDate(row.started_at);
+        return createdAt && createdAt >= start30 && createdAt < now;
+      });
 
     const dealerSessionMap = new Map<string, FreshUpSessionRecord[]>();
     sessions30.forEach((session) => {
@@ -375,6 +640,53 @@ export async function GET(req: Request) {
       engagement: {
         averageUpMeterPeak,
         label: upMeterLabel(averageUpMeterPeak),
+      },
+      siteTraffic: {
+        windows: {
+          last7Days: {
+            pageViews: traffic7.length,
+            uniqueVisitors: new Set(traffic7.map((row) => row.visitorId).filter(Boolean)).size,
+            uniquePageSessions: countUniquePageSessions(traffic7),
+            trend: getCountTrend(traffic7.length, trafficPrev7.length),
+          },
+          last30Days: {
+            pageViews: traffic30.length,
+            uniqueVisitors: uniqueVisitors30,
+            uniqueSessions: uniqueSessions30,
+            uniquePageSessions: countUniquePageSessions(traffic30Rows),
+            trend: getCountTrend(traffic30.length, trafficPrev30.length),
+          },
+          last90Days: {
+            pageViews: traffic90.length,
+            uniqueVisitors: new Set(traffic90.map((row) => row.visitorId).filter(Boolean)).size,
+            uniquePageSessions: countUniquePageSessions(traffic90),
+            trend: getCountTrend(traffic90.length, trafficPrev90.length),
+          },
+        },
+        topPages,
+        landingPages,
+        topReferrers,
+        topCampaigns,
+        geo: {
+          topCountries,
+          topRegions,
+          topCities,
+          geoCenter,
+        },
+        fromPages,
+        topNextSteps,
+        deviceBreakdown,
+        surfaceBreakdown,
+        timeline: trafficTimeline,
+        conversions30Days: {
+          pageViews: traffic30.length,
+          uniqueVisitors: uniqueVisitors30,
+          authenticatedVisitors: authenticatedVisitors30,
+          toolOpens: toolUsage30.length,
+          autoforgeLeads: autoforgeLeads30.length,
+          sprocketSessions: sprocketSessions30.length,
+          marketingEvents: marketingEvents30.length,
+        },
       },
       sessionActivity: {
         totalFreshUpSessions30Days: sessions30.length,

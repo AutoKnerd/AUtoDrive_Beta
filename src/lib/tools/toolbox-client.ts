@@ -183,3 +183,44 @@ export async function trackToolXpEvent(input: {
 
   return parseApiResponse<{ xpAdded: number; totalXp: number; duplicate?: boolean }>(response);
 }
+
+const TOOL_USAGE_SESSION_KEY = 'toolboxUsageSessionV1';
+
+function getToolUsageSessionId(): string | null {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null;
+
+  const existing = localStorage.getItem(TOOL_USAGE_SESSION_KEY);
+  if (existing && existing.trim().length >= 12) return existing;
+
+  const generated = `toolbox-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  localStorage.setItem(TOOL_USAGE_SESSION_KEY, generated);
+  return generated;
+}
+
+export async function trackToolUsageEvent(input: {
+  toolId: string;
+  source?: 'tools_page' | 'recommended_tool';
+  role?: string;
+  idToken?: string;
+}): Promise<ApiResult<{ ok: true }>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (input.idToken) {
+    headers.Authorization = `Bearer ${input.idToken}`;
+  }
+
+  const response = await fetch('/api/tools/tool-usage', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      toolId: input.toolId,
+      role: input.role,
+      source: input.source || 'tools_page',
+      sessionId: getToolUsageSessionId(),
+    }),
+  });
+
+  return parseApiResponse<{ ok: true }>(response);
+}

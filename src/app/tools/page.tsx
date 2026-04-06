@@ -48,6 +48,7 @@ import {
   fetchToolboxEntries,
   saveToolboxEntry,
   syncToolboxPaidStatus,
+  trackToolUsageEvent,
   trackToolXpEvent,
   trackRecommendationEventServer,
 } from '@/lib/tools/toolbox-client';
@@ -869,11 +870,20 @@ export default function ToolsPage() {
     previousRecommendationIdsRef.current = currentIds;
   }, [recommendationRefresh, recommendationResult, selectedIntentFilter]);
 
-  function openTool(tool: ToolConfig) {
+  function openTool(tool: ToolConfig, source: 'tools_page' | 'recommended_tool' = 'tools_page') {
     const wasFirstUse = !usedToolIds.includes(tool.id);
     setActiveTool(tool);
     setSessionOpenedToolIds((current) => (current.includes(tool.id) ? current : [...current, tool.id]));
     registerToolUsage(tool.id);
+    void (async () => {
+      const idToken = firebaseUser ? await firebaseUser.getIdToken() : undefined;
+      await trackToolUsageEvent({
+        toolId: tool.id,
+        source,
+        role: user?.role || accountRole,
+        idToken,
+      });
+    })();
 
     if (wasFirstUse) {
       void awardToolXp({
@@ -885,8 +895,8 @@ export default function ToolsPage() {
     }
   }
 
-  function openToolExperience(tool: ToolConfig) {
-    openTool(tool);
+  function openToolExperience(tool: ToolConfig, source: 'tools_page' | 'recommended_tool' = 'tools_page') {
+    openTool(tool, source);
   }
 
   function canOpenTool(tool: ToolConfig): boolean {
@@ -925,7 +935,12 @@ export default function ToolsPage() {
     const rec = recommendationResult.recommendations.find((row) => row.toolId === tool.id);
     void logRecommendationEvent('recommended_tool_clicked', tool.id, { score: rec?.score || 0 });
     setRecommendationRefresh((current) => current + 1);
-    maybeOpenTool(tool);
+    if (!canOpenTool(tool)) {
+      requireFeature(FEATURES.TOOL_ACCESS, undefined, tool);
+      return;
+    }
+
+    openToolExperience(tool, 'recommended_tool');
   }
 
   function dismissRecommendedTool(toolId: string) {

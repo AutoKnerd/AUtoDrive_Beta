@@ -50,7 +50,7 @@ export function Header() {
     return (
         <div
           className={cn(
-            'inline-flex items-center rounded-full border p-1 shadow-[0_10px_24px_rgba(0,0,0,0.32)]',
+            'inline-flex items-center rounded-full border p-[2px] shadow-[0_6px_16px_rgba(0,0,0,0.24)]',
             isTrainingActive
             ? 'border-[#1a6eb6]/85 bg-gradient-to-r from-[#061d38] via-[#092e55] to-[#072444]'
             : 'border-[#7B2EFF]/85 bg-gradient-to-r from-[#2b0d52] via-[#4b1f8a] to-[#31135d]',
@@ -62,16 +62,16 @@ export function Header() {
         <Link
           href="/autoshop"
           className={cn(
-            'rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
+            'rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none transition-all',
             isToolsActive
               ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
               : 'text-[#d7c4ff] hover:bg-[#7B2EFF]/16'
           )}
-        >AutoShop</Link>
+        >Tools</Link>
         <Link
           href={trainingSurfaceHref}
           className={cn(
-            'rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-all',
+            'rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none transition-all',
             isTrainingActive
               ? 'bg-gradient-to-r from-[#63e36f] to-[#37c86a] text-[#083618] shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_8px_16px_rgba(56,183,97,0.35)]'
               : 'text-[#b2d9ff] hover:bg-[#2cc3ff]/16'
@@ -97,17 +97,41 @@ export function Header() {
       }`}
     >
       <div className="relative mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
-        <div className="flex min-w-0 items-center gap-4">
+        <div className="flex min-w-0 items-center gap-3 md:gap-4">
           <AutoknerdHeaderMenu
             mobileMenuTitle={isToolsSurface ? 'AutoShop' : 'AutoDriveCX'}
             mobileMenuDescription="AutoKnerd navigation and product links"
             tone={isToolsSurface ? 'light' : 'dark'}
             currentSystem={isToolsSurface ? 'tools' : undefined}
           />
+          <Link
+            href={brandHref}
+            className="flex items-center font-semibold text-[#FFFFFF] md:hidden"
+          >
+            {isToolsSurface ? (
+              <div className="relative flex h-11 w-[162px] items-center justify-center">
+                <Image
+                  src="/Autoshop logo.png"
+                  alt="AutoShopCX"
+                  width={180}
+                  height={44}
+                  className="max-h-full w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(123,46,255,0.32)]"
+                  priority
+                />
+              </div>
+            ) : (
+              <Logo
+                variant="full"
+                width={180}
+                height={52}
+                className="h-10 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(44,152,255,0.32)]"
+              />
+            )}
+          </Link>
         </div>
         <Link
           href={brandHref}
-          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center font-semibold text-[#FFFFFF]"
+          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center font-semibold text-[#FFFFFF] md:flex"
         >
           {isToolsSurface ? (
             <div className="relative flex h-16 w-[322px] items-center justify-center md:h-[4.6rem] md:w-[368px]">
@@ -129,8 +153,10 @@ export function Header() {
             />
           )}
         </Link>
-        <div className="ml-auto flex items-center gap-2 md:gap-3">
-          {renderSurfaceToggle()}
+        <div className="ml-auto flex items-center gap-3 md:gap-4">
+          <div className="flex shrink-0 items-center md:absolute md:left-1/2 md:top-1/2 md:z-10 md:translate-x-[11.5rem] md:-translate-y-1/2 lg:translate-x-[13rem]">
+            {renderSurfaceToggle()}
+          </div>
           {!user && isToolsSurface && (
             <>
               <Link

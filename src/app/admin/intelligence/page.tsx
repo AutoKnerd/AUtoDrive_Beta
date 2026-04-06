@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowDown, ArrowUp, Minus, ShieldAlert } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, Minus, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import { Header } from '@/components/layout/header';
@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 type TrendDirection = 'up' | 'down' | 'stable';
 
@@ -45,6 +46,37 @@ type IntelligenceResponse = {
   engagement: {
     averageUpMeterPeak: number;
     label: string;
+  };
+  siteTraffic: {
+    windows: {
+      last7Days: { pageViews: number; uniqueVisitors: number; uniquePageSessions: number; trend: TrendDirection };
+      last30Days: { pageViews: number; uniqueVisitors: number; uniqueSessions: number; uniquePageSessions: number; trend: TrendDirection };
+      last90Days: { pageViews: number; uniqueVisitors: number; uniquePageSessions: number; trend: TrendDirection };
+    };
+    topPages: Array<{ label: string; count: number; uniqueSessions: number }>;
+    landingPages: Array<{ label: string; count: number }>;
+    topReferrers: Array<{ label: string; count: number }>;
+    topCampaigns: Array<{ label: string; count: number }>;
+    geo: {
+      topCountries: Array<{ label: string; count: number }>;
+      topRegions: Array<{ label: string; count: number }>;
+      topCities: Array<{ label: string; count: number }>;
+      geoCenter: { latitude: number; longitude: number; sampleSize: number } | null;
+    };
+    fromPages: Array<{ label: string; count: number }>;
+    topNextSteps: Array<{ from: string; to: string; count: number }>;
+    deviceBreakdown: Array<{ label: string; count: number }>;
+    surfaceBreakdown: Array<{ label: string; count: number }>;
+    timeline: Array<{ date: string; pageViews: number; uniqueVisitors: number }>;
+    conversions30Days: {
+      pageViews: number;
+      uniqueVisitors: number;
+      authenticatedVisitors: number;
+      toolOpens: number;
+      autoforgeLeads: number;
+      sprocketSessions: number;
+      marketingEvents: number;
+    };
   };
   sessionActivity: {
     totalFreshUpSessions30Days: number;
@@ -530,6 +562,8 @@ export default function AdminIntelligencePage() {
   const [riskDateFrom, setRiskDateFrom] = useState('');
   const [riskDateTo, setRiskDateTo] = useState('');
   const [riskActiveFilter, setRiskActiveFilter] = useState<string>('active');
+  const [isSiteTrafficOpen, setIsSiteTrafficOpen] = useState(true);
+  const [isFreshUpStatsOpen, setIsFreshUpStatsOpen] = useState(true);
   const [exportResult, setExportResult] = useState<FreshUpExportResponse | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
@@ -1136,30 +1170,371 @@ export default function AdminIntelligencePage() {
           </Card>
         ) : data ? (
           <>
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              {[
-                { label: 'Sessions (7d)', value: data.windows.usage.last7Days.sessions, trend: data.windows.usage.last7Days.trend },
-                { label: 'Sessions (30d)', value: data.windows.usage.last30Days.sessions, trend: data.windows.usage.last30Days.trend },
-                { label: 'Sessions (90d)', value: data.windows.usage.last90Days.sessions, trend: data.windows.usage.last90Days.trend },
-                { label: 'Active Dealers (30d)', value: data.windows.usage.activeDealers, trend: 'stable' as TrendDirection },
-                { label: 'Active Consultants (30d)', value: data.windows.usage.activeConsultants, trend: 'stable' as TrendDirection },
-              ].map((item) => (
-                <Card key={item.label}>
-                  <CardHeader className="pb-2">
-                    <CardDescription>{item.label}</CardDescription>
-                    <CardTitle className="text-3xl">{item.value}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <TrendIcon trend={item.trend} />
-                      <span>{item.trend === 'stable' ? 'Stable' : item.trend === 'up' ? 'Increasing' : 'Decreasing'}</span>
+            <Collapsible open={isSiteTrafficOpen} onOpenChange={setIsSiteTrafficOpen}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Site Traffic</CardTitle>
+                    <CardDescription>
+                      Live pageview tracking plus downstream product activity from tools, leads, Sprocket, and marketing events.
+                    </CardDescription>
+                  </div>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" size="sm">
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isSiteTrafficOpen ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                      {[
+                        { label: 'Raw Pageviews (7d)', value: data.siteTraffic.windows.last7Days.pageViews, trend: data.siteTraffic.windows.last7Days.trend },
+                        { label: 'Raw Pageviews (30d)', value: data.siteTraffic.windows.last30Days.pageViews, trend: data.siteTraffic.windows.last30Days.trend },
+                        { label: 'Unique Page Sessions (30d)', value: data.siteTraffic.windows.last30Days.uniquePageSessions, trend: 'stable' as TrendDirection },
+                        { label: 'Visitors (30d)', value: data.siteTraffic.windows.last30Days.uniqueVisitors, trend: 'stable' as TrendDirection },
+                        { label: 'Sessions (30d)', value: data.siteTraffic.windows.last30Days.uniqueSessions, trend: 'stable' as TrendDirection },
+                        { label: 'Authed Visitors (30d)', value: data.siteTraffic.conversions30Days.authenticatedVisitors, trend: 'stable' as TrendDirection },
+                      ].map((item) => (
+                        <Card key={item.label}>
+                          <CardHeader className="pb-2">
+                            <CardDescription>{item.label}</CardDescription>
+                            <CardTitle className="text-3xl">{item.value}</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <TrendIcon trend={item.trend} />
+                              <span>{item.trend === 'stable' ? 'Stable' : item.trend === 'up' ? 'Increasing' : 'Decreasing'}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Traffic to Conversion Signals</CardTitle>
+                          <CardDescription>30-day captured activity across the site and product surfaces. Raw pageviews include reloads; unique page sessions dedupe repeat hits on the same route within a session.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {[
+                            { label: 'Raw Pageviews', value: data.siteTraffic.conversions30Days.pageViews },
+                            { label: 'Unique Page Sessions', value: data.siteTraffic.windows.last30Days.uniquePageSessions },
+                            { label: 'Unique Visitors', value: data.siteTraffic.conversions30Days.uniqueVisitors },
+                            { label: 'Tool Opens', value: data.siteTraffic.conversions30Days.toolOpens },
+                            { label: 'Marketing Events', value: data.siteTraffic.conversions30Days.marketingEvents },
+                            { label: 'Sprocket Sessions', value: data.siteTraffic.conversions30Days.sprocketSessions },
+                            { label: 'AutoForge Leads', value: data.siteTraffic.conversions30Days.autoforgeLeads },
+                          ].map((row) => {
+                            const base = Math.max(1, data.siteTraffic.windows.last30Days.uniquePageSessions);
+                            const progress = Math.min(100, Math.round((row.value / base) * 100));
+                            return (
+                              <div key={row.label} className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium">{row.label}</span>
+                                  <span className="text-muted-foreground">{row.value}</span>
+                                </div>
+                                <Progress value={progress} />
+                              </div>
+                            );
+                          })}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>14-Day Traffic Timeline</CardTitle>
+                          <CardDescription>Recent pageviews and unique visitors by day.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {data.siteTraffic.timeline.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No site traffic captured yet.</p>
+                          ) : (
+                            data.siteTraffic.timeline.map((row) => {
+                              const base = Math.max(1, data.siteTraffic.windows.last30Days.pageViews);
+                              const progress = Math.min(100, Math.round((row.pageViews / base) * 100));
+                              return (
+                                <div key={row.date} className="space-y-1">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span>{new Date(`${row.date}T00:00:00`).toLocaleDateString()}</span>
+                                    <span className="text-muted-foreground">{row.pageViews} views • {row.uniqueVisitors} visitors</span>
+                                  </div>
+                                  <Progress value={progress} />
+                                </div>
+                              );
+                            })
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Top Pages</CardTitle>
+                          <CardDescription>Most visited routes in the last 30 days.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {data.siteTraffic.topPages.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No pageview data yet.</p>
+                          ) : (
+                            data.siteTraffic.topPages.map((row) => (
+                              <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium">{row.label}</p>
+                                  <p className="text-muted-foreground">{row.uniqueSessions} sessions</p>
+                                </div>
+                                <Badge variant="secondary">{row.count} views</Badge>
+                              </div>
+                            ))
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Landing Pages</CardTitle>
+                          <CardDescription>Where sessions most often begin.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {data.siteTraffic.landingPages.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No landing-page data yet.</p>
+                          ) : (
+                            data.siteTraffic.landingPages.map((row) => (
+                              <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                <span className="truncate font-medium">{row.label}</span>
+                                <Badge variant="secondary">{row.count} landings</Badge>
+                              </div>
+                            ))
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Top Referrers and Campaigns</CardTitle>
+                          <CardDescription>External traffic sources and tagged campaigns in the last 30 days.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium">Referrers</p>
+                            {data.siteTraffic.topReferrers.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No referrer data yet.</p>
+                            ) : (
+                              data.siteTraffic.topReferrers.map((row) => (
+                                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                  <span className="truncate font-medium">{row.label}</span>
+                                  <Badge variant="outline">{row.count}</Badge>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium">Campaigns</p>
+                            {data.siteTraffic.topCampaigns.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No tagged campaigns yet.</p>
+                            ) : (
+                              data.siteTraffic.topCampaigns.map((row) => (
+                                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                  <span className="truncate font-medium">{row.label}</span>
+                                  <Badge variant="outline">{row.count}</Badge>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Where They Came From</CardTitle>
+                          <CardDescription>Prior page in-session, or external referrer when the session began.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {data.siteTraffic.fromPages.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No origin-path data yet.</p>
+                          ) : (
+                            data.siteTraffic.fromPages.map((row) => (
+                              <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                <span className="truncate font-medium">{row.label}</span>
+                                <Badge variant="outline">{row.count}</Badge>
+                              </div>
+                            ))
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Device Breakdown</CardTitle>
+                          <CardDescription>Captured traffic split by device type.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {data.siteTraffic.deviceBreakdown.map((row) => (
+                            <div key={row.label} className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium capitalize">{row.label}</span>
+                                <span className="text-muted-foreground">{row.count}</span>
+                              </div>
+                              <Progress value={Math.min(100, Math.round((row.count / Math.max(1, data.siteTraffic.windows.last30Days.pageViews)) * 100))} />
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Approximate Location from IP</CardTitle>
+                          <CardDescription>Coarse geolocation based on request IP headers. Good for region-level patterns, not exact physical location.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 md:grid-cols-3">
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium">Countries</p>
+                            {data.siteTraffic.geo.topCountries.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No country data yet.</p>
+                            ) : (
+                              data.siteTraffic.geo.topCountries.map((row) => (
+                                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                  <span className="truncate font-medium">{row.label}</span>
+                                  <Badge variant="outline">{row.count}</Badge>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium">Regions</p>
+                            {data.siteTraffic.geo.topRegions.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No region data yet.</p>
+                            ) : (
+                              data.siteTraffic.geo.topRegions.map((row) => (
+                                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                  <span className="truncate font-medium">{row.label}</span>
+                                  <Badge variant="outline">{row.count}</Badge>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium">Cities</p>
+                            {data.siteTraffic.geo.topCities.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No city data yet.</p>
+                            ) : (
+                              data.siteTraffic.geo.topCities.map((row) => (
+                                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                  <span className="truncate font-medium">{row.label}</span>
+                                  <Badge variant="outline">{row.count}</Badge>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="md:col-span-3 rounded-lg border p-3 text-sm">
+                            <p className="font-medium">Geographic Center</p>
+                            {data.siteTraffic.geo.geoCenter ? (
+                              <p className="mt-1 text-muted-foreground">
+                                Approximate center at {data.siteTraffic.geo.geoCenter.latitude}, {data.siteTraffic.geo.geoCenter.longitude} from {data.siteTraffic.geo.geoCenter.sampleSize} geo-tagged visits.
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-muted-foreground">No latitude/longitude data captured yet.</p>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Surface Breakdown</CardTitle>
+                          <CardDescription>Where traffic is concentrating across top-level app surfaces.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {data.siteTraffic.surfaceBreakdown.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No surface data yet.</p>
+                          ) : (
+                            data.siteTraffic.surfaceBreakdown.map((row) => (
+                              <div key={row.label} className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium">{row.label}</span>
+                                  <span className="text-muted-foreground">{row.count}</span>
+                                </div>
+                                <Progress value={Math.min(100, Math.round((row.count / Math.max(1, data.siteTraffic.windows.last30Days.pageViews)) * 100))} />
+                              </div>
+                            ))
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Where They Went Next</CardTitle>
+                          <CardDescription>Most common page-to-page transitions inside a session.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {data.siteTraffic.topNextSteps.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No transition-flow data yet.</p>
+                          ) : (
+                            data.siteTraffic.topNextSteps.map((row) => (
+                              <div key={`${row.from}-${row.to}`} className="rounded-lg border p-3 text-sm">
+                                <p className="font-medium">{row.from}</p>
+                                <p className="text-muted-foreground">to {row.to}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{row.count} transitions</p>
+                              </div>
+                            ))
+                          )}
+                        </CardContent>
+                      </Card>
                     </div>
                   </CardContent>
-                </Card>
-              ))}
-            </section>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
 
-            <section className="grid gap-4 xl:grid-cols-2">
+            <Collapsible open={isFreshUpStatsOpen} onOpenChange={setIsFreshUpStatsOpen}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Fresh Up Stats</CardTitle>
+                    <CardDescription>
+                      Platform-wide Fresh Up usage, performance, dealer comparisons, outcomes, training gaps, and scenario trends.
+                    </CardDescription>
+                  </div>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" size="sm">
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isFreshUpStatsOpen ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="space-y-6">
+                    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                      {[
+                        { label: 'Sessions (7d)', value: data.windows.usage.last7Days.sessions, trend: data.windows.usage.last7Days.trend },
+                        { label: 'Sessions (30d)', value: data.windows.usage.last30Days.sessions, trend: data.windows.usage.last30Days.trend },
+                        { label: 'Sessions (90d)', value: data.windows.usage.last90Days.sessions, trend: data.windows.usage.last90Days.trend },
+                        { label: 'Active Dealers (30d)', value: data.windows.usage.activeDealers, trend: 'stable' as TrendDirection },
+                        { label: 'Active Consultants (30d)', value: data.windows.usage.activeConsultants, trend: 'stable' as TrendDirection },
+                      ].map((item) => (
+                        <Card key={item.label}>
+                          <CardHeader className="pb-2">
+                            <CardDescription>{item.label}</CardDescription>
+                            <CardTitle className="text-3xl">{item.value}</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <TrendIcon trend={item.trend} />
+                              <span>{item.trend === 'stable' ? 'Stable' : item.trend === 'up' ? 'Increasing' : 'Decreasing'}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </section>
+
+                    <section className="grid gap-4 xl:grid-cols-2">
               <Card>
                 <CardHeader>
                   <CardTitle>Skill Trend Analysis</CardTitle>
@@ -1350,6 +1725,10 @@ export default function AdminIntelligencePage() {
                 </CardContent>
               </Card>
             </section>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
 
             <section>
               <Card>

@@ -7,6 +7,7 @@ import './globals.css';
 import { MainLayout } from '@/components/layout/main-layout';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { ThemeProvider } from '@/context/theme-provider';
+import { SiteTrafficTracker } from '@/components/analytics/site-traffic-tracker';
 
 const GTM_ID = 'GTM-T23TJBN6';
 
@@ -66,6 +67,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AuthProvider>
             <ThemeProvider>
+              <SiteTrafficTracker />
               <MainLayout>
                 {children}
               </MainLayout>

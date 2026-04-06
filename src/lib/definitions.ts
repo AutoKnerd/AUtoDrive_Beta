@@ -81,6 +81,7 @@ export type User = {
   tier?: 'free' | 'pro';
   toolAccessLevel?: number;
   hasAutoDriveCX?: boolean;
+  hasSiteTrafficAccess?: boolean;
   toolboxGiftedFullAccess?: boolean;
   toolboxAccountEmail?: string;
   toolboxAccountRole?: UserRole;

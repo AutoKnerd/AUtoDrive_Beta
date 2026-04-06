@@ -253,10 +253,22 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                 <Home className="mr-2 h-4 w-4" />
                 <span>Training Dashboard</span>
             </DropdownMenuItem>
+            {user.role === 'Developer' && (
+              <DropdownMenuItem onSelect={() => router.push('/developer')}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                <span>Developer</span>
+              </DropdownMenuItem>
+            )}
             {(user.role === 'Admin' || user.role === 'Developer') && (
               <DropdownMenuItem onSelect={() => router.push('/admin/intelligence')}>
                 <BarChart3 className="mr-2 h-4 w-4" />
                 <span>Admin Intelligence</span>
+              </DropdownMenuItem>
+            )}
+            {(user.role === 'Admin' || user.role === 'Developer' || user.hasSiteTrafficAccess) && (
+              <DropdownMenuItem onSelect={() => router.push('/site-traffic')}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                <span>Site Traffic</span>
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onSelect={() => router.push('/profile')}>
