@@ -30,6 +30,15 @@ type SiteTrafficEventRecord = {
   timestamp: Date;
 };
 
+type ReferralCodeAggregate = {
+  label: string;
+  totalEvents: number;
+  referralClicks: number;
+  signupEvents: number;
+  demoVisits: number;
+  demoConversions: number;
+};
+
 function toDate(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -85,6 +94,11 @@ function normalizeReferrerLabel(value: string | null): string {
   } catch {
     return value.trim() || 'Direct';
   }
+}
+
+function getGeoCityLabel(row: SiteTrafficEventRecord): string {
+  if (!row.geo.city && !row.geo.region && !row.geo.country) return '';
+  return [row.geo.city, row.geo.region, row.geo.country].filter(Boolean).join(', ');
 }
 
 function countUniquePageSessions(items: Array<{ pathname: string; sessionId: string | null; visitorId: string | null }>): number {
@@ -194,6 +208,31 @@ export async function GET(req: Request) {
     const topReferrers = topCounts(traffic30.map((row) => normalizeReferrerLabel(row.referrer)), 6);
     const topCampaigns = topCounts(traffic30.map((row) => row.utmCampaign || row.utmSource || '').filter((value) => value.trim().length > 0), 6);
     const fromPages = topCounts(traffic30.map((row) => row.previousPath || normalizeReferrerLabel(row.referrer)).filter((value) => value.trim().length > 0), 8);
+    const cityGroups = new Map<string, SiteTrafficEventRecord[]>();
+    traffic30.forEach((row) => {
+      const label = getGeoCityLabel(row);
+      if (!label) return;
+      if (!cityGroups.has(label)) cityGroups.set(label, []);
+      cityGroups.get(label)?.push(row);
+    });
+    const cityDetails = Array.from(cityGroups.entries())
+      .map(([label, rows]) => ({
+        label,
+        count: rows.length,
+        uniqueVisitors: new Set(rows.map((row) => row.visitorId).filter(Boolean)).size,
+        uniqueSessions: new Set(rows.map((row) => row.sessionId || row.visitorId).filter(Boolean)).size,
+        topPages: topCounts(rows.map((row) => row.pathname).filter((value) => value.trim().length > 0), 6),
+        topReferrers: topCounts(rows.map((row) => normalizeReferrerLabel(row.referrer)), 5),
+        landingPages: topCounts(rows.filter((row) => row.isLandingPage).map((row) => row.pathname).filter((value) => value.trim().length > 0), 5),
+        campaigns: topCounts(rows.map((row) => row.utmCampaign || row.utmSource || '').filter((value) => value.trim().length > 0), 5),
+        deviceBreakdown: ['desktop', 'mobile', 'tablet'].map((deviceType) => ({
+          label: deviceType,
+          count: rows.filter((row) => row.deviceType === deviceType).length,
+        })),
+        lastSeen: rows.reduce<Date | null>((latest, row) => (row.timestamp > (latest || row.timestamp) ? row.timestamp : latest), null)?.toISOString() ?? null,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 20);
 
     const sessionFlows = new Map<string, SiteTrafficEventRecord[]>();
     traffic30.forEach((row) => {
@@ -238,15 +277,80 @@ export async function GET(req: Request) {
         }
       : null;
 
+    const traffic30Rows = traffic30;
+    const marketingEventsSnap = await adminDb.collection('consultant_marketing_events').limit(5000).get();
+    const toolUsageSnap = await adminDb.collection('toolboxToolUsageEvents').where('createdAt', '>=', start30.toISOString()).get();
+    const autoforgeLeadsSnap = await adminDb.collection('autoforge_leads').limit(5000).get();
+
+    const marketingEvents30 = marketingEventsSnap.docs
+      .map((docSnap) => docSnap.data() as Record<string, unknown>)
+      .filter((row) => {
+        const createdAt = toDate(row.created_at);
+        return createdAt && createdAt >= start30 && createdAt < now;
+      });
+    const referralCodeMap = new Map<string, ReferralCodeAggregate>();
+    marketingEvents30.forEach((row) => {
+      const label = String(row.referral_code || row.consultant_id || '').trim().toLowerCase();
+      if (!label) return;
+      if (!referralCodeMap.has(label)) {
+        referralCodeMap.set(label, {
+          label,
+          totalEvents: 0,
+          referralClicks: 0,
+          signupEvents: 0,
+          demoVisits: 0,
+          demoConversions: 0,
+        });
+      }
+      const aggregate = referralCodeMap.get(label);
+      if (!aggregate) return;
+      aggregate.totalEvents += 1;
+      const eventType = String(row.event_type || '').trim().toLowerCase();
+      if (eventType === 'referral_click') aggregate.referralClicks += 1;
+      if (eventType === 'signup_event') aggregate.signupEvents += 1;
+      if (eventType === 'demo_visit') aggregate.demoVisits += 1;
+      if (eventType === 'demo_conversion') aggregate.demoConversions += 1;
+    });
+    const topReferralCodes30 = Array.from(referralCodeMap.values())
+      .sort((a, b) => b.totalEvents - a.totalEvents)
+      .slice(0, 8);
+    const toolUsage30 = toolUsageSnap.docs
+      .map((docSnap) => docSnap.data() as Record<string, unknown>)
+      .filter((row) => {
+        const createdAt = toDate(row.createdAt);
+        return createdAt && createdAt >= start30 && createdAt < now;
+      });
+    const autoforgeLeads30 = autoforgeLeadsSnap.docs
+      .map((docSnap) => docSnap.data() as Record<string, unknown>)
+      .filter((row) => {
+        const createdAt = toDate(row.created_at);
+        return createdAt && createdAt >= start30 && createdAt < now;
+      });
+
     const timeline = Array.from({ length: 14 }).map((_, index) => {
       const bucketStart = new Date(now.getTime() - ((13 - index) * dayMs));
       bucketStart.setHours(0, 0, 0, 0);
       const bucketEnd = new Date(bucketStart.getTime() + dayMs);
       const rows = traffic30.filter((row) => row.timestamp >= bucketStart && row.timestamp < bucketEnd);
+      const marketingRows = marketingEvents30.filter((event) => {
+        const createdAt = toDate(event.created_at);
+        return createdAt && createdAt >= bucketStart && createdAt < bucketEnd;
+      });
       return {
         date: bucketStart.toISOString().slice(0, 10),
         pageViews: rows.length,
         uniqueVisitors: new Set(rows.map((row) => row.visitorId).filter(Boolean)).size,
+        authenticatedVisitors: new Set(rows.map((row) => row.userId).filter(Boolean)).size,
+        toolOpens: toolUsage30.filter((event) => {
+          const createdAt = toDate(event.createdAt);
+          return createdAt && createdAt >= bucketStart && createdAt < bucketEnd;
+        }).length,
+        marketingEvents: marketingRows.length,
+        referralClicks: marketingRows.filter((event) => String(event.event_type || '').trim().toLowerCase() === 'referral_click').length,
+        autoforgeLeads: autoforgeLeads30.filter((event) => {
+          const createdAt = toDate(event.created_at);
+          return createdAt && createdAt >= bucketStart && createdAt < bucketEnd;
+        }).length,
       };
     });
 
@@ -282,6 +386,7 @@ export async function GET(req: Request) {
           topCountries,
           topRegions,
           topCities,
+          cityDetails,
           geoCenter,
         },
         fromPages,
@@ -289,6 +394,15 @@ export async function GET(req: Request) {
         deviceBreakdown,
         surfaceBreakdown,
         timeline,
+        conversions30Days: {
+          pageViews: traffic30.length,
+          uniqueVisitors: new Set(traffic30.map((row) => row.visitorId).filter(Boolean)).size,
+          authenticatedVisitors: new Set(traffic30.map((row) => row.userId).filter(Boolean)).size,
+          toolOpens: toolUsage30.length,
+          autoforgeLeads: autoforgeLeads30.length,
+          marketingEvents: marketingEvents30.length,
+          referralCodes: topReferralCodes30,
+        },
       },
     }, { status: 200 });
   } catch (error: any) {
