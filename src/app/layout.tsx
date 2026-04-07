@@ -1,5 +1,6 @@
 
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Script from 'next/script';
 import { AuthProvider } from '@/context/auth-provider';
 import { Toaster } from '@/components/ui/toaster';
@@ -67,7 +68,9 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AuthProvider>
             <ThemeProvider>
-              <SiteTrafficTracker />
+              <Suspense fallback={null}>
+                <SiteTrafficTracker />
+              </Suspense>
               <MainLayout>
                 {children}
               </MainLayout>
