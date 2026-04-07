@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, Minus, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import { Header } from '@/components/layout/header';
@@ -12,7 +12,6 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
 
 type TrendDirection = 'up' | 'down' | 'stable';
 type TrafficMetricKey = 'pageViews' | 'uniqueVisitors' | 'authenticatedVisitors' | 'toolOpens' | 'marketingEvents' | 'referralClicks' | 'autoforgeLeads';
@@ -75,6 +74,7 @@ type SiteTrafficResponse = {
       authenticatedVisitors: number;
       toolOpens: number;
       autoforgeLeads: number;
+      sprocketSessions: number;
       marketingEvents: number;
       referralCodes: Array<{
         label: string;
@@ -127,6 +127,12 @@ const TRAFFIC_METRIC_OPTIONS: TrafficMetricConfig[] = [
   { key: 'autoforgeLeads', label: 'AutoForge Leads', color: '#10b981', dash: '2 4', source: 'autoforgeLeads' },
 ];
 
+function TrendIcon({ trend }: { trend: TrendDirection }) {
+  if (trend === 'up') return <ArrowUp className="h-4 w-4 text-emerald-600" aria-hidden="true" />;
+  if (trend === 'down') return <ArrowDown className="h-4 w-4 text-red-600" aria-hidden="true" />;
+  return <Minus className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+}
+
 export default function SiteTrafficPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -134,6 +140,7 @@ export default function SiteTrafficPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SiteTrafficResponse | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedTrafficMetrics, setSelectedTrafficMetrics] = useState<TrafficMetricKey[]>(['pageViews', 'uniqueVisitors']);
 
   useEffect(() => {
@@ -175,19 +182,22 @@ export default function SiteTrafficPage() {
     void loadSiteTraffic();
   }, [user?.userId, user?.role, user?.hasSiteTrafficAccess]);
 
+  useEffect(() => {
+    const cityList = data?.siteTraffic.geo.cityDetails || [];
+    if (cityList.length === 0) {
+      if (selectedCity) setSelectedCity('');
+      return;
+    }
+    if (!selectedCity || !cityList.some((city) => city.label === selectedCity)) {
+      setSelectedCity(cityList[0].label);
+    }
+  }, [data, selectedCity]);
+
   const generatedAtText = useMemo(() => {
     if (!data?.generatedAt) return null;
     const parsed = new Date(data.generatedAt);
     return Number.isNaN(parsed.getTime()) ? null : parsed.toLocaleString();
   }, [data?.generatedAt]);
-
-  if (loading || !user || (user.role !== 'Admin' && user.role !== 'Developer' && user.hasSiteTrafficAccess !== true)) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
 
   const siteTrafficTimeline = useMemo(() => [...(data?.siteTraffic.timeline || [])], [data]);
   const trafficChart = useMemo(() => {
@@ -205,6 +215,27 @@ export default function SiteTrafficPage() {
       })),
     };
   }, [selectedTrafficMetrics, siteTrafficTimeline]);
+  const selectedCityDetail = useMemo(
+    () => data?.siteTraffic.geo.cityDetails.find((city) => city.label === selectedCity) || data?.siteTraffic.geo.cityDetails[0] || null,
+    [data, selectedCity],
+  );
+  const deviceSplit = useMemo(() => {
+    const rows = data?.siteTraffic.deviceBreakdown || [];
+    const total = rows.reduce((sum, row) => sum + row.count, 0);
+    return rows.map((row) => ({
+      ...row,
+      percent: total > 0 ? Math.round((row.count / total) * 100) : 0,
+    }));
+  }, [data]);
+  const surfaceTopRows = useMemo(() => (data?.siteTraffic.surfaceBreakdown || []).slice(0, 4), [data]);
+
+  if (loading || !user || (user.role !== 'Admin' && user.role !== 'Developer' && user.hasSiteTrafficAccess !== true)) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -382,6 +413,30 @@ export default function SiteTrafficPage() {
               </CardContent>
             </Card>
 
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+              {[
+                { label: 'Raw Pageviews (7d)', value: data.siteTraffic.windows.last7Days.pageViews, trend: data.siteTraffic.windows.last7Days.trend },
+                { label: 'Raw Pageviews (30d)', value: data.siteTraffic.windows.last30Days.pageViews, trend: data.siteTraffic.windows.last30Days.trend },
+                { label: 'Unique Page Sessions (30d)', value: data.siteTraffic.windows.last30Days.uniquePageSessions, trend: 'stable' as TrendDirection },
+                { label: 'Visitors (30d)', value: data.siteTraffic.windows.last30Days.uniqueVisitors, trend: 'stable' as TrendDirection },
+                { label: 'Sessions (30d)', value: data.siteTraffic.windows.last30Days.uniqueSessions, trend: 'stable' as TrendDirection },
+                { label: 'Authed Visitors (30d)', value: data.siteTraffic.conversions30Days.authenticatedVisitors, trend: 'stable' as TrendDirection },
+              ].map((item) => (
+                <Card key={item.label}>
+                  <CardHeader className="pb-2">
+                    <CardDescription>{item.label}</CardDescription>
+                    <CardTitle className="text-3xl">{item.value}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <TrendIcon trend={item.trend} />
+                      <span>{item.trend === 'stable' ? 'Stable' : item.trend === 'up' ? 'Increasing' : 'Decreasing'}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
             <div className="grid gap-4 xl:grid-cols-2">
               <Card className="overflow-hidden">
                 <CardHeader>
@@ -432,10 +487,12 @@ export default function SiteTrafficPage() {
                 <CardContent className="space-y-4">
                   {[
                     { label: 'Raw Pageviews', value: data.siteTraffic.conversions30Days.pageViews },
+                    { label: 'Unique Page Sessions', value: data.siteTraffic.windows.last30Days.uniquePageSessions },
                     { label: 'Unique Visitors', value: data.siteTraffic.conversions30Days.uniqueVisitors },
                     { label: 'Authed Visitors', value: data.siteTraffic.conversions30Days.authenticatedVisitors },
                     { label: 'Tool Opens', value: data.siteTraffic.conversions30Days.toolOpens },
                     { label: 'Marketing Events', value: data.siteTraffic.conversions30Days.marketingEvents },
+                    { label: 'Sprocket Sessions', value: data.siteTraffic.conversions30Days.sprocketSessions },
                     { label: 'AutoForge Leads', value: data.siteTraffic.conversions30Days.autoforgeLeads },
                   ].map((row) => {
                     const base = Math.max(1, data.siteTraffic.windows.last30Days.uniquePageSessions);
@@ -450,6 +507,36 @@ export default function SiteTrafficPage() {
                       </div>
                     );
                   })}
+
+                  <div className="space-y-3 border-t pt-4">
+                    <div>
+                      <p className="text-sm font-medium">AK Consultant Referral Codes</p>
+                      <p className="text-xs text-muted-foreground">
+                        Top codes seen in the last 30 days across referral clicks, demo visits, and signups.
+                      </p>
+                    </div>
+                    {data.siteTraffic.conversions30Days.referralCodes.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No referral-code activity captured yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {data.siteTraffic.conversions30Days.referralCodes.map((row) => (
+                          <div key={row.label} className="rounded-lg border border-slate-700/70 bg-slate-950/50 px-3 py-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-medium uppercase tracking-wide">{row.label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {row.referralClicks} clicks · {row.signupEvents} signups · {row.demoVisits} demo visits · {row.demoConversions} demo conversions
+                                </p>
+                              </div>
+                              <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">
+                                {row.totalEvents}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -520,7 +607,7 @@ export default function SiteTrafficPage() {
               </Card>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Device and Surface Breakdown</CardTitle>
@@ -553,40 +640,196 @@ export default function SiteTrafficPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="w-full">
                 <CardHeader>
                   <CardTitle>Approximate Location from IP</CardTitle>
-                  <CardDescription>Coarse geolocation only.</CardDescription>
+                  <CardDescription>Coarse geolocation based on request IP headers. Good for region-level patterns, not exact physical location.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">Countries</p>
-                    {data.siteTraffic.geo.topCountries.map((row) => (
-                      <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
-                        <span className="truncate font-medium">{row.label}</span>
-                        <Badge variant="outline">{row.count}</Badge>
-                      </div>
-                    ))}
+                <CardContent className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3 rounded-xl border p-4">
+                      <p className="text-sm font-medium">Countries</p>
+                      {data.siteTraffic.geo.topCountries.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No country data yet.</p>
+                      ) : (
+                        data.siteTraffic.geo.topCountries.map((row) => (
+                          <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border bg-background/30 p-3 text-sm">
+                            <span className="truncate font-medium">{row.label}</span>
+                            <Badge variant="outline">{row.count}</Badge>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="space-y-3 rounded-xl border p-4">
+                      <p className="text-sm font-medium">Regions</p>
+                      {data.siteTraffic.geo.topRegions.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No region data yet.</p>
+                      ) : (
+                        data.siteTraffic.geo.topRegions.map((row) => (
+                          <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border bg-background/30 p-3 text-sm">
+                            <span className="truncate font-medium">{row.label}</span>
+                            <Badge variant="outline">{row.count}</Badge>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">Regions</p>
-                    {data.siteTraffic.geo.topRegions.map((row) => (
-                      <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
-                        <span className="truncate font-medium">{row.label}</span>
-                        <Badge variant="outline">{row.count}</Badge>
+
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+                    <div className="space-y-3">
+                      <div className="flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">Cities</p>
+                          <p className="text-xs text-muted-foreground">Scroll and select a city to inspect its traffic mix.</p>
+                        </div>
+                        <Badge variant="outline">{data.siteTraffic.geo.cityDetails.length} cities</Badge>
                       </div>
-                    ))}
-                  </div>
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">Cities</p>
-                    {data.siteTraffic.geo.topCities.map((row) => (
-                      <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
-                        <span className="truncate font-medium">{row.label}</span>
-                        <Badge variant="outline">{row.count}</Badge>
+                      <div className="max-h-[24rem] space-y-2 overflow-y-auto rounded-xl border p-2">
+                        {data.siteTraffic.geo.cityDetails.length === 0 ? (
+                          <p className="p-3 text-sm text-muted-foreground">No city data yet.</p>
+                        ) : (
+                          data.siteTraffic.geo.cityDetails.map((row) => {
+                            const isActive = selectedCityDetail?.label === row.label;
+                            return (
+                              <button
+                                key={row.label}
+                                type="button"
+                                onClick={() => setSelectedCity(row.label)}
+                                className={`w-full rounded-lg border px-3 py-3 text-left transition ${
+                                  isActive
+                                    ? 'border-primary/60 bg-primary/10 shadow-sm'
+                                    : 'border-transparent bg-transparent hover:border-border hover:bg-muted/40'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate font-medium">{row.label}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      {row.uniqueVisitors} visitors · {row.uniqueSessions} sessions
+                                      {row.lastSeen ? ` · last seen ${new Date(row.lastSeen).toLocaleString()}` : ''}
+                                    </p>
+                                  </div>
+                                  <Badge variant={isActive ? 'default' : 'outline'} className="shrink-0">
+                                    {row.count}
+                                  </Badge>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="rounded-xl border p-4">
+                      {!selectedCityDetail ? (
+                        <p className="text-sm text-muted-foreground">Select a city to drill into its pageviews, referrers, and device mix.</p>
+                      ) : (
+                        <div className="space-y-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Selected City</p>
+                              <h3 className="text-lg font-semibold">{selectedCityDetail.label}</h3>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {selectedCityDetail.uniqueVisitors} visitors, {selectedCityDetail.uniqueSessions} sessions, {selectedCityDetail.count} pageviews
+                              </p>
+                            </div>
+                            <Badge variant="outline">Live drill-down</Badge>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <div className="rounded-lg border bg-background/30 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Pageviews</p>
+                              <p className="mt-1 text-lg font-semibold">{selectedCityDetail.count}</p>
+                            </div>
+                            <div className="rounded-lg border bg-background/30 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Visitors</p>
+                              <p className="mt-1 text-lg font-semibold">{selectedCityDetail.uniqueVisitors}</p>
+                            </div>
+                            <div className="rounded-lg border bg-background/30 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Sessions</p>
+                              <p className="mt-1 text-lg font-semibold">{selectedCityDetail.uniqueSessions}</p>
+                            </div>
+                            <div className="rounded-lg border bg-background/30 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Last Seen</p>
+                              <p className="mt-1 text-sm font-semibold leading-tight">
+                                {selectedCityDetail.lastSeen ? new Date(selectedCityDetail.lastSeen).toLocaleString() : 'Unknown'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-3">
+                              <p className="text-sm font-medium">Top Pages</p>
+                              {selectedCityDetail.topPages.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No page data yet.</p>
+                              ) : (
+                                selectedCityDetail.topPages.map((row) => (
+                                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                    <span className="truncate font-medium">{row.label}</span>
+                                    <Badge variant="outline">{row.count}</Badge>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="space-y-3">
+                              <p className="text-sm font-medium">Top Referrers</p>
+                              {selectedCityDetail.topReferrers.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No referrer data yet.</p>
+                              ) : (
+                                selectedCityDetail.topReferrers.map((row) => (
+                                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                    <span className="truncate font-medium">{row.label}</span>
+                                    <Badge variant="outline">{row.count}</Badge>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="space-y-3">
+                              <p className="text-sm font-medium">Landing Pages</p>
+                              {selectedCityDetail.landingPages.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No landing page data yet.</p>
+                              ) : (
+                                selectedCityDetail.landingPages.map((row) => (
+                                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                    <span className="truncate font-medium">{row.label}</span>
+                                    <Badge variant="outline">{row.count}</Badge>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="space-y-3">
+                              <p className="text-sm font-medium">Campaigns</p>
+                              {selectedCityDetail.campaigns.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No campaign data yet.</p>
+                              ) : (
+                                selectedCityDetail.campaigns.map((row) => (
+                                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                    <span className="truncate font-medium">{row.label}</span>
+                                    <Badge variant="outline">{row.count}</Badge>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <p className="text-sm font-medium">Device Mix</p>
+                            {selectedCityDetail.deviceBreakdown.map((row) => (
+                              <div key={row.label} className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium capitalize">{row.label}</span>
+                                  <span className="text-muted-foreground">{row.count}</span>
+                                </div>
+                                <Progress value={Math.min(100, Math.round((row.count / Math.max(1, selectedCityDetail.count)) * 100))} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="md:col-span-3 rounded-lg border p-3 text-sm">
+
+                  <div className="rounded-lg border p-3 text-sm">
                     <p className="font-medium">Geographic Center</p>
                     {data.siteTraffic.geo.geoCenter ? (
                       <p className="mt-1 text-muted-foreground">
@@ -596,6 +839,28 @@ export default function SiteTrafficPage() {
                       <p className="mt-1 text-muted-foreground">No latitude/longitude data captured yet.</p>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Where They Went Next</CardTitle>
+                  <CardDescription>Most common page-to-page transitions inside a session.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {data.siteTraffic.topNextSteps.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No transition-flow data yet.</p>
+                  ) : (
+                    data.siteTraffic.topNextSteps.map((row) => (
+                      <div key={`${row.from}-${row.to}`} className="rounded-lg border p-3 text-sm">
+                        <p className="font-medium">{row.from}</p>
+                        <p className="text-muted-foreground">to {row.to}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{row.count} transitions</p>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
             </div>
