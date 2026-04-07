@@ -115,6 +115,20 @@ export function SignupForm() {
     try {
       const consultant = getConsultant() || undefined;
       await publicSignup(data.name, data.email, data.password, data.role as UserRole, consultant);
+      if (consultant) {
+        void fetch('/api/consultant-marketing-event', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            consultant_id: consultant,
+            event_type: 'signup_event',
+            source: 'signup_form_success',
+            referral_code: consultant,
+          }),
+        });
+      }
       touchAttribution('strong', 'signup_completed');
 
       const fbUser = firebaseAuth.currentUser;

@@ -61,6 +61,18 @@ type IntelligenceResponse = {
       topCountries: Array<{ label: string; count: number }>;
       topRegions: Array<{ label: string; count: number }>;
       topCities: Array<{ label: string; count: number }>;
+      cityDetails: Array<{
+        label: string;
+        count: number;
+        uniqueVisitors: number;
+        uniqueSessions: number;
+        topPages: Array<{ label: string; count: number }>;
+        topReferrers: Array<{ label: string; count: number }>;
+        landingPages: Array<{ label: string; count: number }>;
+        campaigns: Array<{ label: string; count: number }>;
+        deviceBreakdown: Array<{ label: string; count: number }>;
+        lastSeen: string | null;
+      }>;
       geoCenter: { latitude: number; longitude: number; sampleSize: number } | null;
     };
     fromPages: Array<{ label: string; count: number }>;
@@ -76,6 +88,14 @@ type IntelligenceResponse = {
       autoforgeLeads: number;
       sprocketSessions: number;
       marketingEvents: number;
+      referralCodes: Array<{
+        label: string;
+        totalEvents: number;
+        referralClicks: number;
+        signupEvents: number;
+        demoVisits: number;
+        demoConversions: number;
+      }>;
     };
   };
   sessionActivity: {
@@ -496,6 +516,7 @@ export default function AdminIntelligencePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<IntelligenceResponse | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string>('');
   const [isGeneratingExport, setIsGeneratingExport] = useState(false);
   const [isGeneratingDigest, setIsGeneratingDigest] = useState(false);
   const [isGeneratingBenchmark, setIsGeneratingBenchmark] = useState(false);
@@ -563,7 +584,8 @@ export default function AdminIntelligencePage() {
   const [riskDateTo, setRiskDateTo] = useState('');
   const [riskActiveFilter, setRiskActiveFilter] = useState<string>('active');
   const [isSiteTrafficOpen, setIsSiteTrafficOpen] = useState(true);
-  const [isFreshUpStatsOpen, setIsFreshUpStatsOpen] = useState(true);
+  const [isFreshUpStatsOpen, setIsFreshUpStatsOpen] = useState(false);
+  const [isFreshUpAdvancedOpen, setIsFreshUpAdvancedOpen] = useState(false);
   const [exportResult, setExportResult] = useState<FreshUpExportResponse | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
@@ -593,6 +615,24 @@ export default function AdminIntelligencePage() {
       router.push('/');
     }
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if (!data) return;
+    const cityList = data.siteTraffic.geo.cityDetails;
+    if (cityList.length === 0) {
+      if (selectedCity) setSelectedCity('');
+      return;
+    }
+
+    if (!selectedCity || !cityList.some((city) => city.label === selectedCity)) {
+      setSelectedCity(cityList[0].label);
+    }
+  }, [data, selectedCity]);
+
+  const selectedCityDetail = useMemo(
+    () => data?.siteTraffic.geo.cityDetails.find((city) => city.label === selectedCity) || data?.siteTraffic.geo.cityDetails[0] || null,
+    [data, selectedCity]
+  );
 
   async function loadIntelligence() {
     if (!user || (user.role !== 'Admin' && user.role !== 'Developer')) {
@@ -1136,7 +1176,7 @@ export default function AdminIntelligencePage() {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <main className="mx-auto flex w-full max-w-none flex-1 flex-col gap-6 px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8 xl:px-10">
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Fresh Up Intelligence Dashboard</CardTitle>
@@ -1239,6 +1279,36 @@ export default function AdminIntelligencePage() {
                               </div>
                             );
                           })}
+
+                          <div className="space-y-3 border-t pt-4">
+                            <div>
+                              <p className="text-sm font-medium">AK Consultant Referral Codes</p>
+                              <p className="text-xs text-muted-foreground">
+                                Top codes seen in the last 30 days across referral clicks, demo visits, and signups.
+                              </p>
+                            </div>
+                            {data.siteTraffic.conversions30Days.referralCodes.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No referral-code activity captured yet.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {data.siteTraffic.conversions30Days.referralCodes.map((row) => (
+                                  <div key={row.label} className="rounded-lg border border-slate-700/70 bg-slate-950/50 px-3 py-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div>
+                                        <p className="text-sm font-medium uppercase tracking-wide">{row.label}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {row.referralClicks} clicks · {row.signupEvents} signups · {row.demoVisits} demo visits · {row.demoConversions} demo conversions
+                                        </p>
+                                      </div>
+                                      <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">
+                                        {row.totalEvents}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
 
@@ -1247,20 +1317,20 @@ export default function AdminIntelligencePage() {
                           <CardTitle>14-Day Traffic Timeline</CardTitle>
                           <CardDescription>Recent pageviews and unique visitors by day.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-3">
+                        <CardContent className="max-h-72 space-y-2 overflow-y-auto pr-1">
                           {data.siteTraffic.timeline.length === 0 ? (
                             <p className="text-sm text-muted-foreground">No site traffic captured yet.</p>
                           ) : (
-                            data.siteTraffic.timeline.map((row) => {
+                            [...data.siteTraffic.timeline].reverse().map((row) => {
                               const base = Math.max(1, data.siteTraffic.windows.last30Days.pageViews);
                               const progress = Math.min(100, Math.round((row.pageViews / base) * 100));
                               return (
-                                <div key={row.date} className="space-y-1">
-                                  <div className="flex items-center justify-between text-sm">
+                                <div key={row.date} className="space-y-1 rounded-md border px-3 py-2">
+                                  <div className="flex items-center justify-between text-xs sm:text-sm">
                                     <span>{new Date(`${row.date}T00:00:00`).toLocaleDateString()}</span>
                                     <span className="text-muted-foreground">{row.pageViews} views • {row.uniqueVisitors} visitors</span>
                                   </div>
-                                  <Progress value={progress} />
+                                  <Progress value={progress} className="h-1.5" />
                                 </div>
                               );
                             })
@@ -1368,7 +1438,7 @@ export default function AdminIntelligencePage() {
                       </Card>
                     </div>
 
-                    <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="space-y-4">
                       <Card>
                         <CardHeader>
                           <CardTitle>Device Breakdown</CardTitle>
@@ -1387,52 +1457,196 @@ export default function AdminIntelligencePage() {
                         </CardContent>
                       </Card>
 
-                      <Card>
+                      <Card className="w-full">
                         <CardHeader>
                           <CardTitle>Approximate Location from IP</CardTitle>
                           <CardDescription>Coarse geolocation based on request IP headers. Good for region-level patterns, not exact physical location.</CardDescription>
                         </CardHeader>
-                        <CardContent className="grid gap-4 md:grid-cols-3">
-                          <div className="space-y-3">
-                            <p className="text-sm font-medium">Countries</p>
-                            {data.siteTraffic.geo.topCountries.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No country data yet.</p>
-                            ) : (
-                              data.siteTraffic.geo.topCountries.map((row) => (
-                                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
-                                  <span className="truncate font-medium">{row.label}</span>
-                                  <Badge variant="outline">{row.count}</Badge>
-                                </div>
-                              ))
-                            )}
+                        <CardContent className="space-y-5">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-3 rounded-xl border p-4">
+                              <p className="text-sm font-medium">Countries</p>
+                              {data.siteTraffic.geo.topCountries.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No country data yet.</p>
+                              ) : (
+                                data.siteTraffic.geo.topCountries.map((row) => (
+                                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border bg-background/30 p-3 text-sm">
+                                    <span className="truncate font-medium">{row.label}</span>
+                                    <Badge variant="outline">{row.count}</Badge>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="space-y-3 rounded-xl border p-4">
+                              <p className="text-sm font-medium">Regions</p>
+                              {data.siteTraffic.geo.topRegions.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No region data yet.</p>
+                              ) : (
+                                data.siteTraffic.geo.topRegions.map((row) => (
+                                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border bg-background/30 p-3 text-sm">
+                                    <span className="truncate font-medium">{row.label}</span>
+                                    <Badge variant="outline">{row.count}</Badge>
+                                  </div>
+                                ))
+                              )}
+                            </div>
                           </div>
-                          <div className="space-y-3">
-                            <p className="text-sm font-medium">Regions</p>
-                            {data.siteTraffic.geo.topRegions.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No region data yet.</p>
-                            ) : (
-                              data.siteTraffic.geo.topRegions.map((row) => (
-                                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
-                                  <span className="truncate font-medium">{row.label}</span>
-                                  <Badge variant="outline">{row.count}</Badge>
+
+                          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+                            <div className="space-y-3">
+                              <div className="flex items-end justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-medium">Cities</p>
+                                  <p className="text-xs text-muted-foreground">Scroll and select a city to inspect its traffic mix.</p>
                                 </div>
-                              ))
-                            )}
-                          </div>
-                          <div className="space-y-3">
-                            <p className="text-sm font-medium">Cities</p>
-                            {data.siteTraffic.geo.topCities.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No city data yet.</p>
-                            ) : (
-                              data.siteTraffic.geo.topCities.map((row) => (
-                                <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
-                                  <span className="truncate font-medium">{row.label}</span>
-                                  <Badge variant="outline">{row.count}</Badge>
+                                <Badge variant="outline">{data.siteTraffic.geo.cityDetails.length} cities</Badge>
+                              </div>
+                              <div className="max-h-[24rem] space-y-2 overflow-y-auto rounded-xl border p-2">
+                                {data.siteTraffic.geo.cityDetails.length === 0 ? (
+                                  <p className="p-3 text-sm text-muted-foreground">No city data yet.</p>
+                                ) : (
+                                  data.siteTraffic.geo.cityDetails.map((row) => {
+                                    const isActive = selectedCityDetail?.label === row.label;
+                                    return (
+                                      <button
+                                        key={row.label}
+                                        type="button"
+                                        onClick={() => setSelectedCity(row.label)}
+                                        className={`w-full rounded-lg border px-3 py-3 text-left transition ${
+                                          isActive
+                                            ? 'border-primary/60 bg-primary/10 shadow-sm'
+                                            : 'border-transparent bg-transparent hover:border-border hover:bg-muted/40'
+                                        }`}
+                                      >
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <p className="truncate font-medium">{row.label}</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                              {row.uniqueVisitors} visitors · {row.uniqueSessions} sessions
+                                              {row.lastSeen ? ` · last seen ${new Date(row.lastSeen).toLocaleString()}` : ''}
+                                            </p>
+                                          </div>
+                                          <Badge variant={isActive ? 'default' : 'outline'} className="shrink-0">
+                                            {row.count}
+                                          </Badge>
+                                        </div>
+                                      </button>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border p-4">
+                              {!selectedCityDetail ? (
+                                <p className="text-sm text-muted-foreground">Select a city to drill into its pageviews, referrers, and device mix.</p>
+                              ) : (
+                                <div className="space-y-5">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm text-muted-foreground">Selected City</p>
+                                      <h3 className="text-lg font-semibold">{selectedCityDetail.label}</h3>
+                                      <p className="mt-1 text-sm text-muted-foreground">
+                                        {selectedCityDetail.uniqueVisitors} visitors, {selectedCityDetail.uniqueSessions} sessions, {selectedCityDetail.count} pageviews
+                                      </p>
+                                    </div>
+                                    <Badge variant="outline">Live drill-down</Badge>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    <div className="rounded-lg border bg-background/30 p-3">
+                                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Pageviews</p>
+                                      <p className="mt-1 text-lg font-semibold">{selectedCityDetail.count}</p>
+                                    </div>
+                                    <div className="rounded-lg border bg-background/30 p-3">
+                                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Visitors</p>
+                                      <p className="mt-1 text-lg font-semibold">{selectedCityDetail.uniqueVisitors}</p>
+                                    </div>
+                                    <div className="rounded-lg border bg-background/30 p-3">
+                                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Sessions</p>
+                                      <p className="mt-1 text-lg font-semibold">{selectedCityDetail.uniqueSessions}</p>
+                                    </div>
+                                    <div className="rounded-lg border bg-background/30 p-3">
+                                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Last Seen</p>
+                                      <p className="mt-1 text-sm font-semibold leading-tight">
+                                        {selectedCityDetail.lastSeen ? new Date(selectedCityDetail.lastSeen).toLocaleString() : 'Unknown'}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-3">
+                                      <p className="text-sm font-medium">Top Pages</p>
+                                      {selectedCityDetail.topPages.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No page data yet.</p>
+                                      ) : (
+                                        selectedCityDetail.topPages.map((row) => (
+                                          <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                            <span className="truncate font-medium">{row.label}</span>
+                                            <Badge variant="outline">{row.count}</Badge>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                    <div className="space-y-3">
+                                      <p className="text-sm font-medium">Top Referrers</p>
+                                      {selectedCityDetail.topReferrers.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No referrer data yet.</p>
+                                      ) : (
+                                        selectedCityDetail.topReferrers.map((row) => (
+                                          <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                            <span className="truncate font-medium">{row.label}</span>
+                                            <Badge variant="outline">{row.count}</Badge>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                    <div className="space-y-3">
+                                      <p className="text-sm font-medium">Landing Pages</p>
+                                      {selectedCityDetail.landingPages.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No landing page data yet.</p>
+                                      ) : (
+                                        selectedCityDetail.landingPages.map((row) => (
+                                          <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                            <span className="truncate font-medium">{row.label}</span>
+                                            <Badge variant="outline">{row.count}</Badge>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                    <div className="space-y-3">
+                                      <p className="text-sm font-medium">Campaigns</p>
+                                      {selectedCityDetail.campaigns.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No campaign data yet.</p>
+                                      ) : (
+                                        selectedCityDetail.campaigns.map((row) => (
+                                          <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                                            <span className="truncate font-medium">{row.label}</span>
+                                            <Badge variant="outline">{row.count}</Badge>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <p className="text-sm font-medium">Device Mix</p>
+                                    {selectedCityDetail.deviceBreakdown.map((row) => (
+                                      <div key={row.label} className="space-y-2">
+                                        <div className="flex items-center justify-between text-sm">
+                                          <span className="font-medium capitalize">{row.label}</span>
+                                          <span className="text-muted-foreground">{row.count}</span>
+                                        </div>
+                                        <Progress value={Math.min(100, Math.round((row.count / Math.max(1, selectedCityDetail.count)) * 100))} />
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                              ))
-                            )}
+                              )}
+                            </div>
                           </div>
-                          <div className="md:col-span-3 rounded-lg border p-3 text-sm">
+
+                          <div className="rounded-lg border p-3 text-sm">
                             <p className="font-medium">Geographic Center</p>
                             {data.siteTraffic.geo.geoCenter ? (
                               <p className="mt-1 text-muted-foreground">
@@ -1498,9 +1712,9 @@ export default function AdminIntelligencePage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-4">
                   <div>
-                    <CardTitle>Fresh Up Stats</CardTitle>
+                    <CardTitle>Fresh Up Intelligence</CardTitle>
                     <CardDescription>
-                      Platform-wide Fresh Up usage, performance, dealer comparisons, outcomes, training gaps, and scenario trends.
+                      Advanced Fresh Up analytics, alerts, benchmarks, narratives, digests, and exports. Collapsed by default to keep the dashboard focused.
                     </CardDescription>
                   </div>
                   <CollapsibleTrigger asChild>
@@ -1730,6 +1944,23 @@ export default function AdminIntelligencePage() {
               </Card>
             </Collapsible>
 
+            <Collapsible open={isFreshUpAdvancedOpen} onOpenChange={setIsFreshUpAdvancedOpen}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Advanced Fresh Up Tools</CardTitle>
+                    <CardDescription>
+                      Alerts, command center, risk radar, benchmarks, narratives, digests, and exports. Collapsed by default to keep the dashboard clean.
+                    </CardDescription>
+                  </div>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" size="sm">
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isFreshUpAdvancedOpen ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="space-y-6">
             <section>
               <Card>
                 <CardHeader>
@@ -2531,6 +2762,10 @@ export default function AdminIntelligencePage() {
                 </CardContent>
               </Card>
             </section>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           </>
         ) : null}
       </main>

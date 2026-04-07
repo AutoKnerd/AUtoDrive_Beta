@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
       consultant_id: body?.consultant_id ?? '',
       event_type: body?.event_type ?? '',
       source: body?.source ?? '',
+      referral_code: body?.referral_code ?? '',
     });
 
     return NextResponse.json({ ok: true }, { status: 201 });

@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { getAdminDb } from '@/firebase/admin';
 import { getStripe } from '@/lib/stripe';
+import { resolveConsultant } from '@/lib/consultant-referral';
 
 export type ConsultantMarketingEventType =
   | 'referral_click'
@@ -41,9 +42,12 @@ export async function recordConsultantMarketingEvent(input: {
   consultant_id: string;
   event_type: string;
   source?: string;
+  referral_code?: string;
 }) {
   const consultantId = normalizeConsultantId(input.consultant_id);
   const eventType = input.event_type.trim().toLowerCase();
+  const resolvedReferral = resolveConsultant(input.referral_code || consultantId);
+  const referralCode = (resolvedReferral?.code || String(input.referral_code || consultantId || '').trim()).toLowerCase();
 
   if (!consultantId || !isEventType(eventType)) {
     throw new Error('Consultant id and valid event type are required.');
@@ -54,6 +58,7 @@ export async function recordConsultantMarketingEvent(input: {
     consultant_id: consultantId,
     event_type: eventType,
     source: String(input.source || '').trim(),
+    referral_code: referralCode,
     created_at: new Date().toISOString(),
   });
 }

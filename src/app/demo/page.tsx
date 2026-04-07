@@ -84,6 +84,7 @@ export default function DemoPage() {
         consultant_id: consultant,
         event_type: 'demo_visit',
         source: 'demo_page_view',
+        referral_code: consultant,
       }),
     });
   }, [consultant]);

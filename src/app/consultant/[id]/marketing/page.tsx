@@ -117,6 +117,7 @@ export default function ConsultantDealerOutreachPage() {
           consultant_id: consultantCode.toLowerCase(),
           event_type: eventType,
           source,
+          referral_code: consultantCode.toLowerCase(),
         }),
       });
     } catch {
