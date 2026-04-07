@@ -530,18 +530,6 @@ export async function GET(req: Request) {
     }));
     const surfaceBreakdown = topCounts(traffic30Rows.map((row) => row.surface || 'unknown'), 8);
 
-    const trafficTimeline = Array.from({ length: 14 }).map((_, index) => {
-      const bucketStart = new Date(now.getTime() - ((13 - index) * dayMs));
-      bucketStart.setHours(0, 0, 0, 0);
-      const bucketEnd = new Date(bucketStart.getTime() + dayMs);
-      const rows = traffic30Rows.filter((row) => row.createdAt >= bucketStart && row.createdAt < bucketEnd);
-      return {
-        date: bucketStart.toISOString().slice(0, 10),
-        pageViews: rows.length,
-        uniqueVisitors: new Set(rows.map((row) => row.visitorId).filter(Boolean)).size,
-      };
-    });
-
     const marketingEvents30 = marketingEventsSnap.docs
       .map((docSnap) => docSnap.data() as Record<string, unknown>)
       .filter((row) => {
@@ -594,6 +582,36 @@ export async function GET(req: Request) {
         const createdAt = toDate(row.last_activity) ?? toDate(row.started_at);
         return createdAt && createdAt >= start30 && createdAt < now;
       });
+
+    let trafficTimeline = Array.from({ length: 14 }).map((_, index) => {
+      const bucketStart = new Date(now.getTime() - ((13 - index) * dayMs));
+      bucketStart.setHours(0, 0, 0, 0);
+      const bucketEnd = new Date(bucketStart.getTime() + dayMs);
+      const rows = traffic30Rows.filter((row) => row.createdAt >= bucketStart && row.createdAt < bucketEnd);
+      return {
+        date: bucketStart.toISOString().slice(0, 10),
+        pageViews: rows.length,
+        uniqueVisitors: new Set(rows.map((row) => row.visitorId).filter(Boolean)).size,
+        authenticatedVisitors: new Set(rows.map((row) => row.userId).filter(Boolean)).size,
+        toolOpens: toolUsage30.filter((event) => {
+          const createdAt = toDate(event.createdAt);
+          return createdAt && createdAt >= bucketStart && createdAt < bucketEnd;
+        }).length,
+        marketingEvents: marketingEvents30.filter((event) => {
+          const createdAt = toDate(event.created_at);
+          return createdAt && createdAt >= bucketStart && createdAt < bucketEnd;
+        }).length,
+        referralClicks: marketingEvents30.filter((event) => {
+          const createdAt = toDate(event.created_at);
+          return createdAt && createdAt >= bucketStart && createdAt < bucketEnd && String(event.event_type || '').trim().toLowerCase() === 'referral_click';
+        }).length,
+        autoforgeLeads: autoforgeLeads30.filter((event) => {
+          const createdAt = toDate(event.created_at);
+          return createdAt && createdAt >= bucketStart && createdAt < bucketEnd;
+        }).length,
+      };
+    });
+
 
     const dealerSessionMap = new Map<string, FreshUpSessionRecord[]>();
     sessions30.forEach((session) => {

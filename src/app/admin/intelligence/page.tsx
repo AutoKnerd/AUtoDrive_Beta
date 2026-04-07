@@ -17,12 +17,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type TrendDirection = 'up' | 'down' | 'stable';
+type TrafficMetricKey =
+  | 'pageViews'
+  | 'uniqueVisitors'
+  | 'authenticatedVisitors'
+  | 'toolOpens'
+  | 'marketingEvents'
+  | 'referralClicks'
+  | 'autoforgeLeads';
 
 type MetricWithTrend = {
   score: number;
   trend: TrendDirection;
+};
+
+type TrafficMetricConfig = {
+  key: TrafficMetricKey;
+  label: string;
+  color: string;
+  dash?: string;
+  source?: 'pageViews' | 'uniqueVisitors' | 'authenticatedVisitors' | 'toolOpens' | 'marketingEvents' | 'referralClicks' | 'autoforgeLeads';
 };
 
 type IntelligenceResponse = {
@@ -79,7 +103,16 @@ type IntelligenceResponse = {
     topNextSteps: Array<{ from: string; to: string; count: number }>;
     deviceBreakdown: Array<{ label: string; count: number }>;
     surfaceBreakdown: Array<{ label: string; count: number }>;
-    timeline: Array<{ date: string; pageViews: number; uniqueVisitors: number }>;
+    timeline: Array<{
+      date: string;
+      pageViews: number;
+      uniqueVisitors: number;
+      authenticatedVisitors: number;
+      toolOpens: number;
+      marketingEvents: number;
+      referralClicks: number;
+      autoforgeLeads: number;
+    }>;
     conversions30Days: {
       pageViews: number;
       uniqueVisitors: number;
@@ -408,6 +441,46 @@ function TrendIcon({ trend }: { trend: TrendDirection }) {
   return <Minus className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
 }
 
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function buildSeriesPath(values: number[], width: number, height: number, maxValueOverride?: number) {
+  const safeValues = values.length > 0 ? values : [0];
+  const maxValue = Math.max(1, maxValueOverride || 0, ...safeValues);
+  const topPadding = 18;
+  const bottomPadding = 22;
+  const chartHeight = Math.max(1, height - topPadding - bottomPadding);
+  const step = safeValues.length > 1 ? width / (safeValues.length - 1) : width;
+  const points = safeValues.map((value, index) => {
+    const x = safeValues.length > 1 ? index * step : width / 2;
+    const ratio = value / maxValue;
+    const y = topPadding + ((1 - ratio) * chartHeight);
+    return { x, y };
+  });
+
+  const linePath = points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+    .join(' ');
+
+  const areaPath = `${linePath} L ${width} ${height - bottomPadding} L 0 ${height - bottomPadding} Z`;
+
+  return { linePath, areaPath, points, maxValue };
+}
+
+const TRAFFIC_METRIC_OPTIONS: TrafficMetricConfig[] = [
+  { key: 'pageViews', label: 'Pageviews', color: '#3b82f6', source: 'pageViews' },
+  { key: 'uniqueVisitors', label: 'Unique Visitors', color: '#22d3ee', source: 'uniqueVisitors' },
+  { key: 'authenticatedVisitors', label: 'Authed Visitors', color: '#a78bfa', dash: '7 4', source: 'authenticatedVisitors' },
+  { key: 'toolOpens', label: 'Tool Opens', color: '#f59e0b', dash: '5 5', source: 'toolOpens' },
+  { key: 'marketingEvents', label: 'Marketing Events', color: '#f97316', dash: '3 4', source: 'marketingEvents' },
+  { key: 'referralClicks', label: 'Referral Clicks', color: '#ec4899', dash: '9 4', source: 'referralClicks' },
+  { key: 'autoforgeLeads', label: 'AutoForge Leads', color: '#10b981', dash: '2 4', source: 'autoforgeLeads' },
+];
+
 const EXPORT_TYPE_OPTIONS: Array<{ value: ExportTypeOption; label: string }> = [
   { value: 'raw_sessions', label: 'Raw Session Export' },
   { value: 'dealer_summary', label: 'Dealer Summary Export' },
@@ -517,6 +590,7 @@ export default function AdminIntelligencePage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<IntelligenceResponse | null>(null);
   const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedTrafficMetrics, setSelectedTrafficMetrics] = useState<TrafficMetricKey[]>(['pageViews', 'uniqueVisitors']);
   const [isGeneratingExport, setIsGeneratingExport] = useState(false);
   const [isGeneratingDigest, setIsGeneratingDigest] = useState(false);
   const [isGeneratingBenchmark, setIsGeneratingBenchmark] = useState(false);
@@ -633,6 +707,44 @@ export default function AdminIntelligencePage() {
     () => data?.siteTraffic.geo.cityDetails.find((city) => city.label === selectedCity) || data?.siteTraffic.geo.cityDetails[0] || null,
     [data, selectedCity]
   );
+
+  const siteTrafficTimeline = useMemo(
+    () => [...(data?.siteTraffic.timeline || [])],
+    [data]
+  );
+
+  const trafficChart = useMemo(() => {
+    const selectedConfigs = TRAFFIC_METRIC_OPTIONS.filter((option) => selectedTrafficMetrics.includes(option.key));
+    const valuesByMetric = new Map<TrafficMetricKey, number[]>();
+
+    selectedConfigs.forEach((config) => {
+      valuesByMetric.set(config.key, siteTrafficTimeline.map((row) => row[config.source || config.key]));
+    });
+
+    const sharedMax = Math.max(
+      1,
+      ...selectedConfigs.flatMap((config) => valuesByMetric.get(config.key) || []),
+    );
+
+    return {
+      sharedMax,
+      series: selectedConfigs.map((config) => ({
+        ...config,
+        ...buildSeriesPath(valuesByMetric.get(config.key) || [], 640, 240, sharedMax),
+      })),
+    };
+  }, [selectedTrafficMetrics, siteTrafficTimeline]);
+
+  const deviceSplit = useMemo(() => {
+    const rows = data?.siteTraffic.deviceBreakdown || [];
+    const total = rows.reduce((sum, row) => sum + row.count, 0);
+    return rows.map((row) => ({
+      ...row,
+      percent: total > 0 ? Math.round((row.count / total) * 100) : 0,
+    }));
+  }, [data]);
+
+  const surfaceTopRows = useMemo(() => (data?.siteTraffic.surfaceBreakdown || []).slice(0, 4), [data]);
 
   async function loadIntelligence() {
     if (!user || (user.role !== 'Admin' && user.role !== 'Developer')) {
@@ -1227,6 +1339,251 @@ export default function AdminIntelligencePage() {
                 </CardHeader>
                 <CollapsibleContent>
                   <CardContent className="space-y-6">
+                    <Card className="overflow-hidden border-cyan-400/20 bg-gradient-to-br from-slate-950 via-slate-950/90 to-cyan-950/20 shadow-[0_0_30px_rgba(34,211,238,0.08)]">
+                      <CardHeader className="flex flex-col gap-4 border-b border-cyan-400/10 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
+                          <CardTitle className="text-2xl text-cyan-100">Audience Reach</CardTitle>
+                          <CardDescription className="max-w-3xl">
+                            Compare pageviews, clicks, and conversion signals over the last 14 days. Use the metric menu to layer multiple lines and spot where traffic and engagement diverge.
+                          </CardDescription>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-cyan-400/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15"
+                            >
+                              Metrics
+                              <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-72">
+                            <DropdownMenuLabel>Chart Metrics</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {TRAFFIC_METRIC_OPTIONS.map((option) => (
+                              <DropdownMenuCheckboxItem
+                                key={option.key}
+                                checked={selectedTrafficMetrics.includes(option.key)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedTrafficMetrics((current) => {
+                                    if (checked) {
+                                      return current.includes(option.key) ? current : [...current, option.key];
+                                    }
+                                    const next = current.filter((item) => item !== option.key);
+                                    return next.length > 0 ? next : ['pageViews'];
+                                  });
+                                }}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
+                                  {option.label}
+                                </span>
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </CardHeader>
+                      <CardContent className="space-y-4 pt-6">
+                        <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4">
+                          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.08),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_35%)]" />
+                          {siteTrafficTimeline.length === 0 ? (
+                            <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-700/80">
+                              <p className="text-sm text-muted-foreground">No site traffic captured yet.</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-3">
+                                <div className="relative h-64">
+                                  {[0, 1, 2, 3].map((index) => {
+                                    const value = trafficChart.sharedMax - ((trafficChart.sharedMax / 3) * index);
+                                    return (
+                                      <div
+                                        key={index}
+                                        className="absolute left-0 -translate-y-1/2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400"
+                                        style={{ top: `${(index / 3) * 100}%` }}
+                                      >
+                                        {index === 3 ? '0' : formatCompactNumber(Math.round(value))}
+                                      </div>
+                                    );
+                                  })}
+                                  <div className="absolute bottom-0 left-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                    Y
+                                  </div>
+                                </div>
+                                <div className="space-y-3">
+                                  <svg
+                                    className="relative z-10 h-64 w-full"
+                                    viewBox="0 0 640 240"
+                                    preserveAspectRatio="none"
+                                    aria-hidden="true"
+                                  >
+                                    <defs>
+                                      {trafficChart.series.map((series) => (
+                                        <linearGradient key={`${series.key}-fill`} id={`traffic-${series.key}-fill`} x1="0" x2="0" y1="0" y2="1">
+                                          <stop offset="0%" stopColor={series.color} stopOpacity="0.24" />
+                                          <stop offset="100%" stopColor={series.color} stopOpacity="0" />
+                                        </linearGradient>
+                                      ))}
+                                    </defs>
+                                    {[0, 1, 2, 3].map((index) => (
+                                      <line
+                                        key={index}
+                                        x1="0"
+                                        x2="640"
+                                        y1={24 + (index * 60)}
+                                        y2={24 + (index * 60)}
+                                        stroke="rgba(148,163,184,0.16)"
+                                        strokeDasharray="4 6"
+                                        strokeWidth="1"
+                                      />
+                                    ))}
+                                    {trafficChart.series.map((series, index) => (
+                                      <g key={series.key}>
+                                        {index === 0 ? <path d={series.areaPath} fill={`url(#traffic-${series.key}-fill)`} opacity="0.9" /> : null}
+                                        <path
+                                          d={series.linePath}
+                                          fill="none"
+                                          stroke={series.color}
+                                          strokeWidth={index === 0 ? 3.2 : 2.4}
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeDasharray={series.dash}
+                                        />
+                                        {series.points.map((point, pointIndex) => (
+                                          <circle
+                                            key={`${series.key}-${pointIndex}`}
+                                            cx={point.x}
+                                            cy={point.y}
+                                            r={index === 0 ? '3' : '2.4'}
+                                            fill={series.color}
+                                            opacity={index === 0 ? 0.72 : 0.82}
+                                          />
+                                        ))}
+                                      </g>
+                                    ))}
+                                  </svg>
+                                  <div className="flex flex-wrap gap-2">
+                                    {trafficChart.series.map((series) => (
+                                      <div key={series.key} className="flex items-center gap-2 rounded-full border border-cyan-400/15 bg-cyan-400/8 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />
+                                        <span>{series.label}</span>
+                                        {series.dash ? <span className="opacity-70">pattern</span> : null}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                <div className="text-right">X</div>
+                                <div className="grid grid-cols-3 gap-3">
+                                  {[
+                                    siteTrafficTimeline[0]?.date,
+                                    siteTrafficTimeline[Math.floor((siteTrafficTimeline.length - 1) / 2)]?.date,
+                                    siteTrafficTimeline[siteTrafficTimeline.length - 1]?.date,
+                                  ].map((date, index) => (
+                                    <span key={`${date || 'date'}-${index}`} className={index === 1 ? 'text-center' : index === 2 ? 'text-right' : 'text-left'}>
+                                      {date ? new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-xl border border-slate-800/80 bg-slate-950/70 p-3">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">30d Pageviews</p>
+                              <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(data.siteTraffic.windows.last30Days.pageViews)}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-800/80 bg-slate-950/70 p-3">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">30d Unique Visitors</p>
+                              <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(data.siteTraffic.windows.last30Days.uniqueVisitors)}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-800/80 bg-slate-950/70 p-3">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Authed Visitors</p>
+                              <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(data.siteTraffic.conversions30Days.authenticatedVisitors)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <Card className="overflow-hidden">
+                        <CardHeader>
+                          <CardTitle>Audience Split</CardTitle>
+                          <CardDescription>Device mix across captured site traffic. This gives a quick read on how the audience is accessing the platform.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center justify-center gap-5">
+                          <div className="relative flex h-44 w-44 items-center justify-center">
+                            <svg className="-rotate-90" viewBox="0 0 36 36" aria-hidden="true">
+                              <circle cx="18" cy="18" r="15.9" fill="transparent" stroke="hsl(var(--muted))" strokeWidth="4" />
+                              {deviceSplit.length === 0 ? null : (
+                                (() => {
+                                  const colors = ['#3b82f6', '#22d3ee', '#cbd5e1'];
+                                  let offset = 0;
+                                  return deviceSplit.map((row, index) => {
+                                    const dash = `${row.percent} ${100 - row.percent}`;
+                                    const circle = (
+                                      <circle
+                                        key={row.label}
+                                        cx="18"
+                                        cy="18"
+                                        r="15.9"
+                                        fill="transparent"
+                                        stroke={colors[index] || '#3b82f6'}
+                                        strokeWidth="4"
+                                        strokeDasharray={dash}
+                                        strokeDashoffset={-offset}
+                                        strokeLinecap="round"
+                                      />
+                                    );
+                                    offset += row.percent;
+                                    return circle;
+                                  });
+                                })()
+                              )}
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                              <p className="text-3xl font-extrabold text-slate-50">{formatCompactNumber(data.siteTraffic.windows.last30Days.uniqueVisitors)}</p>
+                              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Unique Visitors</p>
+                            </div>
+                          </div>
+                          <div className="grid w-full gap-2 sm:grid-cols-3">
+                            {deviceSplit.map((row) => (
+                              <div key={row.label} className="rounded-xl border bg-background/30 p-3 text-center">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{row.label}</p>
+                                <p className="mt-1 text-lg font-semibold">{row.count}</p>
+                                <p className="text-xs text-muted-foreground">{row.percent}%</p>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Engagement by Surface</CardTitle>
+                          <CardDescription>Where attention is concentrating across the app's major surfaces.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {surfaceTopRows.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No surface data yet.</p>
+                          ) : (
+                            surfaceTopRows.map((row) => (
+                              <div key={row.label} className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium">{row.label}</span>
+                                  <span className="text-muted-foreground">{row.count}</span>
+                                </div>
+                                <Progress value={Math.min(100, Math.round((row.count / Math.max(1, data.siteTraffic.windows.last30Days.pageViews)) * 100))} />
+                              </div>
+                            ))
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                       {[
                         { label: 'Raw Pageviews (7d)', value: data.siteTraffic.windows.last7Days.pageViews, trend: data.siteTraffic.windows.last7Days.trend },
