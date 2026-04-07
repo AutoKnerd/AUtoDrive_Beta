@@ -160,6 +160,15 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
     roleSecondary.splice(0, roleSecondary.length, ...uniqueRoles([...SALES_ROLES, ...MANAGER_ROLES]));
   }
 
+  if (id.includes('first-90-second-trust-test')) {
+    category = 'Deal Flow';
+    skillTags = ['empathy', 'pacing', 'trust'];
+    intentTags = ['Move a deal forward', 'Handle an objection', 'Follow up'];
+    recommendedWhen = ['Need the right opening line for a guarded customer'];
+    notRecommendedWhen = ['You already have rapport and are past the first exchange'];
+    estimatedTime = 5;
+  }
+
   if (id.includes('repair-trust-builder')) {
     skillTags = ['trust', 'clarity', 'objection control'];
     intentTags = ['Handle an objection', 'Improve consistency'];
@@ -250,6 +259,14 @@ const TOOL_SEED: ToolSeed[] = [
     access: 'free',
     hasFullVersion: true,
     createdAt: '2026-04-20T09:00:00.000Z',
+  },
+  {
+    id: 'first-90-second-trust-test',
+    name: 'First 90-Second Trust Test',
+    description: 'Pick the safest opening, pressure-drop language, and next move for a guarded customer.',
+    access: 'free',
+    hasFullVersion: true,
+    createdAt: '2026-04-20T12:00:00.000Z',
   },
   {
     id: 'first-impression-calibrator',
@@ -485,7 +502,7 @@ const TOOL_SEED: ToolSeed[] = [
   },
 ];
 
-const WEEKLY_FEATURED_TOOL_ID = 'fee-transparency-coach';
+const WEEKLY_FEATURED_TOOL_ID = 'first-90-second-trust-test';
 export const TOOLBOX_TOOLS: ToolConfig[] = buildToolConfig(TOOL_SEED);
 
 export function buildToolConfig(seed: ToolSeed[]): ToolConfig[] {
