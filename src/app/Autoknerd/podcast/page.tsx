@@ -6,6 +6,8 @@ import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 const RSS_URL = 'https://feed.podbean.com/btedesign/feed.xml';
 const FALLBACK_IMAGE = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQ5F1sJksEbg_u7OxRRsuFxpWZ3Q9Ep7Oqf548l5oyQrIdRNBf20pXVHzhFl7i4NwNaJ5MxeyXeqVfSD0pSQSxHDPExc18GfI6sOgkqwbRrWgcDHSAl2hdTo_MvL4NqXe2DXFYWNijK2wlKOGxDxddgTZJBQdT62wiHGA-DDJjjUAuen7r4pUujGWa8sd-XV6TQA1xD_uCS0kJT7sEy6EOaHilwe44VvF2mS7SbP1k64MUmHktwzD_MMDjRHmGPOBdFPyunWGptns';
+const INITIAL_ARCHIVE_COUNT = 6;
+const ARCHIVE_BATCH_SIZE = 6;
 
 type Episode = {
   title: string;
@@ -71,6 +73,8 @@ export default function AutoknerdPodcastPage() {
   const [episodes, setEpisodes] = useState<Episode[]>(fallbackEpisodes);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [activePlayerIndex, setActivePlayerIndex] = useState<number | null>(null);
+  const [visibleArchiveCount, setVisibleArchiveCount] = useState(INITIAL_ARCHIVE_COUNT);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +89,7 @@ export default function AutoknerdPodcastPage() {
           throw new Error('No podcast items found.');
         }
 
-        const parsed = items.slice(0, 21).map((match) => {
+        const parsed = items.map((match) => {
           const block = match[1];
           const title = stripTags(parseTag(block, 'title'));
           const description = stripTags(parseTag(block, 'description'));
@@ -129,7 +133,51 @@ export default function AutoknerdPodcastPage() {
   }, []);
 
   const featured = useMemo(() => episodes[0] ?? fallbackEpisodes[0], [episodes]);
-  const archive = useMemo(() => episodes.slice(1, 21), [episodes]);
+  const archive = useMemo(() => episodes.slice(1), [episodes]);
+  const visibleArchive = useMemo(() => archive.slice(0, visibleArchiveCount), [archive, visibleArchiveCount]);
+
+  useEffect(() => {
+    setVisibleArchiveCount(Math.min(INITIAL_ARCHIVE_COUNT, Math.max(0, archive.length)));
+  }, [archive.length]);
+
+  function openInlinePlayer(index: number) {
+    const episode = episodes[index] ?? fallbackEpisodes[index];
+    if (!episode || !episode.audioUrl || episode.audioUrl === '#') return;
+    setActivePlayerIndex(index);
+  }
+
+  function renderInlinePlayer(episode: Episode, index: number) {
+    if (activePlayerIndex !== index) return null;
+    const nextEpisode = episodes[index + 1] ?? null;
+
+    return (
+      <div className="mt-6 border border-[#464848]/20 bg-[#0d0f0f]/70 p-4">
+        <div className="mb-3 flex items-center gap-3">
+          <img alt={episode.title} className="h-14 w-14 object-cover" src={episode.image} />
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#bdfc00]">Now Playing</p>
+            <p className="text-sm font-semibold text-[#f4f3f3]">{episode.title}</p>
+          </div>
+        </div>
+        <audio
+          autoPlay
+          controls
+          className="w-full"
+          onEnded={() => {
+            if (nextEpisode?.audioUrl && nextEpisode.audioUrl !== '#') {
+              setActivePlayerIndex(index + 1);
+            } else {
+              setActivePlayerIndex(null);
+            }
+          }}
+          playsInline
+          src={episode.audioUrl}
+        >
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+    );
+  }
 
   return (
     <AutoknerdShell active="podcast">
@@ -156,9 +204,7 @@ export default function AutoknerdPodcastPage() {
             <button
               className="flex items-center justify-center gap-3 bg-[#bdfc00] px-10 py-5 text-sm font-black uppercase tracking-tighter text-[#445d00] transition-all hover:shadow-[0px_0px_20px_rgba(189,252,0,0.3)]"
               onClick={() => {
-                if (featured.audioUrl && featured.audioUrl !== '#') {
-                  window.open(featured.audioUrl, '_blank', 'noopener,noreferrer');
-                }
+                openInlinePlayer(0);
               }}
               type="button"
             >
@@ -171,6 +217,7 @@ export default function AutoknerdPodcastPage() {
               Get This Week&apos;s Tool
             </Link>
           </div>
+          {renderInlinePlayer(featured, 0)}
         </div>
         <div className="pointer-events-none absolute right-0 top-1/2 hidden -translate-y-1/2 opacity-20 lg:block">
           <div className="flex h-[600px] w-[600px] items-center justify-center rounded-full border border-[#bdfc00]/30">
@@ -244,9 +291,7 @@ export default function AutoknerdPodcastPage() {
                     <button
                       className="flex items-center gap-3 bg-[#f4f3f3] px-8 py-4 text-sm font-black uppercase tracking-tighter text-[#0d0f0f] transition-colors hover:bg-[#bdfc00]"
                       onClick={() => {
-                        if (featured.audioUrl && featured.audioUrl !== '#') {
-                          window.open(featured.audioUrl, '_blank', 'noopener,noreferrer');
-                        }
+                        openInlinePlayer(0);
                       }}
                       type="button"
                     >
@@ -302,41 +347,54 @@ export default function AutoknerdPodcastPage() {
               </div>
             ) : null}
             {!loading &&
-              archive.map((episode, index) => (
-                <div key={`${episode.title}-${index}`} className="group flex flex-col gap-6 border-b border-[#464848]/10 bg-[#181a1a] p-6 transition-colors hover:bg-[#1d2020] md:flex-row md:items-center">
-                  <div className="flex min-w-[100px] items-center gap-4">
-                    <span className="font-bold text-[#aaabab]/40">{archive.length - index + 100}</span>
-                    <button
-                      className="flex h-12 w-12 items-center justify-center bg-[#232626] transition-colors group-hover:bg-[#bdfc00] group-hover:text-[#445d00]"
-                      onClick={() => {
-                        if (episode.audioUrl && episode.audioUrl !== '#') {
-                          window.open(episode.audioUrl, '_blank', 'noopener,noreferrer');
-                        }
-                      }}
-                      type="button"
-                    >
-                      <span className="material-symbols-outlined">play_arrow</span>
-                    </button>
+              visibleArchive.map((episode, index) => {
+                const episodeIndex = index + 1;
+                return (
+                <div key={`${episode.title}-${index}`}>
+                  <div className="group flex flex-col gap-6 border-b border-[#464848]/10 bg-[#181a1a] p-6 transition-colors hover:bg-[#1d2020] md:flex-row md:items-center">
+                    <div className="flex min-w-[100px] items-center gap-4">
+                      <button
+                        className="flex h-12 w-12 items-center justify-center bg-[#232626] transition-colors group-hover:bg-[#bdfc00] group-hover:text-[#445d00]"
+                        onClick={() => {
+                          openInlinePlayer(episodeIndex);
+                        }}
+                        type="button"
+                      >
+                        <span className="material-symbols-outlined">play_arrow</span>
+                      </button>
+                    </div>
+                    <div className="flex-grow">
+                      <h4 className="text-lg font-bold uppercase tracking-tight">{episode.title}</h4>
+                      <p className="mt-1 hidden text-xs font-light text-[#aaabab] md:block">
+                        {episode.description.length > 100 ? `${episode.description.slice(0, 100)}...` : episode.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <span className="font-mono text-xs text-[#aaabab]/60">{episode.duration}</span>
+                      <Link className="whitespace-nowrap border-b border-[#bdfc00]/20 pb-1 text-xs font-bold uppercase tracking-widest text-[#bdfc00] transition-all hover:border-[#bdfc00]" href="/autoshop">
+                        Get Tool
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex-grow">
-                    <h4 className="text-lg font-bold uppercase tracking-tight">{episode.title}</h4>
-                    <p className="mt-1 hidden text-xs font-light text-[#aaabab] md:block">
-                      {episode.description.length > 100 ? `${episode.description.slice(0, 100)}...` : episode.description}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <span className="font-mono text-xs text-[#aaabab]/60">{episode.duration}</span>
-                    <Link className="whitespace-nowrap border-b border-[#bdfc00]/20 pb-1 text-xs font-bold uppercase tracking-widest text-[#bdfc00] transition-all hover:border-[#bdfc00]" href="/autoshop">
-                      Get Tool
-                    </Link>
-                  </div>
+                  {renderInlinePlayer(episode, episodeIndex)}
                 </div>
-              ))}
+              );
+              })}
           </div>
           <div className="mt-12 text-center">
-            <button className="mx-auto flex items-center gap-2 text-[#aaabab] transition-colors hover:text-[#bdfc00]" type="button">
-              Load More Intelligence <span className="material-symbols-outlined">keyboard_double_arrow_down</span>
-            </button>
+            {visibleArchiveCount < archive.length ? (
+              <button
+                className="mx-auto flex items-center gap-2 text-[#aaabab] transition-colors hover:text-[#bdfc00]"
+                onClick={() => {
+                  setVisibleArchiveCount((current) => Math.min(current + ARCHIVE_BATCH_SIZE, archive.length));
+                }}
+                type="button"
+              >
+                Load More Intelligence <span className="material-symbols-outlined">keyboard_double_arrow_down</span>
+              </button>
+            ) : (
+              <p className="text-sm text-[#aaabab]/70">You&apos;re caught up.</p>
+            )}
           </div>
         </div>
       </section>
@@ -378,11 +436,11 @@ export default function AutoknerdPodcastPage() {
           </h2>
           <p className="mx-auto mb-16 max-w-2xl text-sm text-[#aaabab]/70">Execution is the only differentiator. Choose your pathway to performance.</p>
           <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
-            <Link href="/autoshop" className="bg-[#bdfc00] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#445d00] transition-transform hover:scale-[1.02] active:scale-[0.98]">
+            <Link href="/autoshop" className="bg-[#f4f3f3] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#0d0f0f] transition-transform hover:scale-[1.02] active:scale-[0.98]">
               Get This Week&apos;s Tool
             </Link>
-            <Link href="/login" className="bg-[#f4f3f3] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#0d0f0f] transition-transform hover:scale-[1.02] active:scale-[0.98]">
-              Start AutoDriveCX
+            <Link href="/signup" className="bg-[#bdfc00] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#445d00] transition-transform hover:scale-[1.02] active:scale-[0.98]">
+              Ready to Level Up?
             </Link>
             <Link href="/autoforge" className="border border-[#464848] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-transform hover:scale-[1.02] hover:bg-[#1d2020] active:scale-[0.98]">
               Book AutoForge Diagnostic
