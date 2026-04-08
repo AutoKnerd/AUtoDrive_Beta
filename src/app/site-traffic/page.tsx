@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type TrendDirection = 'up' | 'down' | 'stable';
@@ -24,9 +25,74 @@ type TrafficMetricConfig = {
   source: keyof SiteTrafficResponse['siteTraffic']['timeline'][number];
 };
 
+type TrafficRangeSummary = {
+  label: string;
+  start: string;
+  end: string;
+  pageViews: number;
+  uniqueVisitors: number;
+  uniqueSessions: number;
+  uniquePageSessions: number;
+  trend: TrendDirection;
+  topPages: Array<{ label: string; count: number; uniqueSessions: number }>;
+  landingPages: Array<{ label: string; count: number }>;
+  topReferrers: Array<{ label: string; count: number }>;
+  topCampaigns: Array<{ label: string; count: number }>;
+  geo: {
+    topCountries: Array<{ label: string; count: number }>;
+    topRegions: Array<{ label: string; count: number }>;
+    topCities: Array<{ label: string; count: number }>;
+    cityDetails: Array<{
+      label: string;
+      count: number;
+      uniqueVisitors: number;
+      uniqueSessions: number;
+      topPages: Array<{ label: string; count: number }>;
+      topReferrers: Array<{ label: string; count: number }>;
+      landingPages: Array<{ label: string; count: number }>;
+      campaigns: Array<{ label: string; count: number }>;
+      deviceBreakdown: Array<{ label: string; count: number }>;
+      lastSeen: string | null;
+    }>;
+    geoCenter: { latitude: number; longitude: number; sampleSize: number } | null;
+  };
+  fromPages: Array<{ label: string; count: number }>;
+  topNextSteps: Array<{ from: string; to: string; count: number }>;
+  deviceBreakdown: Array<{ label: string; count: number }>;
+  surfaceBreakdown: Array<{ label: string; count: number }>;
+  timeline: Array<{
+    date: string;
+    pageViews: number;
+    uniqueVisitors: number;
+    authenticatedVisitors: number;
+    toolOpens: number;
+    marketingEvents: number;
+    referralClicks: number;
+    autoforgeLeads: number;
+  }>;
+  conversions: {
+    pageViews: number;
+    uniqueVisitors: number;
+    authenticatedVisitors: number;
+    toolOpens: number;
+    autoforgeLeads: number;
+    marketingEvents: number;
+    sprocketSessions: number;
+    referralCodes: Array<{
+      label: string;
+      totalEvents: number;
+      referralClicks: number;
+      signupEvents: number;
+      demoVisits: number;
+      demoConversions: number;
+    }>;
+  };
+};
+
 type SiteTrafficResponse = {
   generatedAt: string;
   siteTraffic: {
+    selectedRange: TrafficRangeSummary;
     windows: {
       last7Days: { pageViews: number; uniqueVisitors: number; uniquePageSessions: number; trend: TrendDirection };
       last30Days: { pageViews: number; uniqueVisitors: number; uniqueSessions: number; uniquePageSessions: number; trend: TrendDirection };
@@ -95,6 +161,34 @@ function formatCompactNumber(value: number): string {
   }).format(value);
 }
 
+function startOfLocalDay(value: Date): Date {
+  const next = new Date(value);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function addLocalDays(value: Date, days: number): Date {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function formatDateInput(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateInput(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? null : startOfLocalDay(date);
+}
+
+type RangePreset = '7d' | '30d' | 'month' | 'year' | 'custom';
+
 function buildSeriesPath(values: number[], width: number, height: number, maxValueOverride?: number) {
   const safeValues = values.length > 0 ? values : [0];
   const maxValue = Math.max(1, maxValueOverride || 0, ...safeValues);
@@ -142,6 +236,9 @@ export default function SiteTrafficPage() {
   const [data, setData] = useState<SiteTrafficResponse | null>(null);
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedTrafficMetrics, setSelectedTrafficMetrics] = useState<TrafficMetricKey[]>(['pageViews', 'uniqueVisitors']);
+  const [rangePreset, setRangePreset] = useState<RangePreset>('30d');
+  const [customStart, setCustomStart] = useState(() => formatDateInput(startOfLocalDay(new Date(Date.now() - (29 * 24 * 60 * 60 * 1000)))));
+  const [customEnd, setCustomEnd] = useState(() => formatDateInput(startOfLocalDay(new Date())));
 
   useEffect(() => {
     if (!loading && !user) {
@@ -152,6 +249,40 @@ export default function SiteTrafficPage() {
       router.push('/');
     }
   }, [loading, router, user]);
+
+  const selectedDateRange = useMemo(() => {
+    const now = startOfLocalDay(new Date());
+    let start = now;
+    let end = now;
+    let label = 'Last 30 Days';
+
+    if (rangePreset === '7d') {
+      start = startOfLocalDay(addLocalDays(now, -6));
+      label = 'Last 7 Days';
+    } else if (rangePreset === '30d') {
+      start = startOfLocalDay(addLocalDays(now, -29));
+      label = 'Last 30 Days';
+    } else if (rangePreset === 'month') {
+      start = startOfLocalDay(new Date(now.getFullYear(), now.getMonth(), 1));
+      label = 'Month to Date';
+    } else if (rangePreset === 'year') {
+      start = startOfLocalDay(new Date(now.getFullYear(), 0, 1));
+      label = 'Year to Date';
+    } else {
+      const parsedStart = parseDateInput(customStart);
+      const parsedEnd = parseDateInput(customEnd);
+      if (parsedStart) start = parsedStart;
+      if (parsedEnd) end = parsedEnd;
+      if (end < start) end = start;
+      label = 'Custom Range';
+    }
+
+    return {
+      label,
+      start: formatDateInput(start),
+      end: formatDateInput(end),
+    };
+  }, [customEnd, customStart, rangePreset]);
 
   async function loadSiteTraffic() {
     if (!user || (user.role !== 'Admin' && user.role !== 'Developer' && user.hasSiteTrafficAccess !== true)) {
@@ -165,7 +296,12 @@ export default function SiteTrafficPage() {
       const fbUser = firebaseAuth.currentUser;
       if (!fbUser) throw new Error('Authentication required. Please sign in again.');
       const token = await fbUser.getIdToken(true);
-      const response = await fetch('/api/site-traffic', {
+      const params = new URLSearchParams({
+        range: rangePreset,
+        start: selectedDateRange.start,
+        end: selectedDateRange.end,
+      });
+      const response = await fetch(`/api/site-traffic?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const payload = await response.json();
@@ -180,18 +316,7 @@ export default function SiteTrafficPage() {
 
   useEffect(() => {
     void loadSiteTraffic();
-  }, [user?.userId, user?.role, user?.hasSiteTrafficAccess]);
-
-  useEffect(() => {
-    const cityList = data?.siteTraffic.geo.cityDetails || [];
-    if (cityList.length === 0) {
-      if (selectedCity) setSelectedCity('');
-      return;
-    }
-    if (!selectedCity || !cityList.some((city) => city.label === selectedCity)) {
-      setSelectedCity(cityList[0].label);
-    }
-  }, [data, selectedCity]);
+  }, [user?.userId, user?.role, user?.hasSiteTrafficAccess, rangePreset, selectedDateRange.start, selectedDateRange.end]);
 
   const generatedAtText = useMemo(() => {
     if (!data?.generatedAt) return null;
@@ -199,7 +324,8 @@ export default function SiteTrafficPage() {
     return Number.isNaN(parsed.getTime()) ? null : parsed.toLocaleString();
   }, [data?.generatedAt]);
 
-  const siteTrafficTimeline = useMemo(() => [...(data?.siteTraffic.timeline || [])], [data]);
+  const selectedRange = data?.siteTraffic.selectedRange || null;
+  const siteTrafficTimeline = useMemo(() => [...(selectedRange?.timeline || [])], [selectedRange]);
   const trafficChart = useMemo(() => {
     const selectedConfigs = TRAFFIC_METRIC_OPTIONS.filter((option) => selectedTrafficMetrics.includes(option.key));
     const valuesByMetric = new Map<TrafficMetricKey, number[]>();
@@ -216,18 +342,29 @@ export default function SiteTrafficPage() {
     };
   }, [selectedTrafficMetrics, siteTrafficTimeline]);
   const selectedCityDetail = useMemo(
-    () => data?.siteTraffic.geo.cityDetails.find((city) => city.label === selectedCity) || data?.siteTraffic.geo.cityDetails[0] || null,
-    [data, selectedCity],
+    () => selectedRange?.geo.cityDetails.find((city) => city.label === selectedCity) || selectedRange?.geo.cityDetails[0] || null,
+    [selectedCity, selectedRange],
   );
   const deviceSplit = useMemo(() => {
-    const rows = data?.siteTraffic.deviceBreakdown || [];
+    const rows = selectedRange?.deviceBreakdown || [];
     const total = rows.reduce((sum, row) => sum + row.count, 0);
     return rows.map((row) => ({
       ...row,
       percent: total > 0 ? Math.round((row.count / total) * 100) : 0,
     }));
-  }, [data]);
-  const surfaceTopRows = useMemo(() => (data?.siteTraffic.surfaceBreakdown || []).slice(0, 4), [data]);
+  }, [selectedRange]);
+  const surfaceTopRows = useMemo(() => (selectedRange?.surfaceBreakdown || []).slice(0, 4), [selectedRange]);
+
+  useEffect(() => {
+    const cityList = selectedRange?.geo.cityDetails || [];
+    if (cityList.length === 0) {
+      if (selectedCity) setSelectedCity('');
+      return;
+    }
+    if (!selectedCity || !cityList.some((city) => city.label === selectedCity)) {
+      setSelectedCity(cityList[0].label);
+    }
+  }, [selectedCity, selectedRange]);
 
   if (loading || !user || (user.role !== 'Admin' && user.role !== 'Developer' && user.hasSiteTrafficAccess !== true)) {
     return (
@@ -256,6 +393,68 @@ export default function SiteTrafficPage() {
           </CardContent>
         </Card>
 
+        <Card className="border-cyan-400/15 bg-slate-950/70">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-cyan-100">Date Range</CardTitle>
+            <CardDescription>Switch between preset windows or choose a custom start and end date.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: '7d' as RangePreset, label: '7 Days' },
+                { key: '30d' as RangePreset, label: '30 Days' },
+                { key: 'month' as RangePreset, label: 'Month' },
+                { key: 'year' as RangePreset, label: 'Year' },
+                { key: 'custom' as RangePreset, label: 'Custom' },
+              ].map((preset) => (
+                <Button
+                  key={preset.key}
+                  type="button"
+                  variant={rangePreset === preset.key ? 'default' : 'outline'}
+                  className={rangePreset === preset.key ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400' : 'border-cyan-400/20 bg-slate-950/60 text-cyan-100 hover:bg-slate-900'}
+                  onClick={() => setRangePreset(preset.key)}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-[repeat(2,minmax(0,16rem))_auto] md:items-end">
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Start date</span>
+                <Input
+                  type="date"
+                  value={customStart}
+                  onChange={(event) => {
+                    setCustomStart(event.target.value);
+                    setRangePreset('custom');
+                  }}
+                  className="border-cyan-400/20 bg-slate-950/70 text-slate-100"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">End date</span>
+                <Input
+                  type="date"
+                  value={customEnd}
+                  onChange={(event) => {
+                    setCustomEnd(event.target.value);
+                    setRangePreset('custom');
+                  }}
+                  className="border-cyan-400/20 bg-slate-950/70 text-slate-100"
+                />
+              </label>
+              <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/8 px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200">Selected range</p>
+                <p className="mt-1 text-sm font-medium text-slate-100">{selectedDateRange.label}</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {selectedDateRange.start} → {selectedDateRange.end}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {isLoading ? (
           <div className="flex items-center justify-center py-16"><Spinner size="lg" /></div>
         ) : error ? (
@@ -275,7 +474,7 @@ export default function SiteTrafficPage() {
                 <div className="space-y-2">
                   <CardTitle className="text-2xl text-cyan-100">Audience Reach</CardTitle>
                   <CardDescription className="max-w-3xl">
-                    Compare pageviews, clicks, and conversion signals over the last 14 days. Use the metric menu to layer multiple lines and spot where traffic and engagement diverge.
+                    Compare pageviews, clicks, and conversion signals across the selected date range. Use the metric menu to layer multiple lines and spot where traffic and engagement diverge.
                   </CardDescription>
                 </div>
                 <DropdownMenu>
@@ -397,16 +596,16 @@ export default function SiteTrafficPage() {
                   )}
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-slate-800/80 bg-slate-950/70 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">30d Pageviews</p>
-                      <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(data.siteTraffic.windows.last30Days.pageViews)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{selectedRange?.label || 'Selected'} Pageviews</p>
+                      <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(selectedRange?.pageViews || 0)}</p>
                     </div>
                     <div className="rounded-xl border border-slate-800/80 bg-slate-950/70 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">30d Unique Visitors</p>
-                      <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(data.siteTraffic.windows.last30Days.uniqueVisitors)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{selectedRange?.label || 'Selected'} Unique Visitors</p>
+                      <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(selectedRange?.uniqueVisitors || 0)}</p>
                     </div>
                     <div className="rounded-xl border border-slate-800/80 bg-slate-950/70 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Authed Visitors</p>
-                      <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(data.siteTraffic.conversions30Days.authenticatedVisitors)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{selectedRange?.label || 'Selected'} Authed Visitors</p>
+                      <p className="mt-1 text-2xl font-semibold text-slate-50">{formatCompactNumber(selectedRange?.conversions.authenticatedVisitors || 0)}</p>
                     </div>
                   </div>
                 </div>
@@ -415,12 +614,12 @@ export default function SiteTrafficPage() {
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
               {[
-                { label: 'Raw Pageviews (7d)', value: data.siteTraffic.windows.last7Days.pageViews, trend: data.siteTraffic.windows.last7Days.trend },
-                { label: 'Raw Pageviews (30d)', value: data.siteTraffic.windows.last30Days.pageViews, trend: data.siteTraffic.windows.last30Days.trend },
-                { label: 'Unique Page Sessions (30d)', value: data.siteTraffic.windows.last30Days.uniquePageSessions, trend: 'stable' as TrendDirection },
-                { label: 'Visitors (30d)', value: data.siteTraffic.windows.last30Days.uniqueVisitors, trend: 'stable' as TrendDirection },
-                { label: 'Sessions (30d)', value: data.siteTraffic.windows.last30Days.uniqueSessions, trend: 'stable' as TrendDirection },
-                { label: 'Authed Visitors (30d)', value: data.siteTraffic.conversions30Days.authenticatedVisitors, trend: 'stable' as TrendDirection },
+                { label: 'Selected Pageviews', value: selectedRange?.pageViews || 0, trend: selectedRange?.trend || ('stable' as TrendDirection) },
+                { label: 'Unique Page Sessions', value: selectedRange?.uniquePageSessions || 0, trend: 'stable' as TrendDirection },
+                { label: 'Visitors', value: selectedRange?.uniqueVisitors || 0, trend: 'stable' as TrendDirection },
+                { label: 'Sessions', value: selectedRange?.uniqueSessions || 0, trend: 'stable' as TrendDirection },
+                { label: 'Authed Visitors', value: selectedRange?.conversions.authenticatedVisitors || 0, trend: 'stable' as TrendDirection },
+                { label: 'Tool Opens', value: selectedRange?.conversions.toolOpens || 0, trend: 'stable' as TrendDirection },
               ].map((item) => (
                 <Card key={item.label}>
                   <CardHeader className="pb-2">
@@ -447,12 +646,12 @@ export default function SiteTrafficPage() {
                   <div className="relative flex h-44 w-44 items-center justify-center">
                     <svg className="-rotate-90" viewBox="0 0 36 36" aria-hidden="true">
                       <circle cx="18" cy="18" r="15.9" fill="transparent" stroke="hsl(var(--muted))" strokeWidth="4" />
-                      {data.siteTraffic.deviceBreakdown.length === 0 ? null : (
+                      {(selectedRange?.deviceBreakdown || []).length === 0 ? null : (
                         (() => {
                           const colors = ['#3b82f6', '#22d3ee', '#cbd5e1'];
                           let offset = 0;
-                          return data.siteTraffic.deviceBreakdown.map((row, index) => {
-                            const total = data.siteTraffic.deviceBreakdown.reduce((sum, item) => sum + item.count, 0);
+                          return (selectedRange?.deviceBreakdown || []).map((row, index) => {
+                            const total = (selectedRange?.deviceBreakdown || []).reduce((sum, item) => sum + item.count, 0);
                             const percent = total > 0 ? (row.count / total) * 100 : 0;
                             const circle = (
                               <circle key={row.label} cx="18" cy="18" r="15.9" fill="transparent" stroke={colors[index] || '#3b82f6'} strokeWidth="4" strokeDasharray={`${percent} ${100 - percent}`} strokeDashoffset={-offset} strokeLinecap="round" />
@@ -464,12 +663,12 @@ export default function SiteTrafficPage() {
                       )}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <p className="text-3xl font-extrabold text-slate-50">{formatCompactNumber(data.siteTraffic.windows.last30Days.uniqueVisitors)}</p>
+                      <p className="text-3xl font-extrabold text-slate-50">{formatCompactNumber(selectedRange?.uniqueVisitors || 0)}</p>
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Unique Visitors</p>
                     </div>
                   </div>
                   <div className="grid w-full gap-2 sm:grid-cols-3">
-                    {data.siteTraffic.deviceBreakdown.map((row) => (
+                    {(selectedRange?.deviceBreakdown || []).map((row) => (
                       <div key={row.label} className="rounded-xl border bg-background/30 p-3 text-center">
                         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{row.label}</p>
                         <p className="mt-1 text-lg font-semibold">{row.count}</p>
@@ -486,16 +685,16 @@ export default function SiteTrafficPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {[
-                    { label: 'Raw Pageviews', value: data.siteTraffic.conversions30Days.pageViews },
-                    { label: 'Unique Page Sessions', value: data.siteTraffic.windows.last30Days.uniquePageSessions },
-                    { label: 'Unique Visitors', value: data.siteTraffic.conversions30Days.uniqueVisitors },
-                    { label: 'Authed Visitors', value: data.siteTraffic.conversions30Days.authenticatedVisitors },
-                    { label: 'Tool Opens', value: data.siteTraffic.conversions30Days.toolOpens },
-                    { label: 'Marketing Events', value: data.siteTraffic.conversions30Days.marketingEvents },
-                    { label: 'Sprocket Sessions', value: data.siteTraffic.conversions30Days.sprocketSessions },
-                    { label: 'AutoForge Leads', value: data.siteTraffic.conversions30Days.autoforgeLeads },
+                    { label: 'Raw Pageviews', value: selectedRange?.conversions.pageViews || 0 },
+                    { label: 'Unique Page Sessions', value: selectedRange?.uniquePageSessions || 0 },
+                    { label: 'Unique Visitors', value: selectedRange?.conversions.uniqueVisitors || 0 },
+                    { label: 'Authed Visitors', value: selectedRange?.conversions.authenticatedVisitors || 0 },
+                    { label: 'Tool Opens', value: selectedRange?.conversions.toolOpens || 0 },
+                    { label: 'Marketing Events', value: selectedRange?.conversions.marketingEvents || 0 },
+                    { label: 'Sprocket Sessions', value: selectedRange?.conversions.sprocketSessions || 0 },
+                    { label: 'AutoForge Leads', value: selectedRange?.conversions.autoforgeLeads || 0 },
                   ].map((row) => {
-                    const base = Math.max(1, data.siteTraffic.windows.last30Days.uniquePageSessions);
+                    const base = Math.max(1, selectedRange?.uniquePageSessions || 1);
                     const progress = Math.min(100, Math.round((row.value / base) * 100));
                     return (
                       <div key={row.label} className="space-y-2">
@@ -515,11 +714,11 @@ export default function SiteTrafficPage() {
                         Top codes seen in the last 30 days across referral clicks, demo visits, and signups.
                       </p>
                     </div>
-                    {data.siteTraffic.conversions30Days.referralCodes.length === 0 ? (
+                    {(selectedRange?.conversions.referralCodes || []).length === 0 ? (
                       <p className="text-sm text-muted-foreground">No referral-code activity captured yet.</p>
                     ) : (
                       <div className="space-y-2">
-                        {data.siteTraffic.conversions30Days.referralCodes.map((row) => (
+                        {(selectedRange?.conversions.referralCodes || []).map((row) => (
                           <div key={row.label} className="rounded-lg border border-slate-700/70 bg-slate-950/50 px-3 py-2">
                             <div className="flex items-center justify-between gap-3">
                               <div>
@@ -549,7 +748,7 @@ export default function SiteTrafficPage() {
                 <CardContent className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Top Pages</p>
-                    {data.siteTraffic.topPages.map((row) => (
+                    {(selectedRange?.topPages || []).map((row) => (
                       <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
                         <div className="min-w-0">
                           <p className="truncate font-medium">{row.label}</p>
@@ -561,7 +760,7 @@ export default function SiteTrafficPage() {
                   </div>
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Landing Pages</p>
-                    {data.siteTraffic.landingPages.map((row) => (
+                    {(selectedRange?.landingPages || []).map((row) => (
                       <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
                         <span className="truncate font-medium">{row.label}</span>
                         <Badge variant="secondary">{row.count} landings</Badge>
@@ -578,7 +777,7 @@ export default function SiteTrafficPage() {
                 <CardContent className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Referrers</p>
-                    {data.siteTraffic.topReferrers.map((row) => (
+                    {(selectedRange?.topReferrers || []).map((row) => (
                       <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
                         <span className="truncate font-medium">{row.label}</span>
                         <Badge variant="outline">{row.count}</Badge>
@@ -587,7 +786,7 @@ export default function SiteTrafficPage() {
                   </div>
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Campaigns</p>
-                    {data.siteTraffic.topCampaigns.map((row) => (
+                    {(selectedRange?.topCampaigns || []).map((row) => (
                       <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
                         <span className="truncate font-medium">{row.label}</span>
                         <Badge variant="outline">{row.count}</Badge>
@@ -596,7 +795,7 @@ export default function SiteTrafficPage() {
                   </div>
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Came From</p>
-                    {data.siteTraffic.fromPages.map((row) => (
+                    {(selectedRange?.fromPages || []).map((row) => (
                       <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
                         <span className="truncate font-medium">{row.label}</span>
                         <Badge variant="outline">{row.count}</Badge>
@@ -615,25 +814,25 @@ export default function SiteTrafficPage() {
                 <CardContent className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Devices</p>
-                    {data.siteTraffic.deviceBreakdown.map((row) => (
+                    {(selectedRange?.deviceBreakdown || []).map((row) => (
                       <div key={row.label} className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium capitalize">{row.label}</span>
                           <span className="text-muted-foreground">{row.count}</span>
                         </div>
-                        <Progress value={Math.min(100, Math.round((row.count / Math.max(1, data.siteTraffic.windows.last30Days.pageViews)) * 100))} />
+                        <Progress value={Math.min(100, Math.round((row.count / Math.max(1, selectedRange?.pageViews || 1)) * 100))} />
                       </div>
                     ))}
                   </div>
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Surfaces</p>
-                    {data.siteTraffic.surfaceBreakdown.map((row) => (
+                    {(selectedRange?.surfaceBreakdown || []).map((row) => (
                       <div key={row.label} className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium">{row.label}</span>
                           <span className="text-muted-foreground">{row.count}</span>
                         </div>
-                        <Progress value={Math.min(100, Math.round((row.count / Math.max(1, data.siteTraffic.windows.last30Days.pageViews)) * 100))} />
+                        <Progress value={Math.min(100, Math.round((row.count / Math.max(1, selectedRange?.pageViews || 1)) * 100))} />
                       </div>
                     ))}
                   </div>
@@ -649,10 +848,10 @@ export default function SiteTrafficPage() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-3 rounded-xl border p-4">
                       <p className="text-sm font-medium">Countries</p>
-                      {data.siteTraffic.geo.topCountries.length === 0 ? (
+                      {(selectedRange?.geo.topCountries || []).length === 0 ? (
                         <p className="text-sm text-muted-foreground">No country data yet.</p>
                       ) : (
-                        data.siteTraffic.geo.topCountries.map((row) => (
+                        (selectedRange?.geo.topCountries || []).map((row) => (
                           <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border bg-background/30 p-3 text-sm">
                             <span className="truncate font-medium">{row.label}</span>
                             <Badge variant="outline">{row.count}</Badge>
@@ -662,10 +861,10 @@ export default function SiteTrafficPage() {
                     </div>
                     <div className="space-y-3 rounded-xl border p-4">
                       <p className="text-sm font-medium">Regions</p>
-                      {data.siteTraffic.geo.topRegions.length === 0 ? (
+                      {(selectedRange?.geo.topRegions || []).length === 0 ? (
                         <p className="text-sm text-muted-foreground">No region data yet.</p>
                       ) : (
-                        data.siteTraffic.geo.topRegions.map((row) => (
+                        (selectedRange?.geo.topRegions || []).map((row) => (
                           <div key={row.label} className="flex items-center justify-between gap-3 rounded-lg border bg-background/30 p-3 text-sm">
                             <span className="truncate font-medium">{row.label}</span>
                             <Badge variant="outline">{row.count}</Badge>
@@ -682,13 +881,13 @@ export default function SiteTrafficPage() {
                           <p className="text-sm font-medium">Cities</p>
                           <p className="text-xs text-muted-foreground">Scroll and select a city to inspect its traffic mix.</p>
                         </div>
-                        <Badge variant="outline">{data.siteTraffic.geo.cityDetails.length} cities</Badge>
+                        <Badge variant="outline">{selectedRange?.geo.cityDetails.length || 0} cities</Badge>
                       </div>
                       <div className="max-h-[24rem] space-y-2 overflow-y-auto rounded-xl border p-2">
-                        {data.siteTraffic.geo.cityDetails.length === 0 ? (
+                        {(selectedRange?.geo.cityDetails || []).length === 0 ? (
                           <p className="p-3 text-sm text-muted-foreground">No city data yet.</p>
                         ) : (
-                          data.siteTraffic.geo.cityDetails.map((row) => {
+                          (selectedRange?.geo.cityDetails || []).map((row) => {
                             const isActive = selectedCityDetail?.label === row.label;
                             return (
                               <button
@@ -831,9 +1030,9 @@ export default function SiteTrafficPage() {
 
                   <div className="rounded-lg border p-3 text-sm">
                     <p className="font-medium">Geographic Center</p>
-                    {data.siteTraffic.geo.geoCenter ? (
+                    {selectedRange?.geo.geoCenter ? (
                       <p className="mt-1 text-muted-foreground">
-                        Approximate center at {data.siteTraffic.geo.geoCenter.latitude}, {data.siteTraffic.geo.geoCenter.longitude} from {data.siteTraffic.geo.geoCenter.sampleSize} geo-tagged visits.
+                        Approximate center at {selectedRange.geo.geoCenter.latitude}, {selectedRange.geo.geoCenter.longitude} from {selectedRange.geo.geoCenter.sampleSize} geo-tagged visits.
                       </p>
                     ) : (
                       <p className="mt-1 text-muted-foreground">No latitude/longitude data captured yet.</p>
@@ -850,10 +1049,10 @@ export default function SiteTrafficPage() {
                   <CardDescription>Most common page-to-page transitions inside a session.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {data.siteTraffic.topNextSteps.length === 0 ? (
+                  {(selectedRange?.topNextSteps || []).length === 0 ? (
                     <p className="text-sm text-muted-foreground">No transition-flow data yet.</p>
                   ) : (
-                    data.siteTraffic.topNextSteps.map((row) => (
+                    (selectedRange?.topNextSteps || []).map((row) => (
                       <div key={`${row.from}-${row.to}`} className="rounded-lg border p-3 text-sm">
                         <p className="font-medium">{row.from}</p>
                         <p className="text-muted-foreground">to {row.to}</p>
