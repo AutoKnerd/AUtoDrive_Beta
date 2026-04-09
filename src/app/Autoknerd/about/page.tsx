@@ -250,8 +250,7 @@ export default function AutoknerdAboutPage() {
           <div className="mb-4 flex gap-8 md:mb-0">
             <a className="text-sm tracking-wide text-[#f4f3f3]/60 transition-colors hover:text-[#BFFF00]" href="#footer">Support</a>
             <a className="text-sm tracking-wide text-[#f4f3f3]/60 transition-colors hover:text-[#BFFF00]" href="#footer">Contact</a>
-            <Link className="text-sm tracking-wide text-[#f4f3f3]/60 transition-colors hover:text-[#BFFF00]" href="/privacy">Privacy Policy</Link>
-            <a className="text-sm tracking-wide text-[#f4f3f3]/60 transition-colors hover:text-[#BFFF00]" href="#footer">Terms of Service</a>
+            <Link className="text-sm tracking-wide text-[#f4f3f3]/60 transition-colors hover:text-[#BFFF00]" href="/legal">Legal</Link>
           </div>
           <div className="text-sm tracking-wide text-[#f4f3f3]/60">© 2024 AutoKnerd. Engineered for Velocity.</div>
         </div>

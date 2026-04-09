@@ -457,9 +457,7 @@ export default function AutoknerdPodcastPage() {
           <div className="mb-6 text-lg font-black uppercase text-[#f4f3f3] md:mb-0">AutoKnerd</div>
           <div className="mb-6 flex flex-wrap justify-center gap-8 md:mb-0">
             <a className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="#footer">Support</a>
-            <Link className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="/privacy">Privacy Policy</Link>
-            <a className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="#footer">Terms of Service</a>
-            <a className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="#footer">Legal</a>
+            <Link className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="/legal">Legal</Link>
             <a className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="#footer">System Health</a>
           </div>
           <div className="text-center text-[10px] uppercase tracking-widest text-[#f4f3f3]/40 md:text-right">

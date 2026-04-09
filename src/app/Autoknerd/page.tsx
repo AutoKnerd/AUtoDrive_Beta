@@ -778,11 +778,7 @@ export default function AutoknerdPage() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-8 px-8 py-16 md:flex-row">
           <div className="text-lg font-bold uppercase tracking-widest text-lime-500">AutoKnerd</div>
           <div className="flex flex-wrap justify-center gap-10">
-            <Link className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="/privacy">Privacy Policy</Link>
-            <a className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="#">Terms of Service</a>
-            <a className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="#">Security Architecture</a>
-            <a className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="#">API Documentation</a>
-            <a className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="#">Contact</a>
+            <Link className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="/legal">Legal</Link>
           </div>
           <div className="text-[10px] uppercase tracking-widest text-zinc-700 opacity-80">
             © 2024 AutoKnerd LLC Dealership CX Development.

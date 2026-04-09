@@ -1,72 +1,124 @@
-
 'use client';
 
-import { Header } from '@/components/layout/header';
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 export default function PrivacyPolicyPage() {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
   return (
-    <>
-      <Header />
-      <main className="flex-1 items-center p-4 md:p-6 lg:p-8">
-        <div className="w-full max-w-4xl mx-auto space-y-6">
-          <div className="space-y-2 text-center">
-            <h1 className="text-3xl font-bold">Privacy Policy</h1>
-            <p className="text-muted-foreground h-5">
-              {isClient ? `Last updated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
-            </p>
+    <AutoknerdShell active="home">
+      <main className="bg-[#0d0f0f] px-6 pb-24 pt-32 text-[#f4f3f3] md:px-10">
+        <div className="mx-auto w-full max-w-5xl space-y-8">
+          <div className="border border-[#464848]/15 bg-[#121414] px-6 py-8 text-center md:px-10">
+            <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.28em] text-[#bdfc00]">Legal</p>
+            <h1 className="text-4xl font-black uppercase leading-none tracking-tighter md:text-6xl">Privacy Policy</h1>
+            <p className="mt-4 text-[#aaabab]">Effective Date: January 1st. 2026</p>
+            <p className="text-[#aaabab]">Last Updated: April 9th, 2926</p>
           </div>
-          <div className="space-y-8 text-muted-foreground">
-            <section id="introduction">
-                <h2 className="text-2xl font-semibold mb-2 text-foreground">1. Introduction</h2>
-                <p>Welcome to AutoDrive. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application. By using the service, you agree to the collection and use of information in accordance with this policy.</p>
+
+          <div className="space-y-6 border border-[#464848]/15 bg-[#121414] p-6 text-[#aaabab] md:p-8">
+            <section id="introduction" className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">PRIVACY POLICY</h2>
+              <p>Effective Date: January 1st. 2026</p>
+              <p>Last Updated: April 9th, 2926</p>
+              <p>AutoKnerd LLC (“AutoKnerd,” “we,” “us,” or “our”) is committed to protecting your information.</p>
+              <p>This Privacy Policy explains how we collect, use, and safeguard information when you use our Services.</p>
             </section>
-             <section id="collection">
-                <h2 className="text-2xl font-semibold mb-2 text-foreground">2. Information We Collect</h2>
-                <p>We may collect information about you in a variety of ways. The information we may collect via the Application includes:</p>
-                <ul className="list-disc pl-6 space-y-2 mt-4">
-                    <li><strong>Personal Data:</strong> Personally identifiable information, such as your name, email address, and telephone number, that you voluntarily give to us when you register with the Application.</li>
-                    <li><strong>Performance Data:</strong> Information related to your performance in training lessons, including scores, completion data, and AI-generated feedback.</li>
-                    <li><strong>Derivative Data:</strong> Information our servers automatically collect when you access the Application, such as your IP address, your browser type, your operating system, your access times, and the pages you have viewed directly before and after accessing the Application.</li>
-                </ul>
+            <section id="collection" className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">1. INFORMATION WE COLLECT</h2>
+              <p>We may collect:</p>
+              <p className="font-semibold text-[#eaffb8]">Personal Information:</p>
+              <ul className="list-disc space-y-2 pl-6">
+                <li>Name</li>
+                <li>Email</li>
+                <li>Phone number</li>
+                <li>Job title and company</li>
+              </ul>
+              <p className="mt-4 font-semibold text-[#eaffb8]">Usage Data:</p>
+              <ul className="list-disc space-y-2 pl-6">
+                <li>Pages visited</li>
+                <li>Features used</li>
+                <li>Device and browser information</li>
+                <li>IP address</li>
+              </ul>
+              <p className="mt-4 font-semibold text-[#eaffb8]">Performance Data:</p>
+              <ul className="list-disc space-y-2 pl-6">
+                <li>Training activity</li>
+                <li>Scoring and engagement metrics</li>
+                <li>Behavioral trends</li>
+              </ul>
+              <p className="mt-4 font-semibold text-[#eaffb8]">AI Interaction Data:</p>
+              <ul className="list-disc space-y-2 pl-6">
+                <li>Inputs and outputs from AutoForge, Otto, and Sprocket</li>
+              </ul>
             </section>
-             <section id="usage">
-                <h2 className="text-2xl font-semibold mb-2 text-foreground">3. Use of Your Information</h2>
-                <p>Having accurate information about you permits us to provide you with a smooth, efficient, and customized experience. Specifically, we may use information collected about you via the Application to:</p>
-                 <ul className="list-disc pl-6 space-y-2 mt-4">
-                    <li>Create and manage your account.</li>
-                    <li>Provide you with personalized training and feedback.</li>
-                    <li>Generate anonymized, aggregate reports for dealership management to track overall team performance.</li>
-                    <li>Monitor and analyze usage and trends to improve your experience with the Application.</li>
-                    <li>Notify you of updates to the Application.</li>
-                </ul>
+            <section id="usage" className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">2. HOW WE USE INFORMATION</h2>
+              <p>We use information to:</p>
+              <ul className="list-disc space-y-2 pl-6">
+                <li>Provide and improve Services</li>
+                <li>Personalize recommendations</li>
+                <li>Generate analytics and insights</li>
+                <li>Process payments</li>
+                <li>Communicate with users</li>
+                <li>Maintain security</li>
+              </ul>
             </section>
-             <section id="disclosure">
-                <h2 className="text-2xl font-semibold mb-2 text-foreground">4. Disclosure of Your Information</h2>
-                <p>We may share information we have collected about you in certain situations. Your information may be disclosed as follows:</p>
-                <ul className="list-disc pl-6 space-y-2 mt-4">
-                    <li><strong>To Your Management:</strong> Your performance data (CX scores, lesson completion, etc.) is visible to your direct manager, General Manager, and dealership Owner within your organization, unless you have enabled privacy settings. You can control this in your <Link href="/profile" className="text-primary hover:underline">Profile Settings</Link>.</li>
-                     <li><strong>By Law or to Protect Rights:</strong> If we believe the release of information about you is necessary to respond to legal process, to investigate or remedy potential violations of our policies, or to protect the rights, property, and safety of others, we may share your information as permitted or required by any applicable law, rule, or regulation.</li>
-                </ul>
+            <section id="disclosure" className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">3. DATA OWNERSHIP</h2>
+              <p>You retain ownership of your dealership data.</p>
+              <p>You grant AutoKnerd a limited license to use data to operate and improve the Services.</p>
+              <p>We do not sell identifiable user or dealership data.</p>
             </section>
-            <section id="security">
-                <h2 className="text-2xl font-semibold mb-2 text-foreground">5. Security of Your Information</h2>
-                <p>We use administrative, technical, and physical security measures to help protect your personal information. While we have taken reasonable steps to secure the personal information you provide to us, please be aware that despite our efforts, no security measures are perfect or impenetrable, and no method of data transmission can be guaranteed against any interception or other type of misuse.</p>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">4. DATA SHARING</h2>
+              <p>We may share data with:</p>
+              <ul className="list-disc space-y-2 pl-6">
+                <li>Service providers (hosting, payments, analytics)</li>
+                <li>Legal authorities when required</li>
+                <li>Business partners in the event of a sale or merger</li>
+              </ul>
             </section>
-             <section id="contact">
-                <h2 className="text-2xl font-semibold mb-2 text-foreground">6. Contact Us</h2>
-                <p>If you have questions or comments about this Privacy Policy, please contact us at: <a href="mailto:andrew@autoknerd.com" className="text-primary hover:underline">andrew@autoknerd.com</a></p>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">5. COOKIES</h2>
+              <p>We use cookies to improve functionality and analyze usage.</p>
+              <p>You can control cookies through your browser.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">6. DATA RETENTION</h2>
+              <p>We retain data as necessary to provide Services and meet legal obligations.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">7. SECURITY</h2>
+              <p>We implement reasonable safeguards but cannot guarantee absolute security.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">8. USER RIGHTS</h2>
+              <p>You may request access, correction, or deletion of your data.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">9. THIRD-PARTY SERVICES</h2>
+              <p>We are not responsible for third-party privacy practices.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">10. CHILDREN</h2>
+              <p>Services are not intended for users under 18.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">11. CHANGES</h2>
+              <p>This policy may be updated. Continued use constitutes acceptance.</p>
+            </section>
+            <section className="space-y-2">
+              <h2 className="text-xl font-semibold text-[#f4f3f3]">12. CONTACT</h2>
+              <p>
+                AutoKnerd LLC
+                <br />
+                Lakeland, FL
+                <br />
+                Andrew@AutoKnerd.com
+              </p>
             </section>
           </div>
         </div>
       </main>
-    </>
+    </AutoknerdShell>
   );
 }
