@@ -6,7 +6,7 @@ import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 const RSS_URL = 'https://feed.podbean.com/btedesign/feed.xml';
-const FALLBACK_IMAGE = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQ5F1sJksEbg_u7OxRRsuFxpWZ3Q9Ep7Oqf548l5oyQrIdRNBf20pXVHzhFl7i4NwNaJ5MxeyXeqVfSD0pSQSxHDPExc18GfI6sOgkqwbRrWgcDHSAl2hdTo_MvL4NqXe2DXFYWNijK2wlKOGxDxddgTZJBQdT62wiHGA-DDJjjUAuen7r4pUujGWa8sd-XV6TQA1xD_uCS0kJT7sEy6EOaHilwe44VvF2mS7SbP1k64MUmHktwzD_MMDjRHmGPOBdFPyunWGptns';
+const FALLBACK_IMAGE = '/autoknerd-podcast-fallback.png';
 const INITIAL_ARCHIVE_COUNT = 6;
 const ARCHIVE_BATCH_SIZE = 6;
 
