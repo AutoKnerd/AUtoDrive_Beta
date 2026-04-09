@@ -5,11 +5,12 @@ import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-type AutoForgeLeadBody = {
+type AutoForgeLeadUpdateBody = {
   name?: string;
   email?: string;
   dealershipName?: string;
   role?: string;
+  status?: string;
 };
 
 function normalizeField(value: unknown): string {
@@ -47,16 +48,27 @@ async function requireAdminOrDeveloper(request: NextRequest): Promise<{ ok: true
   return { ok: true };
 }
 
-export async function POST(request: NextRequest) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ leadId: string }> }) {
   try {
-    const body = (await request.json()) as AutoForgeLeadBody;
+    const authCheck = await requireAdminOrDeveloper(request);
+    if (!authCheck.ok) {
+      return authCheck.response;
+    }
+
+    const { leadId } = await context.params;
+    const body = (await request.json()) as AutoForgeLeadUpdateBody;
 
     const name = normalizeField(body.name);
     const email = normalizeField(body.email).toLowerCase();
     const dealershipName = normalizeField(body.dealershipName);
     const role = normalizeField(body.role);
+    const status = normalizeField(body.status);
 
-    if (!name || !email || !dealershipName || !role) {
+    if (!leadId) {
+      return NextResponse.json({ error: 'Lead ID is required.' }, { status: 400 });
+    }
+
+    if (!name || !email || !dealershipName || !role || !status) {
       return NextResponse.json({ error: 'All lead fields are required.' }, { status: 400 });
     }
 
@@ -69,58 +81,55 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getAdminDb();
-    const now = Timestamp.now();
-    const ref = await db.collection('autoforge_leads').add({
-      name,
-      email,
-      dealership_name: dealershipName,
-      role,
-      source: 'autoforge_modal',
-      status: 'captured',
-      created_at: now,
-      updated_at: now,
-    });
+    const ref = db.collection('autoforge_leads').doc(leadId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Lead not found.' }, { status: 404 });
+    }
 
-    return NextResponse.json({ ok: true, leadId: ref.id }, { status: 201 });
+    const now = Timestamp.now();
+    await ref.set(
+      {
+        name,
+        email,
+        dealership_name: dealershipName,
+        role,
+        status,
+        updated_at: now,
+      },
+      { merge: true },
+    );
+
+    return NextResponse.json({ ok: true, leadId });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to capture AutoForge lead.';
+    const message = error instanceof Error ? error.message : 'Failed to update AutoForge lead.';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ leadId: string }> }) {
   try {
     const authCheck = await requireAdminOrDeveloper(request);
     if (!authCheck.ok) {
       return authCheck.response;
     }
 
-    const db = getAdminDb();
-    const snapshot = await db.collection('autoforge_leads').orderBy('created_at', 'desc').limit(50).get();
-    const leads = snapshot.docs.map((docSnap) => {
-      const data = docSnap.data() as Record<string, unknown>;
-      return {
-        id: docSnap.id,
-        name: typeof data.name === 'string' ? data.name : null,
-        email: typeof data.email === 'string' ? data.email : null,
-        dealership_name: typeof data.dealership_name === 'string' ? data.dealership_name : null,
-        role: typeof data.role === 'string' ? data.role : null,
-        source: typeof data.source === 'string' ? data.source : null,
-        status: typeof data.status === 'string' ? data.status : null,
-        created_at:
-          data.created_at instanceof Timestamp
-            ? data.created_at.toDate().toISOString()
-            : typeof data.created_at === 'string'
-              ? data.created_at
-              : data.created_at && typeof data.created_at === 'object' && 'toDate' in data.created_at && typeof (data.created_at as { toDate?: unknown }).toDate === 'function'
-                ? (data.created_at as { toDate: () => Date }).toDate().toISOString()
-                : null,
-      };
-    });
+    const { leadId } = await context.params;
+    if (!leadId) {
+      return NextResponse.json({ error: 'Lead ID is required.' }, { status: 400 });
+    }
 
-    return NextResponse.json({ leads });
+    const db = getAdminDb();
+    const ref = db.collection('autoforge_leads').doc(leadId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Lead not found.' }, { status: 404 });
+    }
+
+    await ref.delete();
+    return NextResponse.json({ ok: true, leadId });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to load AutoForge leads.';
+    const message = error instanceof Error ? error.message : 'Failed to delete AutoForge lead.';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

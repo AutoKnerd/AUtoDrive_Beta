@@ -63,6 +63,8 @@ export function AutoforgeLeadDialog({
     onOpenChange(nextOpen);
     if (!nextOpen) {
       setModalStep('form');
+      setSubmittedLead(null);
+      setLeadForm(initialLeadForm);
     }
   };
 
@@ -238,6 +240,28 @@ export function AutoforgeLeadDialog({
                   </span>
                 </div>
               </div>
+
+              {submittedLead && (
+                <div className="border-b border-white/10 bg-[#0f1211] px-6 py-4">
+                  <p className="text-[0.72rem] font-black uppercase tracking-[0.22em] text-[#00ff66]/80">
+                    Captured Lead
+                  </p>
+                  <div className="mt-3 grid gap-2 text-sm text-white/75 sm:grid-cols-2">
+                    <p>
+                      <span className="font-semibold text-white">Name:</span> {submittedLead.name}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-white">Email:</span> {submittedLead.email}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-white">Dealership:</span> {submittedLead.dealershipName}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-white">Role:</span> {submittedLead.role}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="border-b border-white/10 bg-[#111313] px-6 py-4">
                 <p className="text-sm leading-6 text-white/60">
