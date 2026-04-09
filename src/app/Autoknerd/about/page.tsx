@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 export default function AutoknerdAboutPage() {
@@ -244,17 +245,7 @@ export default function AutoknerdAboutPage() {
         </section>
       </main>
 
-      <footer className="w-full border-t border-[#464848]/20 bg-black">
-        <div className="flex w-full flex-col items-center justify-between px-12 py-10 md:flex-row">
-          <div className="mb-4 text-lg font-black text-[#BFFF00] md:mb-0">AutoKnerd</div>
-          <div className="mb-4 flex gap-8 md:mb-0">
-            <a className="text-sm tracking-wide text-[#f4f3f3]/60 transition-colors hover:text-[#BFFF00]" href="#footer">Support</a>
-            <a className="text-sm tracking-wide text-[#f4f3f3]/60 transition-colors hover:text-[#BFFF00]" href="#footer">Contact</a>
-            <Link className="text-sm tracking-wide text-[#f4f3f3]/60 transition-colors hover:text-[#BFFF00]" href="/legal">Legal</Link>
-          </div>
-          <div className="text-sm tracking-wide text-[#f4f3f3]/60">© 2024 AutoKnerd. Engineered for Velocity.</div>
-        </div>
-      </footer>
+      <AutoknerdFooter />
     </AutoknerdShell>
   );
 }

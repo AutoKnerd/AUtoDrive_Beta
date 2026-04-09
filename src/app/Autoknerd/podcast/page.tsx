@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 const RSS_URL = 'https://feed.podbean.com/btedesign/feed.xml';
@@ -73,7 +74,7 @@ export default function AutoknerdPodcastPage() {
   const [episodes, setEpisodes] = useState<Episode[]>(fallbackEpisodes);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [activePlayerIndex, setActivePlayerIndex] = useState<number | null>(null);
+  const [activePlayerTarget, setActivePlayerTarget] = useState<{ section: 'hero' | 'featured' | 'archive'; index: number } | null>(null);
   const [visibleArchiveCount, setVisibleArchiveCount] = useState(INITIAL_ARCHIVE_COUNT);
 
   useEffect(() => {
@@ -140,18 +141,18 @@ export default function AutoknerdPodcastPage() {
     setVisibleArchiveCount(Math.min(INITIAL_ARCHIVE_COUNT, Math.max(0, archive.length)));
   }, [archive.length]);
 
-  function openInlinePlayer(index: number) {
+  function openInlinePlayer(section: 'hero' | 'featured' | 'archive', index: number) {
     const episode = episodes[index] ?? fallbackEpisodes[index];
     if (!episode || !episode.audioUrl || episode.audioUrl === '#') return;
-    setActivePlayerIndex(index);
+    setActivePlayerTarget({ section, index });
   }
 
-  function renderInlinePlayer(episode: Episode, index: number) {
-    if (activePlayerIndex !== index) return null;
-    const nextEpisode = episodes[index + 1] ?? null;
+  function renderInlinePlayer(episode: Episode, target: { section: 'hero' | 'featured' | 'archive'; index: number }) {
+    if (!activePlayerTarget || activePlayerTarget.section !== target.section || activePlayerTarget.index !== target.index) return null;
+    const nextEpisode = episodes[target.index + 1] ?? null;
 
     return (
-      <div className="mt-6 border border-[#464848]/20 bg-[#0d0f0f]/70 p-4">
+      <div className="mt-6 max-w-2xl border border-[#464848]/20 bg-[#0d0f0f]/70 p-4">
         <div className="mb-3 flex items-center gap-3">
           <img alt={episode.title} className="h-14 w-14 object-cover" src={episode.image} />
           <div>
@@ -164,10 +165,15 @@ export default function AutoknerdPodcastPage() {
           controls
           className="w-full"
           onEnded={() => {
+            if (target.section !== 'archive') {
+              setActivePlayerTarget(null);
+              return;
+            }
+
             if (nextEpisode?.audioUrl && nextEpisode.audioUrl !== '#') {
-              setActivePlayerIndex(index + 1);
+              setActivePlayerTarget({ section: 'archive', index: target.index + 1 });
             } else {
-              setActivePlayerIndex(null);
+              setActivePlayerTarget(null);
             }
           }}
           playsInline
@@ -201,23 +207,23 @@ export default function AutoknerdPodcastPage() {
             If your team sounds different from one customer to the next, start here.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <button
-              className="flex items-center justify-center gap-3 bg-[#bdfc00] px-10 py-5 text-sm font-black uppercase tracking-tighter text-[#445d00] transition-all hover:shadow-[0px_0px_20px_rgba(189,252,0,0.3)]"
-              onClick={() => {
-                openInlinePlayer(0);
-              }}
-              type="button"
-            >
+              <button
+                className="flex items-center justify-center gap-3 bg-[#bdfc00] px-10 py-5 text-sm font-black uppercase tracking-tighter text-[#445d00] transition-all hover:shadow-[0px_0px_20px_rgba(189,252,0,0.3)]"
+                onClick={() => {
+                  openInlinePlayer('hero', 0);
+                }}
+                type="button"
+              >
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>
                 play_arrow
               </span>
               Listen to Latest Episode
             </button>
-            <Link href="/autoshop" className="border border-[#464848]/30 px-10 py-5 text-center text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-all hover:bg-[#1d2020]">
+              <Link href="/autoshop" className="border border-[#464848]/30 px-10 py-5 text-center text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-all hover:bg-[#1d2020]">
               Get This Week&apos;s Tool
             </Link>
           </div>
-          {renderInlinePlayer(featured, 0)}
+          {renderInlinePlayer(featured, { section: 'hero', index: 0 })}
         </div>
         <div className="pointer-events-none absolute right-0 top-1/2 hidden -translate-y-1/2 opacity-20 lg:block">
           <div className="flex h-[600px] w-[600px] items-center justify-center rounded-full border border-[#bdfc00]/30">
@@ -291,7 +297,7 @@ export default function AutoknerdPodcastPage() {
                     <button
                       className="flex items-center gap-3 bg-[#f4f3f3] px-8 py-4 text-sm font-black uppercase tracking-tighter text-[#0d0f0f] transition-colors hover:bg-[#bdfc00]"
                       onClick={() => {
-                        openInlinePlayer(0);
+                        openInlinePlayer('featured', 0);
                       }}
                       type="button"
                     >
@@ -304,6 +310,7 @@ export default function AutoknerdPodcastPage() {
                       Get the tool from this episode
                     </Link>
                   </div>
+                  {renderInlinePlayer(featured, { section: 'featured', index: 0 })}
                 </div>
               </div>
             )}
@@ -353,13 +360,13 @@ export default function AutoknerdPodcastPage() {
                 <div key={`${episode.title}-${index}`}>
                   <div className="group flex flex-col gap-6 border-b border-[#464848]/10 bg-[#181a1a] p-6 transition-colors hover:bg-[#1d2020] md:flex-row md:items-center">
                     <div className="flex min-w-[100px] items-center gap-4">
-                      <button
-                        className="flex h-12 w-12 items-center justify-center bg-[#232626] transition-colors group-hover:bg-[#bdfc00] group-hover:text-[#445d00]"
-                        onClick={() => {
-                          openInlinePlayer(episodeIndex);
-                        }}
-                        type="button"
-                      >
+                    <button
+                      className="flex h-12 w-12 items-center justify-center bg-[#232626] transition-colors group-hover:bg-[#bdfc00] group-hover:text-[#445d00]"
+                      onClick={() => {
+                          openInlinePlayer('archive', episodeIndex);
+                      }}
+                      type="button"
+                    >
                         <span className="material-symbols-outlined">play_arrow</span>
                       </button>
                     </div>
@@ -376,7 +383,7 @@ export default function AutoknerdPodcastPage() {
                       </Link>
                     </div>
                   </div>
-                  {renderInlinePlayer(episode, episodeIndex)}
+                  {renderInlinePlayer(episode, { section: 'archive', index: episodeIndex })}
                 </div>
               );
               })}
@@ -452,21 +459,7 @@ export default function AutoknerdPodcastPage() {
         </div>
       </section>
 
-      <footer className="w-full border-t border-[#464848]/20 bg-black" id="footer">
-        <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-between px-12 py-10 md:flex-row">
-          <div className="mb-6 text-lg font-black uppercase text-[#f4f3f3] md:mb-0">AutoKnerd</div>
-          <div className="mb-6 flex flex-wrap justify-center gap-8 md:mb-0">
-            <a className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="#footer">Support</a>
-            <Link className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="/legal">Legal</Link>
-            <a className="text-xs uppercase tracking-widest text-[#f4f3f3]/50 transition-colors hover:text-[#bdfc00]" href="#footer">System Health</a>
-          </div>
-          <div className="text-center text-[10px] uppercase tracking-widest text-[#f4f3f3]/40 md:text-right">
-            © 2024 AutoKnerd.
-            <br />
-            High-Performance Automotive Intelligence.
-          </div>
-        </div>
-      </footer>
+      <AutoknerdFooter />
     </AutoknerdShell>
   );
 }

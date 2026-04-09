@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { AutoforgeLeadDialog } from '@/components/autoforge/autoforge-lead-dialog';
+import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 const ecosystemProducts = [
@@ -774,17 +775,7 @@ export default function AutoknerdPage() {
         description="Tell us a bit about your store and we&apos;ll show you exactly how this works for you."
         submitButtonClassName="bg-[#bdfc00] text-[#445d00] hover:bg-[#bdfc00]/90"
       />
-      <footer className="w-full border-t border-zinc-900 bg-black">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-8 px-8 py-16 md:flex-row">
-          <div className="text-lg font-bold uppercase tracking-widest text-lime-500">AutoKnerd</div>
-          <div className="flex flex-wrap justify-center gap-10">
-            <Link className="text-[10px] uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-300" href="/legal">Legal</Link>
-          </div>
-          <div className="text-[10px] uppercase tracking-widest text-zinc-700 opacity-80">
-            © 2024 AutoKnerd LLC Dealership CX Development.
-          </div>
-        </div>
-      </footer>
+      <AutoknerdFooter />
     </AutoknerdShell>
   );
 }

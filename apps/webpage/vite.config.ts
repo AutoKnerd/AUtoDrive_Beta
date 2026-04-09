@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
   const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
   return {
+    base: mode === 'production' ? '/autodrive-webpage-assets/' : '/',
     plugins: [
       react(),
       {
