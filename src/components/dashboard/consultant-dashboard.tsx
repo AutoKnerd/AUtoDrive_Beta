@@ -15,8 +15,6 @@ import {
   getDealershipById,
   createUniqueRecommendedTestingLesson,
   ensureDailyRecommendedLesson,
-  getPppAccessForUser,
-  getSaasPppAccessForUser,
   updateUser,
   getDealershipLeaderboard,
   getFreshUpCoachingInsight,
@@ -49,12 +47,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
-import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
-import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 import { SprocketFirstLoginTour } from './sprocket-first-login-tour';
-import { TodayActionCard } from './today-action-card';
-import { evaluateUpMeterState, getUpMeterProgress, pickFreshUpProfile } from '@/lib/fresh-up';
-import { resolveAisRoleType } from '@/lib/ais-role-adaptive';
+import { TodaysDriveCard } from './todays-drive-card';
+import { AutoshopCard } from './autoshop-card';
+import { evaluateUpMeterState, getUpMeterProgress } from '@/lib/fresh-up';
 import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
 import { AutoForgeDialog, type AutoForgeContext } from '../lessons/autoforge-dialog';
 
@@ -245,34 +241,78 @@ function buildLessonActivityNote(log: LessonLog): string {
   return [deltaLine, focusLine, summaryLine, violationLine].filter(Boolean).join(' ');
 }
 
-function LevelDisplay({ user }: { user: User }) {
+function LevelDisplay({
+  user,
+  freshUpMeter,
+  freshUpAvailable,
+  interactionLabel,
+}: {
+  user: User;
+  freshUpMeter: number;
+  freshUpAvailable: boolean;
+  interactionLabel: string;
+}) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
+    const freshUpProgress = getUpMeterProgress(freshUpMeter);
+    const freshUpStateLabel = freshUpAvailable ? interactionLabel : 'Fresh Up momentum';
 
     if (level >= 100) {
         return (
-             <div className="space-y-2">
-                <p className="text-2xl font-bold">Level 100 - Master</p>
+             <div className="space-y-3">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-2xl font-bold">Level 100 - Master</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total {user.xp.toLocaleString()} XP</p>
+                </div>
+                <div className="space-y-2">
+                  <Progress
+                    value={100}
+                    className="h-4 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-blue-500 dark:border-slate-600 dark:bg-slate-700/50 dark:[&>div]:from-cyan-400"
+                  />
+                  <Progress
+                    value={freshUpProgress}
+                    className="h-1.5 rounded-full bg-emerald-500/15 [&>div]:bg-emerald-500"
+                  />
+                </div>
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">100 / 100 XP</span>
+                  <span className={cn(freshUpAvailable ? 'text-emerald-500' : 'text-emerald-600/80')}>
+                    {freshUpStateLabel}
+                  </span>
+                </div>
                 <p className="text-sm text-primary">You have reached the pinnacle of sales excellence!</p>
             </div>
         )
     }
 
     return (
-        <div className="w-full space-y-2">
-            <div className="flex items-baseline gap-4">
-                <p className="text-3xl font-bold text-foreground">Level {level}</p>
+        <div className="w-full space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Progress</p>
+                  <p className="text-3xl font-bold text-foreground">Level {level}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total XP</p>
+                  <p className="text-sm font-semibold text-primary">{user.xp.toLocaleString()}</p>
+                </div>
+            </div>
+            <div className="space-y-2">
                 <Progress
                   value={progress}
                   className="h-4 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-blue-500 dark:border-slate-600 dark:bg-slate-700/50 dark:[&>div]:from-cyan-400"
                 />
+                <Progress
+                  value={freshUpProgress}
+                  className="h-1.5 rounded-full bg-emerald-500/15 [&>div]:bg-emerald-500"
+                />
             </div>
-            <div className="flex justify-between text-xs font-semibold">
+            <div className="flex items-center justify-between gap-3 text-xs font-semibold">
                 <span className="text-muted-foreground">{levelXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
-                <div className="text-right">
-                    <p className="text-primary">Total: {user.xp.toLocaleString()} XP</p>
-                    <p className="text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
-                </div>
+                <span className={cn(freshUpAvailable ? 'text-emerald-500' : 'text-emerald-600/80')}>
+                  {freshUpStateLabel}
+                </span>
             </div>
+            <p className="text-xs text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
         </div>
     );
 }
@@ -321,8 +361,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('personal');
   const [viewModeInitialized, setViewModeInitialized] = useState(false);
   const [range, setRange] = useState<CxRange>('today');
-  const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
-  const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
   const [dealershipLeaderboard, setDealershipLeaderboard] = useState<DealershipLeaderboardEntry[]>([]);
   const [coachingInsight, setCoachingInsight] = useState<FreshUpCoachingInsight | null>(null);
   const router = useRouter();
@@ -385,15 +423,13 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
       setLoading(true);
       try {
         const lessonRole: LessonRole = user.role === 'Owner' || user.role === 'Admin' ? 'global' : user.role;
-        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges, pppAccessEnabled, saasPppAccessEnabled, fetchedCoachingInsights] = await Promise.all([
+        const [fetchedLessons, fetchedActivity, limits, fetchedAssignedLessons, fetchedAssignedHistoryIds, fetchedBadges, fetchedCoachingInsights] = await Promise.all([
           getLessons(lessonRole, user.userId),
           getConsultantActivity(user.userId),
           getDailyLessonLimits(user.userId),
           getAssignedLessons(user.userId),
           getAllAssignedLessonIds(user.userId),
           getEarnedBadgesByUserId(user.userId),
-          getPppAccessForUser(user).catch(() => false),
-          getSaasPppAccessForUser(user).catch(() => false),
           getFreshUpCoachingInsight({
             entityType: 'consultant',
             entityId: user.userId,
@@ -427,8 +463,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
         setAssignedLessons(fetchedAssignedLessons);
         setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
         setBadges(fetchedBadges);
-        setPppFeatureEnabled(pppAccessEnabled === true);
-        setSaasPppFeatureEnabled(saasPppAccessEnabled === true);
         setCoachingInsight(fetchedCoachingInsights[0] || null);
         const hasBaselineLog = fetchedActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
         const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
@@ -464,8 +498,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
         setCanRetakeRecommendedTesting(false);
         setCanUseNewRecommendedTesting(false);
         setIsPaused(false);
-        setPppFeatureEnabled(false);
-        setSaasPppFeatureEnabled(false);
         setCoachingInsight(null);
         setDealershipLeaderboard([]);
         toast({
@@ -677,18 +709,12 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   };
 
   const showTestingControls = !needsBaselineAssessment && (canRetakeRecommendedTesting || canUseNewRecommendedTesting);
-  const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
-  const showPersonalAutoForgeInPppRow = pppCardCount === 1;
   const consultantLevel = useMemo(() => calculateLevel(user.xp).level, [user.xp]);
-  const aisRoleType = useMemo(() => resolveAisRoleType(user.role), [user.role]);
   const roleLabels = useMemo(() => getRoleLabels(resolveRoleLabelKeyFromUserRole(user.role)), [user.role]);
   const interactionLabel = roleLabels.interactionLabel;
-  const meterLabel = roleLabels.meterLabel;
-  const freshUpProfile = useMemo(() => pickFreshUpProfile(user.userId, activity, consultantLevel, aisRoleType), [user.userId, activity, consultantLevel, aisRoleType]);
   const freshUpMeter = Math.max(0, Math.round(Number(user.freshUpMeter ?? 0)));
   const freshUpAvailable = user.freshUpAvailable === true;
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
-  const upMeterProgress = getUpMeterProgress(freshUpMeter);
   const personalAutoForgeContext = useMemo<AutoForgeContext>(() => {
     const strongestEntry = Object.entries(averageScores).reduce((highest, [trait, score]) => (
       (score as number) > highest.score ? { trait: trait as CxTrait, score: score as number } : highest
@@ -737,7 +763,6 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
     ) as CxTrait[];
     return uniqueTraits.slice(0, 2).map((trait) => CX_TRAIT_LABELS[trait]);
   }, [recommendedLessonQueue]);
-
   const personalAutoForgeCard = (
     <Card className={cn(
       'flex flex-col justify-between border border-red-500/80 bg-black p-6 shadow-[0_0_0_1px_rgba(239,68,68,0.45),0_0_28px_rgba(0,0,0,0.35)] dark:border-red-400/80 dark:bg-black',
@@ -932,17 +957,15 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
             </Alert>
         )}
 
-        <section className="space-y-3">
-          <TodayActionCard
-            lessonHref={todayActionLessonHref}
-            improvementSkills={todayActionSkills}
-          />
-        </section>
-
         <section className="space-y-3" data-sprocket-tour="level-xp">
              {loading ? <Skeleton className="h-24 w-full" /> : (
                 <div>
-                    <LevelDisplay user={user} />
+                    <LevelDisplay
+                      user={user}
+                      freshUpMeter={freshUpMeter}
+                      freshUpAvailable={freshUpAvailable}
+                      interactionLabel={interactionLabel}
+                    />
                     {memberSince && (
                         <p className="text-sm text-muted-foreground mt-2">
                             Member since {memberSince}
@@ -950,6 +973,13 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
                     )}
                 </div>
              )}
+        </section>
+
+        <section className="space-y-3">
+          <TodaysDriveCard
+            recommendedLessonHref={todayActionLessonHref}
+            improvementSkills={todayActionSkills}
+          />
         </section>
 
         {/* Control Bar - Positioned below Identity */}
@@ -999,99 +1029,46 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
           />
         </section>
 
-        <section className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card className={cn(dashboardFeatureCardClass, 'md:col-span-2')}>
+        {coachingInsight && (
+          <section className="space-y-4">
+            <Card className={dashboardFeatureCardClass}>
               <CardHeader>
-                <CardTitle>{meterLabel}</CardTitle>
-                <CardDescription>{`Tracks progress toward a ${interactionLabel}.`}</CardDescription>
+                <CardTitle>Your Coaching Focus</CardTitle>
+                <CardDescription>{coachingInsight.coachingTopic}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">{upMeterState}</span>
-                    <span className="text-muted-foreground">{freshUpMeter} / 100</span>
-                  </div>
-                  <Progress value={upMeterProgress} className="h-2" />
-                </div>
+              <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Normal lessons keep building the meter. Stronger results move it a little faster.
+                  Practice Suggestion: <span className="font-medium text-foreground">{coachingInsight.recommendedPractice}</span>
                 </p>
-                {freshUpAvailable ? (
-                  <>
-                    <div className="rounded-lg border border-border/70 bg-muted/40 p-3 text-sm text-muted-foreground dark:border-slate-700 dark:bg-slate-800/40">
-                      <p className="font-medium text-foreground">{interactionLabel}</p>
-                      <p className="mt-1">
-                        {`A higher-level customer interaction is ready. This ${interactionLabel.toLowerCase()} will require stronger listening, trust building, and clarity.`}
-                      </p>
-                      <p className="mt-2">
-                        Next customer: <span className="font-medium text-foreground">{freshUpProfile.characterName}</span> · {freshUpProfile.customerType}
-                      </p>
-                    </div>
-                  </>
-                ) : null}
+                <p className="text-sm text-muted-foreground">
+                  Suggested AutoForge: <span className="font-medium text-foreground">{coachingInsight.suggestedAutoForgeModule}</span>
+                </p>
               </CardContent>
             </Card>
-            {coachingInsight && (
-              <Card className={dashboardFeatureCardClass}>
-                <CardHeader>
-                  <CardTitle>Your Coaching Focus</CardTitle>
-                  <CardDescription>{coachingInsight.coachingTopic}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Practice Suggestion: <span className="font-medium text-foreground">{coachingInsight.recommendedPractice}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Suggested AutoForge: <span className="font-medium text-foreground">{coachingInsight.suggestedAutoForgeModule}</span>
-                  </p>
-                </CardContent>
-              </Card>
+          </section>
+        )}
+
+        <section id="lessons" className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-foreground">Personal AutoForge</h2>
+            <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground/95">
+              Your personal growth engine built from the patterns in your own CX work.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {loading ? (
+              <>
+                <Skeleton className="h-full min-h-[160px] rounded-2xl" />
+                <Skeleton className="h-full min-h-[160px] rounded-2xl" />
+              </>
+            ) : (
+              <>
+                {personalAutoForgeCard}
+                <AutoshopCard />
+              </>
             )}
           </div>
         </section>
-
-        {(pppFeatureEnabled || saasPppFeatureEnabled) && (
-          <section className="space-y-4">
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-foreground">AutoKnerd: The Next Gear</h2>
-              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground/95">
-                Your mission to sell smarter, build deeper trust, and protect margin.
-              </p>
-              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground/95">
-                Every session sharpens your skill, boosts your XP, and moves you to the next level.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {pppFeatureEnabled && (
-                <PppDashboardCard user={user} featureEnabled={pppFeatureEnabled} className={dashboardFeatureCardClass} />
-              )}
-              {saasPppFeatureEnabled && (
-                <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
-              )}
-              {showPersonalAutoForgeInPppRow && (loading ? (
-                <Skeleton className="h-full min-h-[160px] rounded-2xl" />
-              ) : (
-                personalAutoForgeCard
-              ))}
-            </div>
-          </section>
-        )}
-
-        {!showPersonalAutoForgeInPppRow && (
-          <section id="lessons" className="space-y-4">
-            <h2 className="text-xl font-bold text-foreground">Personal AutoForge</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {loading ? (
-                <Skeleton className="h-full min-h-[160px] rounded-2xl" />
-              ) : (
-                <>
-                  {personalAutoForgeCard}
-                </>
-              )}
-            </div>
-          </section>
-        )}
 
         {hasDealershipContext && (
           <Card>

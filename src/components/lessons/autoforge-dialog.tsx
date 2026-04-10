@@ -260,7 +260,7 @@ export function AutoForgeDialog({ user, autoForgeContext, mode = 'manager' }: Au
     <Button
       type="button"
       aria-label="Open Personal AutoForge"
-      className="relative flex h-16 w-full items-center justify-center overflow-hidden border border-red-500/80 bg-red-500/15 px-4 text-red-50 hover:bg-red-500/25 hover:text-white"
+      className="relative flex h-16 w-full items-center justify-center overflow-hidden border border-[#7CC242]/25 bg-[#7CC242] px-4 font-bold tracking-wide text-slate-950 shadow-[0_0_20px_rgba(124,194,66,0.35)] hover:bg-[#8ED24F] hover:text-slate-950"
     >
       <span className="text-sm font-semibold tracking-wide">Activate Forge</span>
     </Button>
@@ -268,7 +268,7 @@ export function AutoForgeDialog({ user, autoForgeContext, mode = 'manager' }: Au
     <Button
       type="button"
       aria-label="Open AutoForge"
-      className="relative flex h-16 w-full items-center justify-center overflow-hidden border border-red-500/80 bg-red-500/15 px-4 text-red-50 hover:bg-red-500/25 hover:text-white"
+      className="relative flex h-16 w-full items-center justify-center overflow-hidden border border-[#7CC242]/25 bg-[#7CC242] px-4 font-bold tracking-wide text-slate-950 shadow-[0_0_20px_rgba(124,194,66,0.35)] hover:bg-[#8ED24F] hover:text-slate-950"
     >
       <span className="text-sm font-semibold tracking-wide">Activate Forge</span>
     </Button>

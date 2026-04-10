@@ -8,7 +8,7 @@ import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, U
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
 import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData, getFreshUpCommandCenter, type FreshUpCommandCenterResult } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
-import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ChevronRight, AlertCircle } from 'lucide-react';
+import { BarChart, CheckCircle, ShieldOff, Smile, Star, Users, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ChevronRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,7 +17,7 @@ import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
 import { Badge as UiBadge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
-import { Button, buttonVariants } from '../ui/button';
+import { Button } from '../ui/button';
 import { AutoForgeDialog, type AutoForgeContext } from '../lessons/autoforge-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeamMemberCard } from './team-member-card';
@@ -45,6 +45,8 @@ import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 import { ManagerGuidedTour } from './manager-guided-tour';
 import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
+import { TodaysDriveCard } from './todays-drive-card';
+import { AutoshopCard } from './autoshop-card';
 
 interface ManagerDashboardProps {
   user: User;
@@ -106,9 +108,6 @@ type DealerLeadershipResponse = DealerOwnerDashboardResponse | DealerGmDashboard
 
 const dashboardFeatureCardClass =
   'border border-border bg-card/95 shadow-sm dark:border-cyan-400/30 dark:bg-slate-900/50 dark:backdrop-blur-md dark:shadow-lg dark:shadow-cyan-500/10';
-const dashboardDisabledButtonClass =
-  'w-full border-border bg-muted/70 text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50';
-
 function resolveThemePreference(value: unknown, useProfessionalTheme?: boolean): ThemePreference {
   const raw = String(value || '').trim().toLowerCase();
 
@@ -895,9 +894,14 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const hasAvailableLessons = useMemo(() => {
     return !loading && ((recommendedLesson && !lessonLimits.recommendedTaken) || assignedLessons.length > 0);
   }, [loading, recommendedLesson, lessonLimits.recommendedTaken, assignedLessons.length]);
-  const showTodaysLessonsCard = !noPersonalDevelopmentRoles.includes(user.role);
-  const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
-  const showAssignedInPppRow = showTodaysLessonsCard && pppCardCount === 1;
+  const managerTodayDriveLessonHref = useMemo(() => {
+    if (!recommendedLesson || lessonLimits.recommendedTaken) return null;
+    return `/lesson/${recommendedLesson.lessonId}?recommended=true`;
+  }, [lessonLimits.recommendedTaken, recommendedLesson]);
+  const managerTodayDriveSkills = useMemo(() => {
+    if (!recommendedLesson?.associatedTrait) return [];
+    return [formatTrait(recommendedLesson.associatedTrait)];
+  }, [formatTrait, recommendedLesson]);
   const dealershipInsights = useMemo(() => {
     if (!stats?.avgScores) return { bestStat: null, watchStat: null };
     const scores = Object.entries(stats.avgScores) as [CxTrait, number][];
@@ -1158,6 +1162,13 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             {loading ? <Skeleton className="h-24 w-full" /> : <div><LevelDisplay user={user} />{memberSince && <p className="text-sm text-muted-foreground mt-2">Member since {memberSince}</p>}</div>}
       </section>
 
+      <section className="space-y-3">
+        <TodaysDriveCard
+          recommendedLessonHref={managerTodayDriveLessonHref}
+          improvementSkills={managerTodayDriveSkills}
+        />
+      </section>
+
       {/* Control Bar - Repositioned below Identity */}
       <div className="flex flex-col md:flex-row items-center justify-center bg-card/50 backdrop-blur-sm border rounded-xl p-3 gap-4">
           <div className="flex bg-muted p-1 rounded-lg border">
@@ -1316,133 +1327,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </Card>
       </section>
 
-      {showTodaysLessonsCard && (
-        <section className="space-y-4" data-manager-tour="dealer-focus">
-          <h2 className="text-xl font-bold text-foreground">Dealer Focus</h2>
-          <Card className={dashboardFeatureCardClass}>
-            <CardHeader>
-              <CardTitle>Today&apos;s Leadership Mission</CardTitle>
-              <CardDescription>
-                Keep dealer execution tight with one focused coaching action.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {dealerLeadershipLoading ? (
-                <Skeleton className="h-20 w-full" />
-              ) : dealerLeadershipError ? (
-                <p className="text-sm text-muted-foreground">{dealerLeadershipError}</p>
-              ) : null}
-              <div className="rounded-lg border p-4">
-                <p className="text-lg font-semibold">
-                  {recommendedLesson?.title || 'Leadership Calibration Sprint'}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {recommendedLesson
-                    ? 'Complete this recommended lesson to strengthen your lowest coaching trait today.'
-                    : 'No recommended lesson is available right now. Check assigned training and team priorities.'}
-                </p>
-                {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Top alert: {effectiveLeadershipData.coaching_alerts[0] || 'No active alerts'}
-                  </p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                <details className="rounded-lg border p-3">
-                  <summary className="list-none cursor-pointer">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Team Members</p>
-                        <p className="mt-2 text-xl font-semibold">
-                          {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData)
-                            ? effectiveLeadershipData.rep_performance.length
-                            : teamActivity.length}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">Click to view rep list</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </summary>
-                  <div className="mt-3 space-y-2 border-t pt-3 text-sm">
-                    {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) ? (
-                      effectiveLeadershipData.rep_performance.length > 0 ? (
-                        effectiveLeadershipData.rep_performance.map((rep) => (
-                          <div key={rep.user_id} className="rounded-md border p-2">
-                            <p className="font-medium">{rep.name}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-muted-foreground">No reps in this view yet.</p>
-                      )
-                    ) : (
-                      <p className="text-muted-foreground">Rep details are shown in Team Activity below.</p>
-                    )}
-                  </div>
-                </details>
-                <details className="rounded-lg border p-3">
-                  <summary className="list-none cursor-pointer">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Coaching Alerts</p>
-                        <p className="mt-2 text-xl font-semibold">
-                          {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData)
-                            ? effectiveLeadershipData.coaching_alerts.length
-                            : 0}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">Click to view who and why</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </summary>
-                  <div className="mt-3 space-y-2 border-t pt-3 text-sm">
-                    {effectiveLeadershipData && !isOwnerLeadershipData(effectiveLeadershipData) ? (
-                      effectiveLeadershipData.coaching_alerts.length > 0 ? (
-                        effectiveLeadershipData.coaching_alerts.map((alert, index) => {
-                          const parsed = parseCoachingAlert(alert);
-                          return (
-                            <div key={`${alert}-${index}`} className="rounded-md border p-2">
-                              <p className="font-medium">{parsed.repName}</p>
-                              <p className="text-xs text-muted-foreground">{parsed.reason}</p>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <p className="text-muted-foreground">No active coaching alerts.</p>
-                      )
-                    ) : (
-                      <p className="text-muted-foreground">Coaching alert details are available in GM view.</p>
-                    )}
-                  </div>
-                </details>
-                <div className="col-span-2 md:col-span-1">
-                  {loading ? (
-                    <Skeleton className="h-12 w-full rounded-md" />
-                  ) : needsBaselineAssessment ? (
-                    <Button className="h-full w-full font-bold bg-[#8DC63F] text-black" onClick={() => setShowBaselineAssessment(true)}>
-                      Baseline Assessment
-                    </Button>
-                  ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
-                    <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("h-full w-full", buttonVariants({ className: "h-full w-full font-semibold" }))}>
-                      Recommended Lesson
-                    </Link>
-                  ) : (
-                    <Button variant="outline" disabled className="h-full w-full font-semibold">
-                      {recommendedLesson ? (
-                        <>
-                          <CheckCircle className="mr-2 h-4 w-4" /> Completed for today
-                        </>
-                      ) : (
-                        'No lesson available'
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
-
       {(pppFeatureEnabled || saasPppFeatureEnabled) && (
           <section>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1452,51 +1336,22 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                   {saasPppFeatureEnabled && (
                     <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
                   )}
-                  {showAssignedInPppRow && managerAutoForgeCard}
               </div>
           </section>
       )}
 
-      {showTodaysLessonsCard && !showAssignedInPppRow && (
-        <section className="space-y-4">
-          <h2 className="text-xl font-bold text-foreground">Today&apos;s Lessons</h2>
-          <div className="grid grid-cols-1 gap-4">
-            <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
-              <div>
-                <div className="mb-2 flex items-center gap-3">
-                  <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
-                  <h3 className="text-2xl font-bold text-foreground">Recommended</h3>
-                </div>
-                <p className="mb-4 text-sm text-muted-foreground">A daily lesson focused on your area for improvement.</p>
-              </div>
-              {loading ? (
-                <Skeleton className="h-10 w-full" />
-              ) : needsBaselineAssessment ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button className="w-full font-bold bg-[#8DC63F] text-black" onClick={() => setShowBaselineAssessment(true)}>
-                    Baseline Assessment
-                  </Button>
-                </div>
-              ) : recommendedLesson && !lessonLimits.recommendedTaken ? (
-                <Link href={`/lesson/${recommendedLesson.lessonId}?recommended=true`} className={cn("w-full", buttonVariants({ className: "w-full font-bold" }))}>
-                  {recommendedLesson.title}
-                </Link>
-              ) : (
-                <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-                  {recommendedLesson ? (
-                    <>
-                      <CheckCircle className="mr-2 h-4 w-4" /> Complete
-                    </>
-                  ) : (
-                    'No lesson available'
-                  )}
-                </Button>
-              )}
-            </Card>
-            {managerAutoForgeCard}
-          </div>
-        </section>
-      )}
+      <section className="space-y-4">
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-foreground">Dealer AutoForge</h2>
+          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground/95">
+            Your dealership execution engine and the supporting tools that keep it moving.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {managerAutoForgeCard}
+          <AutoshopCard />
+        </div>
+      </section>
 
       {viewMode === 'team' ? (
           <>

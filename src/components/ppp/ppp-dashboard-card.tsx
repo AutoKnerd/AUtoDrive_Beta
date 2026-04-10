@@ -49,24 +49,26 @@ export function PppDashboardCard({ user, className, featureEnabled }: PppDashboa
     ppp.currentLevelLessonCount > ppp.currentLevelPassedCount;
 
   return (
-    <Card className={cn('flex flex-col justify-between border border-border bg-card/95 p-6 !dark:border-[#7CC242]/40 !dark:shadow-[0_0_24px_rgba(124,194,66,0.14)]', className)}>
+    <Card className={cn('flex flex-col justify-between border border-[#7CC242]/35 bg-card/95 p-6 shadow-[0_0_0_1px_rgba(124,194,66,0.08),0_0_24px_rgba(124,194,66,0.12)] !dark:border-[#7CC242]/40 !dark:shadow-[0_0_24px_rgba(124,194,66,0.14)]', className)}>
       <CardHeader className="p-0 pb-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-2xl text-foreground">AutoDrive: Press Start</CardTitle>
-            <CardDescription className="mt-1 text-sm text-muted-foreground">Level Up The CX Game</CardDescription>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7CC242]">Primary Action</p>
+            <CardTitle className="mt-1 text-2xl text-foreground">AutoDrive: Press Start</CardTitle>
+            <CardDescription className="mt-1 text-sm text-muted-foreground">Level Up the CX Game</CardDescription>
           </div>
           <LevelBadge level={ppp.level} certified={ppp.certified} />
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3 p-0">
-        <div className="flex items-center justify-end">
-          <p className="text-xs text-muted-foreground">{ppp.progressPercentage}% complete</p>
+        <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <span>Progress to next level</span>
+          <span>{ppp.progressPercentage}% complete</span>
         </div>
         <Progress
           value={ppp.progressPercentage}
-          className="h-3 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-[#7CC242] [&>div]:to-[#5EA93D]"
+          className="h-3 border border-[#7CC242]/25 bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-[#7CC242] [&>div]:to-[#5EA93D]"
         />
         <Button asChild className={cn("w-full bg-[#7CC242] font-semibold text-slate-950 hover:bg-[#8ED24F]", hasNextPppLesson && "lesson-ready-pulse")}>
           <Link href="/ppp">
