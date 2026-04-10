@@ -14,16 +14,14 @@ export function Footer() {
     const pathname = usePathname();
     const isAutoForge = Boolean(pathname?.startsWith('/autoforge'));
     const isAutoDrive = Boolean(pathname?.startsWith('/autodrive'));
+    const shouldUseAutoknerdFooter = isAutoForge || isAutoDrive;
 
     useEffect(() => {
         // This effect runs only on the client, after hydration
         setCurrentYear(new Date().getFullYear().toString());
     }, []);
 
-    if (isAutoForge || isAutoDrive) {
-        const logoSrc = isAutoForge ? '/AutoForge%20logo.png' : '/logo2.png';
-        const logoAlt = isAutoForge ? 'AutoForge Logo' : 'AutoDriveCX Logo';
-
+    if (shouldUseAutoknerdFooter) {
         return (
             <footer className="w-full border-t border-zinc-900 bg-black">
                 <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-8 px-8 py-16 md:flex-row">
@@ -31,13 +29,13 @@ export function Footer() {
                         href="/Autoknerd"
                         className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#bdfc00] transition-colors hover:text-[#d7ff66] md:text-[10px]"
                         style={{ fontFamily: "'Press Start 2P', monospace" }}
-                    >
-                        AutoKnerd
-                    </Link>
+                        >
+                            AutoKnerd
+                        </Link>
                     <div className="flex items-center justify-center">
                         <Image
-                            src={logoSrc}
-                            alt={logoAlt}
+                            src="/AutoKnerd%20Logo.png"
+                            alt="AutoKnerd"
                             width={120}
                             height={36}
                             className="h-auto w-[96px] md:w-[120px]"
