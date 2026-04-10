@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
 import { Header } from '@/components/layout/header';
@@ -10,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
+import { AutoForgeDialog, type AutoForgeContext } from '@/components/lessons/autoforge-dialog';
 
 type OwnerDashboardResponse = {
   dealership_id: string;
@@ -89,6 +91,38 @@ export default function DealerOwnerDashboardPage() {
     }
   }, [user?.userId]);
 
+  const autoForgeContext = useMemo<AutoForgeContext>(() => {
+    if (!data) {
+      return {
+        department: 'Storewide Leadership',
+        dealershipName: 'Dealership',
+        dealershipScopeLabel: 'Owner view',
+        departmentPerformanceSummary: '',
+        memberSignals: [],
+      };
+    }
+
+    const weakestTeamMember = [...data.team_overview]
+      .sort((a, b) => a.training_completion - b.training_completion)[0];
+
+    return {
+      department: 'Storewide Leadership',
+      dealershipName: data.dealership_name,
+      dealershipScopeLabel: 'Owner view',
+      departmentPerformanceSummary: [
+        `Snapshot: ${data.snapshot.team_training_completion}% training completion, ${data.snapshot.team_engagement_rate}% engagement, and ${data.snapshot.average_skill_score} average skill score.`,
+        weakestTeamMember
+          ? `Lowest completion: ${weakestTeamMember.name} at ${weakestTeamMember.training_completion}% with ${weakestTeamMember.skill_score} skill score.`
+          : '',
+      ].filter(Boolean).join(' '),
+      memberSignals: data.team_overview
+        .slice()
+        .sort((a, b) => a.training_completion - b.training_completion)
+        .slice(0, 3)
+        .map((member) => `${member.name} (${member.role}) - ${member.training_completion}% completion, ${member.skill_score} skill score.`),
+    };
+  }, [data]);
+
   if (loading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -108,6 +142,31 @@ export default function DealerOwnerDashboardPage() {
           </CardHeader>
         </Card>
 
+        <Card className="flex flex-col justify-between border border-red-500/80 bg-black p-6 shadow-[0_0_0_1px_rgba(239,68,68,0.45),0_0_28px_rgba(0,0,0,0.35)] dark:border-red-400/80 dark:bg-black">
+          <CardHeader className="p-0 pb-4 text-center">
+            <div className="flex items-center justify-center">
+              <div className="relative h-36 w-72 overflow-hidden rounded-md">
+                <Image
+                  src="/AutoForge logo.png"
+                  alt="AutoForge"
+                  fill
+                  sizes="288px"
+                  className="object-contain"
+                />
+              </div>
+            </div>
+            <CardDescription className="text-center text-sm text-muted-foreground">
+              A personal growth engine built from your own CX data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <AutoForgeDialog
+              user={user}
+              autoForgeContext={autoForgeContext}
+            />
+          </CardContent>
+        </Card>
+
         {error && (
           <Card className="border-red-400/50 bg-red-500/10">
             <CardContent className="p-6 text-sm text-red-100">{error}</CardContent>
@@ -118,14 +177,14 @@ export default function DealerOwnerDashboardPage() {
           <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading dashboard...</CardContent></Card>
         ) : data && (
           <>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <Card><CardHeader className="pb-2"><CardDescription>Team Training Completion %</CardDescription><CardTitle className="text-3xl">{data.snapshot.team_training_completion.toLocaleString('en-US')}%</CardTitle></CardHeader></Card>
               <Card><CardHeader className="pb-2"><CardDescription>Team Engagement Rate</CardDescription><CardTitle className="text-3xl">{data.snapshot.team_engagement_rate.toLocaleString('en-US')}%</CardTitle></CardHeader></Card>
               <Card><CardHeader className="pb-2"><CardDescription>Average Skill Score</CardDescription><CardTitle className="text-3xl">{data.snapshot.average_skill_score.toLocaleString('en-US')}</CardTitle></CardHeader></Card>
               <Card><CardHeader className="pb-2"><CardDescription>Active Users</CardDescription><CardTitle className="text-3xl">{data.snapshot.active_users}</CardTitle></CardHeader></Card>
-            </section>
+        </section>
 
-            <Card>
+        <Card>
               <CardHeader>
                 <CardTitle>Team Activity</CardTitle>
                 <CardDescription>{data.snapshot.salespeople} Salespeople</CardDescription>

@@ -1,9 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
 const Navigation: React.FC = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [systemMenuOpen, setSystemMenuOpen] = useState(false);
+    const closeTimerRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (closeTimerRef.current) {
+                window.clearTimeout(closeTimerRef.current);
+            }
+        };
+    }, []);
+
+    const openSystemMenu = () => {
+        if (closeTimerRef.current) {
+            window.clearTimeout(closeTimerRef.current);
+            closeTimerRef.current = null;
+        }
+        setSystemMenuOpen(true);
+    };
+
+    const scheduleSystemMenuClose = () => {
+        if (closeTimerRef.current) {
+            window.clearTimeout(closeTimerRef.current);
+        }
+
+        closeTimerRef.current = window.setTimeout(() => {
+            setSystemMenuOpen(false);
+            closeTimerRef.current = null;
+        }, 160);
+    };
 
     return (
         <nav className={`autodrive-marketing-header ${mobileMenuOpen ? 'mobile-menu-open' : ''}`} style={{ padding: 'clamp(1rem, 4vw, 2rem) 5%', position: 'absolute', width: '100%', zIndex: 100, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
@@ -18,12 +47,20 @@ const Navigation: React.FC = () => {
                 <span></span>
             </button>
             <div className="autodrive-left-nav" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                <div className="autodrive-system-group">
-                    <button type="button" className="autodrive-menu-link autodrive-system-trigger">
+                <div
+                    className="autodrive-system-group"
+                    onMouseEnter={openSystemMenu}
+                    onMouseLeave={scheduleSystemMenuClose}
+                >
+                    <button
+                        type="button"
+                        className="autodrive-menu-link autodrive-system-trigger"
+                        onFocus={openSystemMenu}
+                    >
                         System
                         <span className="autodrive-system-caret">▾</span>
                     </button>
-                    <div className="autodrive-system-dropdown">
+                    <div className={`autodrive-system-dropdown ${systemMenuOpen ? 'is-open' : ''}`}>
                         <a href="/Autoknerd" className="autodrive-system-item">
                             <span className="autodrive-system-title">AutoKnerd</span>
                             <span className="autodrive-system-subtitle">Performance Intelligence</span>

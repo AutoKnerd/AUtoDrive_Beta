@@ -3,31 +3,11 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { UserRole as UserRoleType, CxTrait as CxTraitType, LessonCategory as LessonCategoryType } from '@/lib/definitions';
+import { LessonCategory as LessonCategoryType, lessonCategories } from '@/lib/definitions';
 
 const UserRoleSchema = z.enum(['Developer', 'Admin', 'Owner', 'Trainer', 'General Manager', 'manager', 'Service Manager', 'Parts Manager', 'Finance Manager', 'Sales Consultant', 'BDC', 'Service Writer', 'Parts Consultant']);
 const CxTraitSchema = z.enum(['empathy', 'listening', 'trust', 'followUp', 'closing', 'relationshipBuilding']);
-const LessonCategorySchema = z.enum([
-    'Sales - Meet and Greet',
-    'Sales - Needs Assessment',
-    'Sales - Vehicle Presentation',
-    'Sales - Test Drive',
-    'Sales - Negotiation',
-    'Sales - Closing',
-    'Sales - Delivery',
-    'Sales - Follow-up',
-    'Service - Appointment',
-    'Service - Write-up',
-    'Service - Walk-around',
-    'Service - Presenting MPI',
-    'Service - Status Updates',
-    'Service - Active Delivery',
-    'Parts - Identifying Needs',
-    'Parts - Sourcing',
-    'F&I - Menu Selling',
-    'F&I - Objection Handling',
-    'Product Knowledge',
-]);
+const LessonCategorySchema = z.enum(lessonCategories as [LessonCategoryType, ...LessonCategoryType[]]);
 
 
 const SuggestScenarioInputSchema = z.object({

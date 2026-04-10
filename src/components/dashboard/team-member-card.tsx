@@ -15,7 +15,6 @@ import isEqual from 'lodash.isequal';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { CreateLessonForm } from '../lessons/create-lesson-form';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { BadgeShowcase } from '../profile/badge-showcase';
 import { managerialRoles } from '@/lib/definitions';
@@ -55,7 +54,6 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   const [isModifying, setIsModifying] = useState(false);
   const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
   const [confirmationInput, setConfirmationInput] = useState('');
-  const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [recentActivityDate, setRecentActivityDate] = useState<string | null>(null);
   const [freshUpInsights, setFreshUpInsights] = useState<DealerFreshUpInsights | null>(null);
@@ -260,14 +258,6 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
     });
   }
 
-  const handleLessonCreated = () => {
-    setCreateLessonOpen(false);
-    toast({
-      title: "Lesson Created & Assigned!",
-      description: "The new lesson has been assigned to the user."
-    })
-  };
-
   const recentActivity = useMemo(() => {
     if (!activity.length) return null;
     return activity[0];
@@ -422,7 +412,6 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
   };
   
   const canManageAssignments = currentUser.userId !== user.userId && getTeamMemberRoles(currentUser.role).includes(user.role);
-  const canAssignLessons = ['Owner', 'Admin', 'Trainer', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(currentUser.role);
 
   const targetUserScope = useMemo(() => {
     return getDefaultScope(user);
@@ -905,23 +894,6 @@ export function TeamMemberCard({ user, currentUser, dealerships, onAssignmentUpd
         
        
 
-        {canAssignLessons && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Create & Assign Custom Lesson</CardTitle>
-                    <CardDescription>Design a new lesson and assign it directly to this team member.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <CreateLessonForm 
-                        user={currentUser} 
-                        onLessonCreated={handleLessonCreated}
-                        assignOnCreateToUserId={user.userId}
-                        assignerId={currentUser.userId}
-                    />
-                </CardContent>
-            </Card>
-        )}
-      
        {canManageAssignments && (
             <Card>
                 <CardHeader>

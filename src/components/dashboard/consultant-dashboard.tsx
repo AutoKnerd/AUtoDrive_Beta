@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { isToday } from 'date-fns';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import type { User, Lesson, LessonLog, CxTrait, Badge, Dealership, LessonRole, ThemePreference } from '@/lib/definitions';
 import {
@@ -23,7 +24,7 @@ import {
   type FreshUpCoachingInsight,
 } from '@/lib/data.client';
 import { calculateLevel } from '@/lib/xp';
-import { BookOpen, TrendingUp, Check, ArrowUp, Trophy, Spline, LucideIcon, Lock, ChevronRight, Users, Ear, Handshake, Repeat, Target, Smile, AlertCircle } from 'lucide-react';
+import { TrendingUp, Check, ArrowUp, Trophy, Spline, LucideIcon, Lock, Users, Ear, Handshake, Repeat, Smile, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
@@ -42,7 +43,7 @@ import { BadgeShowcase } from '../profile/badge-showcase';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { cn } from '@/lib/utils';
 import { UserNav } from '../layout/user-nav';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
@@ -55,6 +56,7 @@ import { TodayActionCard } from './today-action-card';
 import { evaluateUpMeterState, getUpMeterProgress, pickFreshUpProfile } from '@/lib/fresh-up';
 import { resolveAisRoleType } from '@/lib/ais-role-adaptive';
 import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
+import { AutoForgeDialog, type AutoForgeContext } from '../lessons/autoforge-dialog';
 
 interface ConsultantDashboardProps {
   user: User;
@@ -619,8 +621,8 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const availableRecommendedLesson = recommendedLessonQueue?.[0] ?? null;
   
   const hasAvailableLessons = useMemo(() => {
-    return !loading && ((availableRecommendedLesson && !lessonLimits.recommendedTaken) || assignedLessons.length > 0);
-  }, [loading, availableRecommendedLesson, lessonLimits.recommendedTaken, assignedLessons.length]);
+    return !loading && !!(availableRecommendedLesson && !lessonLimits.recommendedTaken);
+  }, [loading, availableRecommendedLesson, lessonLimits.recommendedTaken]);
 
   const todayRecommendedLessonId = activity.find(log => log.isRecommended && isToday(log.timestamp))?.lessonId ?? null;
   const todayRecommendedLesson = todayRecommendedLessonId
@@ -676,7 +678,7 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
 
   const showTestingControls = !needsBaselineAssessment && (canRetakeRecommendedTesting || canUseNewRecommendedTesting);
   const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
-  const showAssignedInPppRow = pppCardCount === 1;
+  const showPersonalAutoForgeInPppRow = pppCardCount === 1;
   const consultantLevel = useMemo(() => calculateLevel(user.xp).level, [user.xp]);
   const aisRoleType = useMemo(() => resolveAisRoleType(user.role), [user.role]);
   const roleLabels = useMemo(() => getRoleLabels(resolveRoleLabelKeyFromUserRole(user.role)), [user.role]);
@@ -687,6 +689,37 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
   const freshUpAvailable = user.freshUpAvailable === true;
   const upMeterState = evaluateUpMeterState(freshUpMeter, freshUpAvailable);
   const upMeterProgress = getUpMeterProgress(freshUpMeter);
+  const personalAutoForgeContext = useMemo<AutoForgeContext>(() => {
+    const strongestEntry = Object.entries(averageScores).reduce((highest, [trait, score]) => (
+      (score as number) > highest.score ? { trait: trait as CxTrait, score: score as number } : highest
+    ), { trait: 'empathy' as CxTrait, score: Number.NEGATIVE_INFINITY });
+    const weakestScore = averageScores[lowestScoringTrait];
+    const recentCompletedLessons = activity
+      .filter((log) => log.activitySource !== 'fresh-up')
+      .slice(0, 3)
+      .map((log) => lessons.find((lesson) => lesson.lessonId === log.lessonId)?.title)
+      .filter((title): title is string => Boolean(title));
+
+    const summaryParts = [
+      `${user.name} is a ${user.role} with ${user.xp.toLocaleString()} XP and Level ${consultantLevel}.`,
+      `Strongest skill: ${CX_TRAIT_LABELS[strongestEntry.trait]} at ${strongestEntry.score}%.`,
+      `Watch area: ${CX_TRAIT_LABELS[lowestScoringTrait]} at ${weakestScore}%.`,
+      `Fresh Up meter: ${freshUpMeter} / 100 (${upMeterState}).`,
+      coachingInsight ? `Current coaching focus: ${coachingInsight.coachingTopic}.` : null,
+      recentCompletedLessons.length > 0 ? `Recent completed lessons: ${recentCompletedLessons.join(', ')}.` : null,
+    ].filter((part): part is string => Boolean(part));
+
+    const personalSignals = [
+      `Use a simple weekly practice built around ${CX_TRAIT_LABELS[lowestScoringTrait].toLowerCase()}.`,
+      coachingInsight ? `Coach focus: ${coachingInsight.recommendedPractice}.` : null,
+      freshUpAvailable ? `Fresh Up is available and ready to raise the bar.` : null,
+    ].filter((signal): signal is string => Boolean(signal));
+
+    return {
+      personalPerformanceSummary: summaryParts.join(' '),
+      personalSignals,
+    };
+  }, [activity, averageScores, coachingInsight, consultantLevel, freshUpAvailable, freshUpMeter, lessons, lowestScoringTrait, user.name, user.role, user.xp, upMeterState]);
   const shouldShowSurfaceToggle = true;
   const trainingSurfaceHref = '/';
   const isToolsActive = Boolean(pathname?.startsWith('/tools') || pathname?.startsWith('/autoshop'));
@@ -705,41 +738,34 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
     return uniqueTraits.slice(0, 2).map((trait) => CX_TRAIT_LABELS[trait]);
   }, [recommendedLessonQueue]);
 
-  const assignedCard = (
+  const personalAutoForgeCard = (
     <Card className={cn(
-      `flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`,
+      'flex flex-col justify-between border border-red-500/80 bg-black p-6 shadow-[0_0_0_1px_rgba(239,68,68,0.45),0_0_28px_rgba(0,0,0,0.35)] dark:border-red-400/80 dark:bg-black',
       isPaused && "opacity-50 pointer-events-none"
     )}>
-      <div className="flex-1">
-        <div className="flex items-center gap-3 mb-2">
-          <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
-          <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
-        </div>
-        <p className="text-sm text-muted-foreground mb-4">Lessons assigned to you by your manager.</p>
-      </div>
-      <div className="space-y-2">
-        {assignedLessons.length > 0 ? (
-          assignedLessons.map(lesson => (
-            <Link
-              key={lesson.lessonId}
-              href={`/lesson/${lesson.lessonId}`}
-              className={cn(
-                "w-full justify-between text-black hover:text-black lesson-ready-pulse",
-                buttonVariants({
-                  className: "w-full font-normal bg-[#8DC63F] hover:bg-[#7FB735] shadow-[0_0_20px_rgba(141,198,63,0.35)]",
-                })
-              )}
-            >
-              <span className="truncate">{lesson.title}</span>
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          ))
-        ) : (
-          <div className="rounded-md border border-border bg-muted/50 p-4 text-center text-muted-foreground dark:border-slate-700 dark:bg-slate-800/50">
-            No assigned lessons
+      <CardHeader className="p-0 pb-4 text-center">
+        <div className="flex items-center justify-center">
+          <div className="relative h-36 w-72 overflow-hidden rounded-md">
+            <Image
+              src="/AutoForge logo.png"
+              alt="Personal AutoForge"
+              fill
+              sizes="288px"
+              className="object-contain"
+            />
           </div>
-        )}
-      </div>
+        </div>
+        <CardDescription className="text-center text-sm text-muted-foreground">
+          A personal growth engine built from your own CX data.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 p-0">
+        <AutoForgeDialog
+          user={user}
+          autoForgeContext={personalAutoForgeContext}
+          mode="personal"
+        />
+      </CardContent>
     </Card>
   );
 
@@ -1043,24 +1069,24 @@ export function ConsultantDashboard({ user, sprocketTourPreviewNonce = 0, isSpro
               {saasPppFeatureEnabled && (
                 <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
               )}
-              {showAssignedInPppRow && (loading ? (
+              {showPersonalAutoForgeInPppRow && (loading ? (
                 <Skeleton className="h-full min-h-[160px] rounded-2xl" />
               ) : (
-                assignedCard
+                personalAutoForgeCard
               ))}
             </div>
           </section>
         )}
 
-        {!showAssignedInPppRow && (
+        {!showPersonalAutoForgeInPppRow && (
           <section id="lessons" className="space-y-4">
-            <h2 className="text-xl font-bold text-foreground">Today's Lessons</h2>
+            <h2 className="text-xl font-bold text-foreground">Personal AutoForge</h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {loading ? (
                 <Skeleton className="h-full min-h-[160px] rounded-2xl" />
               ) : (
                 <>
-                  {assignedCard}
+                  {personalAutoForgeCard}
                 </>
               )}
             </div>

@@ -232,7 +232,9 @@
     pointer-events: none;
   }
 
-  .dropdown-group:hover .dropdown-animate {
+  .dropdown-group:hover .dropdown-animate,
+  .dropdown-group:focus-within .dropdown-animate,
+  .dropdown-animate-open {
     transform: translateY(0);
     opacity: 1;
     pointer-events: auto;

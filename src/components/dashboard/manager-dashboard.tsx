@@ -3,11 +3,12 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
 import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData, getFreshUpCommandCenter, type FreshUpCommandCenterResult } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
-import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, PlusCircle, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ListChecks, ChevronRight, AlertCircle } from 'lucide-react';
+import { BarChart, BookOpen, CheckCircle, ShieldOff, Smile, Star, Users, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ChevronRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,7 +18,7 @@ import Link from 'next/link';
 import { Badge as UiBadge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Button, buttonVariants } from '../ui/button';
-import { CreateLessonForm } from '../lessons/create-lesson-form';
+import { AutoForgeDialog, type AutoForgeContext } from '../lessons/autoforge-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeamMemberCard } from './team-member-card';
 import { AssignUserForm } from '../admin/assign-user-form';
@@ -38,7 +39,6 @@ import { CreateDealershipForm } from '../admin/create-dealership-form';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
-import { CreatedLessonsView } from '../lessons/created-lessons-view';
 import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
 import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
@@ -249,6 +249,87 @@ function lowestTraitFromSnapshot(scores: CxScoreSnapshot): CxTrait {
     .reduce((lowest, current) => (current[1] < lowest[1] ? current : lowest), ['empathy', Number.POSITIVE_INFINITY])[0];
 }
 
+function inferDepartmentLabel(role: UserRole): string {
+  switch (role) {
+    case 'manager':
+      return 'Sales';
+    case 'Service Manager':
+      return 'Service';
+    case 'Parts Manager':
+      return 'Parts';
+    case 'Finance Manager':
+      return 'F&I';
+    case 'General Manager':
+    case 'Owner':
+      return 'Storewide Leadership';
+    default:
+      return 'Storewide';
+  }
+}
+
+function buildAutoForgeContext(input: {
+  department: string;
+  dealershipName: string;
+  dealershipScopeLabel: string;
+  stats: { avgScores: Record<CxTrait, number> | null } | null;
+  teamActivity: TeamMemberStats[];
+}): AutoForgeContext {
+  const activeMembers = input.teamActivity.filter((member) => !member.pendingInvite && member.consultant.role !== 'Owner');
+  const scoredMembers = activeMembers
+    .map((member) => scoreSnapshotFromUserStats(member.consultant))
+    .filter((snapshot): snapshot is CxScoreSnapshot => snapshot !== null);
+  const autoForgeAverageScores = scoredMembers.length
+    ? (Object.keys(scoredMembers[0]) as CxTrait[]).reduce((acc, trait) => {
+        const total = scoredMembers.reduce((sum, snapshot) => sum + snapshot[trait], 0);
+        acc[trait] = total / scoredMembers.length;
+        return acc;
+      }, {} as Record<CxTrait, number>)
+    : input.stats?.avgScores;
+  const weakestMember = [...activeMembers].sort((a, b) => a.avgScore - b.avgScore)[0] || null;
+  const weakestMemberSignals = [...activeMembers]
+    .sort((a, b) => a.avgScore - b.avgScore)
+    .slice(0, 3)
+    .map((member) => ({
+      name: resolveTeamMemberName(member),
+      role: member.consultant.role,
+      weakestTrait: member.weakestSkill,
+      avgScore: Math.round(member.avgScore),
+    }));
+
+  const weakestTeamTrait = autoForgeAverageScores
+    ? (Object.entries(autoForgeAverageScores) as [CxTrait, number][])
+        .sort((a, b) => a[1] - b[1])[0]
+    : null;
+
+  const summaryParts: string[] = [
+    input.dealershipName ? `Dealership: ${input.dealershipName}.` : '',
+    input.dealershipScopeLabel ? `Scope: ${input.dealershipScopeLabel}.` : '',
+    weakestTeamTrait
+      ? `Primary team gap: ${prettyTraitName(weakestTeamTrait[0])} at ${Math.round(weakestTeamTrait[1])}%.`
+      : '',
+    weakestMember
+      ? `Lowest individual average: ${resolveTeamMemberName(weakestMember)} (${weakestMember.consultant.role}, ${Math.round(weakestMember.avgScore)}%).`
+      : '',
+    weakestMemberSignals.length
+      ? `Key at-risk members: ${weakestMemberSignals
+          .map((member) => `${member.name} (${member.role})${member.weakestTrait ? `, weakest ${prettyTraitName(member.weakestTrait)}` : ''}${typeof member.avgScore === 'number' ? `, ${member.avgScore}%` : ''}`)
+          .join('; ')}.`
+      : '',
+  ].filter(Boolean);
+
+  return {
+    department: input.department,
+    dealershipName: input.dealershipName,
+    dealershipScopeLabel: input.dealershipScopeLabel,
+    departmentPerformanceSummary: summaryParts.join(' '),
+    memberSignals: weakestMemberSignals.map((member) => `${member.name} (${member.role})${member.weakestTrait ? `, weakest ${prettyTraitName(member.weakestTrait)}` : ''}${typeof member.avgScore === 'number' ? `, ${member.avgScore}%` : ''}`),
+  };
+}
+
+function prettyTraitName(trait: CxTrait): string {
+  return trait.replace(/([A-Z])/g, ' $1').replace(/^./, (value) => value.toUpperCase());
+}
+
 function parseCoachingAlert(alert: string): { repName: string; reason: string } {
   const normalized = alert.trim();
   if (!normalized) return { repName: 'Unknown rep', reason: 'No reason provided' };
@@ -378,9 +459,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [assignedLessons, setAssignedLessons] = useState<Lesson[]>([]);
   const [assignedLessonHistoryIds, setAssignedLessonHistoryIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isCreateLessonOpen, setCreateLessonOpen] = useState(false);
-  const [isCreatedLessonsOpen, setCreatedLessonsOpen] = useState(false);
-  const [createdLessonsRefreshKey, setCreatedLessonsRefreshKey] = useState(0);
   const [isManageUsersOpen, setManageUsersOpen] = useState(false);
   const [isMessageDialogOpen, setMessageDialogOpen] = useState(false);
   const [memberSince, setMemberSince] = useState<string | null>(null);
@@ -640,11 +718,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
     setGuidedTourStep(0);
   }, [user.role]);
 
-  const handleLessonCreated = () => {
-    setCreateLessonOpen(false);
-    setCreatedLessonsRefreshKey((current) => current + 1);
-  };
-
   const handleDealershipChange = (dealershipId: string) => {
     if (dealershipId === 'all' && !canViewAllStores && !canViewAssignedStoresAggregate) return;
     setSelectedDealershipId(dealershipId);
@@ -825,29 +898,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const showTodaysLessonsCard = !noPersonalDevelopmentRoles.includes(user.role);
   const pppCardCount = (pppFeatureEnabled ? 1 : 0) + (saasPppFeatureEnabled ? 1 : 0);
   const showAssignedInPppRow = showTodaysLessonsCard && pppCardCount === 1;
-  const assignedLessonCard = (
-    <Card className={`flex flex-col justify-between p-6 ${dashboardFeatureCardClass}`}>
-      <div>
-        <div className="mb-2 flex items-center gap-3">
-          <BookOpen className="h-8 w-8 text-primary dark:text-cyan-400" />
-          <h3 className="text-2xl font-bold text-foreground">Assigned</h3>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">Training assigned specifically to you.</p>
-      </div>
-      {loading ? (
-        <Skeleton className="h-10 w-full" />
-      ) : assignedLessons.length > 0 ? (
-        <Link href={`/lesson/${assignedLessons[0].lessonId}`} className={cn("w-full text-black", buttonVariants({ className: "w-full font-bold bg-[#8DC63F]" }))}>
-          {assignedLessons[0].title}
-        </Link>
-      ) : (
-        <Button variant="outline" disabled className={dashboardDisabledButtonClass}>
-          No assignments
-        </Button>
-      )}
-    </Card>
-  );
-
   const dealershipInsights = useMemo(() => {
     if (!stats?.avgScores) return { bestStat: null, watchStat: null };
     const scores = Object.entries(stats.avgScores) as [CxTrait, number][];
@@ -909,6 +959,57 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const canMessage = ['Owner', 'General Manager', 'manager', 'Service Manager', 'Parts Manager'].includes(user.role);
   const isOwnerDashboardRole = user.role === 'Owner';
   const isGmDashboardRole = ['General Manager', 'manager', 'Admin', 'Developer'].includes(user.role);
+  const autoForgeContext = useMemo(() => {
+    const selectedDealershipName =
+      selectedDealershipId === 'all'
+        ? (canViewAllStores ? 'All Stores' : 'Assigned Stores')
+        : (dealerships.find((dealership) => dealership.id === selectedDealershipId)?.name || 'Selected Dealership');
+
+    const selectedScopeLabel =
+      selectedDealershipId === 'all'
+        ? (canViewAllStores ? 'All dealerships in scope' : 'All assigned dealerships')
+        : `Dealership ${selectedDealershipName}`;
+
+    return buildAutoForgeContext({
+      department: inferDepartmentLabel(user.role),
+      dealershipName: selectedDealershipName,
+      dealershipScopeLabel: selectedScopeLabel,
+      stats,
+      teamActivity,
+    });
+  }, [canViewAllStores, dealerships, selectedDealershipId, stats, teamActivity, user.role]);
+
+  const managerAutoForgeCard = (
+    <Card className="flex flex-col justify-between border border-red-500/80 bg-black p-6 shadow-[0_0_0_1px_rgba(239,68,68,0.45),0_0_28px_rgba(0,0,0,0.35)] dark:border-red-400/80 dark:bg-black">
+      <CardHeader className="p-0 pb-4 text-center">
+        <div className="flex items-center justify-center">
+          <div className="relative h-36 w-72 overflow-hidden rounded-md">
+            <Image
+              src="/AutoForge logo.png"
+              alt="AutoForge"
+              fill
+              sizes="288px"
+              className="object-contain"
+            />
+          </div>
+        </div>
+        <CardDescription className="text-center text-sm text-muted-foreground">
+          A manager-led growth engine built from your dealership data.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 p-0">
+        {loading ? (
+          <Skeleton className="h-10 w-full" />
+        ) : (
+          <AutoForgeDialog
+            user={user}
+            autoForgeContext={autoForgeContext}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+
   const effectiveLeadershipData = useMemo<DealerLeadershipResponse | null>(() => {
     if (isTouring) {
       return buildTourLeadershipData(teamActivity);
@@ -1351,7 +1452,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                   {saasPppFeatureEnabled && (
                     <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
                   )}
-                  {showAssignedInPppRow && assignedLessonCard}
+                  {showAssignedInPppRow && managerAutoForgeCard}
               </div>
           </section>
       )}
@@ -1392,7 +1493,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                 </Button>
               )}
             </Card>
-            {assignedLessonCard}
+            {managerAutoForgeCard}
           </div>
         </section>
       )}
@@ -1446,20 +1547,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
                                     </DialogContent>
                                 </Dialog>
                             )}
-                            <Dialog open={isCreatedLessonsOpen} onOpenChange={setCreatedLessonsOpen}>
-                                <DialogTrigger asChild><Button variant="outline" size="sm"><ListChecks className="mr-2 h-4 w-4" />Created Lessons</Button></DialogTrigger>
-                                <DialogContent className="sm:max-w-[820px]">
-                                    <DialogHeader><DialogTitle>Created Lessons</DialogTitle></DialogHeader>
-                                    <ScrollArea className="max-h-[70vh] pr-6"><CreatedLessonsView user={user} dealershipId={selectedDealershipId} refreshKey={createdLessonsRefreshKey} /></ScrollArea>
-                                </DialogContent>
-                            </Dialog>
-                            <Dialog open={isCreateLessonOpen} onOpenChange={setCreateLessonOpen}>
-                                <DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2 h-4 w-4" />Create Lesson</Button></DialogTrigger>
-                                <DialogContent className="sm:max-w-[625px]">
-                                    <DialogHeader><DialogTitle>Create New Lesson</DialogTitle></DialogHeader>
-                                    <CreateLessonForm user={user} onLessonCreated={handleLessonCreated} scopedDealershipId={selectedDealershipId} />
-                                </DialogContent>
-                            </Dialog>
                         </div>
                     </div>
                 </CardHeader>

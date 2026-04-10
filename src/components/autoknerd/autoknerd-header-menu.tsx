@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Menu } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import {
@@ -47,6 +48,8 @@ export function AutoknerdHeaderMenu({
   tone = 'dark',
 }: AutoknerdHeaderMenuProps) {
   const { user } = useAuth();
+  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
   const mobileMenuCta = user
     ? { href: '/Autoknerd/find-your-fit', label: 'Find Your Fit' }
     : { href: '/login', label: 'Login' };
@@ -100,6 +103,33 @@ export function AutoknerdHeaderMenu({
       : isLightTone
         ? 'text-slate-500'
         : 'text-zinc-500';
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const openSystemMenu = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsSystemMenuOpen(true);
+  };
+
+  const scheduleSystemMenuClose = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+
+    closeTimerRef.current = window.setTimeout(() => {
+      setIsSystemMenuOpen(false);
+      closeTimerRef.current = null;
+    }, 160);
+  };
 
   return (
     <div className={cn('flex items-center gap-8 md:min-w-0', className)}>
@@ -167,19 +197,25 @@ export function AutoknerdHeaderMenu({
       </Sheet>
 
       <nav className="hidden h-full items-center space-x-8 md:flex">
-        <div className="dropdown-group relative flex h-full items-center">
+        <div
+          className="dropdown-group relative flex items-center"
+          onMouseEnter={openSystemMenu}
+          onMouseLeave={scheduleSystemMenuClose}
+        >
           <button
             className={cn(
               'flex items-center gap-1 text-sm uppercase tracking-tight transition-all duration-300',
               isLightTone ? 'text-slate-600 hover:text-slate-950' : 'text-zinc-400 hover:text-zinc-100'
             )}
+            onFocus={openSystemMenu}
           >
             System
             <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
           </button>
           <div
             className={cn(
-              'dropdown-animate absolute left-0 top-full flex w-64 flex-col space-y-2 border p-4 shadow-2xl',
+              'dropdown-animate absolute left-0 top-full z-50 flex w-64 flex-col space-y-2 border p-4 shadow-2xl',
+              isSystemMenuOpen && 'dropdown-animate-open',
               systemDropdownClassName
             )}
           >

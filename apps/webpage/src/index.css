@@ -188,13 +188,13 @@ section {
 
 .autodrive-system-dropdown {
   position: absolute;
-  top: calc(100% + 18px);
+  top: 100%;
   left: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   width: 16rem;
-  padding: 1rem;
+  padding: 18px 0 0;
   border: 1px solid rgba(52, 136, 186, 0.24);
   background: rgba(8, 18, 30, 0.96);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
@@ -204,6 +204,7 @@ section {
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
+.autodrive-system-dropdown.is-open,
 .autodrive-system-group:hover .autodrive-system-dropdown {
   opacity: 1;
   transform: translateY(0);
