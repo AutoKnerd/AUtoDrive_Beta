@@ -71,15 +71,24 @@ export function TodaysDriveCard({
             </Button>
           </>
         ) : (
-          <Button
-            asChild
-            className="group lesson-ready-pulse h-12 w-full bg-[#7CC242] font-bold tracking-wide text-slate-950 shadow-[0_0_20px_rgba(124,194,66,0.35)] transition-transform duration-150 hover:bg-[#8ED24F] active:translate-y-[1px]"
-          >
-            <Link href="/ppp">
-              Press Start
-              <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" />
-            </Link>
-          </Button>
+          <>
+            <Button
+              asChild
+              className="group lesson-ready-pulse h-12 w-full bg-[#7CC242] font-bold tracking-wide text-slate-950 shadow-[0_0_20px_rgba(124,194,66,0.35)] transition-transform duration-150 hover:bg-[#8ED24F] active:translate-y-[1px]"
+            >
+              <Link href="/ppp">
+                Press Start
+                <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              className="w-full justify-start px-1 text-sm font-medium text-cyan-100/80 hover:bg-white/5 hover:text-cyan-50"
+            >
+              <Link href="/ppp">Start the &quot;CX Road to the Sale&quot; and level up faster</Link>
+            </Button>
+          </>
         )}
       </CardContent>
     </Card>

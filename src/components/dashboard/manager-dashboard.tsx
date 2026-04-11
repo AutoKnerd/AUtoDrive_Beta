@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import type { User, LessonLog, Lesson, LessonRole, CxTrait, Dealership, Badge, UserRole, PendingInvitation, ThemePreference } from '@/lib/definitions';
 import { managerialRoles, noPersonalDevelopmentRoles, allRoles } from '@/lib/definitions';
-import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getPppAccessForUser, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData, getFreshUpCommandCenter, type FreshUpCommandCenterResult } from '@/lib/data.client';
+import { getCombinedTeamData, getLessons, getConsultantActivity, getDealerships, getDealershipById, getManageableUsers, getEarnedBadgesByUserId, getDailyLessonLimits, getPendingInvitations, createInvitationLink, getAssignedLessons, getAllAssignedLessonIds, getSystemReport, getSaasPppAccessForUser, ensureDailyRecommendedLesson, recalculateDealershipData } from '@/lib/data.client';
 import type { SystemReport } from '@/lib/data.client';
 import { BarChart, CheckCircle, ShieldOff, Smile, Star, Users, Store, TrendingUp, TrendingDown, Building, MessageSquare, Ear, Handshake, Repeat, Target, Info, Settings, ArrowUpDown, ChevronRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +41,7 @@ import { useToast } from '@/hooks/use-toast';
 import { BaselineAssessmentDialog } from './baseline-assessment-dialog';
 import { CxSoundwaveCard, type CxRange } from '@/components/cx/CxSoundwaveCard';
 import { getDefaultScope } from '@/lib/cx/scope';
-import { PppDashboardCard } from '@/components/ppp/ppp-dashboard-card';
+import { getUpMeterProgress } from '@/lib/fresh-up';
 import { SaasPppDashboardCard } from '@/components/saas-ppp/saas-ppp-dashboard-card';
 import { ManagerGuidedTour } from './manager-guided-tour';
 import { getRoleLabels, resolveRoleLabelKeyFromUserRole } from '@/config/roleLabels';
@@ -415,32 +415,78 @@ function buildTourLeadershipData(teamActivity: TeamMemberStats[]): DealerGmDashb
   };
 }
 
-function LevelDisplay({ user }: { user: User }) {
+function LevelDisplay({
+  user,
+  freshUpMeter,
+  freshUpAvailable,
+  interactionLabel,
+}: {
+  user: User;
+  freshUpMeter: number;
+  freshUpAvailable: boolean;
+  interactionLabel: string;
+}) {
     const { level, levelXp, nextLevelXp, progress } = calculateLevel(user.xp);
+    const freshUpProgress = getUpMeterProgress(freshUpMeter);
+    const freshUpStateLabel = freshUpAvailable ? interactionLabel : 'Fresh Up momentum';
 
     if (level >= 100) {
         return (
-             <div className="space-y-2">
-                <p className="text-2xl font-bold">Level 100 - Master</p>
+             <div className="space-y-3">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-2xl font-bold">Level 100 - Master</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total {user.xp.toLocaleString()} XP</p>
+                </div>
+                <div className="space-y-2">
+                  <Progress
+                    value={100}
+                    className="h-4 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-blue-500 dark:border-slate-600 dark:bg-slate-700/50 dark:[&>div]:from-cyan-400"
+                  />
+                  <Progress
+                    value={freshUpProgress}
+                    className="h-1.5 rounded-full bg-emerald-500/15 [&>div]:bg-emerald-500"
+                  />
+                </div>
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">100 / 100 XP</span>
+                  <span className={cn(freshUpAvailable ? 'text-emerald-500' : 'text-emerald-600/80')}>
+                    {freshUpStateLabel}
+                  </span>
+                </div>
                 <p className="text-sm text-primary">You have reached the pinnacle of sales excellence!</p>
             </div>
         )
     }
 
     return (
-        <div className="w-full space-y-2">
-            <div className="flex items-baseline gap-4">
-                <p className="text-3xl font-bold text-foreground">Level {level}</p>
+        <div className="w-full space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Progress</p>
+                  <p className="text-3xl font-bold text-foreground">Level {level}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total XP</p>
+                  <p className="text-sm font-semibold text-primary">{user.xp.toLocaleString()}</p>
+                </div>
+            </div>
+            <div className="space-y-2">
                 <Progress
                   value={progress}
                   className="h-4 border border-border bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-blue-500 dark:border-slate-600 dark:bg-slate-700/50 dark:[&>div]:from-cyan-400"
                 />
+                <Progress
+                  value={freshUpProgress}
+                  className="h-1.5 rounded-full bg-emerald-500/15 [&>div]:bg-emerald-500"
+                />
             </div>
-            <div className="flex justify-between text-xs font-semibold">
-                <span className="text-muted-foreground">{levelXp.toLocaleString()} / {nextLevelXp.toLocaleString()}</span>
-                <p className="text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
+            <div className="flex items-center justify-between gap-3 text-xs font-semibold">
+                <span className="text-muted-foreground">{levelXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
+                <span className={cn(freshUpAvailable ? 'text-emerald-500' : 'text-emerald-600/80')}>
+                  {freshUpStateLabel}
+                </span>
             </div>
-             <p className="text-primary text-right font-semibold">Total: {user.xp.toLocaleString()} XP</p>
+            <p className="text-xs text-muted-foreground">{user.role === 'manager' ? 'Sales Manager' : user.role}</p>
         </div>
     );
 }
@@ -464,7 +510,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [lessonLimits, setLessonLimits] = useState({ recommendedTaken: false, otherTaken: false });
   const [showGuidedTour, setShowGuidedTour] = useState(false);
   const [guidedTourStep, setGuidedTourStep] = useState(0);
-  const [pppFeatureEnabled, setPppFeatureEnabled] = useState(false);
   const [saasPppFeatureEnabled, setSaasPppFeatureEnabled] = useState(false);
 
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
@@ -484,8 +529,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
   const [dealerLeadershipData, setDealerLeadershipData] = useState<DealerLeadershipResponse | null>(null);
   const [dealerLeadershipLoading, setDealerLeadershipLoading] = useState(false);
   const [dealerLeadershipError, setDealerLeadershipError] = useState<string | null>(null);
-  const [commandCenter, setCommandCenter] = useState<FreshUpCommandCenterResult | null>(null);
-  const [commandCenterLoading, setCommandCenterLoading] = useState(false);
   const router = useRouter();
   const canViewAllStores = ['Admin', 'Developer'].includes(user.role);
   const canViewAssignedStoresAggregate = !canViewAllStores && (user.dealershipIds?.length ?? 0) > 1;
@@ -496,6 +539,8 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
 
   const themePreference = user.themePreference || (user.useProfessionalTheme ? 'executive' : 'vibrant');
   const roleLabels = useMemo(() => getRoleLabels(resolveRoleLabelKeyFromUserRole(user.role)), [user.role]);
+  const freshUpMeter = Math.max(0, Math.round(Number(user.freshUpMeter ?? 0)));
+  const freshUpAvailable = user.freshUpAvailable === true;
 
   const teamContext = useMemo(() => {
     switch (user.role) {
@@ -522,7 +567,7 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       setLoading(true);
       try {
           const combinedDataPromise = getCombinedTeamData(scopedDealershipId, user);
-          const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations, pppAccessEnabled, saasPppAccessEnabled] = await Promise.all([
+          const [combinedData, usersToManage, fetchedLessons, fetchedManagerActivity, fetchedBadges, fetchedAssignedLessons, fetchedAssignedHistoryIds, limits, pendingInvitations, saasPppAccessEnabled] = await Promise.all([
             combinedDataPromise,
             getManageableUsers(user.userId),
             getLessons(user.role as LessonRole, user.userId),
@@ -532,7 +577,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
             getAllAssignedLessonIds(user.userId),
             getDailyLessonLimits(user.userId),
             getPendingInvitations(scopedDealershipId, user),
-            getPppAccessForUser(user, scopedDealershipId).catch(() => false),
             getSaasPppAccessForUser(user, scopedDealershipId).catch(() => false),
           ]);
 
@@ -606,26 +650,13 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
           setAssignedLessons(fetchedAssignedLessons);
           setAssignedLessonHistoryIds(fetchedAssignedHistoryIds);
           setLessonLimits(limits);
-          setPppFeatureEnabled(pppAccessEnabled === true);
           setSaasPppFeatureEnabled(saasPppAccessEnabled === true);
           const hasBaselineLog = fetchedManagerActivity.some(log => String(log.lessonId || '').startsWith('baseline-'));
           const baselineRequired = !isTouring && baselineEligible && !hasBaselineLog;
           setNeedsBaselineAssessment(baselineRequired);
           setShowBaselineAssessment(baselineRequired);
-
-          setCommandCenterLoading(true);
-          const commandCenterResult = await getFreshUpCommandCenter({
-            entityMode: scopedDealershipId === 'all' ? 'platform' : 'dealer',
-            entityId: scopedDealershipId === 'all' ? undefined : scopedDealershipId,
-            filters: {
-              includeSandboxData: false,
-              dealerId: scopedDealershipId === 'all' ? undefined : scopedDealershipId,
-            },
-          });
-          setCommandCenter(commandCenterResult);
       } catch (error) {
           console.warn("Dashboard partially failed to load team data:", error);
-          setPppFeatureEnabled(false);
           setSaasPppFeatureEnabled(false);
           toast({
               variant: 'destructive',
@@ -633,7 +664,6 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
               description: 'Some administrative data could not be retrieved at this time.',
           });
       } finally {
-          setCommandCenterLoading(false);
           setLoading(false);
       }
   }, [user, isTouring, toast, canViewAllStores, canViewAssignedStoresAggregate]);
@@ -1002,14 +1032,10 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 p-0">
-        {loading ? (
-          <Skeleton className="h-10 w-full" />
-        ) : (
-          <AutoForgeDialog
-            user={user}
-            autoForgeContext={autoForgeContext}
-          />
-        )}
+        <AutoForgeDialog
+          user={user}
+          autoForgeContext={autoForgeContext}
+        />
       </CardContent>
     </Card>
   );
@@ -1159,7 +1185,15 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
       </header>
 
       <section className="space-y-3">
-            {loading ? <Skeleton className="h-24 w-full" /> : <div><LevelDisplay user={user} />{memberSince && <p className="text-sm text-muted-foreground mt-2">Member since {memberSince}</p>}</div>}
+        <div>
+          <LevelDisplay
+            user={user}
+            freshUpMeter={freshUpMeter}
+            freshUpAvailable={freshUpAvailable}
+            interactionLabel={roleLabels.interactionLabel}
+          />
+          {memberSince && <p className="text-sm text-muted-foreground mt-2">Member since {memberSince}</p>}
+        </div>
       </section>
 
       <section className="space-y-3">
@@ -1220,119 +1254,9 @@ export function ManagerDashboard({ user }: ManagerDashboardProps) {
         />
       </section>
 
-      <section>
-        <Card className={dashboardFeatureCardClass}>
-          <CardHeader>
-            <CardTitle>CX Command Center</CardTitle>
-            <CardDescription>
-              Leadership briefing view combining digest, risks, goals, alerts, performance, and coaching priority.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {commandCenterLoading ? (
-              <Skeleton className="h-20 w-full" />
-            ) : !commandCenter ? (
-              <p className="text-sm text-muted-foreground">Command Center data is not available yet for this scope.</p>
-            ) : (
-              <>
-                <div className="rounded-md border p-3">
-                  <p className="text-xs font-semibold">Weekly Digest Summary</p>
-                  <p className="mt-1 text-sm">{commandCenter.weeklyDigestSummary.headline}</p>
-                  {commandCenter.weeklyDigestSummary.topInsights.slice(0, 3).map((line, index) => (
-                    <p key={`cc-weekly-${index}`} className="mt-1 text-xs text-muted-foreground">• {line}</p>
-                  ))}
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-md border p-3">
-                    <p className="text-xs font-semibold">Active Risks</p>
-                    <p className="text-xs text-muted-foreground mt-1">{commandCenter.activeRiskRadarSummary.totalActiveRisks} active</p>
-                    {commandCenter.activeRiskRadarSummary.topRisks.slice(0, 2).map((risk) => (
-                      <p key={risk.riskId} className="mt-1 text-xs text-muted-foreground">• {risk.riskType.replace(/_/g, ' ')} ({risk.riskLevel})</p>
-                    ))}
-                  </div>
-                  <div className="rounded-md border p-3">
-                    <p className="text-xs font-semibold">Goals</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Active {commandCenter.goalsAndTargetsSummary.activeGoals} • At Risk {commandCenter.goalsAndTargetsSummary.atRisk}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      On Track {commandCenter.goalsAndTargetsSummary.onTrack} • Stalled {commandCenter.goalsAndTargetsSummary.stalled}
-                    </p>
-                  </div>
-                  <div className="rounded-md border p-3">
-                    <p className="text-xs font-semibold">Alerts</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Total {commandCenter.activeAlertsSummary.totalActiveAlerts} • High {commandCenter.activeAlertsSummary.highSeverityAlerts}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Goal {commandCenter.activeAlertsSummary.goalRelatedAlerts} • Version {commandCenter.activeAlertsSummary.versionRelatedAlerts}
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-md border p-3">
-                  <p className="text-xs font-semibold">Coaching Intelligence</p>
-                  {commandCenter.coachingIntelligence ? (
-                    <>
-                      <p className="mt-1 text-sm text-muted-foreground">{commandCenter.coachingIntelligence.message}</p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">Supporting Evidence:</span> {commandCenter.coachingIntelligence.supportingEvidence}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">Recommended Practice:</span> {commandCenter.coachingIntelligence.recommendedPractice}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">Suggested AutoForge:</span> {commandCenter.coachingIntelligence.suggestedAutoForgeModule}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="mt-1 text-sm text-muted-foreground">{commandCenter.coachingPrioritySummary}</p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">Recommended AutoForge:</span> {commandCenter.autoForgeRecommendationSummary.module}
-                      </p>
-                    </>
-                  )}
-                </div>
-                <div className="rounded-md border p-3">
-                  <p className="text-xs font-semibold">{`${roleLabels.interactionLabel} Performance Snapshot`}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Sessions {commandCenter.freshUpPerformanceSnapshot.totalFreshUpSessions} • {roleLabels.meterLabel} Peak {commandCenter.freshUpPerformanceSnapshot.averageUpMeterPeak} • Trust Shift {commandCenter.freshUpPerformanceSnapshot.averageTrustShift}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Emp {commandCenter.freshUpPerformanceSnapshot.averageEmpathy} • Lis {commandCenter.freshUpPerformanceSnapshot.averageListening} • Trust {commandCenter.freshUpPerformanceSnapshot.averageTrust}
-                  </p>
-                </div>
-                <div className="rounded-md border p-3">
-                  <p className="text-xs font-semibold">Trend + Benchmark Highlights</p>
-                  {commandCenter.trendHighlights.slice(0, 3).map((trend, index) => (
-                    <p key={`cc-trend-${index}`} className="mt-1 text-xs text-muted-foreground">
-                      • {trend.label}: {trend.delta > 0 ? '+' : ''}{trend.delta}
-                    </p>
-                  ))}
-                  {commandCenter.benchmarkSnapshot.highlights.slice(0, 2).map((highlight, index) => (
-                    <p key={`cc-bench-${index}`} className="mt-1 text-xs text-muted-foreground">
-                      • {highlight.metricName}: {highlight.difference > 0 ? '+' : ''}{highlight.difference}
-                    </p>
-                  ))}
-                </div>
-                {commandCenter.narrativeSummary && (
-                  <div className="rounded-md border bg-muted/20 p-3">
-                    <p className="text-xs font-semibold">Leadership Narrative</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{commandCenter.narrativeSummary.narrative}</p>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      {(pppFeatureEnabled || saasPppFeatureEnabled) && (
+      {saasPppFeatureEnabled && (
           <section>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {pppFeatureEnabled && (
-                    <PppDashboardCard user={user} featureEnabled={pppFeatureEnabled} className={dashboardFeatureCardClass} />
-                  )}
                   {saasPppFeatureEnabled && (
                     <SaasPppDashboardCard user={user} featureEnabled={saasPppFeatureEnabled} className={dashboardFeatureCardClass} />
                   )}
