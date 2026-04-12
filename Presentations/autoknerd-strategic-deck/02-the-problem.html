@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AutoKnerd - Slide 02: The Problem</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#17eefa",
+                        "on-surface": "#ffffff",
+                        "primary-container": "#2ff801",
+                        "error-dim": "#d53d18",
+                        "tertiary-fixed-dim": "#00deea",
+                        "surface-container": "#1a1919",
+                        "primary-dim": "#2be800",
+                        "on-background": "#ffffff",
+                        "surface-container-highest": "#262626",
+                        "on-secondary-fixed": "#004a1e",
+                        "primary-fixed-dim": "#2be800",
+                        "on-primary-fixed-variant": "#0d6200",
+                        "surface-tint": "#8eff71",
+                        "tertiary-dim": "#00deea",
+                        "on-error": "#450900",
+                        "surface-container-high": "#201f1f",
+                        "on-secondary": "#005f28",
+                        "inverse-surface": "#fcf8f8",
+                        "secondary-dim": "#82ea96",
+                        "secondary": "#90f9a3",
+                        "outline": "#777575",
+                        "surface-variant": "#262626",
+                        "secondary-fixed": "#90f9a3",
+                        "outline-variant": "#494847",
+                        "on-tertiary": "#005d62",
+                        "on-primary": "#0d6100",
+                        "on-surface-variant": "#adaaaa",
+                        "on-tertiary-fixed": "#003f43",
+                        "surface": "#0e0e0e",
+                        "surface-container-lowest": "#000000",
+                        "inverse-on-surface": "#565554",
+                        "on-primary-container": "#0b5800",
+                        "secondary-container": "#006d2f",
+                        "primary": "#8eff71",
+                        "error": "#ff7351",
+                        "on-primary-fixed": "#064200",
+                        "surface-container-low": "#131313",
+                        "surface-dim": "#0e0e0e",
+                        "on-secondary-fixed-variant": "#006a2e",
+                        "background": "#0e0e0e",
+                        "inverse-primary": "#106f00",
+                        "secondary-fixed-dim": "#82ea96",
+                        "tertiary-container": "#17eefa",
+                        "on-tertiary-container": "#005458",
+                        "primary-fixed": "#2ff801",
+                        "on-tertiary-fixed-variant": "#005e63",
+                        "on-secondary-container": "#e4ffe2",
+                        "surface-bright": "#2c2c2c",
+                        "on-error-container": "#ffd2c8",
+                        "tertiary": "#88f6ff",
+                        "error-container": "#b92902"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+        }
+        .problem-shell {
+            background:
+                radial-gradient(circle at top right, rgba(142,255,113,0.08), transparent 28%),
+                radial-gradient(circle at bottom left, rgba(142,255,113,0.05), transparent 24%),
+                #0e0e0e;
+        }
+        .problem-grid {
+            background-image:
+                linear-gradient(rgba(142,255,113,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(142,255,113,0.04) 1px, transparent 1px);
+            background-size: 80px 80px;
+            mask-image: radial-gradient(circle at center, black 24%, transparent 82%);
+            opacity: 0.3;
+        }
+        .problem-flow {
+            background:
+                radial-gradient(circle at 15% 25%, rgba(142,255,113,0.08), transparent 18%),
+                radial-gradient(circle at 70% 62%, rgba(142,255,113,0.07), transparent 22%);
+            opacity: 0.55;
+        }
+        .problem-section {
+            min-height: 84vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        .problem-card {
+            max-width: 860px;
+        }
+        .problem-kicker {
+            font-family: "Space Grotesk", sans-serif;
+            font-size: 11px;
+            letter-spacing: 0.34em;
+            text-transform: uppercase;
+            color: #8eff71;
+            margin-bottom: 18px;
+        }
+        .problem-title {
+            font-size: clamp(3.4rem, 8vw, 6.8rem);
+            line-height: 0.94;
+            letter-spacing: -0.06em;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #ffffff;
+            margin: 0 0 18px;
+        }
+        .problem-title--section {
+            font-size: clamp(2.5rem, 5vw, 4.4rem);
+            margin-bottom: 24px;
+        }
+        .problem-body {
+            font-size: clamp(1.18rem, 2vw, 1.6rem);
+            line-height: 1.55;
+            color: rgba(255,255,255,0.82);
+            max-width: 640px;
+            white-space: pre-line;
+            margin: 0;
+        }
+        .problem-highlight {
+            color: #8eff71;
+        }
+        .problem-reveal {
+            opacity: 0;
+            transform: translateY(42px);
+            transition: opacity 720ms cubic-bezier(0.22, 1, 0.36, 1), transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .problem-reveal.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .problem-divider {
+            width: 72px;
+            height: 1px;
+            background: rgba(142,255,113,0.55);
+            margin: 0 0 28px;
+        }
+        .problem-note-card {
+            background: rgba(26, 25, 25, 0.8);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+<link href="/Presentations/autoknerd-strategic-deck/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="problem-shell bg-background text-on-background font-body selection:bg-primary selection:text-on-primary-fixed">
+<!-- TopNavBar -->
+<nav class="flex justify-between items-center w-full px-12 py-6 bg-[#000000] fixed top-0 z-50 no-border tonal-shift font-headline font-semibold tracking-tight uppercase">
+<div class="text-2xl font-black text-[#8eff71] tracking-tighter">
+            AutoKnerd
+        </div>
+<div class="hidden md:flex space-x-10 text-xs">
+<a class="text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Executive Summary</a>
+<a class="text-[#8eff71] border-b-2 border-[#8eff71] pb-1 transition-colors duration-300" href="#">Market Growth</a>
+<a class="text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Unit Economics</a>
+<a class="text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">The Vision</a>
+</div>
+<div class="flex items-center">
+<span class="material-symbols-outlined text-[#8eff71] text-2xl transition-all duration-200 scale-95 cursor-pointer">analytics</span>
+</div>
+</nav>
+<!-- SideNavBar (Pagination Indicator) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col items-center py-12 space-y-8 bg-[#000000] w-20 z-40">
+<div class="flex flex-col items-center space-y-10 mt-20">
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out cursor-pointer">radio_button_checked</span>
+<span class="absolute left-16 px-2 py-1 bg-surface-container rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity font-label whitespace-nowrap">Slide 01</span>
+</div>
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-[#8eff71] scale-125 transition-all duration-500 ease-in-out cursor-pointer">fiber_manual_record</span>
+<span class="absolute left-16 px-2 py-1 bg-surface-container rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity font-label whitespace-nowrap">Slide 04</span>
+</div>
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out cursor-pointer">fiber_manual_record</span>
+<span class="absolute left-16 px-2 py-1 bg-surface-container rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity font-label whitespace-nowrap">Slide 08</span>
+</div>
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out cursor-pointer">fiber_manual_record</span>
+<span class="absolute left-16 px-2 py-1 bg-surface-container rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity font-label whitespace-nowrap">Slide 12</span>
+</div>
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out cursor-pointer">star</span>
+<span class="absolute left-16 px-2 py-1 bg-surface-container rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity font-label whitespace-nowrap">Final Pitch</span>
+</div>
+</div>
+<div class="mt-auto pb-10 rotate-180" style="writing-mode: vertical-rl;">
+<p class="font-label text-[10px] tracking-[0.1em] uppercase text-zinc-700">STRATEGIC DECK // V2.0 FY2024</p>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-20 pt-32 px-12 md:px-24 min-h-screen relative overflow-hidden">
+<div class="absolute inset-0 problem-grid pointer-events-none"></div>
+<div class="absolute inset-0 problem-flow pointer-events-none"></div>
+<div class="absolute top-[10%] right-[-10%] w-[48%] h-[48%] bg-primary opacity-[0.05] blur-[160px] rounded-full pointer-events-none"></div>
+<div class="absolute bottom-[0%] left-[10%] w-[36%] h-[36%] bg-primary opacity-[0.04] blur-[140px] rounded-full pointer-events-none"></div>
+
+<section class="problem-section">
+<div class="max-w-7xl mx-auto w-full">
+<div class="problem-card problem-reveal">
+<p class="problem-kicker">Slide 02 / The Problem</p>
+<h1 class="problem-title">IT DOESN’T SHOW UP<br/>ALL AT ONCE.</h1>
+<div class="problem-divider"></div>
+</div>
+</div>
+</section>
+
+<section class="problem-section">
+<div class="max-w-7xl mx-auto w-full">
+<div class="problem-card problem-reveal">
+<p class="problem-kicker">Section 01</p>
+<h2 class="problem-title problem-title--section">INCONSISTENT <span class="problem-highlight">CX</span></h2>
+<p class="problem-body">One customer gets a great experience.
+The next gets confusion, pressure, or silence.
+
+Same store. Different outcomes.</p>
+</div>
+</div>
+</section>
+
+<section class="problem-section">
+<div class="max-w-7xl mx-auto w-full">
+<div class="problem-card problem-reveal">
+<p class="problem-kicker">Section 02</p>
+<h2 class="problem-title problem-title--section">REACTIVE MANAGERS</h2>
+<p class="problem-body">Most managers aren’t leading.
+They’re responding.
+
+Problems get handled…
+but never prevented.</p>
+</div>
+</div>
+</section>
+
+<section class="problem-section pb-32">
+<div class="max-w-7xl mx-auto w-full">
+<div class="problem-card problem-reveal">
+<p class="problem-kicker">Section 03</p>
+<h2 class="problem-title problem-title--section">DELAYED FEEDBACK</h2>
+<p class="problem-body">By the time you see the problem,
+it’s already cost you deals, trust, and CSI.
+
+You’re always reacting to the past.</p>
+</div>
+</div>
+</section>
+
+<div class="hideable-speaker-notes hide-in-present fixed bottom-24 right-12 hidden lg:block z-20 max-w-[280px]">
+<div class="problem-note-card p-5 rounded-xl border border-outline-variant/10">
+<div class="flex items-center space-x-2 mb-3">
+<span class="material-symbols-outlined text-[16px] text-primary">record_voice_over</span>
+<span class="font-label text-[10px] tracking-widest uppercase text-on-surface-variant">Speaker Strategy</span>
+</div>
+<p class="text-[11px] leading-relaxed text-on-surface/70 font-light italic">
+                    “This is what that behavior problem looks like in the real world.
+<br/><br/>It doesn’t show up as one big failure.
+<br/><br/>It shows up as inconsistency.
+<br/><br/>One customer has a great experience.
+The next one doesn’t.
+<br/><br/>Managers aren’t leading ahead of it.
+They’re reacting to it.
+<br/><br/>And the biggest problem…
+<br/><br/>By the time you even see the issue in the data,
+it’s already done damage.
+<br/><br/>Deals are gone.
+Trust is broken.
+CSI is already hit.
+<br/><br/>That’s the cycle most stores are stuck in.”</p>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 bg-transparent font-label text-[10px] tracking-widest font-light text-zinc-600">
+<div class="uppercase">
+            AUTOKNERD PRIVATE EQUITY CONFIDENTIAL
+        </div>
+<div class="flex space-x-8">
+<span class="text-[#8eff71]">SLIDE 01/14</span>
+<span>INTERNAL USE ONLY</span>
+</div>
+</footer>
+<script>
+  (() => {
+    const sections = Array.from(document.querySelectorAll('.problem-reveal'));
+    if (!('IntersectionObserver' in window) || sections.length === 0) {
+      sections.forEach((section) => section.classList.add('is-visible'));
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+        }
+      });
+    }, {
+      threshold: 0.28,
+      rootMargin: '0px 0px -8% 0px'
+    });
+
+    sections.forEach((section) => observer.observe(section));
+  })();
+</script>
+<script src="/Presentations/autoknerd-strategic-deck/deck-controls.js"></script>
+</body></html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=Space+Grotesk:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#17eefa",
+                    "on-surface": "#ffffff",
+                    "primary-container": "#2ff801",
+                    "error-dim": "#d53d18",
+                    "tertiary-fixed-dim": "#00deea",
+                    "surface-container": "#1a1919",
+                    "primary-dim": "#2be800",
+                    "on-background": "#ffffff",
+                    "surface-container-highest": "#262626",
+                    "on-secondary-fixed": "#004a1e",
+                    "primary-fixed-dim": "#2be800",
+                    "on-primary-fixed-variant": "#0d6200",
+                    "surface-tint": "#8eff71",
+                    "tertiary-dim": "#00deea",
+                    "on-error": "#450900",
+                    "surface-container-high": "#201f1f",
+                    "on-secondary": "#005f28",
+                    "inverse-surface": "#fcf8f8",
+                    "secondary-dim": "#82ea96",
+                    "secondary": "#90f9a3",
+                    "outline": "#777575",
+                    "surface-variant": "#262626",
+                    "secondary-fixed": "#90f9a3",
+                    "outline-variant": "#494847",
+                    "on-tertiary": "#005d62",
+                    "on-primary": "#0d6100",
+                    "on-surface-variant": "#adaaaa",
+                    "on-tertiary-fixed": "#003f43",
+                    "surface": "#0e0e0e",
+                    "surface-container-lowest": "#000000",
+                    "inverse-on-surface": "#565554",
+                    "on-primary-container": "#0b5800",
+                    "secondary-container": "#006d2f",
+                    "primary": "#8eff71",
+                    "error": "#ff7351",
+                    "on-primary-fixed": "#064200",
+                    "surface-container-low": "#131313",
+                    "surface-dim": "#0e0e0e",
+                    "on-secondary-fixed-variant": "#006a2e",
+                    "background": "#0e0e0e",
+                    "inverse-primary": "#106f00",
+                    "secondary-fixed-dim": "#82ea96",
+                    "tertiary-container": "#17eefa",
+                    "on-tertiary-container": "#005458",
+                    "primary-fixed": "#2ff801",
+                    "on-tertiary-fixed-variant": "#005e63",
+                    "on-secondary-container": "#e4ffe2",
+                    "surface-bright": "#2c2c2c",
+                    "on-error-container": "#ffd2c8",
+                    "tertiary": "#88f6ff",
+                    "error-container": "#b92902"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Space Grotesk"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #0e0e0e; color: #ffffff; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24; }
+        .text-neon-glow { text-shadow: 0 0 20px rgba(142, 255, 113, 0.4); }
+        .glass-panel { backdrop-filter: blur(24px); background: rgba(26, 25, 25, 0.6); }
+    </style>
+<link href="/Presentations/autoknerd-strategic-deck/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="font-body selection:bg-primary selection:text-on-primary-container min-h-screen overflow-hidden">
+<nav class="flex justify-between items-center w-full px-12 py-6 bg-[#000000] fixed top-0 z-50">
+<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase">
+            AutoKnerd
+        </div>
+<div class="hidden md:flex space-x-12">
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Executive Summary</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Market Growth</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Unit Economics</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-[#8eff71] border-b-2 border-[#8eff71] pb-1" href="#">The Vision</a>
+</div>
+<div class="flex items-center">
+<span class="material-symbols-outlined text-[#8eff71] cursor-pointer transition-transform active:scale-95 duration-200" data-icon="analytics">analytics</span>
+</div>
+</nav>
+<aside class="fixed left-0 top-0 h-full flex flex-col items-center py-12 space-y-8 bg-[#000000] w-20 z-40">
+<div class="mt-16 mb-8 -rotate-90">
+<p class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase text-zinc-500 whitespace-nowrap">STRATEGIC DECK <span class="ml-4 opacity-50">V2.0 FY2024</span></p>
+</div>
+<div class="flex flex-col items-center space-y-6">
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-800 transition-all duration-500 ease-in-out hover:text-[#90f9a3]" data-icon="radio_button_checked">radio_button_checked</span>
+<span class="absolute left-full ml-4 opacity-0 group-hover:opacity-100 transition-opacity font-label text-[10px] text-primary">Slide 01</span>
+</div>
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-800 transition-all duration-500 ease-in-out hover:text-[#90f9a3]" data-icon="fiber_manual_record">fiber_manual_record</span>
+</div>
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-800 transition-all duration-500 ease-in-out hover:text-[#90f9a3]" data-icon="fiber_manual_record">fiber_manual_record</span>
+</div>
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-[#8eff71] scale-125 transition-all duration-500 ease-in-out" data-icon="fiber_manual_record">fiber_manual_record</span>
+<span class="absolute left-full ml-4 opacity-100 font-label text-[10px] text-primary whitespace-nowrap">Slide 12</span>
+</div>
+<div class="group relative flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-800 transition-all duration-500 ease-in-out hover:text-[#90f9a3]" data-icon="star">star</span>
+</div>
+</div>
+</aside>
+<main class="ml-20 pt-32 px-12 min-h-screen pb-24 relative overflow-hidden">
+<div class="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
+<header class="mb-20 max-w-4xl">
+<div class="flex items-center gap-4 mb-4">
+<span class="h-[2px] w-12 bg-primary"></span>
+<p class="font-label text-xs tracking-[0.2em] text-on-surface-variant uppercase">Slide 10: What Changes.</p>
+</div>
+<h1 class="text-7xl font-black tracking-tighter uppercase leading-[0.9] text-white">
+                THE NEW STORE <br/>
+<span class="text-primary text-neon-glow italic">REALITY.</span>
+            </h1>
+</header>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+<div class="group relative aspect-[3/4] bg-surface-container-low border border-outline-variant/10 rounded-xl overflow-hidden flex flex-col justify-between p-8 transition-all hover:bg-surface-container-high">
+<div class="flex justify-between items-start">
+<span class="font-label text-[10px] text-on-surface-variant opacity-40">01 / FOCUS</span>
+<span class="material-symbols-outlined text-primary/30 group-hover:text-primary transition-colors" data-icon="visibility">visibility</span>
+</div>
+<div class="relative">
+<h2 class="text-5xl font-black tracking-tighter uppercase text-white group-hover:text-primary transition-colors">CLARITY.</h2>
+<p class="font-label text-[10px] mt-4 tracking-widest text-on-surface-variant group-hover:text-on-surface transition-colors">MANAGERIAL PRECISION</p>
+</div>
+<div class="absolute bottom-0 left-0 h-1 w-0 bg-primary group-hover:w-full transition-all duration-500"></div>
+</div>
+<div class="group relative aspect-[3/4] bg-surface-container-low border border-outline-variant/10 rounded-xl overflow-hidden flex flex-col justify-between p-8 transition-all hover:bg-surface-container-high">
+<div class="flex justify-between items-start">
+<span class="font-label text-[10px] text-on-surface-variant opacity-40">02 / FLOW</span>
+<span class="material-symbols-outlined text-primary/30 group-hover:text-primary transition-colors" data-icon="sync">sync</span>
+</div>
+<div class="relative">
+<h2 class="text-5xl font-black tracking-tighter uppercase text-white group-hover:text-primary transition-colors">CONSISTENCY.</h2>
+<p class="font-label text-[10px] mt-4 tracking-widest text-on-surface-variant group-hover:text-on-surface transition-colors">STAFF REPLICATION</p>
+</div>
+<div class="absolute bottom-0 left-0 h-1 w-0 bg-primary group-hover:w-full transition-all duration-500"></div>
+</div>
+<div class="group relative aspect-[3/4] bg-surface-container-low border border-outline-variant/10 rounded-xl overflow-hidden flex flex-col justify-between p-8 transition-all hover:bg-surface-container-high">
+<div class="flex justify-between items-start">
+<span class="font-label text-[10px] text-on-surface-variant opacity-40">03 / STRENGTH</span>
+<span class="material-symbols-outlined text-primary/30 group-hover:text-primary transition-colors" data-icon="verified">verified</span>
+</div>
+<div class="relative">
+<h2 class="text-5xl font-black tracking-tighter uppercase text-white group-hover:text-primary transition-colors">CONFIDENCE.</h2>
+<p class="font-label text-[10px] mt-4 tracking-widest text-on-surface-variant group-hover:text-on-surface transition-colors">EXECUTIVE CERTAINTY</p>
+</div>
+<div class="absolute bottom-0 left-0 h-1 w-0 bg-primary group-hover:w-full transition-all duration-500"></div>
+</div>
+<div class="group relative aspect-[3/4] bg-primary border border-primary/20 rounded-xl overflow-hidden flex flex-col justify-between p-8 transition-all">
+<div class="flex justify-between items-start">
+<span class="font-label text-[10px] text-on-primary-fixed uppercase font-bold">04 / LOYALTY</span>
+<span class="material-symbols-outlined text-on-primary-fixed" data-icon="shield">shield</span>
+</div>
+<div class="relative">
+<h2 class="text-5xl font-black tracking-tighter uppercase text-on-primary-fixed">TRUST.</h2>
+<p class="font-label text-[10px] mt-4 tracking-widest text-on-primary-fixed-variant font-bold">CUSTOMER RETENTION</p>
+</div>
+<div class="absolute -right-12 -top-12 w-32 h-32 bg-white/20 rounded-full blur-3xl"></div>
+</div>
+</div>
+<div class="mt-16 flex justify-end">
+<div class="glass-panel p-6 rounded-xl border border-outline-variant/20 max-w-md">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="description">description</span>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Strategic Implication</p>
+</div>
+<p class="text-sm leading-relaxed text-zinc-300 font-light">
+                    When the <span class="text-primary font-bold">systemic architecture</span> is deployed, the cultural paradigm shifts. Decisions are no longer intuitive—they are procedural.
+                </p>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 bg-transparent z-50 pointer-events-none">
+<div class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600">
+            AUTOKNERD PRIVATE EQUITY CONFIDENTIAL
+        </div>
+<div class="flex gap-8">
+<span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-[#8eff71]">SLIDE 01/14</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600">INTERNAL USE ONLY</span>
+</div>
+</footer>
+<script src="/Presentations/autoknerd-strategic-deck/deck-controls.js"></script>
+</body></html>

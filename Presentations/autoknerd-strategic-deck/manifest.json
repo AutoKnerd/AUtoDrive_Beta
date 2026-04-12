@@ -1,0 +1,22 @@
+{
+  "id": "autoknerd-strategic-deck",
+  "title": "AutoKnerd Strategic Deck",
+  "entry": "index.html",
+  "slideCount": 14,
+  "slides": [
+    "01-the-hook.html",
+    "02-the-problem.html",
+    "03-root-cause.html",
+    "04-the-shift.html",
+    "05-the-system.html",
+    "06-autodrivecx.html",
+    "07-precision-insight.html",
+    "08-weekly-cadence.html",
+    "09-autoforge.html",
+    "10-the-transformation.html",
+    "11-business-impact.html",
+    "12-the-philosophy.html",
+    "13-the-vision.html",
+    "14-call-to-action.html"
+  ]
+}

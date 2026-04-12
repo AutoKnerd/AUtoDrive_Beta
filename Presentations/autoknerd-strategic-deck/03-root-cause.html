@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AutoKnerd - The Behavior Gap</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=Space+Grotesk:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "tertiary-fixed": "#17eefa",
+                "on-surface": "#ffffff",
+                "primary-container": "#2ff801",
+                "error-dim": "#d53d18",
+                "tertiary-fixed-dim": "#00deea",
+                "surface-container": "#1a1919",
+                "primary-dim": "#2be800",
+                "on-background": "#ffffff",
+                "surface-container-highest": "#262626",
+                "on-secondary-fixed": "#004a1e",
+                "primary-fixed-dim": "#2be800",
+                "on-primary-fixed-variant": "#0d6200",
+                "surface-tint": "#8eff71",
+                "tertiary-dim": "#00deea",
+                "on-error": "#450900",
+                "surface-container-high": "#201f1f",
+                "on-secondary": "#005f28",
+                "inverse-surface": "#fcf8f8",
+                "secondary-dim": "#82ea96",
+                "secondary": "#90f9a3",
+                "outline": "#777575",
+                "surface-variant": "#262626",
+                "secondary-fixed": "#90f9a3",
+                "outline-variant": "#494847",
+                "on-tertiary": "#005d62",
+                "on-primary": "#0d6100",
+                "on-surface-variant": "#adaaaa",
+                "on-tertiary-fixed": "#003f43",
+                "surface": "#0e0e0e",
+                "surface-container-lowest": "#000000",
+                "inverse-on-surface": "#565554",
+                "on-primary-container": "#0b5800",
+                "secondary-container": "#006d2f",
+                "primary": "#8eff71",
+                "error": "#ff7351",
+                "on-primary-fixed": "#064200",
+                "surface-container-low": "#131313",
+                "surface-dim": "#0e0e0e",
+                "on-secondary-fixed-variant": "#006a2e",
+                "background": "#0e0e0e",
+                "inverse-primary": "#106f00",
+                "secondary-fixed-dim": "#82ea96",
+                "tertiary-container": "#17eefa",
+                "on-tertiary-container": "#005458",
+                "primary-fixed": "#2ff801",
+                "on-tertiary-fixed-variant": "#005e63",
+                "on-secondary-container": "#e4ffe2",
+                "surface-bright": "#2c2c2c",
+                "on-error-container": "#ffd2c8",
+                "tertiary": "#88f6ff",
+                "error-container": "#b92902"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+            },
+            "fontFamily": {
+                "headline": ["Inter"],
+                "body": ["Inter"],
+                "label": ["Space Grotesk"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+      }
+      .vertical-text {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+      }
+      .root-cause-shell {
+        min-height: 100vh;
+        overflow-x: hidden;
+        overflow-y: auto;
+        background:
+          radial-gradient(circle at top right, rgba(142,255,113,0.08), transparent 28%),
+          radial-gradient(circle at bottom left, rgba(142,255,113,0.05), transparent 22%),
+          #0e0e0e;
+      }
+      .root-cause-grid {
+        background-image:
+          linear-gradient(rgba(142,255,113,0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(142,255,113,0.035) 1px, transparent 1px);
+        background-size: 88px 88px;
+        mask-image: radial-gradient(circle at center, black 28%, transparent 82%);
+        opacity: 0.28;
+      }
+      .root-cause-card {
+        background: rgba(18, 18, 18, 0.72);
+        border: 1px solid rgba(255,255,255,0.06);
+        backdrop-filter: blur(24px);
+      }
+      .root-cause-label {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: #8eff71;
+      }
+      .root-cause-title {
+        font-size: clamp(2.9rem, 5.8vw, 4.9rem);
+        line-height: 0.94;
+        letter-spacing: -0.07em;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: #ffffff;
+      }
+      .root-cause-subtitle {
+        font-size: clamp(1.05rem, 1.8vw, 1.2rem);
+        line-height: 1.6;
+        color: rgba(255,255,255,0.54);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+      }
+      .root-cause-stage {
+        height: calc(100vh - 210px);
+        display: grid;
+        grid-template-columns: minmax(300px, 0.92fr) minmax(360px, 1.08fr);
+        gap: 36px;
+        align-items: center;
+        padding-right: 320px;
+      }
+      .root-cause-flow {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: center;
+        gap: 14px;
+      }
+      .root-cause-slide {
+        height: calc(100vh - 120px);
+      }
+      .root-cause-panel {
+        width: 100%;
+        padding: 22px 26px;
+        border-radius: 22px;
+      }
+      .root-cause-panel h2 {
+        margin: 0 0 18px;
+        font-size: clamp(1.45rem, 2.1vw, 2rem);
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #ffffff;
+      }
+      .root-cause-panel p {
+        margin: 0;
+        font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+        line-height: 1.5;
+        color: rgba(255,255,255,0.82);
+        white-space: pre-line;
+      }
+      .root-cause-panel--reality {
+        background: rgba(12, 12, 12, 0.82);
+        border-color: rgba(255,255,255,0.08);
+      }
+      .root-cause-panel--reality p {
+        color: rgba(255,255,255,0.88);
+        font-weight: 500;
+      }
+      .root-cause-coin-flip {
+        margin-top: 16px;
+        font-size: 0.92rem;
+        line-height: 1.5;
+        color: rgba(255,255,255,0.56);
+      }
+      .root-cause-gap-wrap {
+        margin-block: 10px;
+      }
+      .root-cause-gap {
+        width: 100%;
+        padding: 22px 22px;
+        border-radius: 20px;
+        border: 1px dashed rgba(142,255,113,0.18);
+        background:
+          linear-gradient(90deg, rgba(255,255,255,0.02), rgba(142,255,113,0.04), rgba(255,255,255,0.02));
+        text-align: center;
+        opacity: 0.82;
+        position: relative;
+      }
+      .root-cause-gap::before,
+      .root-cause-gap::after {
+        content: "";
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(142,255,113,0.25), transparent);
+      }
+      .root-cause-gap::before {
+        top: -10px;
+      }
+      .root-cause-gap::after {
+        bottom: -10px;
+      }
+      .root-cause-gap h3 {
+        margin: 0 0 12px;
+        font-size: 1rem;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: #8eff71;
+        font-family: "Space Grotesk", sans-serif;
+      }
+      .root-cause-gap p {
+        margin: 0;
+        font-size: 0.94rem;
+        line-height: 1.55;
+        color: rgba(255,255,255,0.66);
+      }
+      .root-cause-arrow {
+        width: 1px;
+        height: 22px;
+        background: linear-gradient(180deg, rgba(142,255,113,0.14), rgba(142,255,113,0.6));
+        position: relative;
+        align-self: center;
+      }
+      .root-cause-arrow::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -2px;
+        width: 12px;
+        height: 12px;
+        border-right: 2px solid rgba(142,255,113,0.85);
+        border-bottom: 2px solid rgba(142,255,113,0.85);
+        transform: translateX(-50%) rotate(45deg);
+      }
+      .root-cause-note-card {
+        background: rgba(26, 25, 25, 0.8);
+        backdrop-filter: blur(24px);
+      }
+      .root-cause-lock {
+        overflow: hidden;
+      }
+      @media (min-width: 1181px) and (min-height: 861px) {
+        body.root-cause-shell.root-cause-lock {
+          overflow: hidden;
+        }
+      }
+      @media (max-width: 1400px) {
+        .root-cause-stage {
+          padding-right: 280px;
+          gap: 28px;
+        }
+      }
+      @media (max-width: 1180px) {
+        main {
+          height: auto !important;
+          min-height: 100vh;
+          overflow: visible !important;
+        }
+        .root-cause-slide {
+          height: auto !important;
+          min-height: auto;
+        }
+        .root-cause-stage {
+          grid-template-columns: 1fr;
+          height: auto;
+          padding-right: 0;
+          gap: 24px;
+          min-height: auto;
+          padding-bottom: 120px;
+        }
+        .root-cause-flow {
+          padding-bottom: 32px;
+        }
+      }
+      @media (max-height: 860px) {
+        main {
+          height: auto !important;
+          min-height: 100vh;
+          overflow: visible !important;
+        }
+        .root-cause-slide {
+          height: auto !important;
+          min-height: auto;
+        }
+        .root-cause-stage {
+          height: auto;
+          min-height: auto;
+          padding-bottom: 120px;
+        }
+      }
+    </style>
+<link href="/Presentations/autoknerd-strategic-deck/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="root-cause-shell root-cause-lock bg-background text-on-surface font-body">
+<nav class="flex justify-between items-center w-full px-12 py-6 bg-[#000000] fixed top-0 z-50 transition-colors duration-300">
+<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase">AutoKnerd</div>
+<div class="hidden md:flex items-center space-x-8 font-['Inter'] font-semibold tracking-tight uppercase text-[12px]">
+<a class="text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Executive Summary</a>
+<a class="text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Market Growth</a>
+<a class="text-[#8eff71] border-b-2 border-[#8eff71] pb-1 transition-colors duration-300" href="#">Unit Economics</a>
+<a class="text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">The Vision</a>
+</div>
+<div class="flex items-center">
+<span class="material-symbols-outlined text-[#8eff71] cursor-pointer scale-95 duration-200">analytics</span>
+</div>
+</nav>
+<aside class="fixed left-0 top-0 h-full flex flex-col items-center py-12 space-y-8 bg-[#000000] w-20 z-40 transition-all duration-500 ease-in-out">
+<div class="mb-8">
+<div class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase text-[#8eff71] vertical-text opacity-70">STRATEGIC DECK</div>
+</div>
+<div class="flex flex-col space-y-8 items-center">
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out">radio_button_checked</span>
+</div>
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-[#8eff71] scale-125 transition-all duration-500 ease-in-out">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out">star</span>
+</div>
+</div>
+<div class="mt-auto">
+<div class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase text-zinc-600 vertical-text">V2.0 FY2024</div>
+</div>
+</aside>
+<main class="pl-20 pt-24 h-screen relative">
+<div class="absolute inset-0 root-cause-grid pointer-events-none"></div>
+<div class="absolute top-0 right-0 w-2/3 h-full opacity-5 pointer-events-none">
+<div class="w-full h-full bg-gradient-to-bl from-primary to-transparent blur-[120px]"></div>
+</div>
+<section class="root-cause-slide max-w-7xl mx-auto px-12 pt-8">
+<div class="root-cause-stage">
+<div>
+<div class="font-label text-xs tracking-[0.2em] text-primary mb-4 flex items-center gap-2">
+<span class="w-8 h-px bg-primary"></span>
+                    ROOT CAUSE
+                </div>
+<h1 class="root-cause-title mb-6">
+                    THE GAP<br/>
+                    ISN’T PEOPLE.
+<br/><span class="text-primary">IT’S CONTROL.</span>
+                </h1>
+<p class="root-cause-subtitle max-w-xl">No system controlling behavior between intention and execution.</p>
+</div>
+<div class="root-cause-flow">
+<div class="root-cause-card root-cause-panel">
+<div class="root-cause-label mb-4">What You Expect</div>
+<h2>WHAT YOU EXPECT</h2>
+<p>“We greet every customer the right way.”
+“We build trust.”
+“We follow the process.”</p>
+</div>
+<div class="root-cause-arrow" aria-hidden="true"></div>
+<div class="root-cause-gap-wrap">
+<div class="root-cause-gap">
+<h3>NO SYSTEM IN BETWEEN</h3>
+<p>(no accountability, no real-time feedback, no correction)</p>
+</div>
+</div>
+<div class="root-cause-arrow" aria-hidden="true"></div>
+<div class="root-cause-card root-cause-panel root-cause-panel--reality">
+<div class="root-cause-label mb-4">What Actually Happens</div>
+<h2>WHAT ACTUALLY HAPPENS</h2>
+<p>Inconsistent greetings
+Missed needs
+Rushed conversations
+Broken trust</p>
+<div class="root-cause-coin-flip">Every customer experience becomes a coin flip.</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<div class="hideable-speaker-notes hide-in-present fixed bottom-24 right-12 hidden lg:block z-20 max-w-[280px]">
+<div class="root-cause-note-card p-5 rounded-xl border border-outline-variant/10">
+<div class="flex items-center space-x-2 mb-3">
+<span class="material-symbols-outlined text-[16px] text-primary">record_voice_over</span>
+<span class="font-label text-[10px] tracking-widest uppercase text-on-surface-variant">Speaker Strategy</span>
+</div>
+<p class="text-[11px] leading-relaxed text-on-surface/70 font-light italic">
+                    “This is the real issue.
+<br/><br/>It’s not that your team doesn’t know what to do.
+<br/><br/>At the top, you have intention.
+<br/><br/>You want consistency.
+You want a process.
+You want a great experience.
+<br/><br/>But there’s nothing in place controlling behavior between that intention…
+<br/><br/>…and what actually happens on the floor.
+<br/><br/>So everything gets left to chance.
+<br/><br/>And when behavior is left to chance…
+<br/><br/>you don’t get consistency.
+<br/><br/>You get variance.”</p>
+</div>
+</div>
+<footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 bg-transparent z-50">
+<div class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600 uppercase">
+            AUTOKNERD PRIVATE EQUITY CONFIDENTIAL
+        </div>
+<div class="flex space-x-8 font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600 uppercase">
+<span>SLIDE 03/14</span>
+<span class="text-[#8eff71]">INTERNAL USE ONLY</span>
+</div>
+</footer>
+<script src="/Presentations/autoknerd-strategic-deck/deck-controls.js"></script>
+</body></html>

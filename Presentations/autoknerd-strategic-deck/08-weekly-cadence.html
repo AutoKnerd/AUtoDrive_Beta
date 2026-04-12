@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AutoKnerd - The Rhythm of Execution</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=Space+Grotesk:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#17eefa",
+                        "on-surface": "#ffffff",
+                        "primary-container": "#2ff801",
+                        "error-dim": "#d53d18",
+                        "tertiary-fixed-dim": "#00deea",
+                        "surface-container": "#1a1919",
+                        "primary-dim": "#2be800",
+                        "on-background": "#ffffff",
+                        "surface-container-highest": "#262626",
+                        "on-secondary-fixed": "#004a1e",
+                        "primary-fixed-dim": "#2be800",
+                        "on-primary-fixed-variant": "#0d6200",
+                        "surface-tint": "#8eff71",
+                        "tertiary-dim": "#00deea",
+                        "on-error": "#450900",
+                        "surface-container-high": "#201f1f",
+                        "on-secondary": "#005f28",
+                        "inverse-surface": "#fcf8f8",
+                        "secondary-dim": "#82ea96",
+                        "secondary": "#90f9a3",
+                        "outline": "#777575",
+                        "surface-variant": "#262626",
+                        "secondary-fixed": "#90f9a3",
+                        "outline-variant": "#494847",
+                        "on-tertiary": "#005d62",
+                        "on-primary": "#0d6100",
+                        "on-surface-variant": "#adaaaa",
+                        "on-tertiary-fixed": "#003f43",
+                        "surface": "#0e0e0e",
+                        "surface-container-lowest": "#000000",
+                        "inverse-on-surface": "#565554",
+                        "on-primary-container": "#0b5800",
+                        "secondary-container": "#006d2f",
+                        "primary": "#8eff71",
+                        "error": "#ff7351",
+                        "on-primary-fixed": "#064200",
+                        "surface-container-low": "#131313",
+                        "surface-dim": "#0e0e0e",
+                        "on-secondary-fixed-variant": "#006a2e",
+                        "background": "#0e0e0e",
+                        "inverse-primary": "#106f00",
+                        "secondary-fixed-dim": "#82ea96",
+                        "tertiary-container": "#17eefa",
+                        "on-tertiary-container": "#005458",
+                        "primary-fixed": "#2ff801",
+                        "on-tertiary-fixed-variant": "#005e63",
+                        "on-secondary-container": "#e4ffe2",
+                        "surface-bright": "#2c2c2c",
+                        "on-error-container": "#ffd2c8",
+                        "tertiary": "#88f6ff",
+                        "error-container": "#b92902"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(26, 25, 25, 0.6);
+            backdrop-filter: blur(24px);
+        }
+        .kinetic-ring {
+            border: 2px dashed #8eff71;
+            border-radius: 50%;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<link href="/Presentations/autoknerd-strategic-deck/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="bg-background text-on-surface font-body overflow-hidden">
+<nav class="flex justify-between items-center w-full px-12 py-6 bg-[#000000] fixed top-0 z-50 no-border tonal-shift">
+<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase">AutoKnerd</div>
+<div class="hidden md:flex space-x-8">
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Executive Summary</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Market Growth</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-[#8eff71] border-b-2 border-[#8eff71] pb-1 transition-colors duration-300" href="#">Unit Economics</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">The Vision</a>
+</div>
+<div class="text-[#8eff71]">
+<span class="material-symbols-outlined text-2xl">analytics</span>
+</div>
+</nav>
+<aside class="fixed left-0 top-0 h-full flex flex-col items-center py-12 space-y-8 bg-[#000000] w-20 z-40 transition-all duration-500 ease-in-out">
+<div class="flex flex-col items-center space-y-1 mb-8">
+<span class="font-['Space_Grotesk'] text-[8px] tracking-[0.2em] uppercase text-zinc-500 rotate-90 origin-center translate-y-8">STRATEGIC DECK</span>
+</div>
+<div class="flex flex-col space-y-10 items-center pt-12">
+<div class="group cursor-pointer text-zinc-800 hover:text-[#90f9a3] transition-all duration-500">
+<span class="material-symbols-outlined text-xl">radio_button_checked</span>
+</div>
+<div class="group cursor-pointer text-zinc-800 hover:text-[#90f9a3] transition-all duration-500">
+<span class="material-symbols-outlined text-xl">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer text-[#8eff71] scale-125 transition-all duration-500">
+<span class="material-symbols-outlined text-xl">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer text-zinc-800 hover:text-[#90f9a3] transition-all duration-500">
+<span class="material-symbols-outlined text-xl">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer text-zinc-800 hover:text-[#90f9a3] transition-all duration-500">
+<span class="material-symbols-outlined text-xl">star</span>
+</div>
+</div>
+</aside>
+<main class="pl-20 pt-24 min-h-screen flex flex-col relative">
+<section class="px-12 pt-12 pb-6 max-w-5xl">
+<label class="font-label text-primary tracking-[0.3em] uppercase text-[10px] mb-4 block">Weekly Operating System</label>
+<h1 class="text-[3.5rem] font-black leading-[1.1] tracking-[-0.04em] uppercase">
+                THE RHYTHM OF <br/>
+<span class="text-primary">EXECUTION.</span>
+            </h1>
+</section>
+<section class="flex-grow relative flex items-center justify-center overflow-hidden">
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(142,255,113,0.05)_0%,_transparent_70%)]"></div>
+<div class="relative w-[500px] h-[500px] flex items-center justify-center">
+<div class="absolute inset-0 kinetic-ring opacity-20 scale-110"></div>
+<div class="absolute inset-4 kinetic-ring opacity-40 scale-105"></div>
+<div class="absolute inset-8 border-2 border-primary rounded-full"></div>
+<div class="z-10 bg-black p-8 rounded-full border border-primary/30 shadow-[0_0_50px_rgba(142,255,113,0.2)]">
+<span class="font-headline font-black text-3xl tracking-tighter text-primary italic">AutoKnerd</span>
+</div>
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 glass-card border border-primary/20 px-6 py-3 rounded-xl flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">search</span>
+<span class="font-label text-xs tracking-widest font-bold">IDENTIFY</span>
+</div>
+<div class="absolute top-1/2 -right-12 -translate-y-1/2 glass-card border border-primary/20 px-6 py-3 rounded-xl flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">architecture</span>
+<span class="font-label text-xs tracking-widest font-bold">PLAN</span>
+</div>
+<div class="absolute -bottom-6 left-1/2 -translate-x-1/2 glass-card border border-primary/20 px-6 py-3 rounded-xl flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="font-label text-xs tracking-widest font-bold">EXECUTE</span>
+</div>
+<div class="absolute top-1/2 -left-12 -translate-y-1/2 glass-card border border-primary/20 px-6 py-3 rounded-xl flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+<span class="font-label text-xs tracking-widest font-bold">IMPROVE</span>
+</div>
+<div class="absolute top-12 right-12 text-primary/40 rotate-[45deg]">
+<span class="material-symbols-outlined text-4xl">arrow_forward</span>
+</div>
+<div class="absolute bottom-12 right-12 text-primary/40 rotate-[135deg]">
+<span class="material-symbols-outlined text-4xl">arrow_forward</span>
+</div>
+<div class="absolute bottom-12 left-12 text-primary/40 rotate-[225deg]">
+<span class="material-symbols-outlined text-4xl">arrow_forward</span>
+</div>
+<div class="absolute top-12 left-12 text-primary/40 rotate-[315deg]">
+<span class="material-symbols-outlined text-4xl">arrow_forward</span>
+</div>
+</div>
+</section>
+<section class="px-12 pb-24 grid grid-cols-12 gap-6 max-w-7xl">
+<div class="col-span-4 p-8 surface-container-low rounded-xl border-l-4 border-primary">
+<h3 class="font-label text-[10px] tracking-widest text-primary mb-4">THE FREQUENCY</h3>
+<p class="text-2xl font-bold leading-tight">Every. Single. Week.</p>
+<p class="text-on-surface-variant text-sm mt-2 leading-relaxed">Continuous floor monitoring ensures no gap remains open for more than 168 hours.</p>
+</div>
+<div class="col-span-8 p-8 surface-container-low rounded-xl relative overflow-hidden flex items-center justify-between">
+<div class="relative z-10 max-w-md">
+<h3 class="font-label text-[10px] tracking-widest text-zinc-500 mb-4">OPERATIONAL PHILOSOPHY</h3>
+<p class="text-xl font-medium leading-relaxed italic text-zinc-300">"We don't fix problems once; we build systems that prevent them forever."</p>
+</div>
+<div class="w-32 h-32 opacity-10">
+<img alt="Industrial precision icon" data-alt="Abstract technical blueprint illustration with clean lines and geometric shapes in neon green on black background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlYbcg1oJ_rC2pur4a16nTJZkEwyjICOY7tLaYZZUNAAeG89klK0hbxbSOiNxAKRvRiyWf-P9FEXDFlbKt8VTkeWPN9BT3p3qhyYz1p1ZAxrdSENu72-Pm3qk_ykaba-e4dD4fd7URl8qhMYXAARprjaMAiYRDXJKq4eq0-yWURJyHO6MdrGkTPWJExGeZ5wkxe7BYqh0PtD42c1k91GVBK1tM8OsA23V82xp3uK2cik97gw8I9RRZPsDLJDOkL3N3GHdA6GIHWeI"/>
+</div>
+</div>
+</section>
+</main>
+<footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 bg-transparent z-50">
+<div class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600">
+            AUTOKNERD PRIVATE EQUITY CONFIDENTIAL
+        </div>
+<div class="flex space-x-8 font-['Space_Grotesk'] text-[10px] tracking-widest font-light">
+<span class="text-[#8eff71]">SLIDE 08/14</span>
+<span class="text-zinc-600">INTERNAL USE ONLY</span>
+</div>
+</footer>
+<script src="/Presentations/autoknerd-strategic-deck/deck-controls.js"></script>
+</body></html>

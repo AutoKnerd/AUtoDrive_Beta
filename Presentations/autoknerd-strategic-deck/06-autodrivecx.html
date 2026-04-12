@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=Space+Grotesk:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#17eefa",
+                    "on-surface": "#ffffff",
+                    "primary-container": "#2ff801",
+                    "error-dim": "#d53d18",
+                    "tertiary-fixed-dim": "#00deea",
+                    "surface-container": "#1a1919",
+                    "primary-dim": "#2be800",
+                    "on-background": "#ffffff",
+                    "surface-container-highest": "#262626",
+                    "on-secondary-fixed": "#004a1e",
+                    "primary-fixed-dim": "#2be800",
+                    "on-primary-fixed-variant": "#0d6200",
+                    "surface-tint": "#8eff71",
+                    "tertiary-dim": "#00deea",
+                    "on-error": "#450900",
+                    "surface-container-high": "#201f1f",
+                    "on-secondary": "#005f28",
+                    "inverse-surface": "#fcf8f8",
+                    "secondary-dim": "#82ea96",
+                    "secondary": "#90f9a3",
+                    "outline": "#777575",
+                    "surface-variant": "#262626",
+                    "secondary-fixed": "#90f9a3",
+                    "outline-variant": "#494847",
+                    "on-tertiary": "#005d62",
+                    "on-primary": "#0d6100",
+                    "on-surface-variant": "#adaaaa",
+                    "on-tertiary-fixed": "#003f43",
+                    "surface": "#0e0e0e",
+                    "surface-container-lowest": "#000000",
+                    "inverse-on-surface": "#565554",
+                    "on-primary-container": "#0b5800",
+                    "secondary-container": "#006d2f",
+                    "primary": "#8eff71",
+                    "error": "#ff7351",
+                    "on-primary-fixed": "#064200",
+                    "surface-container-low": "#131313",
+                    "surface-dim": "#0e0e0e",
+                    "on-secondary-fixed-variant": "#006a2e",
+                    "background": "#0e0e0e",
+                    "inverse-primary": "#106f00",
+                    "secondary-fixed-dim": "#82ea96",
+                    "tertiary-container": "#17eefa",
+                    "on-tertiary-container": "#005458",
+                    "primary-fixed": "#2ff801",
+                    "on-tertiary-fixed-variant": "#005e63",
+                    "on-secondary-container": "#e4ffe2",
+                    "surface-bright": "#2c2c2c",
+                    "on-error-container": "#ffd2c8",
+                    "tertiary": "#88f6ff",
+                    "error-container": "#b92902"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Space Grotesk"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .brain-glow {
+            background: radial-gradient(circle at center, rgba(142, 255, 113, 0.15) 0%, rgba(14, 14, 14, 0) 70%);
+        }
+        .node-line {
+            background: linear-gradient(90deg, rgba(142, 255, 113, 0) 0%, rgba(142, 255, 113, 0.4) 50%, rgba(142, 255, 113, 0) 100%);
+        }
+        .glass-panel {
+            background: rgba(26, 25, 25, 0.6);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+<link href="/Presentations/autoknerd-strategic-deck/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-container overflow-hidden">
+<nav class="flex justify-between items-center w-full px-12 py-6 fixed top-0 z-50 bg-[#000000] no-border tonal-shift">
+<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase font-headline">AutoKnerd</div>
+<div class="hidden md:flex items-center space-x-10">
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-[#8eff71] transition-colors duration-300" href="#">Executive Summary</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-[#8eff71] transition-colors duration-300" href="#">Market Growth</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-[#8eff71] transition-colors duration-300" href="#">Unit Economics</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-[#8eff71] border-b-2 border-[#8eff71] pb-1" href="#">The Vision</a>
+</div>
+<button class="text-[#8eff71] transition-transform duration-200 active:scale-95">
+<span class="material-symbols-outlined text-2xl">analytics</span>
+</button>
+</nav>
+<aside class="fixed left-0 top-0 h-full flex flex-col items-center py-12 space-y-8 bg-[#000000] w-20 z-40">
+<div class="flex flex-col items-center mb-12">
+<span class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase text-zinc-500 vertical-text rotate-180 mb-4 whitespace-nowrap">STRATEGIC DECK</span>
+<span class="font-['Space_Grotesk'] text-[8px] tracking-[0.1em] uppercase text-primary/50">V2.0 FY2024</span>
+</div>
+<div class="flex flex-col space-y-10 items-center">
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 group-hover:text-[#90f9a3] transition-all duration-500">radio_button_checked</span>
+</div>
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-[#8eff71] scale-125 transition-all duration-500" style="font-variation-settings: 'FILL' 1;">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 group-hover:text-[#90f9a3] transition-all duration-500">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 group-hover:text-[#90f9a3] transition-all duration-500">fiber_manual_record</span>
+</div>
+<div class="group cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 group-hover:text-[#90f9a3] transition-all duration-500">star</span>
+</div>
+</div>
+</aside>
+<main class="ml-20 h-screen w-[calc(100%-5rem)] relative flex flex-col items-start justify-center px-24 overflow-hidden">
+<header class="z-20 mb-12 max-w-4xl">
+<span class="font-label text-primary text-xs tracking-[0.3em] uppercase mb-4 block">Slide 06 / Intelligence Layer</span>
+<h1 class="text-[5rem] font-black tracking-tighter leading-none mb-6 uppercase">
+                AUTODRIVECX: <span class="text-primary-dim">THE BRAIN.</span>
+            </h1>
+<div class="flex flex-wrap gap-x-8 gap-y-2 opacity-80">
+<div class="flex items-center space-x-3">
+<div class="w-1.5 h-1.5 bg-primary"></div>
+<p class="font-label text-sm tracking-widest uppercase">TRACKS BEHAVIOR</p>
+</div>
+<div class="flex items-center space-x-3">
+<div class="w-1.5 h-1.5 bg-primary"></div>
+<p class="font-label text-sm tracking-widest uppercase">DIAGNOSES BREAKDOWNS</p>
+</div>
+<div class="flex items-center space-x-3">
+<div class="w-1.5 h-1.5 bg-primary"></div>
+<p class="font-label text-sm tracking-widest uppercase">PRESCRIBES ACTION</p>
+</div>
+</div>
+</header>
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<div class="relative w-[120%] h-[120%] brain-glow flex items-center justify-center">
+<div class="relative z-10 flex flex-col items-center justify-center">
+<div class="w-48 h-48 rounded-full border border-primary/30 flex items-center justify-center glass-panel">
+<div class="w-40 h-40 rounded-full border-2 border-primary/60 flex items-center justify-center">
+<div class="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-[0_0_60px_rgba(142,255,113,0.4)]">
+<span class="material-symbols-outlined text-on-primary-fixed text-5xl" style="font-variation-settings: 'FILL' 1;">psychology</span>
+</div>
+</div>
+</div>
+<p class="mt-6 font-headline font-black text-2xl tracking-tighter text-on-surface">AutoDriveCX</p>
+</div>
+<div class="absolute top-[25%] left-[65%] glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center space-x-4">
+<span class="material-symbols-outlined text-primary text-xl">verified_user</span>
+<span class="font-label text-xs tracking-widest uppercase">Trust</span>
+</div>
+<div class="absolute bottom-[30%] left-[25%] glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center space-x-4">
+<span class="material-symbols-outlined text-primary text-xl">visibility</span>
+<span class="font-label text-xs tracking-widest uppercase">Clarity</span>
+</div>
+<div class="absolute top-[40%] left-[20%] glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center space-x-4">
+<span class="material-symbols-outlined text-primary text-xl">bolt</span>
+<span class="font-label text-xs tracking-widest uppercase">Confidence</span>
+</div>
+<div class="absolute w-[80%] h-[1px] node-line rotate-45 opacity-20"></div>
+<div class="absolute w-[80%] h-[1px] node-line -rotate-45 opacity-20"></div>
+<div class="absolute w-full h-[1px] node-line opacity-10"></div>
+</div>
+</div>
+<div class="mt-auto mb-20 z-20 max-w-md glass-panel p-8 rounded-xl border-l-4 border-primary shadow-2xl">
+<h4 class="font-label text-primary text-[10px] tracking-[0.2em] uppercase mb-4">Strategic Insight</h4>
+<p class="text-on-surface-variant leading-relaxed text-sm">
+                AutoDriveCX is the intelligence layer. It doesn't just look at CSI; it tracks the actual behaviors that <span class="text-primary font-semibold">create</span> CSI. It knows where the breakdown is before your customers do.
+            </p>
+</div>
+<div class="absolute bottom-[-10%] right-[-5%] w-1/2 h-1/2 opacity-20 pointer-events-none">
+<img class="w-full h-full object-contain mix-blend-screen" data-alt="abstract tech circuitry pattern in neon green and deep black with glowing nodes and data pathways" src="https://lh3.googleusercontent.com/aida-public/AB6AXuALrIiCKKJrI0Pllf6aem7Jhvcgbbc5HTckEpabUbyI8Lz2OFp0wq8FcWZydUN1SokfrUygczNbREUyPG4MjSLX7QmoAPk4S_Mcb_4oQJP2X4Iuk3sSSdLgxzVRUgFJ6TgltM99reXbe32GxHvSB3yhrhrYuQZjqdKQ9nUcL7w9axgJLM2bklZk58DHSkQNoSevO-_U-JQsl3H767bBwFuum_-Bg2WJby6thJSw_0JYB_apKzJsLxdusD-NqWeQcgi-54IY3U_TtQQ"/>
+</div>
+</main>
+<footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 z-50 pointer-events-none">
+<div class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600 uppercase">
+            AUTOKNERD PRIVATE EQUITY CONFIDENTIAL
+        </div>
+<div class="flex space-x-12">
+<span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-[#8eff71]">SLIDE 06/14</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600">INTERNAL USE ONLY</span>
+</div>
+</footer>
+<script src="/Presentations/autoknerd-strategic-deck/deck-controls.js"></script>
+</body></html>

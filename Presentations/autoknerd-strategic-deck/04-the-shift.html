@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AutoKnerd - Slide 04: The Shift</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=Space+Grotesk:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#17eefa",
+                    "on-surface": "#ffffff",
+                    "primary-container": "#2ff801",
+                    "error-dim": "#d53d18",
+                    "tertiary-fixed-dim": "#00deea",
+                    "surface-container": "#1a1919",
+                    "primary-dim": "#2be800",
+                    "on-background": "#ffffff",
+                    "surface-container-highest": "#262626",
+                    "on-secondary-fixed": "#004a1e",
+                    "primary-fixed-dim": "#2be800",
+                    "on-primary-fixed-variant": "#0d6200",
+                    "surface-tint": "#8eff71",
+                    "tertiary-dim": "#00deea",
+                    "on-error": "#450900",
+                    "surface-container-high": "#201f1f",
+                    "on-secondary": "#005f28",
+                    "inverse-surface": "#fcf8f8",
+                    "secondary-dim": "#82ea96",
+                    "secondary": "#90f9a3",
+                    "outline": "#777575",
+                    "surface-variant": "#262626",
+                    "secondary-fixed": "#90f9a3",
+                    "outline-variant": "#494847",
+                    "on-tertiary": "#005d62",
+                    "on-primary": "#0d6100",
+                    "on-surface-variant": "#adaaaa",
+                    "on-tertiary-fixed": "#003f43",
+                    "surface": "#0e0e0e",
+                    "surface-container-lowest": "#000000",
+                    "inverse-on-surface": "#565554",
+                    "on-primary-container": "#0b5800",
+                    "secondary-container": "#006d2f",
+                    "primary": "#8eff71",
+                    "error": "#ff7351",
+                    "on-primary-fixed": "#064200",
+                    "surface-container-low": "#131313",
+                    "surface-dim": "#0e0e0e",
+                    "on-secondary-fixed-variant": "#006a2e",
+                    "background": "#0e0e0e",
+                    "inverse-primary": "#106f00",
+                    "secondary-fixed-dim": "#82ea96",
+                    "tertiary-container": "#17eefa",
+                    "on-tertiary-container": "#005458",
+                    "primary-fixed": "#2ff801",
+                    "on-tertiary-fixed-variant": "#005e63",
+                    "on-secondary-container": "#e4ffe2",
+                    "surface-bright": "#2c2c2c",
+                    "on-error-container": "#ffd2c8",
+                    "tertiary": "#88f6ff",
+                    "error-container": "#b92902"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Space Grotesk"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+        }
+        .text-glow {
+            text-shadow: 0 0 20px rgba(142, 255, 113, 0.4);
+        }
+        .glass-card {
+            background: rgba(26, 25, 25, 0.6);
+            backdrop-filter: blur(24px);
+        }
+        .shift-shell {
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background:
+                radial-gradient(circle at top right, rgba(142, 255, 113, 0.08), transparent 30%),
+                radial-gradient(circle at bottom left, rgba(255, 115, 81, 0.06), transparent 24%),
+                #0e0e0e;
+        }
+        .shift-main {
+            min-height: 100vh;
+            overflow-y: auto;
+            padding-bottom: 88px;
+        }
+        .shift-contrast {
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(14, 14, 14, 0.76);
+        }
+        .shift-contrast::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(90deg, rgba(255, 115, 81, 0.06) 0%, rgba(255, 115, 81, 0.02) 48%, rgba(142, 255, 113, 0.03) 52%, rgba(142, 255, 113, 0.09) 100%);
+            pointer-events: none;
+        }
+        .shift-column {
+            position: relative;
+            z-index: 1;
+            min-height: 360px;
+        }
+        .shift-column--training {
+            background: linear-gradient(180deg, rgba(33, 18, 18, 0.55), rgba(14, 14, 14, 0.2));
+        }
+        .shift-column--system {
+            background: linear-gradient(180deg, rgba(16, 28, 16, 0.2), rgba(18, 35, 18, 0.55));
+        }
+        .shift-card-label {
+            font-family: "Space Grotesk", sans-serif;
+            font-size: 10px;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+        }
+        .shift-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+            margin-top: 2rem;
+        }
+        .shift-list p {
+            margin: 0;
+            font-size: 1.05rem;
+            line-height: 1.5;
+        }
+        @media (max-width: 1024px) {
+            .shift-main {
+                padding-bottom: 140px;
+            }
+            .shift-column {
+                min-height: auto;
+            }
+        }
+    </style>
+<link href="/Presentations/autoknerd-strategic-deck/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="shift-shell bg-background text-on-background font-body selection:bg-primary selection:text-on-primary-fixed">
+<nav class="flex justify-between items-center w-full px-12 py-6 bg-[#000000] fixed top-0 z-50">
+<div class="text-2xl font-black text-[#8eff71] tracking-tighter">AutoKnerd</div>
+<div class="hidden md:flex items-center space-x-12">
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Executive Summary</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Market Growth</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Unit Economics</a>
+<a class="font-['Inter'] font-semibold tracking-tight uppercase text-[#8eff71] border-b-2 border-[#8eff71] pb-1" href="#">The Vision</a>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#8eff71] cursor-pointer transition-all active:scale-95 duration-200">analytics</span>
+</div>
+</nav>
+<aside class="fixed left-0 top-0 h-full flex flex-col items-center py-12 space-y-8 bg-[#000000] w-20 z-40 border-r border-outline-variant/10">
+<div class="flex flex-col items-center space-y-10 mt-16">
+<div class="group flex flex-col items-center cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out">radio_button_checked</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase mt-2 text-zinc-800">Slide 01</span>
+</div>
+<div class="group flex flex-col items-center cursor-pointer">
+<span class="material-symbols-outlined text-[#8eff71] scale-125 transition-all duration-500 ease-in-out">fiber_manual_record</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase mt-2 text-[#8eff71]">Slide 04</span>
+</div>
+<div class="group flex flex-col items-center cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out">fiber_manual_record</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase mt-2 text-zinc-800">Slide 08</span>
+</div>
+<div class="group flex flex-col items-center cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out">fiber_manual_record</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase mt-2 text-zinc-800">Slide 12</span>
+</div>
+<div class="group flex flex-col items-center cursor-pointer">
+<span class="material-symbols-outlined text-zinc-800 hover:text-[#90f9a3] transition-all duration-500 ease-in-out">star</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase mt-2 text-zinc-800">Final Pitch</span>
+</div>
+</div>
+</aside>
+<main class="shift-main ml-20 pt-20 px-12 flex flex-col">
+<header class="mb-12">
+<span class="font-label text-primary tracking-[0.2em] uppercase text-xs mb-4 block">Section 02 / Operational Transformation</span>
+<h1 class="text-[3.5rem] font-black leading-[1.1] tracking-tighter max-w-4xl text-on-surface mb-6">
+                STOP TRAINING. <br/>
+<span class="text-primary text-glow">START INSTALLING.</span>
+            </h1>
+<p class="text-xl font-body text-on-surface-variant max-w-xl leading-relaxed">
+                Training doesn’t control behavior.<br/>Systems do.
+            </p>
+</header>
+<section class="mb-10">
+<div class="shift-contrast grid grid-cols-1 lg:grid-cols-2">
+<div class="shift-column shift-column--training p-8 lg:p-10">
+<div class="shift-card-label text-[#ff8f78]">Training</div>
+<h2 class="mt-6 text-3xl font-black tracking-tight text-zinc-100 uppercase">TRAINING</h2>
+<div class="shift-list text-zinc-300">
+<p>Happens once</p>
+<p>Relies on memory</p>
+<p>Fades over time</p>
+<p>Creates inconsistency</p>
+</div>
+</div>
+<div class="shift-column shift-column--system p-8 lg:p-10 border-t lg:border-t-0 lg:border-l border-white/5">
+<div class="shift-card-label text-primary">System</div>
+<h2 class="mt-6 text-3xl font-black tracking-tight text-on-surface uppercase">SYSTEM</h2>
+<div class="shift-list text-on-surface">
+<p>Always on</p>
+<p>Guides behavior</p>
+<p>Corrects in real time</p>
+<p>Creates consistency</p>
+</div>
+</div>
+</div>
+</section>
+<div class="hideable-speaker-notes hide-in-present fixed bottom-24 right-12 hidden lg:block z-20 max-w-[280px]">
+<div class="glass-card p-5 rounded-xl border border-outline-variant/10">
+<div class="flex items-center space-x-2 mb-3">
+<span class="material-symbols-outlined text-[16px] text-primary">record_voice_over</span>
+<span class="font-label text-[10px] tracking-widest uppercase text-on-surface-variant">Speaker Strategy</span>
+</div>
+<p class="text-[11px] leading-relaxed text-on-surface/70 font-light italic">
+                    “Most dealerships try to fix this with training.
+<br/><br/>More workshops. More roleplay. More reminders.
+<br/><br/>But training doesn’t control behavior.
+<br/><br/>It gives people information…
+<br/><br/>and then hopes they use it.
+<br/><br/>And hope is not a strategy.
+<br/><br/>If you want consistency…
+<br/><br/>you don’t train harder.
+<br/><br/>You install something that guides behavior every day.”</p>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 z-50">
+<div class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600">AUTOKNERD PRIVATE EQUITY CONFIDENTIAL</div>
+<div class="flex gap-8">
+<span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-[#8eff71]">SLIDE 04/14</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600 uppercase">INTERNAL USE ONLY</span>
+</div>
+</footer>
+<script src="/Presentations/autoknerd-strategic-deck/deck-controls.js"></script>
+</body></html>

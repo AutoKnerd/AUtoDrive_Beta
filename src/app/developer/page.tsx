@@ -525,6 +525,7 @@ export default function DeveloperPage() {
     () => allDealerships.find((dealership) => dealership.id === toolboxDealershipId) || null,
     [allDealerships, toolboxDealershipId]
   );
+  const strategicDeckHref = '/Presentations/autoknerd-strategic-deck';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -2664,6 +2665,13 @@ export default function DeveloperPage() {
           <Button variant="outline" onClick={() => goToSection('revenue_growth')}>Consultant Metrics</Button>
           <Button variant="outline" onClick={() => goToSection('monitoring')}>Open Monitoring</Button>
           <Button variant="outline" onClick={() => goToSection('sandbox')}>Open Sandbox</Button>
+          <Button
+            variant="outline"
+            onClick={() => window.open(strategicDeckHref, '_blank', 'noopener,noreferrer')}
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Open Strategic Deck
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoKnerd Strategic Deck</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --panel: #101010;
+      --panel-2: #171717;
+      --line: rgba(142, 255, 113, 0.18);
+      --text: #f4f4f4;
+      --muted: #9a9a9a;
+      --accent: #8eff71;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(142, 255, 113, 0.12), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(23, 238, 250, 0.08), transparent 24%),
+        var(--bg);
+      color: var(--text);
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 48px 24px 64px;
+    }
+    .eyebrow {
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: clamp(2.6rem, 8vw, 5.4rem);
+      line-height: 0.94;
+      margin: 0 0 16px;
+      text-transform: uppercase;
+      letter-spacing: -0.05em;
+    }
+    p.lead {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.7;
+      margin: 0 0 40px;
+    }
+    .actions {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      text-decoration: none;
+      background: linear-gradient(180deg, rgba(142, 255, 113, 0.12), rgba(142, 255, 113, 0.04));
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.78rem;
+    }
+    .button.secondary {
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+      border-radius: 18px;
+      padding: 18px;
+      text-decoration: none;
+      color: inherit;
+      min-height: 152px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: var(--line);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
+    }
+    .card .num {
+      color: var(--accent);
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .card h2 {
+      margin: 8px 0 6px;
+      font-size: 1.15rem;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Presentations / Developer Dashboard Ready</div>
+    <h1>AutoKnerd Strategic Deck</h1>
+    <p class="lead">
+      Standalone deck package with 14 HTML slides and a single launch page. Point the developer dashboard at this folder or open any slide directly.
+    </p>
+    <div class="actions">
+      <a class="button" href="/Presentations/autoknerd-strategic-deck/01-the-hook.html">Open Slide 01</a>
+      <a class="button secondary" href="/Presentations/autoknerd-strategic-deck/14-call-to-action.html">Open Final Slide</a>
+    </div>
+    <div class="grid">
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/01-the-hook.html"><div><div class="num">Slide 01</div><h2>The Hook</h2><p>You don’t have a people problem.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/02-the-problem.html"><div><div class="num">Slide 02</div><h2>The Problem</h2><p>The chaos of the unmanaged.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/03-root-cause.html"><div><div class="num">Slide 03</div><h2>Root Cause</h2><p>The behavior gap.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/04-the-shift.html"><div><div class="num">Slide 04</div><h2>The Shift</h2><p>Stop training. Start installing.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/05-the-system.html"><div><div class="num">Slide 05</div><h2>The System</h2><p>AutoKnerd introduced.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/06-autodrivecx.html"><div><div class="num">Slide 06</div><h2>AutoDriveCX</h2><p>The intelligence layer.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/07-precision-insight.html"><div><div class="num">Slide 07</div><h2>Precision Insight</h2><p>Data to insight.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/08-weekly-cadence.html"><div><div class="num">Slide 08</div><h2>Weekly Cadence</h2><p>The rhythm of execution.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/09-autoforge.html"><div><div class="num">Slide 09</div><h2>AutoForge</h2><p>The execution engine.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/10-the-transformation.html"><div><div class="num">Slide 10</div><h2>The Transformation</h2><p>The new store reality.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/11-business-impact.html"><div><div class="num">Slide 11</div><h2>Business Impact</h2><p>The bottom line.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/12-the-philosophy.html"><div><div class="num">Slide 12</div><h2>The Philosophy</h2><p>Behavior over training.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/13-the-vision.html"><div><div class="num">Slide 13</div><h2>The Vision</h2><p>This is how your dealership runs.</p></div></a>
+      <a class="card" href="/Presentations/autoknerd-strategic-deck/14-call-to-action.html"><div><div class="num">Slide 14</div><h2>Call to Action</h2><p>Secure your store.</p></div></a>
+    </div>
+  </main>
+</body>
+</html>
