@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import QRCode from 'react-qr-code';
 
-export default function LiveSessionQrPage() {
+function LiveSessionQrPageContent() {
   const searchParams = useSearchParams();
   const [audienceUrl, setAudienceUrl] = useState('');
   const [showQr, setShowQr] = useState(true);
@@ -117,5 +117,13 @@ export default function LiveSessionQrPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LiveSessionQrPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#050505]" />}>
+      <LiveSessionQrPageContent />
+    </Suspense>
   );
 }
