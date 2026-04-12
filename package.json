@@ -17,7 +17,8 @@
     "dev:webpage": "npm --prefix apps/webpage run dev",
     "build:webpage": "npm --prefix apps/webpage run build",
     "preview:webpage": "npm --prefix apps/webpage run preview",
-    "lint:webpage": "npm --prefix apps/webpage run lint"
+    "lint:webpage": "npm --prefix apps/webpage run lint",
+    "import:presentation": "node scripts/import-presentation-html.mjs"
   },
   "dependencies": {
     "@genkit-ai/anthropic": "^0.2.0",

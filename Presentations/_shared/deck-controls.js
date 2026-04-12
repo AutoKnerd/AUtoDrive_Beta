@@ -4,6 +4,7 @@
 
   const deckBasePath = `/${pathParts.slice(0, 2).join('/')}`;
   const currentFile = pathParts[pathParts.length - 1];
+  const deckId = pathParts[1];
 
   if (!currentFile.endsWith('.html') || currentFile === 'index.html') return;
 
@@ -59,6 +60,14 @@
   `;
   document.body.appendChild(scrollCue);
 
+  const audienceQrOverlay = document.createElement('div');
+  audienceQrOverlay.className = 'deck-audience-qr';
+  audienceQrOverlay.innerHTML = `
+    <button type="button" class="deck-audience-qr__close" aria-label="Hide audience QR">&times;</button>
+    <iframe class="deck-audience-qr__frame" src="/live-session/qr?embed=1" title="Audience QR code"></iframe>
+  `;
+  document.body.appendChild(audienceQrOverlay);
+
   const menuToggle = controls.querySelector('[data-action="toggle-menu"]');
   const backButton = controls.querySelector('[data-action="back"]');
   const audienceQrButton = controls.querySelector('[data-action="audience-qr"]');
@@ -69,26 +78,19 @@
   const metaLabel = nav.querySelector('[data-role="meta"]');
   const notesPanels = Array.from(document.querySelectorAll('.hideable-speaker-notes'));
   const notesStorageKey = `deck-notes-hidden:${deckBasePath}`;
+  const audienceQrCloseButton = audienceQrOverlay.querySelector('.deck-audience-qr__close');
 
-  const slideStepMap = {
-    '01-the-hook.html': 'slide1',
-    '02-the-problem.html': 'slide2',
-    '03-root-cause.html': 'slide3',
-    '04-the-shift.html': 'slide4',
-    '05-the-system.html': 'slide5',
-    '06-autodrivecx.html': 'slide6',
-    '07-precision-insight.html': 'slide7',
-    '08-weekly-cadence.html': 'slide8',
-    '09-autoforge.html': 'slide9',
-    '10-the-transformation.html': 'slide10',
-    '11-business-impact.html': 'slide11',
-    '12-the-philosophy.html': 'slide12',
-    '13-the-vision.html': 'slide13',
-    '14-call-to-action.html': 'slide14',
+  const inferStepFromFile = (fileName, fallbackIndex) => {
+    const numberedMatch = String(fileName || '').match(/^(\d+)/);
+    const parsedIndex = numberedMatch ? Number.parseInt(numberedMatch[1], 10) : NaN;
+    const resolvedIndex = Number.isFinite(parsedIndex) && parsedIndex > 0
+      ? parsedIndex
+      : (typeof fallbackIndex === 'number' && fallbackIndex > 0 ? fallbackIndex : 1);
+    return `slide${resolvedIndex}`;
   };
 
   const pushToAudience = async (step) => {
-    const currentStep = typeof step === 'string' && step ? step : (slideStepMap[currentFile] || 'slide1');
+    const currentStep = typeof step === 'string' && step ? step : inferStepFromFile(currentFile, currentIndex + 1);
 
     try {
       await fetch('/api/live-session', {
@@ -97,6 +99,7 @@
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          deckId,
           currentStep,
           currentSlide: currentFile,
         }),
@@ -132,9 +135,20 @@
     window.location.href = `${deckBasePath}`;
   });
 
+  const setAudienceQrVisible = (visible) => {
+    audienceQrOverlay.classList.toggle('deck-audience-qr--visible', visible);
+    if (audienceQrButton instanceof HTMLButtonElement) {
+      audienceQrButton.textContent = visible ? 'Hide Audience QR' : 'Audience QR';
+    }
+  };
+
   audienceQrButton?.addEventListener('click', () => {
     setMenuOpen(false);
-    window.open('/live-session/qr', '_blank', 'noopener,noreferrer');
+    setAudienceQrVisible(!audienceQrOverlay.classList.contains('deck-audience-qr--visible'));
+  });
+
+  audienceQrCloseButton?.addEventListener('click', () => {
+    setAudienceQrVisible(false);
   });
 
   const syncNotesState = () => {
@@ -251,13 +265,21 @@
     .then((manifest) => {
       if (!manifest || !Array.isArray(manifest.slides)) return;
       slideOrder = manifest.slides.filter((slide) => typeof slide === 'string');
+      const qrOverlayEnabled = manifest.audience?.qrOverlayEnabled !== false;
+      if (audienceQrButton instanceof HTMLButtonElement && !qrOverlayEnabled) {
+        audienceQrButton.style.display = 'none';
+      }
+      if (!qrOverlayEnabled) {
+        setAudienceQrVisible(false);
+      }
       syncNavigationState();
       syncScrollCue();
+      pushToAudience(inferStepFromFile(currentFile, currentIndex + 1));
     })
     .catch((error) => {
       console.error('Unable to load deck manifest.', error);
     });
 
-  pushToAudience(slideStepMap[currentFile] || 'slide1');
+  pushToAudience(inferStepFromFile(currentFile));
   syncScrollCue();
 })();

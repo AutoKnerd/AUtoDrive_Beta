@@ -44,6 +44,7 @@ import { ToolUsageMonitoringPanel } from '@/components/developer/tool-usage-moni
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
@@ -525,7 +526,14 @@ export default function DeveloperPage() {
     () => allDealerships.find((dealership) => dealership.id === toolboxDealershipId) || null,
     [allDealerships, toolboxDealershipId]
   );
-  const strategicDeckHref = '/Presentations/autoknerd-strategic-deck';
+  const strategicDeckHref = '/Presentations';
+  const [presentationImportTitle, setPresentationImportTitle] = useState('');
+  const [presentationImportDeckId, setPresentationImportDeckId] = useState('');
+  const [presentationImportDescription, setPresentationImportDescription] = useState('');
+  const [presentationImportHtml, setPresentationImportHtml] = useState('');
+  const [presentationImportOverwrite, setPresentationImportOverwrite] = useState(false);
+  const [presentationImportBusy, setPresentationImportBusy] = useState(false);
+  const [lastImportedPresentationHref, setLastImportedPresentationHref] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -611,6 +619,71 @@ export default function DeveloperPage() {
     }
     router.push(`/lesson/${FRESH_UP_LESSON_ID}?${params.toString()}`);
   }, [freshUpSandboxConfig, router, sandboxVersionId]);
+
+  const handleImportPresentation = useCallback(async () => {
+    if (!presentationImportHtml.trim()) {
+      toast({
+        title: 'Presentation HTML required',
+        description: 'Paste one or more full HTML slide documents before importing.',
+      });
+      return;
+    }
+
+    if (!presentationImportTitle.trim() && !presentationImportDeckId.trim()) {
+      toast({
+        title: 'Deck name required',
+        description: 'Add a title or deck id so the engine can name the deck.',
+      });
+      return;
+    }
+
+    setPresentationImportBusy(true);
+
+    try {
+      const response = await fetch('/api/presentations/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: presentationImportTitle.trim(),
+          deckId: presentationImportDeckId.trim(),
+          description: presentationImportDescription.trim(),
+          html: presentationImportHtml,
+          overwrite: presentationImportOverwrite,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Unable to import presentation.');
+      }
+
+      const href = typeof payload?.href === 'string' ? payload.href : '/Presentations';
+      setLastImportedPresentationHref(href);
+
+      toast({
+        title: 'Presentation imported',
+        description: `Deck ready at ${href}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Presentation import failed',
+        description: error instanceof Error ? error.message : 'Unable to import presentation.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresentationImportBusy(false);
+    }
+  }, [
+    presentationImportDeckId,
+    presentationImportDescription,
+    presentationImportHtml,
+    presentationImportOverwrite,
+    presentationImportTitle,
+    toast,
+  ]);
 
   const scoreInterpretationPreview = useMemo(() => {
     if (scoreInterpretationTest.roleType === 'random') return null;
@@ -2670,8 +2743,83 @@ export default function DeveloperPage() {
             onClick={() => window.open(strategicDeckHref, '_blank', 'noopener,noreferrer')}
           >
             <ExternalLink className="mr-2 h-4 w-4" />
-            Open Strategic Deck
+            Open Presentations
           </Button>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Presentation Importer</CardTitle>
+          <CardDescription>Paste raw presentation HTML and turn it into a reusable engine deck.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="presentation-import-title">Deck Title</Label>
+              <Input
+                id="presentation-import-title"
+                value={presentationImportTitle}
+                onChange={(event) => setPresentationImportTitle(event.target.value)}
+                placeholder="AutoKnerd Strategic Deck"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="presentation-import-deck-id">Deck Id</Label>
+              <Input
+                id="presentation-import-deck-id"
+                value={presentationImportDeckId}
+                onChange={(event) => setPresentationImportDeckId(event.target.value)}
+                placeholder="autoknerd-strategic-deck"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="presentation-import-description">Description</Label>
+            <Input
+              id="presentation-import-description"
+              value={presentationImportDescription}
+              onChange={(event) => setPresentationImportDescription(event.target.value)}
+              placeholder="Executive narrative deck for dealership performance transformation."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="presentation-import-html">Raw HTML</Label>
+            <Textarea
+              id="presentation-import-html"
+              value={presentationImportHtml}
+              onChange={(event) => setPresentationImportHtml(event.target.value)}
+              placeholder="Paste one or more full slide HTML documents here..."
+              className="min-h-[220px] font-mono text-xs"
+            />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <label className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Checkbox
+                checked={presentationImportOverwrite}
+                onCheckedChange={(checked) => setPresentationImportOverwrite(checked === true)}
+              />
+              Overwrite existing deck if it already exists
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.open('/Presentations', '_blank', 'noopener,noreferrer')}
+              >
+                Open Library
+              </Button>
+              {lastImportedPresentationHref ? (
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(lastImportedPresentationHref, '_blank', 'noopener,noreferrer')}
+                >
+                  Open Last Imported Deck
+                </Button>
+              ) : null}
+              <Button onClick={() => void handleImportPresentation()} disabled={presentationImportBusy}>
+                {presentationImportBusy ? 'Importing…' : 'Import Presentation'}
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
