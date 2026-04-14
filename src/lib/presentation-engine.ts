@@ -55,6 +55,7 @@ function normalizeAudienceConfig(
       title,
       body: `You are viewing synced audience content for ${title}.`,
       prompt: 'Keep this page open. It updates as the presentation moves.',
+      speakerNotes: [],
     };
     return accumulator;
   }, {});

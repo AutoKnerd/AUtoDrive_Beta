@@ -85,18 +85,227 @@
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
     }
-    .blur-data {
-      filter: blur(8px) saturate(0.5);
+    .noise-signal-shell {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.01) 0%, rgba(57, 255, 20, 0.02) 100%),
+        rgba(10, 10, 10, 0.78);
     }
-    .neon-glow {
-      box-shadow: 0 0 20px rgba(142, 255, 113, 0.2);
+    .noise-panel {
+      position: relative;
+    }
+    .noise-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .noise-panel--left::before {
+      background:
+        linear-gradient(180deg, rgba(255, 115, 81, 0.05), transparent 70%),
+        radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.025), transparent 50%);
+    }
+    .noise-panel--right::before {
+      background:
+        radial-gradient(circle at 55% 45%, rgba(57, 255, 20, 0.1), transparent 55%),
+        linear-gradient(180deg, rgba(57, 255, 20, 0.035), transparent 72%);
+    }
+    .flow-arrow {
+      position: relative;
+      width: 10.5rem;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(57, 255, 20, 0.05), rgba(57, 255, 20, 0.32), rgba(57, 255, 20, 0.08));
+      overflow: hidden;
+      opacity: 0.75;
+    }
+    .flow-arrow::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 -30%;
+      width: 30%;
+      background: linear-gradient(90deg, rgba(57, 255, 20, 0), rgba(57, 255, 20, 0.7), rgba(57, 255, 20, 0));
+      animation: signalPass 3.8s ease-in-out infinite;
+    }
+    .flow-arrow::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 50%;
+      width: 0.8rem;
+      height: 0.8rem;
+      border-top: 1px solid rgba(57, 255, 20, 0.5);
+      border-right: 1px solid rgba(57, 255, 20, 0.5);
+      transform: translateY(-50%) rotate(45deg);
+    }
+    @keyframes signalPass {
+      0%, 12% {
+        transform: translateX(0);
+        opacity: 0;
+      }
+      24% {
+        opacity: 1;
+      }
+      68% {
+        transform: translateX(430%);
+        opacity: 0.9;
+      }
+      100% {
+        transform: translateX(430%);
+        opacity: 0;
+      }
+    }
+    .transformation-pair {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.18fr);
+      gap: 1.5rem;
+      align-items: center;
+      min-height: 5.75rem;
+    }
+    .transformation-pair + .transformation-pair {
+      margin-top: 2rem;
+    }
+    .pair-link {
+      position: relative;
+      width: 5.5rem;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(57, 255, 20, 0.05), rgba(57, 255, 20, 0.28), rgba(57, 255, 20, 0.05));
+      overflow: hidden;
+      opacity: 0.72;
+    }
+    .pair-link::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 -40%;
+      width: 40%;
+      background: linear-gradient(90deg, rgba(57, 255, 20, 0), rgba(57, 255, 20, 0.72), rgba(57, 255, 20, 0));
+      animation: signalPass 4.4s ease-in-out infinite;
+    }
+    .pair-link::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 50%;
+      width: 0.7rem;
+      height: 0.7rem;
+      border-top: 1px solid rgba(57, 255, 20, 0.46);
+      border-right: 1px solid rgba(57, 255, 20, 0.46);
+      transform: translateY(-50%) rotate(45deg);
+    }
+    .pair-link--2::before {
+      animation-delay: 0.8s;
+    }
+    .pair-link--3::before {
+      animation-delay: 1.6s;
+    }
+    .transformation-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) auto minmax(0, 1.15fr);
+      column-gap: 2rem;
+      row-gap: 1.2rem;
+      align-items: center;
+    }
+    .transformation-header {
+      align-self: end;
+    }
+    .transformation-noise {
+      display: flex;
+      align-items: center;
+      min-height: 4.7rem;
+      max-width: 24rem;
+      font-size: clamp(1.45rem, 2.3vw, 2.35rem);
+      font-weight: 700;
+      line-height: 0.94;
+      letter-spacing: -0.04em;
+      color: rgba(255, 255, 255, 0.34);
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fadeResolve 680ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .transformation-signal {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 4.4rem;
+      max-width: 36rem;
+      font-size: clamp(1.6rem, 2.2vw, 2.45rem);
+      font-weight: 900;
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      color: #fff;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fadeResolve 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .pair-link {
+      position: relative;
+      width: 4.25rem;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(57, 255, 20, 0.05), rgba(57, 255, 20, 0.28), rgba(57, 255, 20, 0.05));
+      overflow: hidden;
+      opacity: 0.72;
+      box-shadow: 0 0 14px rgba(57, 255, 20, 0.05);
+    }
+    .row-1 {
+      animation-delay: 160ms;
+    }
+    .row-2 {
+      animation-delay: 380ms;
+    }
+    .row-3 {
+      animation-delay: 600ms;
+    }
+    .statement-reveal {
+      opacity: 0;
+      transform: translateY(12px);
+      animation: fadeResolve 780ms cubic-bezier(0.22, 1, 0.36, 1) forwards 920ms;
+    }
+    @keyframes fadeResolve {
+      0% {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @media (max-width: 768px) {
+      .transformation-pair {
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+      }
+      .transformation-pair + .transformation-pair {
+        margin-top: 1.5rem;
+      }
+      .pair-link {
+        width: 3.2rem;
+      }
+      .transformation-grid {
+        grid-template-columns: 1fr;
+        row-gap: 1.2rem;
+      }
+      .transformation-header {
+        margin-bottom: 0.25rem;
+      }
+      .transformation-noise {
+        color: rgba(255, 255, 255, 0.38);
+        min-height: auto;
+      }
+      .transformation-signal {
+        min-height: auto;
+      }
     }
   </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
 <body class="bg-background text-on-surface font-body overflow-hidden">
 <nav class="flex justify-between items-center w-full px-12 py-6 fixed top-0 z-50 bg-[#000000] no-border tonal-shift">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase font-headline">AutoKnerd</div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <div class="hidden md:flex space-x-8">
 <a class="font-headline font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Executive Summary</a>
 <a class="font-headline font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Market Growth</a>
@@ -135,76 +344,42 @@
 </div>
 </div>
 </aside>
-<main class="ml-20 pt-24 pb-20 px-16 h-screen flex flex-col justify-center">
-<header class="max-w-4xl mb-12">
+<main class="ml-20 pt-36 pb-20 px-16 h-screen flex flex-col justify-start">
+<header class="max-w-4xl mb-10">
 <div class="font-label text-primary text-xs tracking-[0.3em] uppercase mb-4">Case Study / Intelligence Pivot</div>
 <h1 class="text-6xl md:text-7xl font-headline font-extrabold tracking-tighter leading-none text-on-surface">
-        DATA TO <span class="text-primary italic">INSIGHT.</span>
+        FROM NOISE TO <span class="text-primary italic">CLARITY.</span>
       </h1>
 </header>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-px bg-outline-variant/20 rounded-xl overflow-hidden h-[512px] relative group">
-<div class="relative bg-surface-container-low flex flex-col items-center justify-center p-12 overflow-hidden border-r border-outline-variant/10">
-<div class="absolute inset-0 opacity-20 blur-data">
-<img class="w-full h-full object-cover" data-alt="Abstract blurry visualization of complex data spreadsheets and jagged red bar charts in a dark low-contrast environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbnhPxKgZMD7BFS-RGkAOgABe_gFPIS6qb2VIM4pVjgaw5gCrlhXNuIz-BcRDPsE7H3yBc4sowh3CtDHTIIW0cyU2AMgWvwt7p46XVPa3iCnl4S85e2DtE3E7TAkEeomwtIbuPJ190NJy4WND9NiRRUgDrR85e_XOgoUaDbCLLGYeWYM_5OURd4_x2v9SJQdiKux4uOM4CTUAP9DB1K6T4SKfVJcqJjt0t0Q_39G5wh9hNtO-5c0tc7xWlGwd01BvXAOqQdmXXM-A"/>
+<section class="noise-signal-shell mt-2 px-10 py-10 md:px-14 md:py-10">
+<div class="transformation-grid">
+<span class="transformation-header font-label text-[10px] uppercase tracking-[0.28em] text-white/40">THE NOISE</span>
+<div class="hidden md:block"></div>
+<span class="transformation-header font-label text-[10px] uppercase tracking-[0.28em] text-primary">THE SIGNAL</span>
+
+<div class="transformation-noise row-1">“CSI is down”</div>
+<div class="pair-link pair-link--1"></div>
+<div class="transformation-signal row-1">Test drives<span class="text-primary block">lack direction</span></div>
+
+<div class="transformation-noise row-2">“Customers are frustrated”</div>
+<div class="pair-link pair-link--2"></div>
+<div class="transformation-signal row-2">Customers unclear on<span class="text-primary block">next steps</span></div>
+
+<div class="transformation-noise row-3">“Leads aren’t converting”</div>
+<div class="pair-link pair-link--3"></div>
+<div class="transformation-signal row-3">Follow-up is<span class="text-primary block">inconsistent</span></div>
 </div>
-<div class="relative z-10 text-center">
-<span class="font-label text-[10px] text-error uppercase tracking-widest block mb-4">The Noise</span>
-<div class="text-4xl font-headline font-bold text-error-dim opacity-60 line-through">“CSI is down”</div>
-<p class="mt-4 text-on-surface-variant font-body max-w-xs mx-auto text-sm opacity-50 italic">Ambiguous, delayed, and unactionable reporting.</p>
-</div>
-</div>
-<div class="relative bg-surface-container-lowest flex flex-col items-center justify-center p-12 overflow-hidden neon-glow">
-<div class="absolute inset-0 opacity-10">
-<img class="w-full h-full object-cover" data-alt="Sharp high-tech circuit board with glowing neon green digital traces and precise light-speed data flow aesthetics" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWrjpGzshut3twitJe4SBOst3_nlEajwjIYxUqzOQmHJiJ7-LKCHY_sdg7HgOXTzFBnZpGJJNHT0XWkvDwvg6N3tWMKinbw6WLFsAVHugdsiiWYvT0u9uQKP4_CTQLYYvBMDzNsZkEhyL56grJ-1mWOeqRF8prwoSRNIiSbzwER3dsI_VrxpLINO747Tee-V4OYOW-IW7mN391rXVlgqjUcwDysvwy4J_dRL_cB4rb-r4J9Gr1HKlrzQVes_m-kH-gjhA9i-RmfJw"/>
-</div>
-<div class="relative z-10 text-center">
-<span class="font-label text-[10px] text-primary uppercase tracking-widest block mb-4">The Signal</span>
-<div class="text-4xl md:text-5xl font-headline font-black text-primary tracking-tight leading-tight">
-            “Customers confused <br/> in finance”
-          </div>
-<div class="mt-8 flex justify-center space-x-2">
-<div class="w-12 h-1 bg-primary rounded-full"></div>
-<div class="w-2 h-1 bg-primary-container rounded-full opacity-50"></div>
-<div class="w-2 h-1 bg-primary-container rounded-full opacity-20"></div>
-</div>
-</div>
-<div class="absolute bottom-8 right-8 bg-surface-container-high/80 backdrop-blur-xl border border-primary/20 p-4 rounded-xl max-w-[180px]">
-<div class="flex items-center space-x-2 mb-2">
-<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">target</span>
-<span class="font-label text-[10px] text-on-surface">PRECISION METRIC</span>
-</div>
-<div class="text-xl font-headline font-bold text-primary">87% RELEVANCY</div>
-</div>
-</div>
-<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 hidden md:block">
-<div class="bg-primary text-on-primary-fixed p-3 rounded-full shadow-2xl shadow-primary/40 flex items-center justify-center">
-<span class="material-symbols-outlined font-bold" data-icon="arrow_forward">arrow_forward</span>
-</div>
-</div>
-</div>
-<div class="grid grid-cols-12 mt-12 gap-8 items-end">
-<div class="col-span-12 md:col-span-5">
-<p class="text-xl font-body text-on-surface-variant leading-relaxed">
-          Generalities don't help you lead. Knowing exactly where the friction is allows you to <span class="text-on-surface font-semibold">act with surgical precision.</span>
-</p>
-</div>
-<div class="col-span-12 md:col-span-7 flex justify-end items-center space-x-12">
-<div class="text-right">
-<div class="font-label text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Response Time</div>
-<div class="text-3xl font-headline font-bold text-on-surface">0.4s <span class="text-sm font-light text-primary">REAL-TIME</span></div>
-</div>
-<div class="w-px h-12 bg-outline-variant"></div>
-<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed px-8 py-4 rounded-xl font-headline font-bold uppercase tracking-wider text-sm hover:brightness-110 transition-all shadow-lg shadow-primary/10 group">
-          View Live Feed
-          <span class="material-symbols-outlined align-middle ml-2 group-hover:translate-x-1 transition-transform" data-icon="trending_up">trending_up</span>
-</button>
-</div>
+</section>
+<div class="mt-12 text-center statement-reveal">
+<p class="text-[clamp(1.35rem,2.25vw,2.05rem)] font-medium leading-[1.2] tracking-tight text-on-surface">
+        We don’t report problems.<br/>We isolate the behavior causing them.
+      </p>
 </div>
 </main>
 <footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 bg-transparent">
 <div class="font-label text-[10px] tracking-widest font-light text-zinc-600 uppercase">AUTOKNERD PRIVATE EQUITY CONFIDENTIAL</div>
 <div class="flex space-x-8 font-label text-[10px] tracking-widest font-light text-zinc-600 uppercase">
-<span>SLIDE 01/14</span>
+<span>SLIDE 07/14</span>
 <span>INTERNAL USE ONLY</span>
 </div>
 </footer>

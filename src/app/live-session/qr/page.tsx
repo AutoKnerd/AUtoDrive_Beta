@@ -4,15 +4,61 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import QRCode from 'react-qr-code';
 
+function isInvalidAudienceUrl(raw: string) {
+  if (!raw) return true;
+
+  try {
+    const parsed = new URL(raw);
+    const isPrivateHost =
+      parsed.hostname === 'localhost'
+      || parsed.hostname === '127.0.0.1'
+      || parsed.hostname === '0.0.0.0'
+      || parsed.hostname === '::1'
+      || /^169\.254\./.test(parsed.hostname)
+      || /^192\.168\./.test(parsed.hostname)
+      || /^10\./.test(parsed.hostname)
+      || /^172\.(1[6-9]|2\d|3[0-1])\./.test(parsed.hostname);
+
+    return (
+      !/^https?:$/.test(parsed.protocol)
+      || (isPrivateHost && parsed.port !== '3000')
+    );
+  } catch {
+    return true;
+  }
+}
+
 function LiveSessionQrPageContent() {
   const searchParams = useSearchParams();
-  const [audienceUrl, setAudienceUrl] = useState('');
+  const initialAudienceUrl = searchParams.get('audience') ?? '';
+  const [audienceUrl, setAudienceUrl] = useState(isInvalidAudienceUrl(initialAudienceUrl) ? '' : initialAudienceUrl);
   const [showQr, setShowQr] = useState(true);
   const isEmbed = searchParams.get('embed') === '1';
 
   useEffect(() => {
-    setAudienceUrl(`${window.location.origin}/live-session`);
-  }, []);
+    if (initialAudienceUrl && !isInvalidAudienceUrl(initialAudienceUrl)) {
+      setAudienceUrl(initialAudienceUrl);
+      return;
+    }
+
+    let mounted = true;
+
+    fetch('/api/live-session', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!mounted) return;
+        const resolvedAudienceUrl = typeof payload?.audienceUrl === 'string' ? payload.audienceUrl : '';
+        setAudienceUrl(resolvedAudienceUrl || `${window.location.origin}/live-session?audience=1`);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setAudienceUrl(`${window.location.origin}/live-session?audience=1`);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [initialAudienceUrl]);
 
   if (isEmbed) {
     return (

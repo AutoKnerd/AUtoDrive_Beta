@@ -84,15 +84,74 @@
         body { background-color: #0e0e0e; color: #ffffff; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24; }
         .text-neon-glow { text-shadow: 0 0 20px rgba(142, 255, 113, 0.4); }
-        .glass-panel { backdrop-filter: blur(24px); background: rgba(26, 25, 25, 0.6); }
+        .change-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        .change-card {
+            min-height: 9.75rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+                rgba(19, 19, 19, 0.88);
+            padding: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            position: relative;
+        }
+        .change-card::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 0 0;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(57, 255, 20, 0), rgba(57, 255, 20, 0.7), rgba(57, 255, 20, 0));
+            opacity: 0.75;
+        }
+        .change-card--accent {
+            background:
+                radial-gradient(circle at top right, rgba(57, 255, 20, 0.14), transparent 38%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+                rgba(19, 19, 19, 0.9);
+        }
+        .change-card h2 {
+            margin: 0;
+            font-size: 1.66rem;
+            line-height: 0.98;
+            letter-spacing: -0.06em;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+        .change-card p {
+            margin: 0;
+            font-size: 0.82rem;
+            line-height: 1.22;
+            color: rgba(255, 255, 255, 0.74);
+            max-width: 18rem;
+            text-align: left;
+        }
+        @media (max-width: 1200px) {
+            .change-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .change-card {
+                min-height: 10rem;
+            }
+        }
+        @media (max-width: 860px) {
+            .change-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
 <body class="font-body selection:bg-primary selection:text-on-primary-container min-h-screen overflow-hidden">
 <nav class="flex justify-between items-center w-full px-12 py-6 bg-[#000000] fixed top-0 z-50">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase">
-            AutoKnerd
-        </div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <div class="hidden md:flex space-x-12">
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Executive Summary</a>
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Market Growth</a>
@@ -127,74 +186,48 @@
 </div>
 </div>
 </aside>
-<main class="ml-20 pt-32 px-12 min-h-screen pb-24 relative overflow-hidden">
+<main class="ml-20 pt-36 px-12 min-h-screen pb-48 relative overflow-hidden">
 <div class="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
-<header class="mb-20 max-w-4xl">
+<header class="mb-7 max-w-4xl">
 <div class="flex items-center gap-4 mb-4">
 <span class="h-[2px] w-12 bg-primary"></span>
-<p class="font-label text-xs tracking-[0.2em] text-on-surface-variant uppercase">Slide 10: What Changes.</p>
+<p class="font-label text-xs tracking-[0.2em] text-on-surface-variant uppercase">Slide 10</p>
 </div>
-<h1 class="text-7xl font-black tracking-tighter uppercase leading-[0.9] text-white">
-                THE NEW STORE <br/>
-<span class="text-primary text-neon-glow italic">REALITY.</span>
+<h1 class="text-[4.5rem] font-black tracking-tighter uppercase leading-[0.9] text-white">
+                WHAT CHANGES<br/>
+<span class="text-primary text-neon-glow italic">IN YOUR STORE</span>
             </h1>
 </header>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-<div class="group relative aspect-[3/4] bg-surface-container-low border border-outline-variant/10 rounded-xl overflow-hidden flex flex-col justify-between p-8 transition-all hover:bg-surface-container-high">
-<div class="flex justify-between items-start">
-<span class="font-label text-[10px] text-on-surface-variant opacity-40">01 / FOCUS</span>
-<span class="material-symbols-outlined text-primary/30 group-hover:text-primary transition-colors" data-icon="visibility">visibility</span>
+<div class="change-grid">
+<div class="change-card">
+<div>
+<h2 class="text-white">CLARITY</h2>
 </div>
-<div class="relative">
-<h2 class="text-5xl font-black tracking-tighter uppercase text-white group-hover:text-primary transition-colors">CLARITY.</h2>
-<p class="font-label text-[10px] mt-4 tracking-widest text-on-surface-variant group-hover:text-on-surface transition-colors">MANAGERIAL PRECISION</p>
+<p>Managers know what to fix, immediately.</p>
 </div>
-<div class="absolute bottom-0 left-0 h-1 w-0 bg-primary group-hover:w-full transition-all duration-500"></div>
+<div class="change-card">
+<div>
+<h2 class="text-white">CONSISTENCY</h2>
 </div>
-<div class="group relative aspect-[3/4] bg-surface-container-low border border-outline-variant/10 rounded-xl overflow-hidden flex flex-col justify-between p-8 transition-all hover:bg-surface-container-high">
-<div class="flex justify-between items-start">
-<span class="font-label text-[10px] text-on-surface-variant opacity-40">02 / FLOW</span>
-<span class="material-symbols-outlined text-primary/30 group-hover:text-primary transition-colors" data-icon="sync">sync</span>
+<p>Every customer gets the same experience.</p>
 </div>
-<div class="relative">
-<h2 class="text-5xl font-black tracking-tighter uppercase text-white group-hover:text-primary transition-colors">CONSISTENCY.</h2>
-<p class="font-label text-[10px] mt-4 tracking-widest text-on-surface-variant group-hover:text-on-surface transition-colors">STAFF REPLICATION</p>
+<div class="change-card">
+<div>
+<h2 class="text-white">CONFIDENCE</h2>
 </div>
-<div class="absolute bottom-0 left-0 h-1 w-0 bg-primary group-hover:w-full transition-all duration-500"></div>
+<p>Staff stops guessing, starts executing.</p>
 </div>
-<div class="group relative aspect-[3/4] bg-surface-container-low border border-outline-variant/10 rounded-xl overflow-hidden flex flex-col justify-between p-8 transition-all hover:bg-surface-container-high">
-<div class="flex justify-between items-start">
-<span class="font-label text-[10px] text-on-surface-variant opacity-40">03 / STRENGTH</span>
-<span class="material-symbols-outlined text-primary/30 group-hover:text-primary transition-colors" data-icon="verified">verified</span>
+<div class="change-card change-card--accent">
+<div>
+<h2 class="text-primary text-neon-glow text-[2rem]">TRUST</h2>
 </div>
-<div class="relative">
-<h2 class="text-5xl font-black tracking-tighter uppercase text-white group-hover:text-primary transition-colors">CONFIDENCE.</h2>
-<p class="font-label text-[10px] mt-4 tracking-widest text-on-surface-variant group-hover:text-on-surface transition-colors">EXECUTIVE CERTAINTY</p>
-</div>
-<div class="absolute bottom-0 left-0 h-1 w-0 bg-primary group-hover:w-full transition-all duration-500"></div>
-</div>
-<div class="group relative aspect-[3/4] bg-primary border border-primary/20 rounded-xl overflow-hidden flex flex-col justify-between p-8 transition-all">
-<div class="flex justify-between items-start">
-<span class="font-label text-[10px] text-on-primary-fixed uppercase font-bold">04 / LOYALTY</span>
-<span class="material-symbols-outlined text-on-primary-fixed" data-icon="shield">shield</span>
-</div>
-<div class="relative">
-<h2 class="text-5xl font-black tracking-tighter uppercase text-on-primary-fixed">TRUST.</h2>
-<p class="font-label text-[10px] mt-4 tracking-widest text-on-primary-fixed-variant font-bold">CUSTOMER RETENTION</p>
-</div>
-<div class="absolute -right-12 -top-12 w-32 h-32 bg-white/20 rounded-full blur-3xl"></div>
+<p>Customers feel it. CSI follows it.</p>
 </div>
 </div>
-<div class="mt-16 flex justify-end">
-<div class="glass-panel p-6 rounded-xl border border-outline-variant/20 max-w-md">
-<div class="flex items-center gap-2 mb-2">
-<span class="material-symbols-outlined text-primary text-sm" data-icon="description">description</span>
-<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Strategic Implication</p>
-</div>
-<p class="text-sm leading-relaxed text-zinc-300 font-light">
-                    When the <span class="text-primary font-bold">systemic architecture</span> is deployed, the cultural paradigm shifts. Decisions are no longer intuitive—they are procedural.
-                </p>
-</div>
+<div class="mt-4 mb-28 text-center">
+<p class="text-[1.9rem] font-black tracking-[-0.05em] leading-[1.05] text-primary text-neon-glow">
+                This is where chaos turns into control.
+            </p>
 </div>
 </main>
 <footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 bg-transparent z-50 pointer-events-none">
@@ -202,7 +235,7 @@
             AUTOKNERD PRIVATE EQUITY CONFIDENTIAL
         </div>
 <div class="flex gap-8">
-<span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-[#8eff71]">SLIDE 01/14</span>
+<span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-[#8eff71]">SLIDE 10/14</span>
 <span class="font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600">INTERNAL USE ONLY</span>
 </div>
 </footer>

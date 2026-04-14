@@ -12,12 +12,16 @@ import Image from 'next/image';
 import { AutoknerdHeaderMenu } from '@/components/autoknerd/autoknerd-header-menu';
 
 export function Header() {
-  const { user } = useAuth();
+  const { user, isTouring } = useAuth();
   const pathname = usePathname();
   const isToolsSurface = Boolean(pathname?.startsWith('/tools') || pathname?.startsWith('/autoshop'));
+  const isTourSurface = Boolean(pathname?.startsWith('/tour'));
+  const shouldUseAutoknerdLogo = isTourSurface || isTouring;
   const hasActiveAutoDriveCx = Boolean(user?.hasAutoDriveCX || (user as any)?.hasAutoDriveCx);
   const shouldShowSurfaceToggle = Boolean(user);
   const [showAutoDriveBadgePulse, setShowAutoDriveBadgePulse] = useState(false);
+  const brandLogoSrc = shouldUseAutoknerdLogo ? '/AutoKnerd Logo.png' : '/AutoDriveCXLogo030625.png';
+  const brandLogoAlt = shouldUseAutoknerdLogo ? 'AutoKnerd Logo' : 'AutoDriveCX Logo';
 
   const trainingSurfaceHref = '/';
   const isToolsActive = isToolsSurface;
@@ -120,12 +124,14 @@ export function Header() {
                 />
               </div>
             ) : (
-              <Logo
-                variant="full"
-                width={180}
-                height={52}
-                className="h-10 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(44,152,255,0.32)]"
-              />
+            <Logo
+              variant="full"
+              src={brandLogoSrc}
+              alt={brandLogoAlt}
+              width={180}
+              height={52}
+              className="h-10 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(44,152,255,0.32)]"
+            />
             )}
           </Link>
         </div>
@@ -147,6 +153,8 @@ export function Header() {
           ) : (
             <Logo
               variant="full"
+              src={brandLogoSrc}
+              alt={brandLogoAlt}
               width={292}
               height={96}
               className="h-14 w-auto object-contain brightness-110 drop-shadow-[0_4px_12px_rgba(44,152,255,0.4)] md:h-16"

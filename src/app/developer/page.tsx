@@ -39,6 +39,7 @@ import { ManageDealershipForm } from '@/components/admin/ManageDealershipForm';
 import { EditUserForm } from '@/components/admin/edit-user-form';
 import { PppProtocolSettings } from '@/components/admin/ppp-protocol-settings';
 import { AutoForgeLeadsPanel } from '@/components/developer/autoforge-leads-panel';
+import { PresentationLeadsPanel } from '@/components/developer/presentation-leads-panel';
 import { SprocketActivityPanel } from '@/components/developer/sprocket-activity-panel';
 import { ToolUsageMonitoringPanel } from '@/components/developer/tool-usage-monitoring-panel';
 import { Slider } from '@/components/ui/slider';
@@ -63,6 +64,7 @@ import { CONVERSATION_TEMPO_PROFILES } from '@/config/conversationTempoProfiles'
 import { buildConsultantOutreachLink } from '@/lib/consultant-share-links';
 
 type DashboardMode = 'role_based' | 'single_user';
+type LeadsView = 'presentation' | 'autoforge' | 'sprocket';
 type SectionId =
   | 'dashboard'
   | 'people_access'
@@ -148,7 +150,7 @@ const SECTION_DESCRIPTIONS: Record<SectionId, string> = {
   people_access: 'Manage users, roles, invitations, assignments, and access changes.',
   dealerships: 'Create dealerships and manage dealership-level settings.',
   revenue_growth: 'Consultant performance, public links, lead capture, and growth surfaces.',
-  leads: 'All captured lead flows, inboxes, activity streams, and source-specific pipelines.',
+  leads: 'Presentation leads, inboxes, activity streams, and source-specific pipelines.',
   product_controls: 'Feature access, PPP configuration, and product-level controls.',
   monitoring: 'Operational watchlists, activity streams, exports, and diagnostics.',
   sandbox: 'Safe preview tools for impersonation and CX simulation.',
@@ -418,6 +420,7 @@ export default function DeveloperPage() {
   const [activeSection, setActiveSection] = useState<SectionId>('dashboard');
   const [activeTool, setActiveTool] = useState<ToolId>('create_user');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [leadsView, setLeadsView] = useState<LeadsView>('presentation');
 
   const [dashboardMode, setDashboardMode] = useState<DashboardMode>('role_based');
   const [sandboxDealershipId, setSandboxDealershipId] = useState<string>('all');
@@ -3154,16 +3157,40 @@ export default function DeveloperPage() {
       <Card>
         <CardHeader>
           <CardTitle>Lead Pipelines</CardTitle>
-          <CardDescription>Unified view of lead capture across AutoForge, Sprocket, and future inbound sources.</CardDescription>
+          <CardDescription>Unified view of lead capture across presentation, AutoForge, Sprocket, and future inbound sources.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={leadsView === 'presentation' ? 'default' : 'outline'}
+              onClick={() => setLeadsView('presentation')}
+            >
+              Presentation Leads
+            </Button>
+            <Button
+              type="button"
+              variant={leadsView === 'autoforge' ? 'default' : 'outline'}
+              onClick={() => setLeadsView('autoforge')}
+            >
+              AutoForge
+            </Button>
+            <Button
+              type="button"
+              variant={leadsView === 'sprocket' ? 'default' : 'outline'}
+              onClick={() => setLeadsView('sprocket')}
+            >
+              Sprocket
+            </Button>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
             Use this section as the single place to review incoming leads, source quality, and follow-up opportunities across products.
           </p>
         </CardContent>
       </Card>
-      <AutoForgeLeadsPanel />
-      <SprocketActivityPanel />
+      {leadsView === 'presentation' ? <PresentationLeadsPanel /> : null}
+      {leadsView === 'autoforge' ? <AutoForgeLeadsPanel /> : null}
+      {leadsView === 'sprocket' ? <SprocketActivityPanel /> : null}
     </div>
   );
 

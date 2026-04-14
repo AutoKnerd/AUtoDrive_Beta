@@ -32,6 +32,10 @@ const navItems = [
   { href: '/Autoknerd/about', label: 'About', key: 'about' },
 ] as const;
 
+const presenterItems = [
+  { href: '/tour/lee', label: 'App Demo', subtitle: 'Quick access to the live demo' },
+] as const;
+
 const systemItems = [
   { href: '/Autoknerd', title: 'AutoKnerd', subtitle: 'Performance Intelligence', key: 'autoknerd' },
   { href: '/autoshop', title: 'AutoShop', subtitle: 'Diagnostic Suite', key: 'tools' },
@@ -179,6 +183,23 @@ export function AutoknerdHeaderMenu({
               </Link>
             ))}
             <div className="mt-4 border-t border-zinc-800 pt-4">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Presenter</p>
+              <div className="flex flex-col gap-3">
+                {presenterItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-sm border border-zinc-800 px-4 py-4 text-sm font-bold uppercase tracking-[0.18em] text-zinc-300 transition-all duration-300 hover:border-zinc-600 hover:text-zinc-100"
+                  >
+                    <span className="block">{item.label}</span>
+                    <span className="mt-1 block text-[10px] font-normal uppercase tracking-[0.16em] text-zinc-500">
+                      {item.subtitle}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 border-t border-zinc-800 pt-4">
               <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">System</p>
               <div className="flex flex-col gap-3">
                 {visibleSystemItems.map((item) => (
@@ -254,6 +275,15 @@ export function AutoknerdHeaderMenu({
             {item.label}
           </Link>
         ))}
+        <Link
+          href="/tour/lee"
+          className={cn(
+            'text-sm uppercase tracking-tight transition-all duration-300',
+            isLightTone ? 'text-slate-600 hover:text-slate-950' : 'text-zinc-400 hover:text-zinc-100'
+          )}
+        >
+          App Demo
+        </Link>
       </nav>
     </div>
   );

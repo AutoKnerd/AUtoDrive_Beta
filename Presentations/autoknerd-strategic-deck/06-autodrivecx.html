@@ -90,18 +90,320 @@
             background: radial-gradient(circle at center, rgba(142, 255, 113, 0.15) 0%, rgba(14, 14, 14, 0) 70%);
         }
         .node-line {
-            background: linear-gradient(90deg, rgba(142, 255, 113, 0) 0%, rgba(142, 255, 113, 0.4) 50%, rgba(142, 255, 113, 0) 100%);
+            background: linear-gradient(90deg, rgba(142, 255, 113, 0) 0%, rgba(142, 255, 113, 0.32) 50%, rgba(142, 255, 113, 0) 100%);
         }
         .glass-panel {
             background: rgba(26, 25, 25, 0.6);
             backdrop-filter: blur(24px);
         }
+        .intelligence-shell {
+            height: 100vh;
+            overflow: hidden;
+        }
+        .signal-map {
+            position: relative;
+            width: min(78vw, 760px);
+            height: min(44vh, 430px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            --signal-link-width: 96px;
+        }
+        .chip-core {
+            position: relative;
+            width: 12rem;
+            height: 12rem;
+            border-radius: 1.25rem;
+            border: 1.5px solid rgba(57, 255, 20, 0.62);
+            background:
+                linear-gradient(180deg, rgba(57, 255, 20, 0.12), rgba(57, 255, 20, 0.04)),
+                radial-gradient(circle at center, rgba(57, 255, 20, 0.12), rgba(57, 255, 20, 0.03) 60%, transparent 78%);
+            box-shadow:
+                0 0 26px rgba(57, 255, 20, 0.16),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+            animation: chipPulse 2.8s ease-in-out infinite;
+            will-change: transform, box-shadow;
+        }
+        .chip-core::before {
+            content: "";
+            position: absolute;
+            inset: 1rem;
+            border-radius: 0.9rem;
+            border: 1px solid rgba(57, 255, 20, 0.2);
+            background:
+                linear-gradient(90deg, transparent 0%, rgba(57, 255, 20, 0.06) 50%, transparent 100%),
+                linear-gradient(180deg, transparent 0%, rgba(57, 255, 20, 0.04) 50%, transparent 100%);
+        }
+        .chip-icon {
+            position: relative;
+            z-index: 1;
+            width: 5.1rem;
+            height: 5.1rem;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(57, 255, 20, 0.16));
+            opacity: 1;
+        }
+        .chip-pins {
+            position: absolute;
+            inset: -1rem;
+            pointer-events: none;
+        }
+        .chip-pin {
+            position: absolute;
+            background: rgba(57, 255, 20, 0.58);
+            border-radius: 999px;
+        }
+        .chip-pin--top,
+        .chip-pin--bottom {
+            width: 2px;
+            height: 0.85rem;
+        }
+        .chip-pin--left,
+        .chip-pin--right {
+            width: 0.85rem;
+            height: 2px;
+        }
+        .signal-link {
+            position: absolute;
+            overflow: hidden;
+            background: linear-gradient(90deg, rgba(57, 255, 20, 0) 0%, rgba(57, 255, 20, 0.12) 50%, rgba(57, 255, 20, 0) 100%);
+            opacity: 0.16;
+            transform-origin: center;
+        }
+        .signal-link::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 36px;
+            height: 100%;
+            transform: translateY(-50%);
+            background: linear-gradient(90deg, rgba(57, 255, 20, 0) 0%, rgba(57, 255, 20, 0.88) 50%, rgba(57, 255, 20, 0) 100%);
+            filter: blur(0.6px);
+            opacity: 0;
+        }
+        .signal-link--left-top {
+            top: 38%;
+            left: 24%;
+            width: var(--signal-link-width);
+            height: 1px;
+            transform: translateY(-50%);
+            animation: linkGlow 8s ease-in-out infinite;
+        }
+        .signal-link--left-bottom {
+            top: 63%;
+            left: 24%;
+            width: var(--signal-link-width);
+            height: 1px;
+            transform: translateY(-50%);
+            animation: linkGlow 8s ease-in-out infinite 2s;
+        }
+        .signal-link--right-top {
+            top: 38%;
+            right: 24%;
+            width: var(--signal-link-width);
+            height: 1px;
+            transform: translateY(-50%);
+            animation: linkGlow 8s ease-in-out infinite 4s;
+        }
+        .signal-link--right-bottom {
+            top: 63%;
+            right: 24%;
+            width: var(--signal-link-width);
+            height: 1px;
+            transform: translateY(-50%);
+            animation: linkGlow 8s ease-in-out infinite 6s;
+        }
+        .signal-link--left-top::after,
+        .signal-link--left-bottom::after {
+            right: -36px;
+            animation: pulseLeft 8s ease-in-out infinite;
+        }
+        .signal-link--right-top::after,
+        .signal-link--right-bottom::after {
+            left: -36px;
+            animation: pulseRight 8s ease-in-out infinite;
+        }
+        .signal-link--left-bottom::after {
+            animation-delay: 2s;
+        }
+        .signal-link--right-top::after {
+            animation-delay: 4s;
+        }
+        .signal-link--right-bottom::after {
+            animation-delay: 6s;
+        }
+        .signal-node {
+            opacity: 0.62;
+            transform: translateY(12px);
+            animation:
+                signalReveal 680ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+                signalActivity 8s ease-in-out infinite 1.2s;
+            box-shadow: 0 0 0 rgba(57, 255, 20, 0);
+            will-change: transform, opacity, box-shadow, border-color, filter;
+            min-width: 164px;
+            justify-content: center;
+        }
+        .signal-node--1 {
+            animation-delay: 220ms, 1.2s;
+        }
+        .signal-node--2 {
+            animation-delay: 420ms, 3.2s;
+        }
+        .signal-node--3 {
+            animation-delay: 620ms, 5.2s;
+        }
+        .signal-node--4 {
+            animation-delay: 820ms, 7.2s;
+        }
+        .signal-node--left-top {
+            top: 28%;
+            left: 1%;
+            transform: translateY(12px);
+        }
+        .signal-node--left-bottom {
+            top: 53%;
+            left: 1%;
+            transform: translateY(12px);
+        }
+        .signal-node--right-top {
+            top: 28%;
+            right: 1%;
+            transform: translateY(12px);
+        }
+        .signal-node--right-bottom {
+            top: 53%;
+            right: 1%;
+            transform: translateY(12px);
+        }
+        @keyframes signalReveal {
+            0% {
+                opacity: 0.32;
+                transform: translateY(12px);
+                box-shadow: 0 0 0 rgba(57, 255, 20, 0);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+                box-shadow: 0 0 18px rgba(57, 255, 20, 0.08);
+            }
+        }
+        @keyframes chipPulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow:
+                    0 0 22px rgba(57, 255, 20, 0.14),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+            }
+            50% {
+                transform: scale(1.018);
+                box-shadow:
+                    0 0 34px rgba(57, 255, 20, 0.24),
+                    0 0 52px rgba(57, 255, 20, 0.08),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            }
+        }
+        @keyframes linkGlow {
+            0%, 100% {
+                opacity: 0.12;
+            }
+            10%, 20% {
+                opacity: 0.28;
+            }
+            28%, 92% {
+                opacity: 0.12;
+            }
+        }
+        @keyframes pulseLeft {
+            0%, 8% {
+                opacity: 0;
+                transform: translateY(-50%) translateX(0);
+            }
+            10% {
+                opacity: 0.95;
+            }
+            20% {
+                opacity: 0.72;
+                transform: translateY(-50%) translateX(calc(-1 * var(--signal-link-width)));
+            }
+            24%, 100% {
+                opacity: 0;
+                transform: translateY(-50%) translateX(calc(-1 * var(--signal-link-width)));
+            }
+        }
+        @keyframes pulseRight {
+            0%, 8% {
+                opacity: 0;
+                transform: translateY(-50%) translateX(0);
+            }
+            10% {
+                opacity: 0.95;
+            }
+            20% {
+                opacity: 0.72;
+                transform: translateY(-50%) translateX(var(--signal-link-width));
+            }
+            24%, 100% {
+                opacity: 0;
+                transform: translateY(-50%) translateX(var(--signal-link-width));
+            }
+        }
+        @keyframes signalActivity {
+            0%, 100% {
+                opacity: 0.68;
+                transform: translateY(0) scale(1);
+                border-color: rgba(57, 255, 20, 0.2);
+                box-shadow: 0 0 0 rgba(57, 255, 20, 0);
+                filter: brightness(0.95);
+            }
+            10%, 18% {
+                opacity: 1;
+                transform: translateY(0) scale(1.035);
+                border-color: rgba(57, 255, 20, 0.42);
+                box-shadow: 0 0 18px rgba(57, 255, 20, 0.16);
+                filter: brightness(1.1);
+            }
+            24%, 92% {
+                opacity: 0.68;
+                transform: translateY(0) scale(1);
+                border-color: rgba(57, 255, 20, 0.2);
+                box-shadow: 0 0 0 rgba(57, 255, 20, 0);
+                filter: brightness(0.95);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .chip-core,
+            .signal-link,
+            .signal-link::after,
+            .signal-node {
+                animation: none !important;
+                transform: none !important;
+            }
+            .signal-node {
+                opacity: 1;
+            }
+            .signal-link {
+                opacity: 0.14;
+            }
+        }
+        @media (max-width: 1024px) {
+            .signal-map {
+                width: min(84vw, 620px);
+                height: min(42vh, 390px);
+                --signal-link-width: 62px;
+            }
+            .signal-link--left-top,
+            .signal-link--left-bottom,
+            .signal-link--right-top,
+            .signal-link--right-bottom {
+                width: var(--signal-link-width);
+            }
+        }
     </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
-<body class="bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-container overflow-hidden">
+<body class="intelligence-shell bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-container overflow-hidden">
 <nav class="flex justify-between items-center w-full px-12 py-6 fixed top-0 z-50 bg-[#000000] no-border tonal-shift">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase font-headline">AutoKnerd</div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <div class="hidden md:flex items-center space-x-10">
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-[#8eff71] transition-colors duration-300" href="#">Executive Summary</a>
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-[#8eff71] transition-colors duration-300" href="#">Market Growth</a>
@@ -135,64 +437,65 @@
 </div>
 </div>
 </aside>
-<main class="ml-20 h-screen w-[calc(100%-5rem)] relative flex flex-col items-start justify-center px-24 overflow-hidden">
-<header class="z-20 mb-12 max-w-4xl">
+<main class="ml-20 h-screen w-[calc(100%-5rem)] relative flex flex-col items-center justify-start px-20 overflow-hidden pt-28">
+<header class="z-20 mb-4 max-w-5xl text-center">
 <span class="font-label text-primary text-xs tracking-[0.3em] uppercase mb-4 block">Slide 06 / Intelligence Layer</span>
-<h1 class="text-[5rem] font-black tracking-tighter leading-none mb-6 uppercase">
-                AUTODRIVECX: <span class="text-primary-dim">THE BRAIN.</span>
+<h1 class="text-[clamp(3.2rem,5.8vw,5.1rem)] font-black tracking-tighter leading-[0.88] mb-3 uppercase">
+                AUTODRIVECX<br/><span class="text-primary-dim">SEES WHAT YOU CAN’T</span>
             </h1>
-<div class="flex flex-wrap gap-x-8 gap-y-2 opacity-80">
-<div class="flex items-center space-x-3">
-<div class="w-1.5 h-1.5 bg-primary"></div>
-<p class="font-label text-sm tracking-widest uppercase">TRACKS BEHAVIOR</p>
-</div>
-<div class="flex items-center space-x-3">
-<div class="w-1.5 h-1.5 bg-primary"></div>
-<p class="font-label text-sm tracking-widest uppercase">DIAGNOSES BREAKDOWNS</p>
-</div>
-<div class="flex items-center space-x-3">
-<div class="w-1.5 h-1.5 bg-primary"></div>
-<p class="font-label text-sm tracking-widest uppercase">PRESCRIBES ACTION</p>
-</div>
-</div>
+<p class="text-base text-on-surface-variant/65 tracking-[0.12em] uppercase font-label">Culture, not just outcomes.</p>
 </header>
-<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-<div class="relative w-[120%] h-[120%] brain-glow flex items-center justify-center">
+<div class="z-10 flex flex-col items-center justify-center mt-2">
+<div class="signal-map brain-glow pointer-events-none">
+<div class="signal-link signal-link--left-top"></div>
+<div class="signal-link signal-link--left-bottom"></div>
+<div class="signal-link signal-link--right-top"></div>
+<div class="signal-link signal-link--right-bottom"></div>
 <div class="relative z-10 flex flex-col items-center justify-center">
-<div class="w-48 h-48 rounded-full border border-primary/30 flex items-center justify-center glass-panel">
-<div class="w-40 h-40 rounded-full border-2 border-primary/60 flex items-center justify-center">
-<div class="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-[0_0_60px_rgba(142,255,113,0.4)]">
-<span class="material-symbols-outlined text-on-primary-fixed text-5xl" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<div class="chip-core flex items-center justify-center">
+<div class="chip-pins">
+<span class="chip-pin chip-pin--top" style="top:0; left:20%;"></span>
+<span class="chip-pin chip-pin--top" style="top:0; left:40%;"></span>
+<span class="chip-pin chip-pin--top" style="top:0; left:60%;"></span>
+<span class="chip-pin chip-pin--top" style="top:0; left:80%;"></span>
+<span class="chip-pin chip-pin--bottom" style="bottom:0; left:20%;"></span>
+<span class="chip-pin chip-pin--bottom" style="bottom:0; left:40%;"></span>
+<span class="chip-pin chip-pin--bottom" style="bottom:0; left:60%;"></span>
+<span class="chip-pin chip-pin--bottom" style="bottom:0; left:80%;"></span>
+<span class="chip-pin chip-pin--left" style="left:0; top:20%;"></span>
+<span class="chip-pin chip-pin--left" style="left:0; top:40%;"></span>
+<span class="chip-pin chip-pin--left" style="left:0; top:60%;"></span>
+<span class="chip-pin chip-pin--left" style="left:0; top:80%;"></span>
+<span class="chip-pin chip-pin--right" style="right:0; top:20%;"></span>
+<span class="chip-pin chip-pin--right" style="right:0; top:40%;"></span>
+<span class="chip-pin chip-pin--right" style="right:0; top:60%;"></span>
+<span class="chip-pin chip-pin--right" style="right:0; top:80%;"></span>
 </div>
+<img alt="AutoDriveCX intelligence core" class="chip-icon" src="/gear-head.png"/>
 </div>
+<p class="mt-6 text-center font-headline font-black text-2xl tracking-tighter text-on-surface">AutoDriveCX</p>
+<p class="mt-1 text-center text-[10px] uppercase tracking-[0.28em] text-on-surface-variant/55 font-label">Culture Engine</p>
 </div>
-<p class="mt-6 font-headline font-black text-2xl tracking-tighter text-on-surface">AutoDriveCX</p>
-</div>
-<div class="absolute top-[25%] left-[65%] glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center space-x-4">
-<span class="material-symbols-outlined text-primary text-xl">verified_user</span>
+<div class="signal-node signal-node--1 signal-node--left-top absolute glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center">
 <span class="font-label text-xs tracking-widest uppercase">Trust</span>
 </div>
-<div class="absolute bottom-[30%] left-[25%] glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center space-x-4">
-<span class="material-symbols-outlined text-primary text-xl">visibility</span>
+<div class="signal-node signal-node--2 signal-node--left-bottom absolute glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center">
 <span class="font-label text-xs tracking-widest uppercase">Clarity</span>
 </div>
-<div class="absolute top-[40%] left-[20%] glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center space-x-4">
-<span class="material-symbols-outlined text-primary text-xl">bolt</span>
+<div class="signal-node signal-node--3 signal-node--right-top absolute glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center">
 <span class="font-label text-xs tracking-widest uppercase">Confidence</span>
+ </div>
+<div class="signal-node signal-node--4 signal-node--right-bottom absolute glass-panel px-6 py-3 rounded-xl border border-primary/20 flex items-center">
+<span class="font-label text-xs tracking-widest uppercase">Consistency</span>
 </div>
-<div class="absolute w-[80%] h-[1px] node-line rotate-45 opacity-20"></div>
-<div class="absolute w-[80%] h-[1px] node-line -rotate-45 opacity-20"></div>
-<div class="absolute w-full h-[1px] node-line opacity-10"></div>
 </div>
-</div>
-<div class="mt-auto mb-20 z-20 max-w-md glass-panel p-8 rounded-xl border-l-4 border-primary shadow-2xl">
-<h4 class="font-label text-primary text-[10px] tracking-[0.2em] uppercase mb-4">Strategic Insight</h4>
-<p class="text-on-surface-variant leading-relaxed text-sm">
-                AutoDriveCX is the intelligence layer. It doesn't just look at CSI; it tracks the actual behaviors that <span class="text-primary font-semibold">create</span> CSI. It knows where the breakdown is before your customers do.
+<div class="z-20 mt-1 max-w-none text-center mb-28">
+<p class="text-[1.6rem] font-medium leading-tight tracking-tight text-on-surface whitespace-nowrap">
+                This is how we measure culture in motion.
             </p>
-</div>
-<div class="absolute bottom-[-10%] right-[-5%] w-1/2 h-1/2 opacity-20 pointer-events-none">
-<img class="w-full h-full object-contain mix-blend-screen" data-alt="abstract tech circuitry pattern in neon green and deep black with glowing nodes and data pathways" src="https://lh3.googleusercontent.com/aida-public/AB6AXuALrIiCKKJrI0Pllf6aem7Jhvcgbbc5HTckEpabUbyI8Lz2OFp0wq8FcWZydUN1SokfrUygczNbREUyPG4MjSLX7QmoAPk4S_Mcb_4oQJP2X4Iuk3sSSdLgxzVRUgFJ6TgltM99reXbe32GxHvSB3yhrhrYuQZjqdKQ9nUcL7w9axgJLM2bklZk58DHSkQNoSevO-_U-JQsl3H767bBwFuum_-Bg2WJby6thJSw_0JYB_apKzJsLxdusD-NqWeQcgi-54IY3U_TtQQ"/>
+<p class="mt-2 text-[0.95rem] font-semibold uppercase tracking-[0.22em] text-[#8eff71]/72">
+                Culture follows behavior.
+            </p>
 </div>
 </main>
 <footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 z-50 pointer-events-none">

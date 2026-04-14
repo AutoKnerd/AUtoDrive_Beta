@@ -1,5 +1,4 @@
 import { getAdminDb } from '@/firebase/admin';
-import { LiveSessionClient } from '@/app/live-session/live-session-client';
 import {
   LIVE_SESSION_DEFAULT_STATE,
   LIVE_SESSION_ID,
@@ -8,6 +7,7 @@ import {
   type LiveSessionState,
 } from '@/lib/live-session';
 import { getAudienceContentForDeck, readPresentationDeckManifest } from '@/lib/presentation-engine';
+import { PresenterNotesClient } from '@/app/live-session/notes/presenter-notes-client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,13 +26,14 @@ async function readInitialPayload(): Promise<LiveSessionPayload> {
     if (!manifest) {
       return {
         state,
-        deckTitle: state.deckId,
+        deckTitle: 'AutoKnerd',
         audienceEnabled: true,
         qrOverlayEnabled: true,
         content: {
-          eyebrow: 'Live Session',
-          title: state.currentStep,
-          body: 'Audience sync is active.',
+          eyebrow: 'Presenter Notes',
+          title: 'Connecting…',
+          body: 'Waiting for presentation state.',
+          speakerNotes: [],
         },
       };
     }
@@ -45,7 +46,7 @@ async function readInitialPayload(): Promise<LiveSessionPayload> {
       content: getAudienceContentForDeck(manifest, state.currentStep),
     };
   } catch (error) {
-    console.error('Unable to read initial live session payload.', error);
+    console.error('Unable to read initial presenter notes payload.', error);
 
     return {
       state: LIVE_SESSION_DEFAULT_STATE,
@@ -53,16 +54,17 @@ async function readInitialPayload(): Promise<LiveSessionPayload> {
       audienceEnabled: true,
       qrOverlayEnabled: true,
       content: {
-        eyebrow: 'Live Session',
+        eyebrow: 'Presenter Notes',
         title: 'Connecting…',
         body: 'Waiting for presentation state.',
-        prompt: 'Keep this page open. It updates as the presentation advances.',
+        speakerNotes: [],
       },
     };
   }
 }
 
-export default async function LiveSessionPage() {
+export default async function PresenterNotesPage() {
   const initialPayload = await readInitialPayload();
-  return <LiveSessionClient initialPayload={initialPayload} />;
+  const manifest = await readPresentationDeckManifest(initialPayload.state.deckId);
+  return <PresenterNotesClient initialPayload={initialPayload} slideFiles={manifest?.slides ?? []} />;
 }

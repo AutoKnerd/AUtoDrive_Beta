@@ -92,6 +92,27 @@
       background: rgba(26, 25, 25, 0.6);
       backdrop-filter: blur(24px);
     }
+    .velocity-card {
+      background: rgba(26, 25, 25, 0.6);
+      backdrop-filter: blur(24px);
+    }
+    .velocity-step {
+      display: grid;
+      gap: 0.35rem;
+    }
+    .velocity-step strong {
+      font-size: 0.95rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #8eff71;
+      font-family: "Space Grotesk", sans-serif;
+    }
+    .velocity-step span {
+      font-size: 1.05rem;
+      line-height: 1.25;
+      color: rgba(255, 255, 255, 0.88);
+      font-weight: 600;
+    }
   </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
@@ -127,7 +148,7 @@
 </div>
 </aside>
 <nav class="fixed top-0 right-0 left-20 z-40 flex justify-between items-center px-12 py-6 bg-[#000000]">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase">AutoKnerd</div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <div class="flex gap-8">
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Executive Summary</a>
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Market Growth</a>
@@ -163,22 +184,22 @@
 </div>
 </div>
 <div class="col-span-4 pb-12">
-<div class="glass-card rounded-xl p-8 border border-white/5 relative overflow-hidden">
+<div class="velocity-card rounded-xl p-8 border border-white/5 relative overflow-hidden">
 <div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
 <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase mb-6">Execution Velocity</p>
-<div class="flex items-baseline gap-2 mb-2">
-<span class="text-5xl font-black text-primary tracking-tighter">14x</span>
-<span class="text-on-surface-variant text-sm font-medium">Yield Increase</span>
+<div class="space-y-5">
+<div class="velocity-step">
+<strong>Faster identification</strong>
+<span>Managers see the issue sooner.</span>
 </div>
-<p class="text-on-surface-variant text-sm leading-relaxed max-w-[240px]">
-              Our proprietary behavioral framework turns standard operational cycles into competitive moats. 
-            </p>
-<div class="mt-8 flex gap-1">
-<div class="h-1 flex-1 bg-primary"></div>
-<div class="h-1 flex-1 bg-primary"></div>
-<div class="h-1 flex-1 bg-primary"></div>
-<div class="h-1 flex-1 bg-primary/20"></div>
-<div class="h-1 flex-1 bg-primary/20"></div>
+<div class="velocity-step">
+<strong>Faster response</strong>
+<span>They know what to do next.</span>
+</div>
+<div class="velocity-step">
+<strong>Faster improvement</strong>
+<span>The store learns every week.</span>
+</div>
 </div>
 </div>
 </div>
@@ -209,7 +230,7 @@
 <div class="flex items-start gap-4">
 <span class="material-symbols-outlined text-primary text-sm mt-1" data-icon="info">info</span>
 <p class="text-xs text-on-surface-variant font-medium leading-relaxed uppercase tracking-wider">
-        Success is a mechanical output of consistent behavior. We prioritize weekly execution over grand ideas.
+        Success is a mechanical output of consistent behavior.
       </p>
 </div>
 </div>

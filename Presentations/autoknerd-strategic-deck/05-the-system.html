@@ -88,19 +88,146 @@
     background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBp3XgnbB3rR97_Rm2PtdTpSRJDjK6A1KIJX73p_HvTOInKb6VPsCq8tDFrH14BjfhKA4N-X0GhpYKdFRjHK9kBhxwMZO0NFdntOTFAmpWvJ1oFntsIRAI5zRkLHTJ_hw-vGDLaUgnf6IzYRHuIHDpAKd8x84Pl7WvRWVoa-rWAINEDPAbX221FQIpAG1N3jte0Io7UmLUofCSsujxlL46L8AJGthBrknN9NoxTamJkgkzIp2uxqP6fOIL3ZnsQJRIJvd17T4lkWmQ);
     opacity: 0.05
     }
-.chevron-path {
-    clip-path: polygon(75% 0%, 100% 50%, 75% 100%, 0% 100%, 25% 50%, 0% 0%)
-    }
 .glass-panel {
     background: rgba(26, 25, 25, 0.6);
     backdrop-filter: blur(24px)
+    }
+.system-shell {
+    height: 100vh;
+    overflow: hidden
+    }
+.system-main {
+    height: 100vh;
+    overflow: hidden;
+    padding-bottom: 84px
+    }
+.system-header-title {
+    font-size: clamp(3.35rem, 8.6vw, 7.9rem)
+    }
+.system-flow-shell {
+    position: relative;
+    width: 100%;
+    max-width: min(100%, 1180px);
+    padding: 2.25rem 2rem
+    }
+.system-flow-shell::before {
+    content: "";
+    position: absolute;
+    inset: .35rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: linear-gradient(90deg, rgba(57, 255, 20, 0.04) 0%, rgba(57, 255, 20, 0.08) 50%, rgba(57, 255, 20, 0.04) 100%);
+    pointer-events: none
+    }
+.system-flow-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(57, 255, 20, 0.08), transparent 62%);
+    pointer-events: none;
+    opacity: .7
+    }
+.system-flow-line > * {
+    position: relative;
+    z-index: 1
+    }
+.system-support-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 2rem
+    }
+.system-card {
+    min-height: 0;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-top-width: 2px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+    opacity: 0.4;
+    transform: translateY(18px) scale(1);
+    animation: system-card-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    transition: transform 220ms ease, box-shadow 220ms ease, filter 220ms ease, border-color 220ms ease, opacity 220ms ease
+    }
+.system-card--diagnose {
+    animation-delay: 180ms
+    }
+.system-card--prescribe {
+    animation-delay: 420ms
+    }
+.system-card--execute {
+    animation-delay: 660ms
+    }
+.system-card:hover,
+.system-card:focus-within {
+    transform: translateY(0) scale(1.04);
+    filter: brightness(1.08);
+    border-color: rgba(57, 255, 20, 0.32);
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.26), 0 0 24px rgba(57, 255, 20, 0.12)
+    }
+.system-card-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1.75rem;
+    height: 100%
+    }
+.system-support-title {
+    font-size: clamp(1.95rem, 2.8vw, 2.4rem);
+    letter-spacing: -0.04em
+    }
+.system-support-copy {
+    font-size: clamp(1rem, 1.4vw, 1.125rem);
+    line-height: 1.6
+    }
+.system-support-contrast {
+    font-size: clamp(0.95rem, 1.2vw, 1.05rem);
+    line-height: 1.55;
+    opacity: 0.74;
+    font-style: italic;
+    font-weight: 300
+    }
+@keyframes system-card-rise {
+    0% {
+        opacity: 0.4;
+        transform: translateY(18px) scale(1)
+        }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1)
+        }
+    }
+@media (max-width: 1024px) {
+    .system-shell {
+        height: auto;
+        overflow-y: auto
+        }
+    .system-main {
+        height: auto;
+        overflow: visible;
+        padding-bottom: 132px
+        }
+    .system-card {
+        min-height: auto
+        }
+    .system-support-grid {
+        grid-template-columns: 1fr
+        }
+    .system-flow-shell {
+        padding: 1.5rem 1rem
+        }
+    }
+@media (max-width: 768px) {
+    .system-main {
+        padding-bottom: 128px
+        }
+    .system-flow-shell::before {
+        inset: .5rem 0
+        }
     }</style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
-<body class="bg-surface text-on-surface font-body overflow-hidden">
+<body class="system-shell bg-surface text-on-surface font-body overflow-hidden">
 <div class="fixed inset-0 bg-noise pointer-events-none"></div>
 <nav class="flex justify-between items-center w-full px-12 py-6 bg-[#000000] fixed top-0 z-50 tonal-shift">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase">AutoKnerd</div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <div class="hidden md:flex items-center space-x-12">
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Executive Summary</a>
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Market Growth</a>
@@ -134,79 +261,79 @@
 <span class="absolute left-full ml-4 font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase opacity-0 group-hover:opacity-100 whitespace-nowrap text-zinc-500">Final Pitch</span>
 </div>
 </div>
-<div class="absolute bottom-12 flex flex-col items-center">
-<div class="rotate-180 [writing-mode:vertical-lr] font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase text-zinc-600">STRATEGIC DECK</div>
-</div>
 </aside>
-<main class="ml-20 pt-24 min-h-screen px-12 md:px-24 flex flex-col justify-center">
-<div class="mb-16">
-<p class="font-label text-primary tracking-[0.2em] mb-4 text-xs font-bold">INTRODUCING THE SYSTEM</p>
-<h1 class="text-7xl md:text-9xl font-black tracking-tighter text-on-surface leading-none mb-6">
-                AUTOKNERD.
+<main class="system-main ml-20 pt-16 px-12 md:px-24 flex flex-col">
+<div class="pt-8 max-w-5xl">
+<p class="font-label text-primary tracking-[0.2em] mb-4 text-xs font-bold uppercase">System Shift</p>
+<h1 class="system-header-title font-black tracking-tighter leading-[0.92] max-w-4xl uppercase text-on-surface mb-6">
+                THE SYSTEM BECOMES THE <span class="text-primary-dim">OPERATING LAYER.</span>
             </h1>
-<div class="flex items-center space-x-6 text-on-surface-variant font-headline text-xl md:text-2xl font-light tracking-widest">
-<span>DIAGNOSE</span>
-<span class="w-12 h-[1px] bg-outline-variant"></span>
-<span>PRESCRIBE</span>
-<span class="w-12 h-[1px] bg-outline-variant"></span>
-<span>EXECUTE</span>
+<p class="text-sm md:text-base text-on-surface-variant/60 leading-relaxed mb-2 max-w-2xl">From here, the presentation shifts from problem recognition into how consistent behavior is installed and reinforced.</p>
 </div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+<div class="flex-1 flex items-center">
+<div class="system-support-grid gap-6 md:gap-7 relative w-full">
 <div class="group relative">
 <div class="absolute -inset-1 bg-gradient-to-br from-primary to-primary-container opacity-20 blur-xl group-hover:opacity-40 transition-opacity"></div>
-<div class="relative bg-surface-container-low p-8 border-l-2 border-primary h-64 flex flex-col justify-between">
+<div class="system-card system-card--diagnose relative bg-[linear-gradient(180deg,rgba(26,25,25,0.92),rgba(14,14,14,0.96))] p-8 md:p-9 border-l-2 border-primary">
+<div class="system-card-inner">
 <div>
-<span class="font-label text-primary text-xs tracking-widest font-bold">PHASE 01</span>
-<h3 class="text-3xl font-bold mt-2 font-headline">DIAGNOSE</h3>
+<h3 class="system-support-title font-bold font-headline">DIAGNOSE</h3>
 </div>
-<div class="flex items-end justify-between">
-<p class="text-on-surface-variant text-sm leading-relaxed max-w-[200px]">Pinpointing operational breakdown with forensic precision.</p>
-<span class="material-symbols-outlined text-4xl text-primary" data-icon="troubleshoot">troubleshoot</span>
+<div class="space-y-2">
+<p class="system-support-copy text-on-surface-variant leading-relaxed max-w-[220px]">Find the real breakdown</p>
+<p class="system-support-contrast text-on-surface-variant max-w-[220px]">Not just the symptom</p>
+</div>
 </div>
 </div>
 </div>
 <div class="group relative">
 <div class="absolute -inset-1 bg-gradient-to-br from-primary to-primary-container opacity-10 blur-xl group-hover:opacity-30 transition-opacity"></div>
-<div class="relative bg-surface-container-high p-8 border-l-2 border-primary h-64 flex flex-col justify-between">
+<div class="system-card system-card--prescribe relative bg-[linear-gradient(180deg,rgba(28,28,28,0.94),rgba(17,17,17,0.98))] p-8 md:p-9 border-l-2 border-primary">
+<div class="system-card-inner">
 <div>
-<span class="font-label text-primary text-xs tracking-widest font-bold">PHASE 02</span>
-<h3 class="text-3xl font-bold mt-2 font-headline">PRESCRIBE</h3>
+<h3 class="system-support-title font-bold font-headline">PRESCRIBE</h3>
 </div>
-<div class="flex items-end justify-between">
-<p class="text-on-surface-variant text-sm leading-relaxed max-w-[200px]">Tailoring the behavioral protocol for immediate correction.</p>
-<span class="material-symbols-outlined text-4xl text-primary" data-icon="clinical_notes">clinical_notes</span>
+<div class="space-y-2">
+<p class="system-support-copy text-on-surface-variant leading-relaxed max-w-[220px]">Define the exact fix</p>
+<p class="system-support-contrast text-on-surface-variant max-w-[220px]">Not generic training</p>
+</div>
 </div>
 </div>
 </div>
 <div class="group relative">
 <div class="absolute -inset-1 bg-gradient-to-br from-primary to-primary-container opacity-20 blur-xl group-hover:opacity-40 transition-opacity"></div>
-<div class="relative bg-surface-container-highest p-8 border-l-2 border-primary h-64 flex flex-col justify-between">
+<div class="system-card system-card--execute relative bg-[linear-gradient(180deg,rgba(31,31,31,0.98),rgba(18,18,18,1))] p-8 md:p-9 border-l-2 border-primary">
+<div class="system-card-inner">
 <div>
-<span class="font-label text-primary text-xs tracking-widest font-bold">PHASE 03</span>
-<h3 class="text-3xl font-bold mt-2 font-headline">EXECUTE</h3>
+<h3 class="system-support-title font-bold font-headline">EXECUTE</h3>
 </div>
-<div class="flex items-end justify-between">
-<p class="text-on-surface-variant text-sm leading-relaxed max-w-[200px]">Driving weekly accountability through the operating system.</p>
-<span class="material-symbols-outlined text-4xl text-primary" data-icon="bolt">bolt</span>
-</div>
+<div class="space-y-2">
+<p class="system-support-copy text-on-surface-variant leading-relaxed max-w-[220px]">Drive weekly action</p>
+<p class="system-support-contrast text-on-surface-variant max-w-[220px]">Not one-time effort</p>
 </div>
 </div>
 </div>
-<div class="mt-20 grid grid-cols-1 md:grid-cols-2 gap-24 items-end">
-<div class="glass-panel p-8 rounded-xl border border-outline-variant/20">
-<p class="text-on-surface-variant leading-relaxed text-lg">
-                    AutoKnerd isn't just software; it's a <span class="text-primary font-semibold">behavioral operating system</span>. We move beyond static dashboards to create a kinetic loop of correction that scales across every dealership rooftop.
-                </p>
 </div>
-<div class="flex flex-col items-start md:items-end">
-<div class="relative w-full h-48 rounded-xl overflow-hidden grayscale contrast-125 opacity-40">
-<img alt="High-tech interface" class="w-full h-full object-cover" data-alt="Futuristic glowing digital interface showing complex data nodes and neon green holographic projections in a dark tech environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXyqfZQMrzUPpTs_tlE_cUmPdRA2WKh9KEpFwlYtprKa_JSEeYEGgCJBB-RONezvkpuZr8trCIFv96MuLT-a-oNrpBGXQPxFsIGCsjaOOMgUgpD3tt9GuqN2IeJNJM7uS7aEUOTmevj6S7SaIwgp08FgCtl09U40X73V2nDS0Lntw0Ik6f_ZqdcoJhZSe3TqwOGBRj5bVrpHfFTN47KjHTkNoaJyqxQVC_vWM8Ta7X3e0akjuCTCcQcHB3Cd_2Wb3XJ8KmypiLtE8"/>
-<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
 </div>
-<button class="mt-8 bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed px-10 py-4 rounded-xl font-headline font-bold uppercase tracking-widest text-sm hover:shadow-[0_0_30px_rgba(142,255,113,0.3)] transition-all duration-300">
-                    Explore OS Architecture
-                </button>
+</div>
+<div class="hideable-speaker-notes hide-in-present fixed bottom-24 right-12 hidden lg:block z-20 max-w-[300px]">
+<div class="glass-panel p-5 rounded-xl border border-outline-variant/10">
+<div class="flex items-center space-x-2 mb-3">
+<span class="material-symbols-outlined text-[16px] text-primary">record_voice_over</span>
+<span class="font-label text-[10px] tracking-widest uppercase text-on-surface-variant">Speaker Strategy</span>
+</div>
+<p class="text-[11px] leading-relaxed text-on-surface/70 font-light italic">
+                    “This is what most dealerships are missing.
+<br/><br/>Not more training…
+<br/><br/>A system.
+<br/><br/>AutoKnerd is built to do three things, every single week.
+<br/><br/>Diagnose what’s actually broken,
+<br/>Prescribe exactly what to do about it,
+<br/>And drive execution inside the store.
+<br/><br/>Not once.
+<br/>Not occasionally.
+<br/><br/>Every week.
+<br/><br/>That’s how behavior actually changes.”</p>
 </div>
 </div>
 </main>
@@ -215,7 +342,7 @@
             AUTOKNERD PRIVATE EQUITY CONFIDENTIAL
         </div>
 <div class="flex space-x-8 font-['Space_Grotesk'] text-[10px] tracking-widest font-light text-zinc-600">
-<span class="text-[#8eff71]">SLIDE 01/14</span>
+<span class="text-[#8eff71]">SLIDE 05/14</span>
 <span>INTERNAL USE ONLY</span>
 </div>
 </footer>

@@ -106,6 +106,7 @@
     opacity: 0.4;
 }
 .headline-line,
+.headline-subline,
 .behavior-block,
 .support-line,
 .slide-cta {
@@ -124,6 +125,11 @@
     animation-duration: 680ms;
     animation-delay: 520ms;
 }
+.headline-subline {
+    animation-name: revealSoft;
+    animation-duration: 620ms;
+    animation-delay: 360ms;
+}
 .support-line {
     animation-name: revealSoft;
     animation-duration: 620ms;
@@ -136,7 +142,11 @@
 }
 .behavior-emphasis {
     color: #39FF14;
-    text-shadow: 0 0 26px rgba(57,255,20,0.24);
+    text-shadow: 0 0 28px rgba(57,255,20,0.30), 0 0 60px rgba(57,255,20,0.10);
+}
+.headline-dim {
+    color: rgba(255,255,255,0.88);
+    text-shadow: 0 0 10px rgba(255,255,255,0.03);
 }
 .ghost-button {
     border: 1px solid rgba(255,255,255,0.14);
@@ -161,9 +171,7 @@
 <body class="bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-fixed min-h-screen overflow-hidden">
 <!-- TopNavBar -->
 <header class="bg-[#000000] flex justify-between items-center w-full px-12 py-6 fixed top-0 z-50 no-border tonal-shift">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase font-headline">
-            AutoKnerd
-        </div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <nav class="hidden md:flex space-x-10 items-center">
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-sm text-[#8eff71] border-b-2 border-[#8eff71] pb-1 transition-colors duration-300" href="#">Executive Summary</a>
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-sm text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Market Growth</a>
@@ -214,29 +222,24 @@
 <div class="absolute inset-0 system-flow pointer-events-none"></div>
 <!-- Slide Content -->
 <div class="relative z-10 w-full max-w-6xl flex flex-col items-start md:items-center text-left md:text-center space-y-8">
-<!-- Metadata Label -->
-<div class="inline-flex items-center space-x-4 mb-4">
-<div class="h-[1px] w-8 bg-primary"></div>
-<span class="font-label text-xs tracking-[0.3em] uppercase text-primary font-medium">Opening Hook</span>
-</div>
 <!-- Primary Headline -->
-<div class="max-w-5xl space-y-10">
+<div class="max-w-5xl space-y-12 pt-10 md:pt-16">
 <h1 class="font-black text-5xl md:text-7xl lg:text-[5rem] xl:text-[6.35rem] leading-[1.02] tracking-[-0.055em] uppercase text-white">
 <div class="headline-line">YOU DON’T HAVE A</div>
-<div class="headline-line">PEOPLE PROBLEM.</div>
+<div class="headline-line headline-dim">PEOPLE PROBLEM.</div>
 </h1>
 <div class="behavior-block space-y-1">
 <div class="text-2xl md:text-3xl lg:text-4xl font-light tracking-[0.28em] uppercase text-white/78">YOU HAVE A</div>
-<div class="text-6xl md:text-8xl lg:text-[7.2rem] font-black tracking-[-0.06em] uppercase behavior-emphasis leading-[0.9]">BEHAVIOR</div>
+<div class="text-5xl md:text-7xl lg:text-[5.9rem] font-black tracking-[-0.065em] uppercase behavior-emphasis leading-[0.9]">CULTURE CONSISTENCY</div>
 <div class="text-6xl md:text-8xl lg:text-[7.2rem] font-black tracking-[-0.06em] uppercase text-white leading-[0.9]">PROBLEM.</div>
 </div>
 </div>
-<div class="mt-12 w-full max-w-4xl flex flex-col md:flex-row items-start md:items-end justify-between gap-8 text-left">
-<p class="support-line text-xs md:text-sm uppercase tracking-[0.24em] text-white/65 max-w-md">
-                    Inconsistent results are produced by inconsistent systems.
-                </p>
+<div class="mt-12 w-full max-w-4xl flex flex-col md:flex-row items-start md:items-end justify-between gap-6 text-left">
+<p class="headline-subline text-sm md:text-base lg:text-lg font-medium tracking-[-0.01em] text-white/90 max-w-2xl">
+                And it’s costing you more than you think.
+            </p>
 <a class="slide-cta ghost-button inline-flex items-center gap-3 rounded-full px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors duration-300" href="/Presentations/autoknerd-strategic-deck/02-the-problem.html">
-<span>Show Me the Behavior Problem</span>
+<span>Show Me Where It Breaks</span>
 <span class="material-symbols-outlined text-[18px] text-[#39FF14]">arrow_forward</span>
 </a>
 </div>
@@ -251,12 +254,24 @@
 </div>
 <p class="text-[11px] leading-relaxed text-on-surface/70 font-light italic">
                     "Most GMs think they have a people problem.
-<br/><br/>Bad hires. Low effort. Inconsistent performance.
-<br/><br/>But if your results are inconsistent, that’s not random.
-<br/><br/>It’s being produced by the system your people are working inside.
-<br/><br/>Same people, different system, completely different outcomes.
+<br/><br/>(pause)
+<br/>Bad hires. Low effort. Inconsistent performance.
+<br/><br/>(pause)
+<br/>But if your results are inconsistent…
+<br/><br/>(pause)
+<br/>that’s not random.
+<br/><br/>---
+<br/><br/>That’s your culture showing up differently every time.
+<br/><br/>---
+<br/><br/>Same people.
+<br/>(pause)
+<br/>Different system.
+<br/>(pause)
+<br/>Completely different outcomes.
+<br/><br/>---
 <br/><br/>So this isn’t about fixing people.
-<br/><br/>It’s about fixing the behavior your system is producing."
+<br/>(pause)
+<br/>It’s about controlling the culture your system is producing."
                 </p>
 </div>
 </div>

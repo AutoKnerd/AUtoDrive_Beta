@@ -16,6 +16,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     const showTourFooter = isTouring && pathname !== '/login' && pathname !== '/register';
     const isAutoknerdSurface = Boolean(pathname?.startsWith('/Autoknerd'));
     const isAutoShopSurface = Boolean(pathname?.startsWith('/autoshop') || pathname?.startsWith('/tools'));
+    const isLiveSessionSurface = Boolean(pathname?.startsWith('/live-session'));
 
     useEffect(() => {
         const resolved = parseConsultantFromURL(`${pathname}${window.location.search}`);
@@ -31,7 +32,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="relative flex min-h-screen flex-col">
             <div className="flex-1">{children}</div>
-            {!loading && !isAutoknerdSurface && (
+            {!loading && !isAutoknerdSurface && !isLiveSessionSurface && (
               showTourFooter ? <TourFooter /> : isAutoShopSurface ? <AutoknerdFooter /> : <Footer />
             )}
         </div>

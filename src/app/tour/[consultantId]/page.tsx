@@ -75,42 +75,56 @@ export default function TourConsultantLauncherPage() {
             <p className="text-sm text-slate-300">
               Referral consultant: <span className="font-semibold text-slate-100">{consultantId || 'none'}</span>
             </p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
               <Button
+                type="button"
                 variant="outline"
-                className="h-auto items-start justify-start p-6"
+                className="group flex h-full min-h-[15rem] w-full flex-col items-start justify-between whitespace-normal rounded-2xl border-cyan-400/20 bg-slate-950/60 p-5 text-left shadow-[0_0_0_1px_rgba(34,211,238,0.08)] transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-slate-900/90 hover:shadow-[0_0_28px_rgba(34,211,238,0.16)] focus-visible:ring-cyan-400/40"
                 onClick={() => void startTour('consultant')}
                 disabled={isTouring}
               >
-                <div className="space-y-2 text-left">
+                <div className="flex w-full flex-col gap-4 text-left">
                   <div className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Team Member</h3>
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 transition-colors group-hover:border-cyan-300/40 group-hover:bg-cyan-300/15">
+                      <User className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200/80">Team Member</p>
+                      <h3 className="text-base font-semibold text-slate-50">Consultant View</h3>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="min-w-0 max-w-full text-sm leading-relaxed whitespace-normal break-words text-slate-300">
                     Explore as a Sales Consultant or Service Writer. Focus on personal growth and mastering customer interactions.
                   </p>
-                  <div className="flex items-center text-sm font-semibold text-primary">
-                    Start Tour <ArrowRight className="ml-2 h-4 w-4" />
+                  <div className="flex items-center gap-2 text-sm font-semibold text-cyan-200 transition-colors group-hover:text-cyan-100">
+                    Start Tour
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </div>
               </Button>
               <Button
+                type="button"
                 variant="outline"
-                className="h-auto items-start justify-start p-6"
+                className="group flex h-full min-h-[15rem] w-full flex-col items-start justify-between whitespace-normal rounded-2xl border-cyan-400/20 bg-slate-950/60 p-5 text-left shadow-[0_0_0_1px_rgba(34,211,238,0.08)] transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-slate-900/90 hover:shadow-[0_0_28px_rgba(34,211,238,0.16)] focus-visible:ring-cyan-400/40"
                 onClick={() => void startTour('manager')}
                 disabled={isTouring}
               >
-                <div className="space-y-2 text-left">
+                <div className="flex w-full flex-col gap-4 text-left">
                   <div className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Leader</h3>
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 transition-colors group-hover:border-cyan-300/40 group-hover:bg-cyan-300/15">
+                      <Shield className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200/80">Leader</p>
+                      <h3 className="text-base font-semibold text-slate-50">Manager View</h3>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="min-w-0 max-w-full text-sm leading-relaxed whitespace-normal break-words text-slate-300">
                     View as a Manager or Owner. See high-level insights to coach your team effectively.
                   </p>
-                  <div className="flex items-center text-sm font-semibold text-primary">
-                    Start Tour <ArrowRight className="ml-2 h-4 w-4" />
+                  <div className="flex items-center gap-2 text-sm font-semibold text-cyan-200 transition-colors group-hover:text-cyan-100">
+                    Start Tour
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </div>
               </Button>

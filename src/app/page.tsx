@@ -90,6 +90,22 @@ export default function Home() {
     }
   }, [user, loading, router, isAssigned, consultantRoute, isConsultantRouteChecking]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!loading || user) return;
+
+    const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
+    if (!isMobileViewport) return;
+
+    const redirectTimer = window.setTimeout(() => {
+      router.replace('/live-session');
+    }, 2500);
+
+    return () => {
+      window.clearTimeout(redirectTimer);
+    };
+  }, [loading, router, user]);
+
   if (
     loading ||
     !user ||

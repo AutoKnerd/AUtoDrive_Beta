@@ -97,12 +97,88 @@
     .text-glow {
       text-shadow: 0 0 30px rgba(142, 255, 113, 0.3);
     }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .compare-panel {
+      min-height: 29rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+        rgba(19, 19, 19, 0.9);
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    .compare-panel--before {
+      opacity: 0.72;
+      filter: saturate(0.72);
+    }
+    .compare-panel--after {
+      background:
+        radial-gradient(circle at top right, rgba(57, 255, 20, 0.14), transparent 38%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+        rgba(19, 19, 19, 0.92);
+      box-shadow: inset 0 0 0 1px rgba(57, 255, 20, 0.08);
+    }
+    .compare-label {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.55);
+      margin-bottom: 2rem;
+    }
+    .compare-panel--after .compare-label {
+      color: #39FF14;
+    }
+    .compare-list {
+      display: grid;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    .compare-item {
+      font-size: 2rem;
+      line-height: 1.02;
+      letter-spacing: -0.05em;
+      font-weight: 900;
+      color: rgba(255, 255, 255, 0.92);
+    }
+    .compare-panel--after .compare-item {
+      color: #ffffff;
+    }
+    .compare-panel--after .compare-item strong {
+      color: #39FF14;
+    }
+    .compare-divider {
+      position: absolute;
+      top: 50%;
+      right: -0.9rem;
+      width: 1.8rem;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(57, 255, 20, 0.85), transparent);
+      transform: translateY(-50%);
+    }
+    @media (max-width: 1100px) {
+      .compare-grid {
+        grid-template-columns: 1fr;
+      }
+      .compare-panel {
+        min-height: 18rem;
+      }
+    }
   </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
 <body class="font-body selection:bg-primary selection:text-on-primary">
 <header class="bg-[#0e0e0e] flex justify-between items-center w-full px-12 py-6 fixed top-0 z-50 no-border tonal-shift bg-[#000000]">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter">AutoKnerd</div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <nav class="hidden md:flex items-center space-x-8">
 <a class="font-['Inter'] font-semibold tracking-tight uppercase transition-colors duration-300 hover:text-[#8eff71] text-zinc-500 hover:text-zinc-300" href="#">Executive Summary</a>
 <a class="font-['Inter'] font-semibold tracking-tight uppercase transition-colors duration-300 hover:text-[#8eff71] text-zinc-500 hover:text-zinc-300" href="#">Market Growth</a>
@@ -121,7 +197,7 @@
 <nav class="flex flex-col space-y-10 items-center">
 <div class="group flex flex-col items-center gap-1">
 <span class="material-symbols-outlined font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase transition-all duration-500 ease-in-out text-zinc-800 hover:text-[#90f9a3]">radio_button_checked</span>
-<span class="font-['Space_Grotesk'] text-[8px] text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity">SLIDE 01</span>
+<span class="font-['Space_Grotesk'] text-[8px] text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity">SLIDE 11</span>
 </div>
 <div class="group flex flex-col items-center gap-1">
 <span class="material-symbols-outlined font-['Space_Grotesk'] text-[10px] tracking-[0.1em] uppercase transition-all duration-500 ease-in-out text-zinc-800 hover:text-[#90f9a3]">fiber_manual_record</span>
@@ -137,75 +213,42 @@
 </div>
 </nav>
 </aside>
-<main class="ml-20 pt-24 pb-20 px-12 h-screen flex flex-col justify-center">
-<header class="mb-12">
+<main class="ml-20 pt-28 pb-36 px-12 min-h-screen flex flex-col">
+<header class="mb-8 max-w-4xl">
 <div class="flex items-center gap-4 mb-2">
 <span class="h-[2px] w-12 bg-primary"></span>
-<span class="font-label text-xs tracking-widest text-on-surface-variant uppercase">SLIDE 11 // IMPACT REPORT</span>
+<span class="font-label text-xs tracking-widest text-on-surface-variant uppercase">SLIDE 11</span>
 </div>
-<h1 class="text-[5rem] font-black tracking-tighter leading-none text-on-surface uppercase italic">
-        THE BOTTOM <span class="text-primary text-glow">LINE.</span>
+<h1 class="text-[4.65rem] font-black tracking-tighter leading-[0.95] text-on-surface uppercase">
+        WHERE THIS <span class="text-primary text-glow">SHOWS UP</span>
       </h1>
 </header>
-<div class="grid grid-cols-12 gap-6 h-full max-h-[500px]">
-<div class="col-span-12 md:col-span-7 bg-surface-container-low rounded-xl p-10 flex flex-col justify-between border-l-4 border-primary">
-<div>
-<span class="font-label text-[10px] tracking-[0.2em] text-on-surface-variant uppercase mb-4 block">AGGREGATE EFFICIENCY GAIN</span>
-<div class="flex items-baseline gap-4">
-<span class="text-[8rem] font-black leading-none tracking-tighter text-primary text-glow">+42%</span>
-<span class="material-symbols-outlined text-primary text-6xl" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+<div class="compare-grid flex-1">
+<div class="compare-panel compare-panel--before">
+<div class="compare-label">Uncontrolled culture</div>
+<div class="compare-list">
+<div class="compare-item">Confused customers</div>
+<div class="compare-item">Stalled deals</div>
+<div class="compare-item">Price objections</div>
+<div class="compare-item">Manager firefighting</div>
+</div>
+<div class="compare-divider"></div>
+</div>
+<div class="compare-panel compare-panel--after">
+<div class="compare-label">Engineered culture</div>
+<div class="compare-list">
+<div class="compare-item">Clear conversations</div>
+<div class="compare-item"><strong>Forward momentum</strong></div>
+<div class="compare-item">Confident pricing</div>
+<div class="compare-item">Controlled execution</div>
+</div>
+<div class="compare-divider"></div>
 </div>
 </div>
-<div class="flex gap-12 mt-8">
-<div>
-<span class="font-label text-[9px] text-zinc-500 block mb-1">CSI UPLIFT</span>
-<span class="text-2xl font-bold text-on-surface">↑ 18.5 PTS</span>
-</div>
-<div>
-<span class="font-label text-[9px] text-zinc-500 block mb-1">CONVERSION</span>
-<span class="text-2xl font-bold text-on-surface">↑ 3.2X</span>
-</div>
-<div>
-<span class="font-label text-[9px] text-zinc-500 block mb-1">RETENTION</span>
-<span class="text-2xl font-bold text-on-surface">↑ 64%</span>
-</div>
-</div>
-</div>
-<div class="col-span-12 md:col-span-5 flex flex-col gap-6">
-<div class="flex-1 glass-metric rounded-xl p-8 border border-outline-variant/10 flex flex-col justify-center">
-<span class="font-label text-[10px] tracking-[0.2em] text-on-surface-variant uppercase mb-2 block">OBJECTIONS VOLUME</span>
-<div class="flex items-center justify-between">
-<span class="text-5xl font-black text-error italic">↓ 22%</span>
-<div class="w-16 h-16 rounded-full border border-error/30 flex items-center justify-center">
-<span class="material-symbols-outlined text-error text-3xl">block</span>
-</div>
-</div>
-</div>
-<div class="flex-1 bg-surface-container-highest rounded-xl p-8 flex flex-col justify-center relative overflow-hidden">
-<div class="absolute -right-4 -bottom-4 opacity-10">
-<span class="material-symbols-outlined text-[120px]" style="font-variation-settings: 'FILL' 1;">monitoring</span>
-</div>
-<span class="font-label text-[10px] tracking-[0.2em] text-on-surface-variant uppercase mb-2 block">ROI PROJECTION</span>
-<span class="text-4xl font-bold text-tertiary tracking-tight">4.8X ANNUALLY</span>
-<p class="text-xs text-on-surface-variant mt-4 leading-relaxed max-w-[200px]">Strategic realignment of operational overhead across the vertical.</p>
-</div>
-</div>
-</div>
-<div class="mt-12 flex justify-between items-end">
-<div class="max-w-md">
-<p class="text-on-surface-variant text-sm font-medium leading-relaxed italic">
-          "This isn't just a 'feel-good' system. It drives the metrics that matter. Higher CSI, better conversion, and long-term customer retention."
-        </p>
-</div>
-<div class="flex gap-4">
-<div class="flex flex-col items-end">
-<span class="font-label text-[9px] text-zinc-500">SYSTEM STATUS</span>
-<span class="text-[10px] font-bold text-primary tracking-widest flex items-center gap-2">
-<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                ACTIVE OPTIMIZATION
-            </span>
-</div>
-</div>
+<div class="mt-12 max-w-5xl">
+<p class="text-[1.8rem] font-black tracking-[-0.05em] leading-[1.08] text-primary text-glow">
+        This doesn’t inflate numbers. It fixes the behaviors that drive them.
+      </p>
 </div>
 </main>
 <footer class="fixed bottom-0 w-full px-12 py-8 flex justify-between items-center opacity-40 bg-transparent pointer-events-none">

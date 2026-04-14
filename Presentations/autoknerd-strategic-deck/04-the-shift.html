@@ -93,18 +93,18 @@
             backdrop-filter: blur(24px);
         }
         .shift-shell {
-            min-height: 100vh;
+            height: 100vh;
             overflow-x: hidden;
-            overflow-y: auto;
+            overflow-y: hidden;
             background:
                 radial-gradient(circle at top right, rgba(142, 255, 113, 0.08), transparent 30%),
                 radial-gradient(circle at bottom left, rgba(255, 115, 81, 0.06), transparent 24%),
                 #0e0e0e;
         }
         .shift-main {
-            min-height: 100vh;
-            overflow-y: auto;
-            padding-bottom: 88px;
+            height: 100vh;
+            overflow: hidden;
+            padding-bottom: 72px;
         }
         .shift-contrast {
             position: relative;
@@ -124,13 +124,19 @@
         .shift-column {
             position: relative;
             z-index: 1;
-            min-height: 360px;
+            min-height: 310px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         .shift-column--training {
             background: linear-gradient(180deg, rgba(33, 18, 18, 0.55), rgba(14, 14, 14, 0.2));
+            opacity: 0.65;
         }
         .shift-column--system {
-            background: linear-gradient(180deg, rgba(16, 28, 16, 0.2), rgba(18, 35, 18, 0.55));
+            background: linear-gradient(180deg, rgba(16, 28, 16, 0.18), rgba(18, 35, 18, 0.6));
+            box-shadow: inset 0 0 0 1px rgba(57, 255, 20, 0.08);
+            opacity: 1;
         }
         .shift-card-label {
             font-family: "Space Grotesk", sans-serif;
@@ -141,8 +147,8 @@
         .shift-list {
             display: flex;
             flex-direction: column;
-            gap: 1.1rem;
-            margin-top: 2rem;
+            gap: 0.95rem;
+            margin-top: 1.6rem;
         }
         .shift-list p {
             margin: 0;
@@ -150,8 +156,14 @@
             line-height: 1.5;
         }
         @media (max-width: 1024px) {
+            .shift-shell {
+                height: auto;
+                overflow-y: auto;
+            }
             .shift-main {
-                padding-bottom: 140px;
+                height: auto;
+                overflow: visible;
+                padding-bottom: 132px;
             }
             .shift-column {
                 min-height: auto;
@@ -162,7 +174,7 @@
 </head>
 <body class="shift-shell bg-background text-on-background font-body selection:bg-primary selection:text-on-primary-fixed">
 <nav class="flex justify-between items-center w-full px-12 py-6 bg-[#000000] fixed top-0 z-50">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter">AutoKnerd</div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <div class="hidden md:flex items-center space-x-12">
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Executive Summary</a>
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300 hover:text-[#8eff71]" href="#">Market Growth</a>
@@ -197,36 +209,34 @@
 </div>
 </div>
 </aside>
-<main class="shift-main ml-20 pt-20 px-12 flex flex-col">
-<header class="mb-12">
+<main class="shift-main ml-20 pt-16 px-12 flex flex-col justify-center">
+<header class="mb-10">
 <span class="font-label text-primary tracking-[0.2em] uppercase text-xs mb-4 block">Section 02 / Operational Transformation</span>
 <h1 class="text-[3.5rem] font-black leading-[1.1] tracking-tighter max-w-4xl text-on-surface mb-6">
                 STOP TRAINING. <br/>
-<span class="text-primary text-glow">START INSTALLING.</span>
+<span class="text-primary text-glow">START INSTALLING A SYSTEM.</span>
             </h1>
-<p class="text-xl font-body text-on-surface-variant max-w-xl leading-relaxed">
-                Training doesn’t control behavior.<br/>Systems do.
+<p class="text-xl font-body font-semibold text-on-surface-variant max-w-xl leading-relaxed mt-1 mb-1">
+                Training doesn’t control behavior.<br/><span class="font-black text-on-surface">Systems do.</span>
             </p>
 </header>
-<section class="mb-10">
+<section class="mb-0">
 <div class="shift-contrast grid grid-cols-1 lg:grid-cols-2">
 <div class="shift-column shift-column--training p-8 lg:p-10">
-<div class="shift-card-label text-[#ff8f78]">Training</div>
-<h2 class="mt-6 text-3xl font-black tracking-tight text-zinc-100 uppercase">TRAINING</h2>
+<h2 class="text-3xl font-black tracking-tight text-zinc-100 uppercase">TRAINING</h2>
 <div class="shift-list text-zinc-300">
-<p>Happens once</p>
-<p>Relies on memory</p>
-<p>Fades over time</p>
-<p>Creates inconsistency</p>
+<p>One-time event</p>
+<p>Requires memory</p>
+<p>Decays quickly</p>
+<p>Creates variation</p>
 </div>
 </div>
 <div class="shift-column shift-column--system p-8 lg:p-10 border-t lg:border-t-0 lg:border-l border-white/5">
-<div class="shift-card-label text-primary">System</div>
-<h2 class="mt-6 text-3xl font-black tracking-tight text-on-surface uppercase">SYSTEM</h2>
+<h2 class="text-3xl font-black tracking-tight text-[#39FF14] uppercase">SYSTEM</h2>
 <div class="shift-list text-on-surface">
-<p>Always on</p>
+<p>Always active</p>
 <p>Guides behavior</p>
-<p>Corrects in real time</p>
+<p>Reinforces daily</p>
 <p>Creates consistency</p>
 </div>
 </div>
@@ -244,7 +254,8 @@
 <br/><br/>But training doesn’t control behavior.
 <br/><br/>It gives people information…
 <br/><br/>and then hopes they use it.
-<br/><br/>And hope is not a strategy.
+<br/><br/>
+And hope is not a strategy.
 <br/><br/>If you want consistency…
 <br/><br/>you don’t train harder.
 <br/><br/>You install something that guides behavior every day.”</p>

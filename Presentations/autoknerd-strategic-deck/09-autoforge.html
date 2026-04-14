@@ -85,20 +85,223 @@
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
     }
-    .glass-card {
-      background: rgba(26, 25, 25, 0.6);
-      backdrop-filter: blur(24px);
+    .execution-shell {
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 72% 44%, rgba(57, 255, 20, 0.12), transparent 24%),
+        radial-gradient(circle at 28% 82%, rgba(57, 255, 20, 0.05), transparent 22%),
+        #0e0e0e;
     }
-    .asymmetric-grid {
+    .execution-main {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    .execution-grid {
       display: grid;
-      grid-template-columns: 1.5fr 1fr;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      gap: 3rem;
+      align-items: center;
+      flex: 1;
+      min-height: 0;
+    }
+    .execution-flow {
+      display: grid;
+      gap: 1.1rem;
+    }
+    .execution-step {
+      border-left: 2px solid rgba(57, 255, 20, 0.25);
+      padding-left: 1.25rem;
+    }
+    .execution-step p {
+      margin: 0;
+      font-size: 1.55rem;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: rgba(255, 255, 255, 0.92);
+    }
+    .execution-step--accent p {
+      color: #ffffff;
+    }
+    .execution-step--accent span {
+      color: #39FF14;
+    }
+    .execution-visual {
+      position: relative;
+      min-height: 440px;
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+        rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .execution-visual::before {
+      content: "";
+      position: absolute;
+      inset: 18% 14%;
+      border-radius: 999px;
+      border: 1px solid rgba(57, 255, 20, 0.18);
+      box-shadow: 0 0 80px rgba(57, 255, 20, 0.1);
+    }
+    .execution-visual::after {
+      content: "";
+      position: absolute;
+      width: 58%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(57, 255, 20, 0.4), transparent);
+      bottom: 24%;
+      left: 21%;
+    }
+    .execution-engine {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+    }
+    .execution-engine-core {
+      position: relative;
+      width: 26rem;
+      height: 26rem;
+      border-radius: 999px;
+      border: 1px solid rgba(57, 255, 20, 0.28);
+      background:
+        radial-gradient(circle at center, rgba(57, 255, 20, 0.22), rgba(57, 255, 20, 0.08) 38%, rgba(0, 0, 0, 0.45) 72%),
+        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.1), transparent 40%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 90px rgba(57, 255, 20, 0.12);
+      overflow: hidden;
+    }
+    .execution-engine-ring {
+      position: absolute;
+      inset: 0.95rem;
+      border-radius: 999px;
+      border: 1px solid rgba(57, 255, 20, 0.18);
+      box-shadow: inset 0 0 0 0.7rem rgba(255, 255, 255, 0.04), 0 0 80px rgba(57, 255, 20, 0.08);
+    }
+    .execution-engine-ring::before,
+    .execution-engine-ring::after {
+      content: "";
+      position: absolute;
+      inset: 1.1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(57, 255, 20, 0.12);
+    }
+    .execution-engine-ring::after {
+      inset: 2.25rem;
+      border-color: rgba(57, 255, 20, 0.08);
+    }
+    .execution-arm-graphic {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      filter: drop-shadow(0 0 14px rgba(57, 255, 20, 0.36));
+    }
+    .execution-asset {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      animation: assetFloat 4.8s ease-in-out infinite;
+      transform-origin: center;
+      filter: drop-shadow(0 0 22px rgba(57, 255, 20, 0.24));
+    }
+    .execution-arm-glow {
+      animation: armGlow 2.8s ease-in-out infinite;
+    }
+    .execution-arm-core {
+      animation: armWork 2.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+    .execution-engine-orbit {
+      position: absolute;
+      inset: -1.25rem;
+      border-radius: 999px;
+      border: 1px solid rgba(57, 255, 20, 0.12);
+      animation: executionPulse 3.4s ease-in-out infinite;
+    }
+    @keyframes armWork {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+      }
+      16% {
+        transform: translate3d(-2px, 0px, 0) rotate(-3deg) scale(1.008);
+      }
+      30% {
+        transform: translate3d(3px, -2px, 0) rotate(5deg) scale(1.015);
+      }
+      46% {
+        transform: translate3d(5px, 1px, 0) rotate(-2deg) scale(1.02);
+      }
+      62% {
+        transform: translate3d(1px, 4px, 0) rotate(8deg) scale(1.02);
+      }
+      78% {
+        transform: translate3d(-4px, 1px, 0) rotate(-6deg) scale(1.012);
+      }
+      90% {
+        transform: translate3d(1px, -1px, 0) rotate(3deg) scale(1.008);
+      }
+    }
+    @keyframes armGlow {
+      0%, 100% {
+        opacity: 0.72;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+    @keyframes assetFloat {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+      }
+      50% {
+        transform: translateY(-4px) scale(1.01);
+      }
+    }
+    @keyframes executionPulse {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 0.65;
+      }
+      50% {
+        transform: scale(1.02);
+        opacity: 1;
+      }
+    }
+    @media (max-width: 1100px) {
+      .execution-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      .execution-visual {
+        min-height: 320px;
+      }
+      .execution-engine-core {
+        width: 18rem;
+        height: 18rem;
+      }
     }
   </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
-<body class="bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-fixed overflow-hidden">
+<body class="execution-shell bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-fixed overflow-hidden">
 <nav class="fixed top-0 z-50 flex justify-between items-center w-full px-12 py-6 bg-[#000000] no-border tonal-shift">
-<div class="text-2xl font-black text-[#8eff71] tracking-tighter uppercase">AutoKnerd</div>
+<img alt="AutoKnerd" class="h-16 w-auto shrink-0 object-contain" src="/AutoKnerd%20Logo.png"/>
 <div class="hidden md:flex items-center space-x-12">
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Executive Summary</a>
 <a class="font-['Inter'] font-semibold tracking-tight uppercase text-zinc-500 hover:text-zinc-300 transition-colors duration-300" href="#">Market Growth</a>
@@ -131,8 +334,8 @@
 </button>
 </div>
 </aside>
-<main class="ml-20 pt-32 pb-24 px-16 h-screen flex flex-col justify-start">
-<header class="mb-16">
+<main class="execution-main ml-20 pt-28 pb-24 px-16">
+<header class="mb-10">
 <div class="flex items-center gap-4 mb-4">
 <span class="font-label text-[0.75rem] tracking-[0.2em] text-primary uppercase">SLIDE 09</span>
 <div class="h-px w-12 bg-outline-variant"></div>
@@ -141,67 +344,40 @@
 <h1 class="text-[3.5rem] font-black leading-[1.1] tracking-[-0.04em] text-on-surface max-w-4xl">
         AUTOFORGE: THE <span class="text-primary">EXECUTION</span> ENGINE.
       </h1>
-<p class="mt-6 text-xl text-on-surface-variant max-w-2xl font-light leading-relaxed">
-        TURN INSIGHT INTO ACTION. MANAGER-LED. PLUG-AND-PLAY.
+<p class="mt-5 text-lg text-on-surface-variant max-w-2xl font-light leading-relaxed">
+        TURN INSIGHT INTO ACTION. <span class="text-on-surface">MANAGER-LED.</span> PLUG-AND-PLAY.
       </p>
 </header>
-<div class="asymmetric-grid gap-12 flex-grow items-start">
-<section class="relative h-[450px] bg-surface-container-lowest rounded-xl flex items-center justify-center overflow-hidden">
-<div class="relative w-full h-full flex items-center justify-center p-12">
-<div class="absolute inset-0 opacity-10" data-alt="close-up of industrial dark metal plates with high-tech neon green glowing light lines in geometric pattern"></div>
-<div class="relative flex flex-col items-center justify-center space-y-6">
-<div class="relative">
-<span class="material-symbols-outlined text-[160px] text-primary" style="font-variation-settings: 'wght' 100;">settings_input_component</span>
-<div class="absolute inset-0 border-[1px] border-primary/20 rounded-full scale-150 animate-pulse"></div>
-<div class="absolute inset-0 border-[1px] border-primary/10 rounded-full scale-[2]"></div>
+<div class="execution-grid">
+<section class="max-w-[38rem]">
+<div class="execution-flow">
+<div class="execution-step">
+<p>AutoDriveCX finds the problem.</p>
 </div>
-<div class="text-center">
-<span class="font-label text-[10px] tracking-[0.4em] text-primary uppercase block mb-2">OPERATIONAL CORE</span>
-<div class="flex justify-center space-x-2">
-<div class="w-1 h-1 bg-primary"></div>
-<div class="w-1 h-1 bg-primary"></div>
-<div class="w-1 h-1 bg-primary/20"></div>
-<div class="w-1 h-1 bg-primary/10"></div>
+<div class="execution-step execution-step--accent">
+<p>AutoForge builds the <span>plan.</span></p>
+</div>
+<div class="execution-step">
+<p>Your managers execute it.</p>
 </div>
 </div>
+<div class="mt-12">
+<p class="text-[2rem] font-black leading-[1.05] tracking-[-0.05em] text-white">No guesswork. Just execution.</p>
 </div>
-<div class="absolute top-12 left-12 font-label text-[10px] text-outline-variant tracking-widest border-l border-primary pl-4">
-                CX DATA INPUT<br/>
-<span class="text-on-surface-variant">2.4 TB/S STREAM</span>
-</div>
-<div class="absolute bottom-12 right-12 font-label text-[10px] text-outline-variant text-right tracking-widest border-r border-primary pr-4">
-                MANAGER OUTPUT<br/>
-<span class="text-on-surface-variant">REAL-TIME ACTIONABLE</span>
-</div>
+<div class="mt-10">
+<p class="text-[1.6rem] font-semibold leading-[1.12] tracking-[-0.04em] text-white">
+        Insight becomes action. Instantly.
+      </p>
 </div>
 </section>
-<section class="space-y-10 py-6">
-<div class="space-y-6">
-<h2 class="text-2xl font-semibold text-on-surface leading-tight">The Bridge from Data to Profit</h2>
-<p class="text-on-surface-variant leading-relaxed">
-                AutoDriveCX tells you what’s wrong. <span class="text-on-surface">AutoForge fixes it.</span> It gives your managers the weekly action plans they need to lead effectively without the guesswork.
-            </p>
-</div>
-<div class="space-y-8">
-<div class="flex items-start gap-6 p-6 rounded-xl bg-surface-container-low transition-colors hover:bg-surface-container border-l-4 border-primary/30">
-<span class="material-symbols-outlined text-primary text-3xl">precision_manufacturing</span>
-<div>
-<div class="font-label text-xs tracking-widest text-primary mb-1 uppercase">Automated Strategy</div>
-<p class="text-sm text-on-surface-variant">Generates granular, department-specific tasks based on actual customer pain points detected by CX AI.</p>
+<section class="execution-visual">
+<div class="execution-engine">
+<div class="execution-engine-core">
+<div class="execution-engine-ring"></div>
+<div class="execution-engine-orbit"></div>
+<img alt="AutoForge robotic arm" class="execution-asset" src="/Screenshot%202026-04-14%20at%208.36.59%E2%80%AFAM.png"/>
 </div>
 </div>
-<div class="flex items-start gap-6 p-6 rounded-xl bg-surface-container-low transition-colors hover:bg-surface-container border-l-4 border-outline-variant">
-<span class="material-symbols-outlined text-secondary text-3xl">bolt</span>
-<div>
-<div class="font-label text-xs tracking-widest text-secondary mb-1 uppercase">Instant Deployment</div>
-<p class="text-sm text-on-surface-variant">No training required. Managers receive a "Playbook of the Week" delivered directly to their mobile devices.</p>
-</div>
-</div>
-</div>
-<button class="w-full py-4 px-8 bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-bold rounded-xl flex items-center justify-between group">
-<span class="tracking-tight uppercase">VIEW CASE STUDY: REVENUE IMPACT</span>
-<span class="material-symbols-outlined group-hover:translate-x-2 transition-transform">arrow_forward</span>
-</button>
 </section>
 </div>
 </main>
