@@ -378,7 +378,7 @@ export function PresenterNotesClient({ initialPayload, slideFiles = [] }: Presen
                       </div>
                     </div>
                     <div className="mt-5 flex flex-col gap-3">
-                    {notes.map((line, index) => {
+                      {notes.map((line, index) => {
                       if (line === '---') {
                         return <div key={`divider-${index}`} className="my-2 h-px w-full bg-white/10" />;
                       }
@@ -411,6 +411,27 @@ export function PresenterNotesClient({ initialPayload, slideFiles = [] }: Presen
                         </p>
                       );
                     })}
+                    </div>
+                    <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
+                      <p className="text-[10px] uppercase tracking-[0.28em] text-white/38">Quick controls</p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void goToSlide(-1)}
+                          disabled={currentSlideIndex <= 0}
+                          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 transition hover:border-[#8eff71]/45 hover:text-[#8eff71] disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void goToSlide(1)}
+                          disabled={currentSlideIndex < 0 || currentSlideIndex >= slideFiles.length - 1}
+                          className="rounded-full border border-[#8eff71]/25 bg-[#8eff71]/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8eff71] transition hover:border-[#8eff71]/55 hover:bg-[#8eff71]/16 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          Next
+                        </button>
+                      </div>
                     </div>
                   </section>
                 ) : (

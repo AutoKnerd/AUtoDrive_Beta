@@ -139,7 +139,6 @@ const SLIDE_4_OPTIONS = ['Sales process', 'Manager follow-up', 'Customer communi
 const SLIDE_6_OPTIONS = ['Daily', 'Weekly', 'Occasionally', 'Only when something breaks', 'Almost never'] as const;
 const BUSINESS_PAIN_OPTIONS = ['Confused customers', 'Stalled deals', 'Price objections', 'Manager firefighting'] as const;
 const PAIN_FREQUENCY_OPTIONS = ['Daily', 'Weekly', 'Occasionally', 'Rarely'] as const;
-const VISION_GAP_LABELS = ['1–3: Out of control', '4–6: Trying', '7–8: Close', '9–10: Locked in'] as const;
 const SUPPLEMENTAL_SLIDE_5_OPTIONS = ['Yeah', 'I see it', 'Still thinking'] as const;
 const SUPPLEMENTAL_SLIDE_7_OPTIONS = ['All the time', 'Occasionally', 'Rarely', 'Never'] as const;
 const SUPPLEMENTAL_SLIDE_9_OPTIONS = ['We act immediately', 'We plan but delay', 'It depends on the manager', 'It usually fades away'] as const;
@@ -1378,6 +1377,12 @@ function SnapshotVisionGapScreen({
   const initial = typeof current?.selectedValue === 'number' ? current.selectedValue : 6;
   const [value, setValue] = useState(initial);
   const [committed, setCommitted] = useState(Boolean(current));
+  const options = [
+    { value: 2, label: '1–3: Out of control' },
+    { value: 5, label: '4–6: Trying' },
+    { value: 8, label: '7–8: Close' },
+    { value: 10, label: '9–10: Locked in' },
+  ] as const;
 
   useEffect(() => {
     setValue(initial);
@@ -1401,23 +1406,20 @@ function SnapshotVisionGapScreen({
       </h2>
 
       <div className="mt-7 rounded-[24px] border border-white/8 bg-white/[0.04] p-4">
-        <input
-          type="range"
-          min={1}
-          max={10}
-          step={1}
-          value={value}
-          onChange={(event) => {
-            const nextValue = Number.parseInt(event.target.value, 10);
-            setValue(nextValue);
-          }}
-          className="w-full accent-[#39FF14]"
-        />
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {VISION_GAP_LABELS.map((label) => (
-            <span key={label} className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/46">
-              {label}
-            </span>
+        <div className="grid gap-2">
+          {options.map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              onClick={() => setValue(option.value)}
+              className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition duration-200 ease-out ${
+                value === option.value
+                  ? 'border-[#39FF14]/55 bg-[#39FF14]/14 text-[#bfffae] shadow-[0_0_0_1px_rgba(57,255,20,0.15)]'
+                  : 'border-white/10 bg-white/[0.03] text-white/78 hover:border-[#8eff71]/35 hover:bg-white/[0.05]'
+              }`}
+            >
+              {option.label}
+            </button>
           ))}
         </div>
 
@@ -2086,9 +2088,29 @@ function SnapshotFinalOutputScreen({
   }, [responses.final_cta]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col pl-10">
+      {ctaClicked ? (
+        <div className="absolute left-0 top-6 bottom-24 flex w-7 flex-col items-center justify-between">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-white/35 [writing-mode:vertical-rl] rotate-180">
+            Pilot
+          </p>
+          <div className="flex h-full w-full justify-center">
+            <div className="relative h-full w-[10px] overflow-hidden rounded-full border border-[#39FF14]/20 bg-white/[0.05]">
+              <div
+                className={`absolute inset-x-0 bottom-0 rounded-full bg-[#39FF14] shadow-[0_0_24px_rgba(57,255,20,0.35)] transition-[height] duration-700 ease-out ${
+                  ctaClicked ? 'h-full' : 'h-0'
+                }`}
+              />
+            </div>
+          </div>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#8eff71] [writing-mode:vertical-rl] rotate-180">
+            Lead
+          </p>
+        </div>
+      ) : null}
+
       <div className="rounded-[24px] border border-white/8 bg-white/[0.04] p-4">
-              <p className="text-[10px] uppercase tracking-[0.34em] text-[#8eff71]">LIVE STORE SNAPSHOT</p>
+        <p className="text-[10px] uppercase tracking-[0.34em] text-[#8eff71]">LIVE STORE SNAPSHOT</p>
 
         <div className="mt-5 grid gap-3">
           <div className="rounded-[20px] border border-white/8 bg-black/30 p-4">

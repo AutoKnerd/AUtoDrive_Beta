@@ -17,10 +17,25 @@
         "speakerNotes": [
           "You don’t have a people problem.",
           "(pause)",
-          "Most stores blame hiring, training, or accountability.",
+          "You have a culture consistency problem.",
+          "(pause)",
+          "And it’s costing you more than you think.",
           "---",
-          "Let’s test that.",
-          "[PHONE] Prompt them to answer"
+          "Most GMs think it’s hiring… effort… accountability.",
+          "(pause)",
+          "But inconsistent results aren’t random.",
+          "---",
+          "That’s your culture showing up differently every time.",
+          "---",
+          "Same people.",
+          "(pause)",
+          "Different system.",
+          "(pause)",
+          "Completely different outcomes.",
+          "---",
+          "This isn’t about fixing people.",
+          "(pause)",
+          "It’s about controlling the culture your system produces."
         ]
       },
       "slide2": {
@@ -31,13 +46,19 @@
         "speakerNotes": [
           "It doesn’t show up all at once…",
           "(pause)",
-          "It shows up as inconsistency…",
+          "It shows up in moments.",
+          "---",
+          "Inconsistent experiences.",
           "(pause)",
-          "Managers reacting instead of leading…",
+          "Customers unsure.",
           "(pause)",
-          "And by the time you see it…",
+          "Deals slowing down.",
+          "---",
+          "And by the time you notice it…",
           "(pause)",
-          "It’s already cost you."
+          "It’s already cost you.",
+          "---",
+          "[PHONE] Let them answer. Don’t rush."
         ]
       },
       "slide3": {
@@ -47,11 +68,16 @@
         "prompt": "Would your team deliver the right experience today without reminders?",
         "speakerNotes": [
           "This is where most stores get it wrong.",
-          "They think it’s effort or talent.",
+          "---",
+          "They think it’s effort… or talent.",
           "(pause)",
           "It’s not.",
           "---",
-          "It’s the lack of a system controlling behavior."
+          "It’s a lack of a system reinforcing culture through behavior.",
+          "---",
+          "Training creates awareness.",
+          "(pause)",
+          "Systems create consistency."
         ]
       },
       "slide4": {
@@ -61,11 +87,18 @@
         "prompt": "Which one is carrying the weight in your store right now?",
         "speakerNotes": [
           "Customer experience isn’t a training problem.",
+          "(pause)",
           "It’s a system problem.",
           "---",
           "If behavior isn’t guided…",
-          "Results feel random.",
-          "[PHONE] Ask what exists today"
+          "(pause)",
+          "Results will always feel random.",
+          "---",
+          "Culture isn’t built in meetings.",
+          "(pause)",
+          "It’s built in repeated behavior.",
+          "---",
+          "[PHONE] Ask what exists today."
         ]
       },
       "slide5": {
@@ -80,19 +113,15 @@
           "(pause)",
           "A system.",
           "---",
-          "AutoKnerd is built to do three things.",
-          "Every single week.",
+          "AutoKnerd runs three things.",
           "(pause)",
-          "Diagnose what’s actually broken.",
-          "Prescribe exactly what to do about it.",
-          "Drive execution inside the store.",
+          "Diagnose.",
+          "Prescribe.",
+          "Execute.",
           "---",
           "Not once.",
-          "Not occasionally.",
           "(pause)",
-          "Every week.",
-          "---",
-          "That’s how behavior actually changes."
+          "Every week."
         ]
       },
       "slide6": {
@@ -100,12 +129,17 @@
         "title": "Behavior can be tracked before outcomes collapse.",
         "body": "The system watches the behaviors that create the customer experience, not just the score after the fact.",
         "speakerNotes": [
-          "This is the brain of the system.",
-          "It tracks behavior, not just outcomes.",
+          "This is the brain.",
           "---",
-          "Trust. Clarity. Confidence.",
-          "It shows problems before CSI does.",
-          "[PHONE] Ask coaching frequency"
+          "It tracks behavior… not just outcomes.",
+          "---",
+          "This is culture in motion.",
+          "---",
+          "It shows you where behavior breaks down…",
+          "(pause)",
+          "before CSI does.",
+          "---",
+          "[PHONE] Let them answer. Hold silence."
         ]
       },
       "slide7": {
@@ -113,12 +147,15 @@
         "title": "Clear signal beats noisy reporting.",
         "body": "Precise insight lets leaders act on the real breakdown instead of chasing vague summaries.",
         "speakerNotes": [
-          "Let me show you what this looks like.",
-          "---",
           "Most stores see a result problem.",
+          "---",
           "We see a behavior problem.",
           "---",
-          "Now you can fix something real."
+          "Now you can fix something real.",
+          "---",
+          "Not guess… not react…",
+          "(pause)",
+          "Fix."
         ]
       },
       "slide8": {
@@ -126,15 +163,24 @@
         "title": "Execution needs a weekly rhythm.",
         "body": "Consistency comes from repeated inspection, correction, and reinforcement.",
         "speakerNotes": [
-          "Every week, the system runs.",
+          "Let me show you what this actually looks like.",
           "---",
-          "Identify.",
-          "Plan.",
-          "Execute.",
+          "(point left)",
+          "Your consultant isn’t guessing.",
+          "(pause)",
+          "They’re being guided.",
           "---",
-          "No guessing.",
-          "No waiting.",
-          "[PHONE] Select pain signals"
+          "(point middle)",
+          "Every interaction creates real data.",
+          "---",
+          "(point right)",
+          "Now your managers don’t wonder what to coach.",
+          "(pause)",
+          "They know.",
+          "---",
+          "That’s the loop.",
+          "(pause)",
+          "That’s how culture becomes consistent."
         ]
       },
       "slide9": {
@@ -142,15 +188,21 @@
         "title": "Insight only matters if it becomes action.",
         "body": "Once the breakdown is visible, the system has to turn it into a weekly operating move.",
         "speakerNotes": [
-          "This is AutoForge.",
+          "Then once a week…",
+          "(pause)",
+          "or whenever you need it…",
           "---",
-          "It turns insight into action.",
-          "Manager-led.",
-          "Weekly execution.",
+          "You hit AutoForge.",
           "---",
-          "Not more ideas.",
-          "Actual behavior change.",
-          "[PHONE] Ask execution follow-through"
+          "It builds a hyper-focused plan.",
+          "---",
+          "No guessing.",
+          "(pause)",
+          "No generic training.",
+          "---",
+          "One focus.",
+          "(pause)",
+          "Executed daily."
         ]
       },
       "slide10": {
@@ -158,12 +210,18 @@
         "title": "The store feels different when behavior is guided.",
         "body": "Clarity, consistency, confidence, and trust stop being accidental outputs.",
         "speakerNotes": [
-          "When this system runs… everything changes.",
+          "When this system runs…",
+          "(pause)",
+          "everything changes.",
           "---",
           "Customers feel it.",
+          "(pause)",
+          "Your team feels it.",
+          "(pause)",
           "Managers feel it.",
           "---",
           "Not better people…",
+          "(pause)",
           "Better system."
         ]
       },
@@ -173,12 +231,18 @@
         "body": "When the system improves what happens on the floor, the measurable outcomes move with it.",
         "speakerNotes": [
           "This is the difference.",
-          "(pause)",
+          "---",
+          "(point left)",
+          "This is uncontrolled culture.",
+          "---",
+          "(point right)",
+          "This is engineered culture.",
+          "---",
           "Same people.",
           "(pause)",
           "Different system.",
           "---",
-          "Completely different results."
+          "Completely different outcomes."
         ]
       },
       "slide12": {
@@ -186,13 +250,15 @@
         "title": "Behavior beats training.",
         "body": "Great ideas do not scale by themselves. Consistent execution does.",
         "speakerNotes": [
-          "This works because behavior beats training.",
+          "Behavior beats training.",
+          "---",
           "Consistency beats talent.",
+          "---",
           "Execution beats ideas.",
           "---",
           "When behavior is consistent…",
           "(pause)",
-          "Results stop being random."
+          "results stop being random."
         ]
       },
       "slide13": {
@@ -200,7 +266,7 @@
         "title": "This is what the new operating model looks like.",
         "body": "The dealership runs with a consistent behavioral framework instead of individual guesswork.",
         "speakerNotes": [
-          "This is what your dealership looks like when it’s under control.",
+          "This is what your dealership looks like under control.",
           "(pause)",
           "Not occasionally…",
           "(pause)",
@@ -218,13 +284,18 @@
           "This is what your store told us.",
           "(pause)",
           "Not my opinion.",
-          "Not a guess.",
           "---",
           "This is your operation.",
           "---",
           "This isn’t a training problem.",
-          "It’s a control problem.",
+          "(pause)",
+          "It’s a culture control problem.",
           "---",
+          "That’s why CSI doesn’t hold.",
+          "(pause)",
+          "That’s why promoter scores fluctuate.",
+          "---",
+          "(point CTA)",
           "Let’s fix it."
         ]
       },
@@ -234,29 +305,25 @@
         "body": "A simple operating model for weekly execution and daily manager behavior.",
         "prompt": "This is the deeper operating view behind the system.",
         "speakerNotes": [
-          "This is the operating model.",
+          "If you’re wondering how this actually runs…",
+          "(pause)",
+          "It’s this simple.",
           "---",
-          "Weekly rhythm.",
-          "System identifies behavior gaps.",
+          "System identifies the gap.",
+          "---",
           "AutoForge builds the plan.",
+          "---",
           "Managers execute daily.",
           "---",
-          "Daily manager behavior.",
-          "5 to 10 minute behavior check-ins.",
-          "Observe real interactions.",
-          "Reinforce one focus behavior.",
-          "Track behavior, not just results.",
+          "Behavior is guided.",
+          "(pause)",
+          "Data is captured.",
+          "(pause)",
+          "Culture becomes consistent.",
           "---",
-          "Leadership visibility.",
-          "Who is executing.",
-          "Where breakdowns happen.",
-          "Which behaviors drive results.",
-          "---",
-          "Why it works.",
-          "Culture is no longer assumed.",
-          "It is measured.",
-          "It is guided.",
-          "It is reinforced daily."
+          "This is operational.",
+          "(pause)",
+          "Not theoretical."
         ]
       }
     }
