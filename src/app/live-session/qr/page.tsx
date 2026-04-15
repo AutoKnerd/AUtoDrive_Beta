@@ -31,17 +31,27 @@ function isInvalidAudienceUrl(raw: string) {
 function LiveSessionQrPageContent() {
   const searchParams = useSearchParams();
   const initialAudienceUrl = searchParams.get('audience') ?? '';
-  const [audienceUrl, setAudienceUrl] = useState(isInvalidAudienceUrl(initialAudienceUrl) ? '' : initialAudienceUrl);
+  const initialCustomUrl = searchParams.get('url') ?? '';
+  const title = searchParams.get('title') || (initialCustomUrl ? 'QR Code' : 'Live QR');
+  const initialUrl = initialCustomUrl || initialAudienceUrl;
+  const [audienceUrl, setAudienceUrl] = useState(isInvalidAudienceUrl(initialUrl) ? '' : initialUrl);
   const [showQr, setShowQr] = useState(true);
   const isEmbed = searchParams.get('embed') === '1';
 
   useEffect(() => {
-    if (initialAudienceUrl && !isInvalidAudienceUrl(initialAudienceUrl)) {
-      setAudienceUrl(initialAudienceUrl);
+    if (initialUrl && !isInvalidAudienceUrl(initialUrl)) {
+      setAudienceUrl(initialUrl);
       return;
     }
 
     let mounted = true;
+
+    if (initialCustomUrl) {
+      setAudienceUrl(initialCustomUrl);
+      return () => {
+        mounted = false;
+      };
+    }
 
     fetch('/api/live-session', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
@@ -58,14 +68,14 @@ function LiveSessionQrPageContent() {
     return () => {
       mounted = false;
     };
-  }, [initialAudienceUrl]);
+  }, [initialCustomUrl, initialUrl]);
 
   if (isEmbed) {
     return (
       <main className="min-h-full bg-transparent p-0 text-white">
         <div className="relative w-full rounded-[24px] border border-white/10 bg-black/76 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[#8eff71]">Live QR</p>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-[#8eff71]">{title}</p>
             <div className="h-2 w-2 rounded-full bg-[#8eff71] shadow-[0_0_14px_rgba(142,255,113,0.75)]" />
           </div>
           <div className="rounded-[18px] bg-white p-3">
@@ -139,7 +149,7 @@ function LiveSessionQrPageContent() {
           }`}
         >
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-[#8eff71]">Live QR</p>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-[#8eff71]">{title}</p>
             <div className="h-2 w-2 rounded-full bg-[#8eff71] shadow-[0_0_14px_rgba(142,255,113,0.75)]" />
           </div>
           <div className="rounded-[18px] bg-white p-3">

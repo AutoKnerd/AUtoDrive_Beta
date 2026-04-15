@@ -43,6 +43,7 @@
     <div class="deck-controls__menu">
       <button type="button" class="deck-controls__button" data-action="back">Back to Deck</button>
       <button type="button" class="deck-controls__button" data-action="audience-qr">Audience QR</button>
+      <button type="button" class="deck-controls__button" data-action="contract-qr">Contract</button>
       <button type="button" class="deck-controls__button" data-action="reset-session">New Session</button>
       <button type="button" class="deck-controls__button" data-action="view-snapshot">View Snapshot</button>
       <button type="button" class="deck-controls__button" data-action="app-demo">App Demo</button>
@@ -90,7 +91,7 @@
   audienceQrOverlay.className = 'deck-audience-qr';
   audienceQrOverlay.innerHTML = `
     <button type="button" class="deck-audience-qr__close" aria-label="Hide audience QR">&times;</button>
-    <iframe class="deck-audience-qr__frame" src="/live-session/qr?embed=1" title="Audience QR code"></iframe>
+    <iframe class="deck-audience-qr__frame" src="/live-session/qr?embed=1&title=Live%20QR" title="Audience QR code"></iframe>
   `;
   document.body.appendChild(audienceQrOverlay);
 
@@ -117,6 +118,7 @@
   const menuToggle = controls.querySelector('[data-action="toggle-menu"]');
   const backButton = controls.querySelector('[data-action="back"]');
   const audienceQrButton = controls.querySelector('[data-action="audience-qr"]');
+  const contractQrButton = controls.querySelector('[data-action="contract-qr"]');
   const resetSessionButton = controls.querySelector('[data-action="reset-session"]');
   const viewSnapshotButton = controls.querySelector('[data-action="view-snapshot"]');
   const appDemoButton = controls.querySelector('[data-action="app-demo"]');
@@ -218,10 +220,20 @@
     return baseUrl.toString();
   };
 
-  const syncAudienceQrFrame = () => {
+  const resolveQrOverlayUrl = (title, targetUrl) => {
+    const nextUrl = new URL('/live-session/qr', window.location.origin);
+    nextUrl.searchParams.set('embed', '1');
+    nextUrl.searchParams.set('title', title);
+    nextUrl.searchParams.set('url', targetUrl);
+    return nextUrl.toString();
+  };
+
+  const CONTRACT_QR_TARGET = 'https://drive.google.com/file/d/1IdNGovu30VolsmpX4mGHJ7eRhsQDUM4D/view?usp=share_link';
+
+  const syncAudienceQrFrame = (options = {}) => {
     if (!(audienceQrFrame instanceof HTMLIFrameElement)) return;
-    const nextSrc = `/live-session/qr?embed=1&audience=${encodeURIComponent(resolveAudienceUrl())}`;
-    if (audienceQrFrame.src !== new URL(nextSrc, window.location.origin).toString()) {
+    const nextSrc = resolveQrOverlayUrl(options.title || 'Live QR', options.url || resolveAudienceUrl());
+    if (audienceQrFrame.src !== nextSrc) {
       audienceQrFrame.src = nextSrc;
     }
   };
@@ -373,16 +385,29 @@
   });
 
   const setAudienceQrVisible = (visible) => {
-    syncAudienceQrFrame();
+    syncAudienceQrFrame({ title: 'Live QR' });
     audienceQrOverlay.classList.toggle('deck-audience-qr--visible', visible);
     if (audienceQrButton instanceof HTMLButtonElement) {
       audienceQrButton.textContent = visible ? 'Hide Audience QR' : 'Audience QR';
     }
   };
 
+  const openContractQr = () => {
+    setMenuOpen(false);
+    syncAudienceQrFrame({ title: 'Contract', url: CONTRACT_QR_TARGET });
+    audienceQrOverlay.classList.add('deck-audience-qr--visible');
+    if (audienceQrButton instanceof HTMLButtonElement) {
+      audienceQrButton.textContent = 'Audience QR';
+    }
+  };
+
   audienceQrButton?.addEventListener('click', () => {
     setMenuOpen(false);
     setAudienceQrVisible(!audienceQrOverlay.classList.contains('deck-audience-qr--visible'));
+  });
+
+  contractQrButton?.addEventListener('click', () => {
+    openContractQr();
   });
 
   resetSessionButton?.addEventListener('click', async () => {
