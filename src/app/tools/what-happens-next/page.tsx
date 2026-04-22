@@ -191,7 +191,7 @@ export default function WhatHappensNextPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.04),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(255,255,255,0.025),_transparent_24%)]" />
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-black" />
 
       <header className="sticky top-0 z-40 border-b border-white/8 bg-black/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
