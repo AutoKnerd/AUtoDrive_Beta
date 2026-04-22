@@ -115,26 +115,26 @@ type LiveLineTemplate = {
 };
 
 const LIVE_LINE_TEMPLATES: LiveLineTemplate[] = [
-  { lead: "Next, I'll", bridge: 'That way, you know', timeLead: 'That should take about', reassuranceLead: "and I'll keep you updated." },
-  { lead: "Here's what I'll do:", bridge: 'That way, you can expect', timeLead: 'Plan on about', reassuranceLead: "and I'll stay with you on it." },
-  { lead: "I’m going to", bridge: 'That keeps', timeLead: 'That usually takes about', reassuranceLead: "so you'll always know what's happening." },
-  { lead: "Let me", bridge: 'That way, you get', timeLead: 'Give me about', reassuranceLead: "and I'll let you know if anything changes." },
-  { lead: "I’ll take care of", bridge: 'That keeps', timeLead: 'That will run about', reassuranceLead: "and I'll keep it simple for you." },
-  { lead: "Right away, I'll", bridge: 'That gives you', timeLead: 'That will probably take about', reassuranceLead: "and I'll keep you posted the whole time." },
-  { lead: "From here, I’ll", bridge: 'That way, you know', timeLead: 'Expect about', reassuranceLead: "and I'll keep the pace easy to follow." },
-  { lead: "I’m going to get", bridge: 'That helps keep', timeLead: 'That should be about', reassuranceLead: "and I'll keep you in the loop." },
-  { lead: "I'll go ahead and", bridge: 'That way, you can count on', timeLead: 'We’re looking at about', reassuranceLead: "and I'll make sure it stays clear." },
-  { lead: "I'll move us into", bridge: 'That keeps', timeLead: 'That will likely take about', reassuranceLead: "and I'll keep it moving for you." },
-  { lead: "To keep this moving, I'll", bridge: 'That gives you', timeLead: 'Plan on roughly', reassuranceLead: "and I'll stay on top of it." },
-  { lead: "I’ll walk you through", bridge: 'That way, you know', timeLead: 'This should take around', reassuranceLead: "and I'll explain anything that changes." },
-  { lead: "I’ll finish", bridge: 'That helps you see', timeLead: 'That will take about', reassuranceLead: "and I'll keep the update straightforward." },
-  { lead: "I'll handle", bridge: 'That way, you can expect', timeLead: 'This is usually about', reassuranceLead: "and I'll keep things easy for you." },
-  { lead: "Let's do", bridge: 'That way, you have', timeLead: 'That should be roughly', reassuranceLead: "and I'll keep you comfortable with the pace." },
-  { lead: "I'll work through", bridge: 'That way, everything stays', timeLead: 'This will probably be about', reassuranceLead: "and I'll keep you informed as we go." },
-  { lead: "I can take care of", bridge: 'That way, you get', timeLead: 'It should take about', reassuranceLead: "and I'll make sure you know what's next." },
-  { lead: "I’ll start with", bridge: 'That gives you', timeLead: 'Expect around', reassuranceLead: "and I'll keep the handoff smooth." },
-  { lead: "I'll move us through", bridge: 'That way, you know', timeLead: 'This should run about', reassuranceLead: "and I'll keep the timing clear." },
-  { lead: "I’ll get us to", bridge: 'That way, you stay', timeLead: 'We should be looking at about', reassuranceLead: "and I'll keep you updated if anything shifts." },
+  { lead: "Next, I'll", bridge: 'That way,', timeLead: 'That should take about', reassuranceLead: "and I'll keep you updated." },
+  { lead: "Here's the plan: I'll", bridge: 'So,', timeLead: 'Plan on about', reassuranceLead: "and I'll stay with you on it." },
+  { lead: "From here, I'll", bridge: 'This way,', timeLead: 'That usually takes about', reassuranceLead: "so you'll always know what's happening." },
+  { lead: "Right now, I'll", bridge: 'That way,', timeLead: 'Give me about', reassuranceLead: "and I'll let you know if anything changes." },
+  { lead: "Let me", bridge: 'That way,', timeLead: 'That will run about', reassuranceLead: "and I'll keep it simple for you." },
+  { lead: "I'll go ahead and", bridge: 'So,', timeLead: 'That will probably take about', reassuranceLead: "and I'll keep you posted the whole time." },
+  { lead: "To keep this moving, I'll", bridge: 'That way,', timeLead: 'Expect about', reassuranceLead: "and I'll keep the pace easy to follow." },
+  { lead: "I'll work through", bridge: 'This way,', timeLead: 'That should be about', reassuranceLead: "and I'll keep you in the loop." },
+  { lead: "I'll", bridge: 'That way,', timeLead: 'We’re looking at about', reassuranceLead: "and I'll make sure it stays clear." },
+  { lead: "For now, I'll", bridge: 'So,', timeLead: 'That will likely take about', reassuranceLead: "and I'll keep it moving for you." },
+  { lead: "Then I'll", bridge: 'That way,', timeLead: 'Plan on roughly', reassuranceLead: "and I'll stay on top of it." },
+  { lead: "After that, I'll", bridge: 'This way,', timeLead: 'This should take around', reassuranceLead: "and I'll explain anything that changes." },
+  { lead: "I'll start by", bridge: 'That way,', timeLead: 'That will take about', reassuranceLead: "and I'll keep the update straightforward." },
+  { lead: "I'll keep it simple and", bridge: 'So,', timeLead: 'This is usually about', reassuranceLead: "and I'll keep things easy for you." },
+  { lead: "I'll make sure to", bridge: 'That way,', timeLead: 'That should be roughly', reassuranceLead: "and I'll keep you comfortable with the pace." },
+  { lead: "I'll stay with you while I", bridge: 'This way,', timeLead: 'This will probably be about', reassuranceLead: "and I'll keep you informed as we go." },
+  { lead: "I'll walk you through", bridge: 'That way,', timeLead: 'It should take about', reassuranceLead: "and I'll make sure you know what's next." },
+  { lead: "I'll keep this moving and", bridge: 'That way,', timeLead: 'Expect around', reassuranceLead: "and I'll keep the handoff smooth." },
+  { lead: "I'll keep you updated while I", bridge: 'That way,', timeLead: 'This should run about', reassuranceLead: "and I'll keep the timing clear." },
+  { lead: "I'll move us forward and", bridge: 'So,', timeLead: 'We should be looking at about', reassuranceLead: "and I'll keep you updated if anything shifts." },
 ];
 
 export const SCENARIO_STARTER_PRESETS: WhatHappensNextPreset[] = [
@@ -425,35 +425,35 @@ function buildBenefitLine(input: WhatHappensNextInput, mode: WhatHappensNextMode
 
   if (mode === 'Delay recovery') {
     return input.delayOrComplication
-      ? 'you know what is happening and there is no guesswork.'
-      : 'you know what is happening and the next update stays clear.';
+      ? 'That way, you know what is happening and there is no guesswork.'
+      : 'That way, you know what is happening and the next update stays clear.';
   }
 
   if (/\btrade\b|\bvalue\b|\bappraisal\b/.test(reason)) {
-    return 'you know we are checking the value before we move forward.';
+    return 'That way, you know we are checking the value before we move forward.';
   }
 
   if (/\bnumbers\b|\bpayment\b|\bdeal\b/.test(reason)) {
-    return 'the numbers stay clear before you move ahead.';
+    return 'That way, the numbers stay clear before you move ahead.';
   }
 
   if (/\bfinance\b|\bpaperwork\b|\bf&i\b/.test(reason)) {
-    return 'the paperwork stays organized and easy for you to follow.';
+    return 'That way, the paperwork stays organized and easy for you to follow.';
   }
 
   if (/\bservice\b|\bparts\b|\brepair\b|\btechnician\b/.test(reason)) {
-    return 'you get a clear update while we check the status.';
+    return 'That way, you get a clear update while we check the status.';
   }
 
   if (/\bdelivery\b|\bcleanup\b|\bprep\b/.test(reason)) {
-    return 'the handoff stays smooth and ready for you.';
+    return 'That way, the handoff stays smooth and ready for you.';
   }
 
   if (input.customerConcern) {
-    return 'it stays simple and comfortable for you.';
+    return 'That way, it stays simple and comfortable for you.';
   }
 
-  return 'everything stays simple and moves in the right order.';
+  return 'That way, everything stays simple and moves in the right order.';
 }
 
 function buildModeHint(mode: WhatHappensNextMode, input: WhatHappensNextInput): string {
@@ -486,10 +486,14 @@ function buildTemplate(mode: WhatHappensNextMode, step: string, time: string, re
   const timingLine = `${template.timeLead} ${time}.`;
   const reassuranceLine = reassurance.endsWith('.') ? reassurance : `${reassurance}.`;
 
-  const parts = [nextHappensLine, `${template.bridge} ${benefitLine}`, timingLine, `${template.reassuranceLead} ${reassuranceLine}`];
+  const parts = [nextHappensLine, benefitLine, timingLine, `${template.reassuranceLead} ${reassuranceLine}`];
+  const script = parts.join(' ')
+    .replace(/minutesutes/gi, 'minutes')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   return {
-    script: parts.join(' '),
+    script,
     nextHappensLine,
     timingLine,
     reassuranceLine,

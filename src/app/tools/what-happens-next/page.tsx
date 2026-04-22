@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft, Copy, RefreshCcw, Save, Sparkles, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,9 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { useEntitlements } from '@/hooks/use-entitlements';
-import { useToast } from '@/hooks/use-toast';
 import { resolvePaidAccess, FEATURES } from '@/lib/tools/entitlements';
-import { saveToolboxEntry } from '@/lib/tools/toolbox-client';
 import { getTempDraft, writeTempDraft } from '@/lib/tools/toolbox-storage';
 import {
   buildWhatHappensNextPlan,
@@ -25,63 +24,10 @@ import {
   type WhatHappensNextInput,
   type WhatHappensNextMode,
   type WhatHappensNextPreset,
-  type WhatHappensNextSavedScript,
   type WhatHappensNextTone,
 } from '@/lib/tools/what-happens-next';
 
 const TOOL_ID = 'what-happens-next';
-const LOCAL_SCRIPTS_KEY = 'whatHappensNextSavedScriptsV1';
-
-function normalizeText(value: string): string {
-  return value.trim();
-}
-
-function readLocalScripts(): WhatHappensNextSavedScript[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(LOCAL_SCRIPTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as WhatHappensNextSavedScript[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalScripts(scripts: WhatHappensNextSavedScript[]) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(LOCAL_SCRIPTS_KEY, JSON.stringify(scripts));
-}
-
-function buildCloudContent(input: WhatHappensNextInput, mode: WhatHappensNextMode, script: string): string {
-  return [
-    'WHAT HAPPENS NEXT',
-    '',
-    `Current Stage: ${input.currentStage || 'Not provided'}`,
-    `Next Step: ${input.nextStep || 'Not provided'}`,
-    `Estimated Time: ${input.estimatedTime || 'Not provided'}`,
-    `Reason For Step: ${input.reasonForStep || 'Not provided'}`,
-    `Reassurance Tone: ${input.reassuranceTone}`,
-    `Delay / Complication: ${input.delayOrComplication || 'Not provided'}`,
-    `Customer Concern: ${input.customerConcern || 'Not provided'}`,
-    `Mode: ${mode}`,
-    '',
-    script,
-  ].join('\n');
-}
-
-function signatureFor(input: WhatHappensNextInput, mode: WhatHappensNextMode): string {
-  return [
-    mode,
-    input.currentStage,
-    input.nextStep,
-    input.estimatedTime,
-    input.reasonForStep,
-    input.reassuranceTone,
-    input.delayOrComplication,
-    input.customerConcern,
-  ].map((part) => normalizeText(String(part || '')).toLowerCase()).join('::');
-}
 
 function applyPreset(preset: WhatHappensNextPreset): WhatHappensNextInput {
   return {
@@ -96,7 +42,7 @@ function applyPreset(preset: WhatHappensNextPreset): WhatHappensNextInput {
 }
 
 export default function WhatHappensNextPage() {
-  const { toast } = useToast();
+  const router = useRouter();
   const { user, firebaseUser } = useAuth();
 
   const [currentStage, setCurrentStage] = useState('');
@@ -110,8 +56,6 @@ export default function WhatHappensNextPage() {
   const [selectedQuickPickId, setSelectedQuickPickId] = useState<string | null>(null);
   const [guideStage, setGuideStage] = useState<'idle' | 'inputs' | 'modes' | 'output'>('idle');
 
-  const [savedScripts, setSavedScripts] = useState<WhatHappensNextSavedScript[]>([]);
-  const [isCloudSaving, setIsCloudSaving] = useState(false);
   const [variantSeed, setVariantSeed] = useState(0);
   const inputCardRef = useRef<HTMLDivElement | null>(null);
   const modeCardRef = useRef<HTMLDivElement | null>(null);
@@ -127,7 +71,6 @@ export default function WhatHappensNextPage() {
 
   const hasSprocketAccess = entitlements.features[FEATURES.SPROCKET];
   const hasAutoDriveCxAccess = entitlements.features[FEATURES.AUTODRIVE_CX];
-  const canSyncToCloud = entitlements.hasPaidAccess && Boolean(firebaseUser);
   const selectedIsScenarioPreset = SCENARIO_STARTER_PRESETS.some((preset) => preset.id === selectedQuickPickId);
   const selectedIsVaguePhrase = COMMON_VAGUE_PHRASES.some((preset) => preset.id === selectedQuickPickId);
   const showVaguePhraseCue = selectedIsScenarioPreset && !selectedIsVaguePhrase;
@@ -145,8 +88,6 @@ export default function WhatHappensNextPage() {
     customerConcern,
   }), [currentStage, nextStep, estimatedTime, reasonForStep, reassuranceTone, delayOrComplication, customerConcern]);
 
-  const currentSignature = useMemo(() => signatureFor(currentInput, selectedMode), [currentInput, selectedMode]);
-
   const plan = useMemo(() => buildWhatHappensNextPlan(currentInput, selectedMode, variantSeed), [currentInput, selectedMode, variantSeed]);
   const sprocketInsight = useMemo(() => (
     hasSprocketAccess ? getWhatHappensNextSprocketInsight(currentInput, plan) : null
@@ -155,13 +96,7 @@ export default function WhatHappensNextPage() {
     hasAutoDriveCxAccess ? getWhatHappensNextCxInsight(currentInput, plan, user) : null
   ), [currentInput, hasAutoDriveCxAccess, plan, user]);
 
-  const favoriteCount = useMemo(
-    () => savedScripts.filter((script) => script.favorite).length,
-    [savedScripts]
-  );
-
   useEffect(() => {
-    setSavedScripts(readLocalScripts());
     const draftRaw = getTempDraft(TOOL_ID);
     if (!draftRaw) return;
 
@@ -230,82 +165,9 @@ export default function WhatHappensNextPage() {
     setGuideStage('output');
   }, []);
 
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(plan.script);
-      toast({ title: 'Copied', description: 'Script copied and ready to use.' });
-    } catch {
-      toast({ variant: 'destructive', title: 'Copy failed', description: 'Try again in a moment.' });
-    }
-  }, [plan.script, toast]);
-
-  const persistSavedScript = useCallback(async (favorite: boolean) => {
-    const script: WhatHappensNextSavedScript = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      signature: currentSignature,
-      currentStage: currentInput.currentStage,
-      nextStep: currentInput.nextStep,
-      estimatedTime: currentInput.estimatedTime,
-      reasonForStep: currentInput.reasonForStep,
-      reassuranceTone: currentInput.reassuranceTone,
-      delayOrComplication: currentInput.delayOrComplication,
-      customerConcern: currentInput.customerConcern,
-      mode: selectedMode,
-      script: plan.script,
-      nextHappensLine: plan.nextHappensLine,
-      timingLine: plan.timingLine,
-      reassuranceLine: plan.reassuranceLine,
-      favorite,
-    };
-
-    const next = [
-      script,
-      ...savedScripts.filter((item) => item.signature !== currentSignature),
-    ].slice(0, 40);
-    setSavedScripts(next);
-    writeLocalScripts(next);
-
-    if (!canSyncToCloud) {
-      toast({ title: favorite ? 'Saved and favorited' : 'Saved locally', description: 'Stored on this device.' });
-      return;
-    }
-
-    setIsCloudSaving(true);
-    try {
-      const idToken = await firebaseUser.getIdToken();
-      const result = await saveToolboxEntry({
-        idToken,
-        toolId: TOOL_ID,
-        content: buildCloudContent(currentInput, selectedMode, plan.script),
-      });
-
-      if (!result.ok) {
-        toast({ variant: 'destructive', title: result.message });
-        return;
-      }
-
-      toast({
-        title: favorite ? 'Saved and synced' : 'Saved to cloud',
-        description: favorite ? 'This script is favorited and synced across devices.' : 'This script now syncs across devices.',
-      });
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Save failed', description: error?.message || 'Could not sync this script.' });
-    } finally {
-      setIsCloudSaving(false);
-    }
-  }, [canSyncToCloud, currentInput, currentSignature, firebaseUser, plan.nextHappensLine, plan.reassuranceLine, plan.script, plan.timingLine, savedScripts, selectedMode, toast]);
-
-  const handleSave = useCallback(() => {
-    void persistSavedScript(savedScripts.some((item) => item.signature === currentSignature)
-      ? savedScripts.find((item) => item.signature === currentSignature)?.favorite ?? false
-      : false);
-  }, [currentSignature, persistSavedScript, savedScripts]);
-
-  const handleFavorite = useCallback(() => {
-    const existing = savedScripts.find((item) => item.signature === currentSignature);
-    void persistSavedScript(!existing?.favorite);
-  }, [currentSignature, persistSavedScript, savedScripts]);
+  const handleSignupAction = useCallback(() => {
+    router.push('/signup');
+  }, [router]);
 
   const handleRegenerate = useCallback(() => {
     setVariantSeed((current) => current + 1);
@@ -324,10 +186,7 @@ export default function WhatHappensNextPage() {
     setGuideStage('idle');
     setVariantSeed(0);
     writeTempDraft(TOOL_ID, '');
-    toast({ title: 'Reset', description: 'Fields cleared.' });
-  }, [toast]);
-
-  const savedOnDeviceLabel = `${savedScripts.length} saved on this device`;
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#09070f] text-white">
@@ -665,19 +524,42 @@ export default function WhatHappensNextPage() {
                 </CardContent>
               </Card>
             )}
+          </div>
+
+          <div className="space-y-5">
+            <Card className={`border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)] ${showOutputGlow ? 'border-[#9DEE75]/35 shadow-[0_0_0_1px_rgba(157,238,117,0.18),0_0_32px_rgba(157,238,117,0.12),0_20px_60px_rgba(0,0,0,0.32)]' : ''}`}>
+              <CardHeader className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border border-[#c79bff]/20 bg-[#c79bff]/10 text-[#e6d6ff]">Generated script</Badge>
+                  <Badge className="border border-white/10 bg-white/5 text-[#d7dbff]">{plan.mode}</Badge>
+                  {showOutputGlow ? (
+                    <Badge className="border border-[#9DEE75]/30 bg-[#9DEE75]/10 text-[#eaffd6]">What&apos;s next</Badge>
+                  ) : null}
+                </div>
+                <CardTitle className="text-2xl font-black tracking-tight">Script, Read This Outloud</CardTitle>
+                <CardDescription className="text-[#b6bbdd]">
+                  The script stays short, direct, and ready to say.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-3xl border border-white/10 bg-[#090b14] p-5">
+                  <p className="mt-3 text-lg leading-8 text-white sm:text-xl">{plan.script}</p>
+                </div>
+              </CardContent>
+            </Card>
 
             {!sprocketInsight && !cxInsight && (
-              <Card className="border border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)]">
+              <Card className="border border-[#5ad7ff]/35 bg-[#09131f]/90 text-white shadow-[0_0_0_1px_rgba(90,215,255,0.14),0_0_28px_rgba(90,215,255,0.10),0_20px_60px_rgba(0,0,0,0.32)]">
                 <CardHeader>
-                  <CardTitle className="text-lg font-black tracking-tight">Optional guidance</CardTitle>
+                  <CardTitle className="text-lg font-black tracking-tight">Sprocket Insight:</CardTitle>
                   <CardDescription className="text-[#aeb3d6]">
-                    Paid Sprocket and AutoDriveCX guidance appears here when available.
+                    Unlock Sprocket and AutoDriveCX guidance to get clearer coaching in real time based on your personal CX traits.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <Link
                     href="/signup"
-                    className="inline-flex h-10 items-center justify-center rounded-xl border border-[#9DEE75]/30 bg-[#9DEE75] px-4 text-sm font-bold text-[#041106] shadow-[0_0_0_1px_rgba(157,238,117,0.12),0_8px_18px_rgba(157,238,117,0.18)] transition hover:bg-[#ABF28A]"
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-[#5ad7ff]/45 bg-[#5ad7ff]/10 px-4 text-sm font-bold text-[#dff9ff] shadow-[0_0_0_1px_rgba(90,215,255,0.12),0_8px_18px_rgba(90,215,255,0.12)] transition hover:border-[#7ae3ff]/60 hover:bg-[#5ad7ff]/15"
                   >
                     Sign up to unlock guidance
                   </Link>
@@ -685,39 +567,18 @@ export default function WhatHappensNextPage() {
               </Card>
             )}
           </div>
-
-          <Card className={`border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)] ${showOutputGlow ? 'border-[#9DEE75]/35 shadow-[0_0_0_1px_rgba(157,238,117,0.18),0_0_32px_rgba(157,238,117,0.12),0_20px_60px_rgba(0,0,0,0.32)]' : ''}`}>
-            <CardHeader className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="border border-[#c79bff]/20 bg-[#c79bff]/10 text-[#e6d6ff]">Generated script</Badge>
-                <Badge className="border border-white/10 bg-white/5 text-[#d7dbff]">{plan.mode}</Badge>
-                {showOutputGlow ? (
-                  <Badge className="border border-[#9DEE75]/30 bg-[#9DEE75]/10 text-[#eaffd6]">What&apos;s next</Badge>
-                ) : null}
-              </div>
-              <CardTitle className="text-2xl font-black tracking-tight">Live Line</CardTitle>
-              <CardDescription className="text-[#b6bbdd]">
-                The script stays short, direct, and ready to say.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-3xl border border-white/10 bg-[#090b14] p-5">
-                <p className="mt-3 text-lg leading-8 text-white sm:text-xl">{plan.script}</p>
-              </div>
-            </CardContent>
-          </Card>
         </section>
 
         <section className="grid gap-3 rounded-3xl border border-white/8 bg-white/5 p-3 sm:grid-cols-2 xl:grid-cols-5">
-          <Button type="button" onClick={handleCopy} variant="secondary" className="h-12 justify-center gap-2 bg-white text-black hover:bg-[#efe6ff]">
+          <Button type="button" onClick={handleSignupAction} variant="secondary" className="h-12 justify-center gap-2 border border-[#5ad7ff]/40 bg-white text-black shadow-[0_0_0_1px_rgba(90,215,255,0.14),0_8px_18px_rgba(90,215,255,0.08)] hover:border-[#7ae3ff]/60 hover:bg-[#efe6ff]">
             <Copy className="h-4 w-4" />
             Copy
           </Button>
-          <Button type="button" onClick={handleSave} className="h-12 justify-center gap-2 bg-[#c79bff] text-[#140b1f] hover:bg-[#d7b8ff]">
+          <Button type="button" onClick={handleSignupAction} className="h-12 justify-center gap-2 border border-[#5ad7ff]/40 bg-[#c79bff] text-[#140b1f] shadow-[0_0_0_1px_rgba(90,215,255,0.14),0_8px_18px_rgba(90,215,255,0.08)] hover:border-[#7ae3ff]/60 hover:bg-[#d7b8ff]">
             <Save className="h-4 w-4" />
-            {isCloudSaving ? 'Saving...' : 'Save'}
+            Save
           </Button>
-          <Button type="button" onClick={handleFavorite} variant="outline" className="h-12 justify-center gap-2 border-white/10 bg-white/5 text-white hover:bg-white/10">
+          <Button type="button" onClick={handleSignupAction} variant="outline" className="h-12 justify-center gap-2 border border-[#5ad7ff]/40 bg-white/5 text-white shadow-[0_0_0_1px_rgba(90,215,255,0.14),0_8px_18px_rgba(90,215,255,0.08)] hover:border-[#7ae3ff]/60 hover:bg-white/10">
             <Star className="h-4 w-4" />
             Favorite
           </Button>
@@ -728,72 +589,6 @@ export default function WhatHappensNextPage() {
           <Button type="button" onClick={handleReset} variant="outline" className="h-12 justify-center gap-2 border-white/10 bg-white/5 text-white hover:bg-white/10">
             Reset
           </Button>
-        </section>
-
-        <section className="rounded-3xl border border-white/8 bg-[#0c0f1d]/90 p-5 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)]">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#a9acd0]">Saved scripts</div>
-              <h3 className="mt-1 text-lg font-black tracking-tight">{savedOnDeviceLabel}</h3>
-            </div>
-            <Badge className="border border-[#c79bff]/20 bg-[#c79bff]/10 text-[#e6d6ff]">{favoriteCount} favorited</Badge>
-          </div>
-
-          {savedScripts.length === 0 ? (
-            <p className="mt-4 text-sm text-[#aeb3d6]">No saved scripts yet. Save one to keep a local copy on this device.</p>
-          ) : (
-            <div className="mt-4 grid gap-3">
-              {savedScripts.slice(0, 6).map((script) => (
-                <div key={script.id} className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className="border border-white/10 bg-white/5 text-[#e9ebff]">{script.mode}</Badge>
-                        {script.favorite && (
-                          <Badge className="border border-[#c79bff]/20 bg-[#c79bff]/10 text-[#e6d6ff]">Favorite</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm leading-6 text-white">{script.script}</p>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-[#a9acd0]">{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(script.createdAt))}</p>
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 border-white/10 bg-white/5 text-white hover:bg-white/10"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(script.script);
-                            toast({ title: 'Copied', description: 'Saved script copied.' });
-                          } catch {
-                            toast({ variant: 'destructive', title: 'Copy failed' });
-                          }
-                        }}
-                      >
-                        Copy
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={`h-10 border-white/10 ${script.favorite ? 'bg-[#c79bff]/15 text-[#f0e2ff]' : 'bg-white/5 text-white'} hover:bg-white/10`}
-                        onClick={() => {
-                          const next = savedScripts.map((item) => (
-                            item.id === script.id ? { ...item, favorite: !item.favorite } : item
-                          ));
-                          setSavedScripts(next);
-                          writeLocalScripts(next);
-                          toast({ title: script.favorite ? 'Removed favorite' : 'Marked favorite' });
-                        }}
-                      >
-                        <Star className={`mr-2 h-4 w-4 ${script.favorite ? 'fill-current' : ''}`} />
-                        {script.favorite ? 'Favorited' : 'Favorite'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </section>
 
         <div className="flex justify-center">
