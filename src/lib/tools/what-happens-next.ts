@@ -85,22 +85,12 @@ export const WHAT_HAPPENS_NEXT_MODES: WhatHappensNextMode[] = [
 
 export const WHAT_HAPPENS_NEXT_TONES: WhatHappensNextTone[] = ['Calm', 'Warm', 'Organized', 'Premium', 'Direct'];
 
-const MODE_OPENERS: Record<WhatHappensNextMode, string[]> = {
-  Short: ['Next, we will', 'Then we will', 'After that, we will'],
-  Warmer: ['Next, we will', 'Then we will', 'After that, we will'],
-  Confident: ['Next, we will', 'Then we will', 'From there, we will'],
-  Premium: ['Next, we will', 'Then we will', 'From there, we will'],
-  Service: ['Next, we will', 'Then we will', 'After that, we will'],
-  'F&I': ['Next, we will', 'Then we will', 'From there, we will'],
-  'Delay recovery': ['Next, we will', 'Then we will', 'In the meantime, we will'],
-};
-
 const REASSURANCE_PATTERNS: Record<WhatHappensNextTone, string[]> = {
-  Calm: ['I will keep you posted the whole time.', 'I will let you know if anything changes.', 'You will always know what is happening.'],
-  Warm: ['I will keep this easy to follow.', 'I will stay with you the whole way.', 'I want this to feel simple and clear.'],
-  Organized: ['I will keep the steps organized and clear.', 'I will make sure you know what is next.', 'I will keep the timing and order easy to follow.'],
-  Premium: ['I will keep the handoff smooth and polished.', 'I will make sure this feels seamless.', 'I will keep everything moving in a clean, simple way.'],
-  Direct: ['I will be clear if anything slows down.', 'I will tell you right away if timing changes.', 'I will keep you updated without confusion.'],
+  Calm: ["I'll keep you posted the whole time.", "I'll let you know if anything changes.", "You'll always know what is happening."],
+  Warm: ["I'll keep this easy to follow.", "I'll stay with you the whole way.", "I want this to feel simple and clear."],
+  Organized: ["I'll keep the steps organized and clear.", "I'll make sure you know what is next.", "I'll keep the timing and order easy to follow."],
+  Premium: ["I'll keep the handoff smooth and polished.", "I'll make sure this feels seamless.", "I'll keep everything moving in a clean, simple way."],
+  Direct: ["I'll be clear if anything slows down.", "I'll tell you right away if timing changes.", "I'll keep you updated without confusion."],
 };
 
 const TIME_FALLBACKS: Record<string, string> = {
@@ -116,6 +106,36 @@ const TIME_FALLBACKS: Record<string, string> = {
   test: '10 to 15 minutes',
   wait: 'a few minutes',
 };
+
+type LiveLineTemplate = {
+  lead: string;
+  bridge: string;
+  timeLead: string;
+  reassuranceLead: string;
+};
+
+const LIVE_LINE_TEMPLATES: LiveLineTemplate[] = [
+  { lead: "Next, I'll", bridge: 'That way, you know', timeLead: 'That should take about', reassuranceLead: "and I'll keep you updated." },
+  { lead: "Here's what I'll do:", bridge: 'That way, you can expect', timeLead: 'Plan on about', reassuranceLead: "and I'll stay with you on it." },
+  { lead: "I’m going to", bridge: 'That keeps', timeLead: 'That usually takes about', reassuranceLead: "so you'll always know what's happening." },
+  { lead: "Let me", bridge: 'That way, you get', timeLead: 'Give me about', reassuranceLead: "and I'll let you know if anything changes." },
+  { lead: "I’ll take care of", bridge: 'That keeps', timeLead: 'That will run about', reassuranceLead: "and I'll keep it simple for you." },
+  { lead: "Right away, I'll", bridge: 'That gives you', timeLead: 'That will probably take about', reassuranceLead: "and I'll keep you posted the whole time." },
+  { lead: "From here, I’ll", bridge: 'That way, you know', timeLead: 'Expect about', reassuranceLead: "and I'll keep the pace easy to follow." },
+  { lead: "I’m going to get", bridge: 'That helps keep', timeLead: 'That should be about', reassuranceLead: "and I'll keep you in the loop." },
+  { lead: "I'll go ahead and", bridge: 'That way, you can count on', timeLead: 'We’re looking at about', reassuranceLead: "and I'll make sure it stays clear." },
+  { lead: "I'll move us into", bridge: 'That keeps', timeLead: 'That will likely take about', reassuranceLead: "and I'll keep it moving for you." },
+  { lead: "To keep this moving, I'll", bridge: 'That gives you', timeLead: 'Plan on roughly', reassuranceLead: "and I'll stay on top of it." },
+  { lead: "I’ll walk you through", bridge: 'That way, you know', timeLead: 'This should take around', reassuranceLead: "and I'll explain anything that changes." },
+  { lead: "I’ll finish", bridge: 'That helps you see', timeLead: 'That will take about', reassuranceLead: "and I'll keep the update straightforward." },
+  { lead: "I'll handle", bridge: 'That way, you can expect', timeLead: 'This is usually about', reassuranceLead: "and I'll keep things easy for you." },
+  { lead: "Let's do", bridge: 'That way, you have', timeLead: 'That should be roughly', reassuranceLead: "and I'll keep you comfortable with the pace." },
+  { lead: "I'll work through", bridge: 'That way, everything stays', timeLead: 'This will probably be about', reassuranceLead: "and I'll keep you informed as we go." },
+  { lead: "I can take care of", bridge: 'That way, you get', timeLead: 'It should take about', reassuranceLead: "and I'll make sure you know what's next." },
+  { lead: "I’ll start with", bridge: 'That gives you', timeLead: 'Expect around', reassuranceLead: "and I'll keep the handoff smooth." },
+  { lead: "I'll move us through", bridge: 'That way, you know', timeLead: 'This should run about', reassuranceLead: "and I'll keep the timing clear." },
+  { lead: "I’ll get us to", bridge: 'That way, you stay', timeLead: 'We should be looking at about', reassuranceLead: "and I'll keep you updated if anything shifts." },
+];
 
 export const SCENARIO_STARTER_PRESETS: WhatHappensNextPreset[] = [
   {
@@ -389,15 +409,51 @@ function chooseReassurance(input: WhatHappensNextInput, mode: WhatHappensNextMod
 
   if (mode === 'Delay recovery') {
     return input.delayOrComplication
-      ? `I will keep you updated if the timing shifts. ${base}`
-      : `I will keep you updated if anything slows down. ${base}`;
+      ? `I'll keep you updated if the timing shifts. ${base}`
+      : `I'll keep you updated if anything slows down. ${base}`;
   }
 
   if (input.delayOrComplication) {
-    return `${base} If anything changes, I will tell you right away.`;
+    return `${base} If anything changes, I'll tell you right away.`;
   }
 
   return base;
+}
+
+function buildBenefitLine(input: WhatHappensNextInput, mode: WhatHappensNextMode): string {
+  const reason = `${input.reasonForStep} ${input.delayOrComplication} ${input.customerConcern}`.toLowerCase();
+
+  if (mode === 'Delay recovery') {
+    return input.delayOrComplication
+      ? 'you know what is happening and there is no guesswork.'
+      : 'you know what is happening and the next update stays clear.';
+  }
+
+  if (/\btrade\b|\bvalue\b|\bappraisal\b/.test(reason)) {
+    return 'you know we are checking the value before we move forward.';
+  }
+
+  if (/\bnumbers\b|\bpayment\b|\bdeal\b/.test(reason)) {
+    return 'the numbers stay clear before you move ahead.';
+  }
+
+  if (/\bfinance\b|\bpaperwork\b|\bf&i\b/.test(reason)) {
+    return 'the paperwork stays organized and easy for you to follow.';
+  }
+
+  if (/\bservice\b|\bparts\b|\brepair\b|\btechnician\b/.test(reason)) {
+    return 'you get a clear update while we check the status.';
+  }
+
+  if (/\bdelivery\b|\bcleanup\b|\bprep\b/.test(reason)) {
+    return 'the handoff stays smooth and ready for you.';
+  }
+
+  if (input.customerConcern) {
+    return 'it stays simple and comfortable for you.';
+  }
+
+  return 'everything stays simple and moves in the right order.';
 }
 
 function buildModeHint(mode: WhatHappensNextMode, input: WhatHappensNextInput): string {
@@ -423,16 +479,14 @@ function buildWhyItWorks(input: WhatHappensNextInput, mode: WhatHappensNextMode)
   return 'It gives the customer direction, sets a realistic expectation, and reassures them without using filler or overpromising.';
 }
 
-function buildTemplate(_mode: WhatHappensNextMode, opener: string, step: string, time: string, reassurance: string, input: WhatHappensNextInput): { script: string; nextHappensLine: string; timingLine: string; reassuranceLine: string } {
-  const nextHappensLine = `${opener} ${step}.`;
-  const timingLine = `That will probably take about ${time}.`;
+function buildTemplate(mode: WhatHappensNextMode, step: string, time: string, reassurance: string, input: WhatHappensNextInput, seed: string): { script: string; nextHappensLine: string; timingLine: string; reassuranceLine: string } {
+  const template = pick(LIVE_LINE_TEMPLATES, seed);
+  const nextHappensLine = `${template.lead} ${step}.`;
+  const benefitLine = buildBenefitLine(input, mode);
+  const timingLine = `${template.timeLead} ${time}.`;
   const reassuranceLine = reassurance.endsWith('.') ? reassurance : `${reassurance}.`;
 
-  const parts = [nextHappensLine, timingLine, reassuranceLine];
-
-  if (input.reasonForStep) {
-    parts.splice(1, 0, `${input.reasonForStep.trim().replace(/\.$/, '')}.`);
-  }
+  const parts = [nextHappensLine, `${template.bridge} ${benefitLine}`, timingLine, `${template.reassuranceLead} ${reassuranceLine}`];
 
   return {
     script: parts.join(' '),
@@ -446,8 +500,7 @@ export function buildWhatHappensNextPlan(input: WhatHappensNextInput, mode: What
   const step = formatStep(input.nextStep, mode);
   const time = formatTimeEstimate(input);
   const reassurance = chooseReassurance(input, mode, `${variantSeed}:${step}:${time}`);
-  const opener = pick(MODE_OPENERS[mode], `${variantSeed}:${mode}:${step}`);
-  const template = buildTemplate(mode, opener, step, time, reassurance, input);
+  const template = buildTemplate(mode, step, time, reassurance, input, `${variantSeed}:${mode}:${step}:${time}:${input.reasonForStep}:${input.delayOrComplication}:${input.customerConcern}`);
   const cleanerStep = step;
 
   const clarityFlags = Array.from(new Set([
@@ -465,7 +518,7 @@ export function buildWhatHappensNextPlan(input: WhatHappensNextInput, mode: What
     reassuranceLine: template.reassuranceLine,
     whyItWorks: buildWhyItWorks(input, mode),
     cleanerStep,
-    altVersion: `${opener} ${step}. ${time ? `Plan on about ${time}.` : ''} ${reassurance}`.replace(/\s+/g, ' ').trim(),
+    altVersion: `${template.nextHappensLine} ${time ? `That will probably take about ${time}.` : ''} ${reassurance}`.replace(/\s+/g, ' ').trim(),
     conciseVersion: `${step}. About ${time}. ${reassurance}`.replace(/\s+/g, ' ').trim(),
     modeHint: buildModeHint(mode, input),
     clarityFlags,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Copy, RefreshCcw, Save, Sparkles, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -107,10 +107,14 @@ export default function WhatHappensNextPage() {
   const [delayOrComplication, setDelayOrComplication] = useState('');
   const [customerConcern, setCustomerConcern] = useState('');
   const [selectedMode, setSelectedMode] = useState<WhatHappensNextMode>('Warmer');
+  const [selectedQuickPickId, setSelectedQuickPickId] = useState<string | null>(null);
+  const [guideStage, setGuideStage] = useState<'idle' | 'inputs' | 'modes' | 'output'>('idle');
 
   const [savedScripts, setSavedScripts] = useState<WhatHappensNextSavedScript[]>([]);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
   const [variantSeed, setVariantSeed] = useState(0);
+  const inputCardRef = useRef<HTMLDivElement | null>(null);
+  const modeCardRef = useRef<HTMLDivElement | null>(null);
 
   const { entitlements } = useEntitlements({
     isAuthenticated: !!firebaseUser,
@@ -124,6 +128,12 @@ export default function WhatHappensNextPage() {
   const hasSprocketAccess = entitlements.features[FEATURES.SPROCKET];
   const hasAutoDriveCxAccess = entitlements.features[FEATURES.AUTODRIVE_CX];
   const canSyncToCloud = entitlements.hasPaidAccess && Boolean(firebaseUser);
+  const selectedIsScenarioPreset = SCENARIO_STARTER_PRESETS.some((preset) => preset.id === selectedQuickPickId);
+  const selectedIsVaguePhrase = COMMON_VAGUE_PHRASES.some((preset) => preset.id === selectedQuickPickId);
+  const showVaguePhraseCue = selectedIsScenarioPreset && !selectedIsVaguePhrase;
+  const showInputGlow = guideStage === 'inputs' && selectedIsVaguePhrase;
+  const showModeGlow = guideStage === 'modes';
+  const showOutputGlow = guideStage === 'output';
 
   const currentInput = useMemo<WhatHappensNextInput>(() => ({
     currentStage,
@@ -174,8 +184,30 @@ export default function WhatHappensNextPage() {
     writeTempDraft(TOOL_ID, JSON.stringify({ ...currentInput, selectedMode }));
   }, [currentInput, selectedMode]);
 
+  useEffect(() => {
+    const target =
+      guideStage === 'inputs'
+        ? inputCardRef.current
+        : guideStage === 'modes'
+          ? modeCardRef.current
+          : guideStage === 'output'
+            ? modeCardRef.current
+            : null;
+
+    if (!target) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [guideStage]);
+
   const handlePresetSelect = useCallback((preset: WhatHappensNextPreset) => {
     const next = applyPreset(preset);
+    const presetIsVaguePhrase = COMMON_VAGUE_PHRASES.some((item) => item.id === preset.id);
+    setSelectedQuickPickId(preset.id);
+    setGuideStage(presetIsVaguePhrase ? 'inputs' : 'idle');
     setCurrentStage(next.currentStage);
     setNextStep(next.nextStep);
     setEstimatedTime(next.estimatedTime);
@@ -183,6 +215,19 @@ export default function WhatHappensNextPage() {
     setReassuranceTone(next.reassuranceTone);
     setDelayOrComplication(next.delayOrComplication);
     setCustomerConcern(next.customerConcern);
+  }, []);
+
+  const handleConfirmVaguePhrase = useCallback(() => {
+    if (!selectedIsVaguePhrase) return;
+    setGuideStage('modes');
+  }, [selectedIsVaguePhrase]);
+
+  const handleModeSelect = useCallback((mode: WhatHappensNextMode) => {
+    setSelectedMode(mode);
+  }, []);
+
+  const handleConfirmMode = useCallback(() => {
+    setGuideStage('output');
   }, []);
 
   const handleCopy = useCallback(async () => {
@@ -275,6 +320,8 @@ export default function WhatHappensNextPage() {
     setDelayOrComplication('');
     setCustomerConcern('');
     setSelectedMode('Warmer');
+    setSelectedQuickPickId(null);
+    setGuideStage('idle');
     setVariantSeed(0);
     writeTempDraft(TOOL_ID, '');
     toast({ title: 'Reset', description: 'Fields cleared.' });
@@ -317,57 +364,72 @@ export default function WhatHappensNextPage() {
           </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/8 bg-[#0d1020]/80 p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#c79bff]">Step 1</div>
-            <p className="mt-2 text-sm leading-6 text-[#d7dbff]">Choose a scenario chip if you want a fast starting point.</p>
-          </div>
-          <div className="rounded-2xl border border-white/8 bg-[#0d1020]/80 p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#c79bff]">Step 2</div>
-            <p className="mt-2 text-sm leading-6 text-[#d7dbff]">Enter the next step, a time estimate, and any delay or concern.</p>
-          </div>
-          <div className="rounded-2xl border border-white/8 bg-[#0d1020]/80 p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#c79bff]">Step 3</div>
-            <p className="mt-2 text-sm leading-6 text-[#d7dbff]">Pick a mode, then copy, save, favorite, or regenerate the script.</p>
-          </div>
-        </section>
-
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#a9acd0]">Scenario quick-picks</h3>
             <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#c79bff]">One tap</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="max-h-[340px] space-y-3 overflow-y-auto pr-1 no-scrollbar">
             {SCENARIO_STARTER_PRESETS.map((preset) => (
               <button
                 key={preset.id}
                 type="button"
                 onClick={() => handlePresetSelect(preset)}
-                className="rounded-2xl border border-white/8 bg-[#0d1020]/90 px-4 py-4 text-left transition active:scale-[0.985] hover:border-[#c79bff]/25 hover:bg-[#11162a]"
+                className={`w-full rounded-2xl px-4 py-4 text-left transition active:scale-[0.985] ${
+                  selectedQuickPickId === preset.id
+                    ? 'border-[#9DEE75] bg-emerald-400/10 text-white shadow-[0_0_0_1px_rgba(74,222,128,0.22),0_0_24px_rgba(74,222,128,0.10)]'
+                    : 'border border-white/8 bg-[#0d1020]/90 hover:border-[#c79bff]/25 hover:bg-[#11162a]'
+                }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#c79bff]">Scenario</div>
+                    <div className={`text-[11px] font-bold uppercase tracking-[0.22em] ${selectedQuickPickId === preset.id ? 'text-emerald-300' : 'text-[#c79bff]'}`}>Scenario</div>
                     <div className="mt-1 text-sm font-semibold text-white">{preset.label}</div>
                   </div>
-                  <div className="rounded-full border border-[#c79bff]/20 bg-[#c79bff]/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#d7c7ff]">
+                  <div className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
+                    selectedQuickPickId === preset.id
+                      ? 'border-[#9DEE75]/30 bg-emerald-400/10 text-emerald-100'
+                      : 'border-[#c79bff]/20 bg-[#c79bff]/10 text-[#d7c7ff]'
+                  }`}>
                     {preset.estimatedTime}
                   </div>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-[#aeb3d6]">{preset.nextStep}</p>
+                <p className={`mt-3 text-sm leading-6 ${selectedQuickPickId === preset.id ? 'text-emerald-50' : 'text-[#aeb3d6]'}`}>{preset.nextStep}</p>
               </button>
             ))}
           </div>
 
-          <div className="rounded-2xl border border-white/8 bg-[#0d1020]/80 p-4">
-            <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.22em] text-[#a9acd0]">Common vague phrases</div>
+          <div
+            className={`rounded-2xl p-4 shadow-[0_0_0_1px_rgba(199,155,255,0.06)] ${
+              showVaguePhraseCue
+                ? 'border border-[#9DEE75]/25 bg-gradient-to-b from-[#141a10] to-[#0d1020]/85'
+                : 'border border-[#c79bff]/24 bg-gradient-to-b from-[#171029] to-[#0d1020]/85'
+            }`}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] ${showVaguePhraseCue ? 'text-[#dfffc3]' : 'text-[#d7c7ff]'}`}>
+                <span className={`h-2 w-2 rounded-full ${showVaguePhraseCue ? 'bg-[#9DEE75] shadow-[0_0_0_4px_rgba(157,238,117,0.14)]' : 'bg-[#c79bff] shadow-[0_0_0_4px_rgba(199,155,255,0.12)]'}`} />
+                Common vague phrases
+              </div>
+              {showVaguePhraseCue ? (
+                <div className="rounded-full border border-[#9DEE75]/30 bg-[#9DEE75]/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#eaffd6]">
+                  Next up
+                </div>
+              ) : null}
+            </div>
             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
               {COMMON_VAGUE_PHRASES.map((preset) => (
                 <button
                   key={preset.id}
                   type="button"
                   onClick={() => handlePresetSelect(preset)}
-                  className="shrink-0 rounded-full border border-white/8 bg-white/5 px-4 py-2 text-sm font-medium text-[#e4e7ff] transition hover:border-[#c79bff]/30 hover:bg-[#c79bff]/10"
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition ${
+                  selectedQuickPickId === preset.id
+                    ? 'border-[#9DEE75] bg-emerald-400/10 text-white shadow-[0_0_0_1px_rgba(74,222,128,0.2)]'
+                    : showVaguePhraseCue
+                      ? 'border-white/8 bg-white/5 text-[#e4e7ff] hover:border-[#9DEE75]/45 hover:bg-[#9DEE75]/10'
+                      : 'border-white/8 bg-white/5 text-[#e4e7ff] hover:border-[#c79bff]/40 hover:bg-[#c79bff]/12'
+                }`}
                 >
                   {preset.label}
                 </button>
@@ -377,9 +439,14 @@ export default function WhatHappensNextPage() {
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card className="border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)]">
+          <Card ref={inputCardRef} className={`border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)] ${showInputGlow ? 'border-[#9DEE75]/35 shadow-[0_0_0_1px_rgba(157,238,117,0.18),0_0_32px_rgba(157,238,117,0.12),0_20px_60px_rgba(0,0,0,0.32)]' : ''}`}>
             <CardHeader className="space-y-2">
-              <CardTitle className="text-xl font-black tracking-tight">Input fields</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-xl font-black tracking-tight">Input fields</CardTitle>
+                {showInputGlow ? (
+                  <Badge className="border border-[#9DEE75]/30 bg-[#9DEE75]/10 text-[#eaffd6]">What&apos;s next</Badge>
+                ) : null}
+              </div>
               <CardDescription className="text-[#aeb3d6]">
                 Fill only what you know. If something is missing, the tool will still build a clear script.
               </CardDescription>
@@ -452,12 +519,27 @@ export default function WhatHappensNextPage() {
                   className="border-white/10 bg-[#11162a] text-white placeholder:text-[#7880a8]"
                 />
               </div>
+              <div className="sm:col-span-2 flex justify-end">
+                <Button
+                  type="button"
+                  onClick={handleConfirmVaguePhrase}
+                  disabled={!selectedIsVaguePhrase}
+                  className="h-10 rounded-xl border border-[#9DEE75]/30 bg-[#9DEE75] px-4 text-sm font-bold text-[#041106] shadow-[0_0_0_1px_rgba(157,238,117,0.12),0_8px_18px_rgba(157,238,117,0.18)] transition hover:bg-[#ABF28A] disabled:opacity-50"
+                >
+                  Confirm
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)]">
+          <Card ref={modeCardRef} className={`border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)] ${showModeGlow ? 'border-[#9DEE75]/35 shadow-[0_0_0_1px_rgba(157,238,117,0.18),0_0_32px_rgba(157,238,117,0.12),0_20px_60px_rgba(0,0,0,0.32)]' : ''}`}>
             <CardHeader className="space-y-2">
-              <CardTitle className="text-xl font-black tracking-tight">Mode toggles</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-xl font-black tracking-tight">Mode toggles</CardTitle>
+                {showModeGlow ? (
+                  <Badge className="border border-[#9DEE75]/30 bg-[#9DEE75]/10 text-[#eaffd6]">What&apos;s next</Badge>
+                ) : null}
+              </div>
               <CardDescription className="text-[#aeb3d6]">
                 Tap one mode to change how the same answer is phrased.
               </CardDescription>
@@ -468,10 +550,10 @@ export default function WhatHappensNextPage() {
                   <button
                     key={mode}
                     type="button"
-                    onClick={() => setSelectedMode(mode)}
+                    onClick={() => handleModeSelect(mode)}
                     className={`rounded-2xl border px-3 py-3 text-left text-sm font-semibold transition ${
                       selectedMode === mode
-                        ? 'border-[#c79bff]/40 bg-[#c79bff]/15 text-white shadow-[0_0_0_1px_rgba(199,155,255,0.14)]'
+                        ? 'border-[#9DEE75]/35 bg-[#9DEE75]/10 text-white shadow-[0_0_0_1px_rgba(157,238,117,0.18),0_0_22px_rgba(157,238,117,0.1)]'
                         : 'border-white/8 bg-white/5 text-[#b7bddb] hover:border-[#c79bff]/20 hover:bg-[#11162a]'
                     }`}
                   >
@@ -496,50 +578,26 @@ export default function WhatHappensNextPage() {
                   <p><span className="font-semibold text-[#c79bff]">Reassurance:</span> {plan.reassuranceLine}</p>
                 </div>
               </div>
+
+              <div className="rounded-2xl border border-[#c79bff]/16 bg-[#0c0f1d] p-4">
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#d7c7ff]">Why this works</div>
+                <p className="text-sm leading-6 text-[#e0def8]">{plan.whyItWorks}</p>
+              </div>
+
+              <div className="mt-1 flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={handleConfirmMode}
+                    className="h-10 rounded-xl border border-[#9DEE75]/30 bg-[#9DEE75] px-4 text-sm font-bold text-[#041106] shadow-[0_0_0_1px_rgba(157,238,117,0.12),0_8px_18px_rgba(157,238,117,0.18)] transition hover:bg-[#ABF28A]"
+                  >
+                    Confirm
+                  </Button>
+                </div>
             </CardContent>
           </Card>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-          <Card className="border border-[#c79bff]/20 bg-gradient-to-br from-[#171026] via-[#11162a] to-[#0c0f1d] text-white shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
-            <CardHeader className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="border border-[#c79bff]/20 bg-[#c79bff]/10 text-[#e6d6ff]">Generated script</Badge>
-                <Badge className="border border-white/10 bg-white/5 text-[#d7dbff]">{plan.mode}</Badge>
-              </div>
-              <CardTitle className="text-xl font-black tracking-tight">Say this out loud</CardTitle>
-              <CardDescription className="text-[#b6bbdd]">
-                The script always includes the next step, the timing, and the reassurance line.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-3xl border border-white/10 bg-[#090b14] p-5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c79bff]">Full script</p>
-                <p className="mt-3 text-lg leading-8 text-white sm:text-xl">{plan.script}</p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a9acd0]">What happens next</div>
-                  <p className="mt-2 text-sm leading-6 text-[#edf0ff]">{plan.nextHappensLine}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a9acd0]">How long</div>
-                  <p className="mt-2 text-sm leading-6 text-[#edf0ff]">{plan.timingLine}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a9acd0]">Reassurance</div>
-                  <p className="mt-2 text-sm leading-6 text-[#edf0ff]">{plan.reassuranceLine}</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-[#11162a] p-4">
-                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#a9acd0]">Why this works</div>
-                <p className="text-sm leading-6 text-[#d7dbff]">{plan.whyItWorks}</p>
-              </div>
-            </CardContent>
-          </Card>
-
+        <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-5">
             {sprocketInsight && (
               <Card className="border border-[#c79bff]/20 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)]">
@@ -616,9 +674,38 @@ export default function WhatHappensNextPage() {
                     Paid Sprocket and AutoDriveCX guidance appears here when available.
                   </CardDescription>
                 </CardHeader>
+                <CardContent className="pt-0">
+                  <Link
+                    href="/signup"
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-[#9DEE75]/30 bg-[#9DEE75] px-4 text-sm font-bold text-[#041106] shadow-[0_0_0_1px_rgba(157,238,117,0.12),0_8px_18px_rgba(157,238,117,0.18)] transition hover:bg-[#ABF28A]"
+                  >
+                    Sign up to unlock guidance
+                  </Link>
+                </CardContent>
               </Card>
             )}
           </div>
+
+          <Card className={`border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)] ${showOutputGlow ? 'border-[#9DEE75]/35 shadow-[0_0_0_1px_rgba(157,238,117,0.18),0_0_32px_rgba(157,238,117,0.12),0_20px_60px_rgba(0,0,0,0.32)]' : ''}`}>
+            <CardHeader className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="border border-[#c79bff]/20 bg-[#c79bff]/10 text-[#e6d6ff]">Generated script</Badge>
+                <Badge className="border border-white/10 bg-white/5 text-[#d7dbff]">{plan.mode}</Badge>
+                {showOutputGlow ? (
+                  <Badge className="border border-[#9DEE75]/30 bg-[#9DEE75]/10 text-[#eaffd6]">What&apos;s next</Badge>
+                ) : null}
+              </div>
+              <CardTitle className="text-2xl font-black tracking-tight">Live Line</CardTitle>
+              <CardDescription className="text-[#b6bbdd]">
+                The script stays short, direct, and ready to say.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-3xl border border-white/10 bg-[#090b14] p-5">
+                <p className="mt-3 text-lg leading-8 text-white sm:text-xl">{plan.script}</p>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         <section className="grid gap-3 rounded-3xl border border-white/8 bg-white/5 p-3 sm:grid-cols-2 xl:grid-cols-5">
