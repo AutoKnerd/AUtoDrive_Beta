@@ -137,6 +137,15 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
     category = 'Deal Flow';
   }
 
+  if (id.includes('what-happens-next')) {
+    category = 'Deal Flow';
+    skillTags = ['clarity', 'timing', 'trust'];
+    intentTags = ['Move a deal forward', 'Follow up', 'Improve consistency'];
+    recommendedWhen = ['The customer needs a clear explanation of the next step'];
+    notRecommendedWhen = ['The next step is already obvious and does not need explanation'];
+    estimatedTime = 5;
+  }
+
   if (id.includes('clarity-check')) {
     skillTags = ['clarity', 'pacing', 'listening'];
     intentTags = ['Improve consistency', 'Move a deal forward'];
@@ -259,6 +268,14 @@ const TOOL_SEED: ToolSeed[] = [
     access: 'free',
     hasFullVersion: true,
     createdAt: '2026-04-20T09:00:00.000Z',
+  },
+  {
+    id: 'what-happens-next',
+    name: 'What Happens Next... Then What Happens Next',
+    description: 'Explain the next dealership step clearly with a simple time estimate and reassuring language.',
+    access: 'free',
+    hasFullVersion: true,
+    createdAt: '2026-04-26T09:00:00.000Z',
   },
   {
     id: 'first-90-second-trust-test',
@@ -502,7 +519,7 @@ const TOOL_SEED: ToolSeed[] = [
   },
 ];
 
-const WEEKLY_FEATURED_TOOL_ID = 'first-90-second-trust-test';
+const WEEKLY_FEATURED_TOOL_ID = 'what-happens-next';
 export const TOOLBOX_TOOLS: ToolConfig[] = buildToolConfig(TOOL_SEED);
 
 export function buildToolConfig(seed: ToolSeed[]): ToolConfig[] {

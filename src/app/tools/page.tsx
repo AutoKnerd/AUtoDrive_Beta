@@ -69,6 +69,7 @@ function ctaLabelForTool(tool: ToolConfig, canAccess: boolean): string {
 }
 
 const INLINE_TOOL_COMPONENTS: Record<string, ComponentType> = {
+  'what-happens-next': dynamic(() => import('@/app/tools/what-happens-next/page'), { ssr: false }),
   'first-90-second-trust-test': dynamic(() => import('@/app/tools/first-90-second-trust-test/page'), { ssr: false }),
   'fee-transparency-coach': dynamic(() => import('@/app/tools/fee-transparency-coach/page'), { ssr: false }),
   'pickup-experience-designer': dynamic(() => import('@/app/tools/pickup-experience-designer/page'), { ssr: false }),
