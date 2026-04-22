@@ -59,6 +59,7 @@ export default function WhatHappensNextPage() {
   const [variantSeed, setVariantSeed] = useState(0);
   const inputCardRef = useRef<HTMLDivElement | null>(null);
   const modeCardRef = useRef<HTMLDivElement | null>(null);
+  const outputCardRef = useRef<HTMLDivElement | null>(null);
 
   const { entitlements } = useEntitlements({
     isAuthenticated: !!firebaseUser,
@@ -126,7 +127,7 @@ export default function WhatHappensNextPage() {
         : guideStage === 'modes'
           ? modeCardRef.current
           : guideStage === 'output'
-            ? modeCardRef.current
+            ? outputCardRef.current
             : null;
 
     if (!target) return;
@@ -189,10 +190,10 @@ export default function WhatHappensNextPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#09070f] text-white">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(175,117,255,0.16),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(91,54,255,0.14),_transparent_30%),linear-gradient(180deg,_#09070f_0%,_#0d1020_48%,_#09070f_100%)]" />
+    <div className="min-h-screen bg-black text-white">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.04),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(255,255,255,0.025),_transparent_24%)]" />
 
-      <header className="sticky top-0 z-40 border-b border-white/8 bg-[#09070f]/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-white/8 bg-black/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <Link href="/tools" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[#c79bff] transition hover:border-[#c79bff]/30 hover:bg-[#c79bff]/10">
@@ -527,7 +528,7 @@ export default function WhatHappensNextPage() {
           </div>
 
           <div className="space-y-5">
-            <Card className={`border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)] ${showOutputGlow ? 'border-[#9DEE75]/35 shadow-[0_0_0_1px_rgba(157,238,117,0.18),0_0_32px_rgba(157,238,117,0.12),0_20px_60px_rgba(0,0,0,0.32)]' : ''}`}>
+            <Card ref={outputCardRef} className={`border-white/8 bg-[#0c0f1d]/90 text-white shadow-[0_20px_60px_rgba(0,0,0,0.32)] ${showOutputGlow ? 'border-[#9DEE75]/35 shadow-[0_0_0_1px_rgba(157,238,117,0.18),0_0_32px_rgba(157,238,117,0.12),0_20px_60px_rgba(0,0,0,0.32)]' : ''}`}>
               <CardHeader className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="border border-[#c79bff]/20 bg-[#c79bff]/10 text-[#e6d6ff]">Generated script</Badge>
