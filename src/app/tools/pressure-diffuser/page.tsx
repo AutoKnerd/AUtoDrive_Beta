@@ -1136,31 +1136,6 @@ export default function PressureDiffuserPage() {
         </section>
       </main>
 
-      <nav className="fixed bottom-0 z-50 flex h-20 w-full items-center justify-around border-t border-[#4a4456] bg-[#1c2024]/95 px-2 backdrop-blur-lg">
-        <Link
-          href="/autoshop"
-          className="flex flex-col items-center justify-center rounded-xl bg-[#d1bcff] px-4 py-1 text-[#3d0090]"
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>handyman</span>
-          <span className="font-['Space_Grotesk'] text-[10px] font-bold uppercase tracking-[0.15em]">Tools</span>
-        </Link>
-        <button
-          type="button"
-          onClick={() => historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          className="flex flex-col items-center justify-center px-4 py-1 text-[#ccc3d9] transition-colors hover:text-[#d1bcff]"
-        >
-          <span className="material-symbols-outlined">auto_stories</span>
-          <span className="font-['Space_Grotesk'] text-[10px] font-bold uppercase tracking-[0.15em]">Library</span>
-        </button>
-        <Link
-          href="/profile"
-          className="flex flex-col items-center justify-center px-4 py-1 text-[#ccc3d9] transition-colors hover:text-[#d1bcff]"
-        >
-          <span className="material-symbols-outlined">settings</span>
-          <span className="font-['Space_Grotesk'] text-[10px] font-bold uppercase tracking-[0.15em]">Settings</span>
-        </Link>
-      </nav>
-
       <div className="pointer-events-none fixed inset-0 -z-10 opacity-10">
         <div className="absolute right-[-10%] top-[-10%] h-[50%] w-[80%] rounded-full bg-gradient-to-br from-[#d1bcff] to-transparent blur-[120px]" />
         <div className="absolute bottom-[-10%] left-[-10%] h-[50%] w-[80%] rounded-full bg-gradient-to-tr from-[#8bda64] to-transparent blur-[120px]" />
