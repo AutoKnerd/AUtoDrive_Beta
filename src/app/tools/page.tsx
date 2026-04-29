@@ -76,6 +76,7 @@ const INLINE_TOOL_COMPONENTS: Record<string, ComponentType> = {
   'repair-trust-builder': dynamic(() => import('@/app/tools/repair-trust-builder/page'), { ssr: false }),
   'wait-experience-coach': dynamic(() => import('@/app/tools/wait-experience-coach/page'), { ssr: false }),
   'pressure-drop-planner': dynamic(() => import('@/app/tools/pressure-drop-planner/page'), { ssr: false }),
+  'pressure-diffuser': dynamic(() => import('@/app/tools/pressure-diffuser/page'), { ssr: false }),
   'clarity-check-builder': dynamic(() => import('@/app/tools/clarity-check-builder/page'), { ssr: false }),
   'first-impression-calibrator': dynamic(() => import('@/app/tools/first-impression-calibrator/page'), { ssr: false }),
   'consistency-gap-check': dynamic(() => import('@/app/tools/consistency-gap-check/page'), { ssr: false }),

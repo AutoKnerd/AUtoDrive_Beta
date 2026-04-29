@@ -146,6 +146,17 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
     estimatedTime = 5;
   }
 
+  if (id.includes('pressure-diffuser')) {
+    category = 'CX / Process';
+    skillTags = ['empathy', 'tone', 'pacing'];
+    intentTags = ['Handle an objection', 'Improve consistency', 'Recover a stalled deal'];
+    recommendedWhen = ['A tense customer moment needs calmer live-language coaching'];
+    notRecommendedWhen = ['The conversation is already calm and only needs a simple recap'];
+    estimatedTime = 6;
+    rolePrimary.splice(0, rolePrimary.length, ...uniqueRoles([...SALES_ROLES, ...SERVICE_ROLES]));
+    roleSecondary.splice(0, roleSecondary.length, ...uniqueRoles([...MANAGER_ROLES, ...PARTS_ROLES]));
+  }
+
   if (id.includes('clarity-check')) {
     skillTags = ['clarity', 'pacing', 'listening'];
     intentTags = ['Improve consistency', 'Move a deal forward'];
@@ -260,6 +271,14 @@ const TOOL_SEED: ToolSeed[] = [
     access: 'free',
     hasFullVersion: true,
     createdAt: '2026-04-21T09:00:00.000Z',
+  },
+  {
+    id: 'pressure-diffuser',
+    name: 'Pressure Diffuser',
+    description: 'Diffuse tense moments with empathetic live language, calm next-step framing, and trust-building coaching.',
+    access: 'free',
+    hasFullVersion: true,
+    createdAt: '2026-04-29T09:00:00.000Z',
   },
   {
     id: 'clarity-check-builder',
