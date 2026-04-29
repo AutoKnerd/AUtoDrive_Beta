@@ -735,12 +735,10 @@ export function getPressureDiffuserPlan(input: PressureDiffuserInput, variantSee
   };
 
   const question = joinSentences([pick(scenario.questions, seed), pick(outcome.question, seed)]);
-  const sayThis = input.consultantNote.trim()
-    ? rewriteConsultantNote(input.consultantNote, seed)
-    : joinSentences([
-      pick(scenario.sayThis, seed),
-      pick(outcome.nextStep, seed),
-    ]);
+  const sayThis = joinSentences([
+    pick(scenario.sayThis, seed),
+    pick(outcome.nextStep, seed),
+  ]);
 
   return {
     framework,
