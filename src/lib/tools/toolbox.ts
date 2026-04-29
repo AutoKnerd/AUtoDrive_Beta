@@ -538,7 +538,7 @@ const TOOL_SEED: ToolSeed[] = [
   },
 ];
 
-const WEEKLY_FEATURED_TOOL_ID = 'what-happens-next';
+const WEEKLY_FEATURED_TOOL_ID = 'pressure-diffuser';
 export const TOOLBOX_TOOLS: ToolConfig[] = buildToolConfig(TOOL_SEED);
 
 export function buildToolConfig(seed: ToolSeed[]): ToolConfig[] {
