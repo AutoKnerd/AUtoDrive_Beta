@@ -43,6 +43,7 @@ const signupSchema = z.object({
   name: z.string().min(2, { message: 'Please enter your full name.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   role: z.string().min(1, { message: 'Please select your role.' }),
+  dealerCode: z.string().optional(),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
   confirmPassword: z.string().min(8, { message: 'Please confirm your password.' }),
 }).refine((values) => values.password === values.confirmPassword, {
@@ -67,6 +68,7 @@ export function SignupForm() {
       name: '',
       email: '',
       role: 'Sales Consultant',
+      dealerCode: '',
       password: '',
       confirmPassword: '',
     },
@@ -87,6 +89,8 @@ export function SignupForm() {
   }, []);
 
   const emailValue = form.watch('email');
+  const dealerCodeValue = form.watch('dealerCode');
+  const hasDealerCode = String(dealerCodeValue || '').trim().length > 0;
 
   useEffect(() => {
     const prefillEmail = String(searchParams.get('email') || '').trim();
@@ -114,7 +118,8 @@ export function SignupForm() {
     setIsSubmitting(true);
     try {
       const consultant = getConsultant() || undefined;
-      await publicSignup(data.name, data.email, data.password, data.role as UserRole, consultant);
+      const dealerCode = data.dealerCode?.trim();
+      const signupResult = await publicSignup(data.name, data.email, data.password, data.role as UserRole, consultant, dealerCode);
       if (consultant) {
         void fetch('/api/consultant-marketing-event', {
           method: 'POST',
@@ -137,6 +142,17 @@ export function SignupForm() {
       }
 
       const idToken = await fbUser.getIdToken(true);
+
+      if (signupResult.dealershipAssigned) {
+        toast({
+          title: 'Account Created!',
+          description: signupResult.dealershipName
+            ? `You have been added to ${signupResult.dealershipName}.`
+            : 'You have been added to your dealership.',
+        });
+        router.push('/');
+        return;
+      }
 
       toast({
         title: 'Account Created!',
@@ -176,9 +192,9 @@ export function SignupForm() {
         <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
           Secure Account Setup
         </p>
-        <CardTitle className="text-center text-2xl font-semibold tracking-tight text-[hsl(var(--foreground))]">Create your Pro account</CardTitle>
-        <p className="text-center text-sm font-semibold text-[hsl(var(--primary))]">30-day free trial</p>
-        <p className="text-center text-sm text-[hsl(var(--muted-foreground))]">Then $12.99/month. Cancel anytime.</p>
+        <CardTitle className="text-center text-2xl font-semibold tracking-tight text-[hsl(var(--foreground))]">Create your account</CardTitle>
+        <p className="text-center text-sm font-semibold text-[hsl(var(--primary))]">Join your store or start a 30-day trial</p>
+        <p className="text-center text-sm text-[hsl(var(--muted-foreground))]">Dealer-backed signups skip individual checkout.</p>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -243,6 +259,23 @@ export function SignupForm() {
             />
             <FormField
               control={form.control}
+              name="dealerCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[hsl(var(--foreground))]">Dealer Code</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Optional"
+                      className="h-11 border-[hsl(var(--border))] bg-[rgba(235,232,226,0.95)] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-[rgb(243,240,234)]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="password"
               render={({ field }) => (
                 <FormItem>
@@ -284,9 +317,11 @@ export function SignupForm() {
               className="h-12 w-full bg-[hsl(var(--primary))] text-[15px] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_12px_30px_rgba(117,191,36,0.22)] transition-all hover:bg-[hsl(var(--primary)/0.92)]"
               disabled={isSubmitting}
             >
-              {isSubmitting ? <Spinner size="sm" /> : 'Sign Up & Start Trial'}
+              {isSubmitting ? <Spinner size="sm" /> : (hasDealerCode ? 'Join Dealership' : 'Sign Up & Start Trial')}
             </Button>
-            <p className="text-center text-xs text-[hsl(var(--muted-foreground))]">No charge today. Secure checkout via Stripe.</p>
+            <p className="text-center text-xs text-[hsl(var(--muted-foreground))]">
+              {hasDealerCode ? 'Your code will place you under the matching store.' : 'No charge today. Secure checkout via Stripe.'}
+            </p>
             <p className="text-center text-sm text-[hsl(var(--muted-foreground))]">
               Already have an account?{' '}
               <Button asChild variant="link" className="h-auto px-1 py-0 text-[hsl(var(--primary))] hover:text-[hsl(var(--foreground))]">

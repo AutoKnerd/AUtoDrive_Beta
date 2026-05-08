@@ -23,7 +23,14 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>;
   logout: (redirectTo?: string) => Promise<void>;
   register: (name: string, password: string, invitation: EmailInvitation) => Promise<void>;
-  publicSignup: (name: string, email: string, password: string, signupRoleInterest: UserRole, consultantReferral?: string) => Promise<void>;
+  publicSignup: (
+    name: string,
+    email: string,
+    password: string,
+    signupRoleInterest: UserRole,
+    consultantReferral?: string,
+    dealerCode?: string
+  ) => Promise<{ dealershipAssigned: boolean; dealershipName?: string }>;
   setUser: (user: User | null) => void;
   switchTourRole: (role: UserRole) => Promise<void>;
 }
@@ -253,7 +260,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [auth]
   );
 
-  const publicSignup = useCallback(async (name: string, email: string, password: string, signupRoleInterest: UserRole, consultantReferral?: string) => {
+  const publicSignup = useCallback(async (
+    name: string,
+    email: string,
+    password: string,
+    signupRoleInterest: UserRole,
+    consultantReferral?: string,
+    dealerCode?: string
+  ) => {
     let createdUid: string | null = null;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -270,6 +284,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           email,
           signupRoleInterest,
           consultantReferral,
+          dealerCode,
         }),
       });
 
@@ -277,6 +292,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!response.ok || !payload?.ok) {
         throw new Error(payload?.message || 'Could not finish account setup.');
       }
+      return {
+        dealershipAssigned: payload.dealershipAssigned === true,
+        dealershipName: typeof payload.dealershipName === 'string' ? payload.dealershipName : undefined,
+      };
     } catch(error: any) {
         console.error("Public signup error:", error);
         if (createdUid && auth.currentUser?.uid === createdUid) {

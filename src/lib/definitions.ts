@@ -551,6 +551,8 @@ export type PendingInvitation = EmailInvitation & {
 export type Dealership = {
   id: string;
   name: string;
+  dealerCode?: string;
+  dealerCodeNormalized?: string;
   trainerId?: string;
   status: 'active' | 'paused' | 'deactivated';
   // Optional logical grouping for cross-store management.

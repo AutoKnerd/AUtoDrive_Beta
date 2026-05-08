@@ -21,6 +21,7 @@ interface CreateDealershipFormProps {
 
 const createDealershipSchema = z.object({
   dealershipName: z.string().min(1, 'Dealership name is required.'),
+  dealerCode: z.string().optional(),
   street: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -39,6 +40,7 @@ export function CreateDealershipForm({ user, onDealershipCreated }: CreateDealer
     resolver: zodResolver(createDealershipSchema),
     defaultValues: {
       dealershipName: '',
+      dealerCode: '',
       street: '',
       city: '',
       state: '',
@@ -69,6 +71,7 @@ export function CreateDealershipForm({ user, onDealershipCreated }: CreateDealer
         state: data.state,
         zip: data.zip,
       };
+      const dealerCode = data.dealerCode?.trim();
 
       const response = await fetch('/api/admin/createDealership', {
           method: 'POST',
@@ -78,6 +81,7 @@ export function CreateDealershipForm({ user, onDealershipCreated }: CreateDealer
           },
           body: JSON.stringify({
               dealershipName: data.dealershipName,
+              dealerCode: dealerCode || undefined,
               address,
               trainerId: isTrainer ? user.userId : undefined,
           }),
@@ -148,6 +152,20 @@ export function CreateDealershipForm({ user, onDealershipCreated }: CreateDealer
                 <FormItem>
                     <FormLabel>New Dealership Name</FormLabel>
                     <FormControl><Input placeholder="e.g., Summit Cars" {...field} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+        <FormField
+            control={form.control}
+            name="dealerCode"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Dealer Code</FormLabel>
+                    <FormControl><Input placeholder="e.g., SUMMIT-001" {...field} /></FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Optional code that helps new users land under the correct store when they join.
+                    </p>
                     <FormMessage />
                 </FormItem>
             )}

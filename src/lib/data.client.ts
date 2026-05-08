@@ -5,7 +5,7 @@ import type { User, Lesson, LessonLog, UserRole, LessonRole, CxTrait, LessonCate
 import { lessonCategoriesByRole, noPersonalDevelopmentRoles, allRoles } from './definitions';
 import { allBadges } from './badges';
 import { calculateLevel } from './xp';
-import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp, Firestore, orderBy, limit, runTransaction } from 'firebase/firestore';
+import { collection, deleteField, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, writeBatch, query, where, Timestamp, Firestore, orderBy, limit, runTransaction } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { generateTourData } from './tour-data';
@@ -4403,6 +4403,65 @@ export async function updateDealershipToolboxAccess(
             path: dealershipRef.path,
             operation: 'update',
             requestResourceData: { enableToolboxAccess: enabled },
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        throw contextualError;
+    }
+
+    const updatedDealership = await getDoc(dealershipRef);
+    return { ...updatedDealership.data(), id: updatedDealership.id } as Dealership;
+}
+
+function normalizeDealerCode(value?: string | null): string {
+    return String(value || '').trim().toLowerCase();
+}
+
+export async function updateDealershipDealerCode(
+    dealershipId: string,
+    dealerCode: string
+): Promise<Dealership> {
+    const normalizedDealerCode = normalizeDealerCode(dealerCode);
+    const displayDealerCode = dealerCode.trim();
+    const { firestore: db } = getFirebase();
+
+    if (dealershipId.startsWith('tour-')) {
+        const dealership = (await getTourData()).dealerships.find(d => d.id === dealershipId);
+        if (dealership) {
+            dealership.dealerCode = displayDealerCode || undefined;
+            dealership.dealerCodeNormalized = normalizedDealerCode || undefined;
+            return dealership;
+        }
+        throw new Error('Tour dealership not found');
+    }
+
+    if (normalizedDealerCode) {
+        const duplicateSnapshot = await getDocs(
+            query(collection(db, 'dealerships'), where('dealerCodeNormalized', '==', normalizedDealerCode))
+        );
+        const duplicate = duplicateSnapshot.docs.find((entry) => entry.id !== dealershipId);
+        if (duplicate) {
+            throw new Error('Dealer code is already in use by another dealership.');
+        }
+    }
+
+    const dealershipRef = doc(collection(db, 'dealerships'), dealershipId);
+    const patch = displayDealerCode
+        ? {
+            dealerCode: displayDealerCode,
+            dealerCodeNormalized: normalizedDealerCode,
+        }
+        : {
+            dealerCode: deleteField(),
+            dealerCodeNormalized: deleteField(),
+        };
+
+    try {
+        await updateDoc(dealershipRef, patch);
+    } catch (e: any) {
+        const contextualError = new FirestorePermissionError({
+            path: dealershipRef.path,
+            operation: 'update',
+            requestResourceData: patch,
         });
         errorEmitter.emit('permission-error', contextualError);
         throw contextualError;

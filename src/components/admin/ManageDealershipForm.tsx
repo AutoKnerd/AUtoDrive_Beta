@@ -14,6 +14,7 @@ import {
   updateDealershipSaasPppAccess,
   updateDealershipBillingConfig,
   updateDealershipGroupMembers,
+  updateDealershipDealerCode,
   clearDealershipAssignedLessons,
 } from '@/lib/data.client';
 import {
@@ -68,6 +69,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
   const [billingOwnerAccountCount, setBillingOwnerAccountCount] = useState('0');
   const [billingStoreCount, setBillingStoreCount] = useState('1');
   const [groupDealershipIds, setGroupDealershipIds] = useState<string[]>([]);
+  const [dealerCode, setDealerCode] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -116,6 +118,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     setBillingOwnerAccountCount(String(dealership?.billingOwnerAccountCount ?? 0));
     setBillingStoreCount(String(dealership?.billingStoreCount ?? 1));
     setGroupDealershipIds(Array.from(new Set([...(dealership?.groupDealershipIds || []), ...(dealership ? [dealership.id] : [])])));
+    setDealerCode(dealership?.dealerCode || '');
   }
 
   async function handleUpdateStatus(newStatus: 'active' | 'paused' | 'deactivated') {
@@ -358,6 +361,31 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
       setIsLoading(false);
     }
   }
+
+  async function handleUpdateDealerCode() {
+    if (!selectedDealership) return;
+    setIsLoading(true);
+    try {
+      const updated = await updateDealershipDealerCode(selectedDealership.id, dealerCode);
+      setSelectedDealership(updated);
+      setDealerCode(updated.dealerCode || '');
+      toast({
+        title: 'Dealer Code Updated',
+        description: updated.dealerCode
+          ? `${selectedDealership.name} can now accept signups with dealer code ${updated.dealerCode}.`
+          : `${selectedDealership.name} dealer code has been cleared.`,
+      });
+      onDealershipManaged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: (e as Error).message || 'An error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
   
   const getStatusBadge = (status: Dealership['status']) => {
       switch(status) {
@@ -396,6 +424,7 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
     persistedGroupIds.length !== selectedGroupIdsSorted.length
       || persistedGroupIds.some((id, idx) => id !== selectedGroupIdsSorted[idx])
   );
+  const dealerCodeDirty = !!selectedDealership && dealerCode.trim() !== (selectedDealership.dealerCode || '').trim();
   const cxAggressivenessDirty = cxAggressiveness !== persistedCxAggressiveness;
   const handleGroupCheckedChange = (dealershipId: string, checked: boolean) => {
     setGroupDealershipIds((prev) => {
@@ -438,6 +467,29 @@ export function ManageDealershipForm({ dealerships, onDealershipManaged }: Manag
             <p className="text-sm text-muted-foreground">
                 Use the actions below to manage the dealership's status within AutoDrive. These actions are immediate and may affect user access.
             </p>
+
+            <div className="rounded-md border p-3 space-y-3">
+                <div>
+                    <p className="text-sm font-medium">Dealer Code</p>
+                    <p className="text-xs text-muted-foreground">
+                        New users can enter this code during signup to land under this dealership.
+                    </p>
+                </div>
+                <Input
+                  value={dealerCode}
+                  onChange={(event) => setDealerCode(event.target.value)}
+                  placeholder="e.g., SUMMIT-001"
+                  disabled={isLoading}
+                />
+                <Button
+                  variant="outline"
+                  disabled={isLoading || !dealerCodeDirty}
+                  onClick={handleUpdateDealerCode}
+                  className="w-full md:w-auto"
+                >
+                  {isLoading ? <Spinner size="sm" /> : 'Save Dealer Code'}
+                </Button>
+            </div>
 
             <div className="rounded-md border p-3 space-y-3">
                 <div className="flex items-start justify-between gap-4">

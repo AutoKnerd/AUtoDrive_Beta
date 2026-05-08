@@ -6,6 +6,10 @@ import { buildTrialWindow } from '@/lib/billing/trial';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+function normalizeDealerCode(value?: string | null): string {
+  return String(value || '').trim().toLowerCase();
+}
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ [key: string]: string }> }
@@ -40,10 +44,24 @@ export async function POST(
       return NextResponse.json({ message: 'Forbidden: Insufficient permissions.' }, { status: 403 });
     }
 
-    const { dealershipName, address, trainerId } = await req.json();
+    const { dealershipName, dealerCode, address, trainerId } = await req.json();
 
     if (!dealershipName) {
       return NextResponse.json({ message: 'Bad Request: Dealership name is required.' }, { status: 400 });
+    }
+
+    const normalizedDealerCode = normalizeDealerCode(dealerCode);
+
+    if (normalizedDealerCode) {
+      const duplicateCode = await adminDb
+        .collection('dealerships')
+        .where('dealerCodeNormalized', '==', normalizedDealerCode)
+        .limit(1)
+        .get();
+
+      if (!duplicateCode.empty) {
+        return NextResponse.json({ message: 'Bad Request: Dealer code is already in use.' }, { status: 400 });
+      }
     }
 
     const dealershipRef = adminDb.collection('dealerships').doc();
@@ -53,6 +71,8 @@ export async function POST(
     const newDealershipData: any = {
       id: dealershipRef.id,
       name: dealershipName,
+      dealerCode: typeof dealerCode === 'string' ? dealerCode.trim() : undefined,
+      dealerCodeNormalized: normalizedDealerCode || undefined,
       status: 'active',
       enableRetakeRecommendedTesting: false,
       enableNewRecommendedTesting: false,
@@ -70,6 +90,8 @@ export async function POST(
     };
 
     if (trainerId) newDealershipData.trainerId = trainerId;
+    if (!newDealershipData.dealerCode) delete newDealershipData.dealerCode;
+    if (!newDealershipData.dealerCodeNormalized) delete newDealershipData.dealerCodeNormalized;
 
     if (address && Object.values(address).some(val => !!val)) {
       newDealershipData.address = address as Address;

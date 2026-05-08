@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { adminInitErrorMessage, getAdminAuth, getAdminDb } from '@/firebase/admin';
 import { buildDefaultPppState } from '@/lib/ppp/state';
 import { buildDefaultSaasPppState } from '@/lib/saas-ppp/state';
-import type { User, UserRole } from '@/lib/definitions';
+import { buildTrialWindow } from '@/lib/billing/trial';
+import type { Dealership, User, UserRole } from '@/lib/definitions';
 import { resolveConsultant } from '@/lib/consultant-referral';
 
 export const runtime = 'nodejs';
@@ -49,6 +50,10 @@ function normalizeConsultantReferral(value?: string | null): string | undefined 
   return undefined;
 }
 
+function normalizeDealerCode(value?: string | null): string {
+  return String(value || '').trim().toLowerCase();
+}
+
 type Decoded = {
   uid: string;
   email?: string | null;
@@ -93,6 +98,7 @@ export async function POST(req: Request) {
 
     const signupRoleInterest = payload?.signupRoleInterest as UserRole | undefined;
     const consultantReferral = normalizeConsultantReferral(payload?.consultantReferral);
+    const dealerCode = normalizeDealerCode(payload?.dealerCode);
     const resolvedName = requestedName.length >= 2 ? requestedName : deriveNameFromEmail(tokenEmail);
 
     const adminDb = getAdminDb();
@@ -102,35 +108,65 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, userId: decoded.uid, existed: true }, { status: 200 });
     }
 
+    let matchedDealership: (Dealership & { id: string }) | null = null;
+    if (dealerCode) {
+      const dealershipSnapshot = await adminDb
+        .collection('dealerships')
+        .where('dealerCodeNormalized', '==', dealerCode)
+        .limit(1)
+        .get();
+
+      if (dealershipSnapshot.empty) {
+        return NextResponse.json({ ok: false, message: 'Dealer code not found. Please check the code and try again.' }, { status: 400 });
+      }
+
+      const doc = dealershipSnapshot.docs[0];
+      matchedDealership = { ...(doc.data() as Dealership), id: doc.id };
+      if (matchedDealership.status === 'deactivated') {
+        return NextResponse.json({ ok: false, message: 'This dealership is not accepting new users.' }, { status: 400 });
+      }
+    }
+
     const now = new Date();
-  const newUser: User = {
-    userId: decoded.uid,
-    name: resolvedName,
-    email: tokenEmail,
-    role: DEFAULT_ROLE,
-    signupRoleInterest,
-    dealershipIds: [],
-    avatarUrl: DEFAULT_AVATAR_URL,
-    xp: 0,
+    const trialWindow = buildTrialWindow(now);
+    const dealershipIds = matchedDealership ? [matchedDealership.id] : [];
+    const assignedRole = matchedDealership && signupRoleInterest ? signupRoleInterest : DEFAULT_ROLE;
+    const pppEnabled = matchedDealership?.status === 'active' && matchedDealership.enablePppProtocol === true;
+    const saasPppEnabled = matchedDealership?.status === 'active' && matchedDealership.enableSaasPppTraining === true;
+    const newUser: User = {
+      userId: decoded.uid,
+      name: resolvedName,
+      email: tokenEmail,
+      role: assignedRole,
+      signupRoleInterest,
+      dealershipIds,
+      avatarUrl: DEFAULT_AVATAR_URL,
+      xp: 0,
       isPrivate: false,
       isPrivateFromOwner: false,
       showDealerCriticalOnly: true,
       memberSince: now.toISOString(),
-      subscriptionStatus: 'inactive',
-      trialStartedAt: null,
-      trialEndsAt: null,
-    stats: buildDefaultStats(now),
-    ...buildDefaultPppState(false),
-    ...buildDefaultSaasPppState(false),
-  };
+      subscriptionStatus: matchedDealership ? 'trialing' : 'inactive',
+      trialStartedAt: matchedDealership ? trialWindow.trialStartedAt : null,
+      trialEndsAt: matchedDealership ? trialWindow.trialEndsAt : null,
+      stats: buildDefaultStats(now),
+      ...buildDefaultPppState(pppEnabled),
+      ...buildDefaultSaasPppState(saasPppEnabled),
+    };
 
-  if (consultantReferral) {
-    newUser.consultant_referral = consultantReferral;
-  }
+    if (consultantReferral) {
+      newUser.consultant_referral = consultantReferral;
+    }
 
-  await userRef.set(newUser);
+    await userRef.set(newUser);
 
-    return NextResponse.json({ ok: true, userId: decoded.uid, existed: false }, { status: 200 });
+    return NextResponse.json({
+      ok: true,
+      userId: decoded.uid,
+      existed: false,
+      dealershipAssigned: Boolean(matchedDealership),
+      dealershipName: matchedDealership?.name,
+    }, { status: 200 });
   } catch (error: any) {
     console.error('[bootstrap-profile] Failed to create profile:', error);
     return NextResponse.json(
