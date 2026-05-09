@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { AutoknerdHeaderMenu, type AutoknerdNavKey, type ProductSurfaceKey } from '@/components/autoknerd/autoknerd-header-menu';
 import { cn } from '@/lib/utils';
 
-type ProductHeaderCta = {
-  href: string;
+export type ProductHeaderCta = {
   label: string;
   mobileLabel?: string;
   hideOnMobile?: boolean;
+  href?: string;
+  onClick?: () => void;
 };
 
 type ProductHeaderProps = {
@@ -137,25 +138,51 @@ export function ProductHeader({
           {primaryCta ? (
             <>
               {!primaryCta.hideOnMobile ? (
-                <Link
-                  href={primaryCta.href}
+                primaryCta.onClick ? (
+                  <button
+                    type="button"
+                    onClick={primaryCta.onClick}
+                    className={cn(
+                      'inline-flex min-h-[46px] items-center justify-center px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] transition md:hidden',
+                      primaryClassName
+                    )}
+                  >
+                    {primaryCta.mobileLabel ?? primaryCta.label}
+                  </button>
+                ) : (
+                  <Link
+                    href={primaryCta.href || '#'}
+                    className={cn(
+                      'inline-flex min-h-[46px] items-center justify-center px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] transition md:hidden',
+                      primaryClassName
+                    )}
+                  >
+                    {primaryCta.mobileLabel ?? primaryCta.label}
+                  </Link>
+                )
+              ) : null}
+              {primaryCta.onClick ? (
+                <button
+                  type="button"
+                  onClick={primaryCta.onClick}
                   className={cn(
-                    'inline-flex min-h-[46px] items-center justify-center px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] transition md:hidden',
+                    'hidden min-h-[46px] items-center justify-center px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] transition md:inline-flex',
                     primaryClassName
                   )}
                 >
-                  {primaryCta.mobileLabel ?? primaryCta.label}
+                  {primaryCta.label}
+                </button>
+              ) : (
+                <Link
+                  href={primaryCta.href || '#'}
+                  className={cn(
+                    'hidden min-h-[46px] items-center justify-center px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] transition md:inline-flex',
+                    primaryClassName
+                  )}
+                >
+                  {primaryCta.label}
                 </Link>
-              ) : null}
-              <Link
-                href={primaryCta.href}
-                className={cn(
-                  'hidden min-h-[46px] items-center justify-center px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] transition md:inline-flex',
-                  primaryClassName
-                )}
-              >
-                {primaryCta.label}
-              </Link>
+              )}
             </>
           ) : null}
         </div>

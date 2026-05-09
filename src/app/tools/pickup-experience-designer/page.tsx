@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { BrainCircuit, ChevronLeft, Cloud, Copy, Save, Sparkles, Star } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { EmailGateModal } from '@/components/tools/email-gate-modal';
@@ -92,6 +93,8 @@ function confidenceTone(value: number): string {
 export default function PickupExperienceDesignerPage() {
   const { toast } = useToast();
   const { user, firebaseUser } = useAuth();
+  const searchParams = useSearchParams();
+  const isEmbedMode = searchParams.get('embed') === '1';
 
   const [completionConfidence, setCompletionConfidence] = useState(64);
   const [explanationDepth, setExplanationDepth] = useState(46);
@@ -354,15 +357,17 @@ export default function PickupExperienceDesignerPage() {
       <Header />
 
       <main className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-24 pt-4 sm:px-5 md:space-y-6 md:px-8 md:pt-8">
-        <div className="flex items-center justify-between gap-3">
-          <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
-            <Link href="/autoshop">
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              AutoShop
-            </Link>
-          </Button>
-          <Badge className="border border-[#00d8e5]/40 bg-[#00f2ff]/10 text-[#6eeef8]">AutoDriveCX</Badge>
-        </div>
+        {!isEmbedMode && (
+          <div className="flex items-center justify-between gap-3">
+            <Button variant="ghost" asChild className="h-10 px-2 text-[#b8c8e2] hover:bg-[#13233b] hover:text-[#e6efff]">
+              <Link href="/autoshop">
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                AutoShop
+              </Link>
+            </Button>
+            <Badge className="border border-[#00d8e5]/40 bg-[#00f2ff]/10 text-[#6eeef8]">AutoDriveCX</Badge>
+          </div>
+        )}
 
         <section className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-[#f5f9ff] md:text-3xl">Pickup Experience Designer</h1>

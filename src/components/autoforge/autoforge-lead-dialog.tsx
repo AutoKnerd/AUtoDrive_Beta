@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { GOOGLE_BOOKING_URL } from '@/lib/calendar';
 
 type LeadFormState = {
   name: string;
@@ -32,9 +33,6 @@ const initialLeadForm: LeadFormState = {
   dealershipName: '',
   role: '',
 };
-
-const GOOGLE_BOOKING_URL =
-  'https://calendar.google.com/calendar/appointments/schedules/AcZssZ1QqFX9I2PJNN13gRWTejU9duv2P2T4jC-HtnWCjdR0LoF_0XKMptjkTEGpobFkPUWt_eu_uIE9?gv=true';
 
 type AutoforgeLeadDialogProps = {
   open: boolean;

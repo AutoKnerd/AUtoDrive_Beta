@@ -6,14 +6,17 @@ import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { Logo } from '@/components/layout/logo';
 import { UserNav } from './user-nav';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AutoknerdHeaderMenu } from '@/components/autoknerd/autoknerd-header-menu';
+import { ChevronLeft, UserCircle2 } from 'lucide-react';
 
 export function Header() {
   const { user, isTouring } = useAuth();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isEmbedMode = searchParams.get('embed') === '1';
   const isToolsSurface = Boolean(pathname?.startsWith('/tools') || pathname?.startsWith('/autoshop'));
   const isTourSurface = Boolean(pathname?.startsWith('/tour'));
   const shouldUseAutoknerdLogo = isTourSurface || isTouring;
@@ -47,6 +50,35 @@ export function Header() {
 
     return () => window.clearTimeout(timer);
   }, [hasActiveAutoDriveCx, shouldShowSurfaceToggle, user?.userId]);
+
+  if (isEmbedMode) {
+    const hubHref = 'http://localhost:5173/?view=tools';
+    const profileHref = 'http://localhost:5173/?view=profile';
+
+    return (
+      <header className="sticky top-0 z-30 flex h-16 items-center border-b border-white/5 bg-neutral-950/80 text-[#e2e4cf] backdrop-blur-xl">
+        <div className="relative mx-auto flex h-full w-full max-w-7xl items-center justify-between px-4 md:px-6">
+          <a
+            href={hubHref}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:border-[#00f2ff]/30 hover:bg-[#00f2ff]/10 hover:text-white"
+            aria-label="Back to tools hub"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </a>
+          <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-['Space_Grotesk'] text-sm font-bold uppercase tracking-[0.24em] text-white">
+            Tools Hub
+          </h1>
+          <a
+            href={profileHref}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:border-[#CCFF00]/30 hover:bg-[#CCFF00]/10 hover:text-[#CCFF00]"
+            aria-label="Open profile"
+          >
+            <UserCircle2 className="h-6 w-6" />
+          </a>
+        </div>
+      </header>
+    );
+  }
 
   const renderSurfaceToggle = (className?: string) => {
     if (!shouldShowSurfaceToggle) return null;

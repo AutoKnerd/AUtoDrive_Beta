@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { AutoforgeLeadDialog } from '@/components/autoforge/autoforge-lead-dialog';
 import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
+import { BeehiivSubscriberDialog } from '@/components/autoknerd/beehiiv-subscriber-dialog';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 const ecosystemProducts = [
@@ -128,6 +129,7 @@ export default function AutoknerdPage() {
   const [activeProcessCard, setActiveProcessCard] = useState<(typeof processCards)[number]['key']>('processing');
   const [hoveredProcessCard, setHoveredProcessCard] = useState<(typeof processCards)[number]['key'] | null>(null);
   const [isAutoforgeLeadModalOpen, setIsAutoforgeLeadModalOpen] = useState(false);
+  const [isScheduleCallModalOpen, setIsScheduleCallModalOpen] = useState(false);
   const productRefs = useRef<Record<(typeof ecosystemProducts)[number]['key'], HTMLAnchorElement | null>>({
     autoshop: null,
     autodrivecx: null,
@@ -332,7 +334,15 @@ export default function AutoknerdPage() {
   }, []);
 
   return (
-    <AutoknerdShell active="home">
+    <AutoknerdShell
+      active="home"
+      primaryCta={{
+        label: 'Schedule a Call',
+        mobileLabel: 'Schedule a Call',
+        hideOnMobile: true,
+        onClick: () => setIsScheduleCallModalOpen(true),
+      }}
+    >
       <main className="pt-28">
         <section className="fade-in-section bg-grid-pattern relative flex min-h-[921px] flex-col items-center justify-center overflow-hidden px-6">
           <div className="animate-autoknerd-system-pulse pointer-events-none absolute inset-0 bg-[#bdfc00]/5" />
@@ -361,9 +371,13 @@ export default function AutoknerdPage() {
               <div className="absolute inset-0 h-full w-full opacity-30 shadow-[0_0_8px_rgba(189,252,0,0.5)]" />
             </div>
             <div className="mb-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link href="/Autoknerd/find-your-fit" className="glow-primary-hover w-full rounded-sm bg-[#bdfc00] px-10 py-4 text-sm font-bold uppercase tracking-widest text-[#445d00] transition-all duration-300 active:scale-95 sm:w-auto">
-                Find Your Fit
-              </Link>
+              <button
+                type="button"
+                onClick={() => setIsScheduleCallModalOpen(true)}
+                className="glow-primary-hover w-full rounded-sm bg-[#bdfc00] px-10 py-4 text-sm font-bold uppercase tracking-widest text-[#445d00] transition-all duration-300 active:scale-95 sm:w-auto"
+              >
+                Schedule a Call
+              </button>
               <a href="#product-ecosystem" className="w-full rounded-sm border border-[#464848] px-10 py-4 text-sm font-bold uppercase tracking-widest text-[#f4f3f3] transition-all duration-300 hover:bg-[#f4f3f3] hover:text-[#0d0f0f] active:scale-95 sm:w-auto">
                 Explore the System
               </a>
@@ -649,12 +663,13 @@ export default function AutoknerdPage() {
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-4 md:w-auto md:min-w-[320px]">
-                  <Link
-                    href="/Autoknerd/find-your-fit"
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleCallModalOpen(true)}
                     className="glow-primary-hover inline-flex items-center justify-center bg-[#bdfc00] px-8 py-4 text-sm font-bold uppercase tracking-[0.16em] text-[#445d00] transition-all duration-300 hover:brightness-110 active:scale-95"
                   >
-                    Find Your Fit
-                  </Link>
+                    Schedule a Call
+                  </button>
                   <Link
                     href="/autoforge"
                     onClick={(event) => {
@@ -745,12 +760,13 @@ export default function AutoknerdPage() {
 
         <section className="fade-in-section px-8 pb-20">
           <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2">
-            <Link
-              href="/Autoknerd/find-your-fit"
+            <button
+              type="button"
+              onClick={() => setIsScheduleCallModalOpen(true)}
               className="glow-primary-hover inline-flex min-h-[112px] items-center justify-center bg-[#bdfc00] px-8 py-6 text-center text-2xl font-black uppercase tracking-[0.22em] text-[#445d00] transition-all duration-300 hover:brightness-110 active:scale-[0.99]"
             >
-              Find Your Fit
-            </Link>
+              Schedule a Call
+            </button>
             <Link
               href="/autoforge"
               onClick={(event) => {
@@ -774,6 +790,12 @@ export default function AutoknerdPage() {
         }
         description="Tell us a bit about your store and we&apos;ll show you exactly how this works for you."
         submitButtonClassName="bg-[#bdfc00] text-[#445d00] hover:bg-[#bdfc00]/90"
+      />
+      <BeehiivSubscriberDialog
+        open={isScheduleCallModalOpen}
+        onOpenChange={setIsScheduleCallModalOpen}
+        title="Schedule a Call"
+        description="Built for dealerships that want clearer communication, stronger customer trust, and more consistent experiences."
       />
       <AutoknerdFooter />
     </AutoknerdShell>

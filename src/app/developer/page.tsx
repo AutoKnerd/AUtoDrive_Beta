@@ -2741,12 +2741,11 @@ export default function DeveloperPage() {
           <Button variant="outline" onClick={() => goToSection('revenue_growth')}>Consultant Metrics</Button>
           <Button variant="outline" onClick={() => goToSection('monitoring')}>Open Monitoring</Button>
           <Button variant="outline" onClick={() => goToSection('sandbox')}>Open Sandbox</Button>
-          <Button
-            variant="outline"
-            onClick={() => window.open(strategicDeckHref, '_blank', 'noopener,noreferrer')}
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Open Presentations
+          <Button variant="outline" asChild>
+            <Link href={strategicDeckHref}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open Presentations
+            </Link>
           </Button>
         </CardContent>
       </Card>
@@ -2804,18 +2803,16 @@ export default function DeveloperPage() {
               Overwrite existing deck if it already exists
             </label>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={() => window.open('/Presentations', '_blank', 'noopener,noreferrer')}
-              >
-                Open Library
+              <Button variant="outline" asChild>
+                <Link href="/Presentations">
+                  Open Library
+                </Link>
               </Button>
               {lastImportedPresentationHref ? (
-                <Button
-                  variant="outline"
-                  onClick={() => window.open(lastImportedPresentationHref, '_blank', 'noopener,noreferrer')}
-                >
-                  Open Last Imported Deck
+                <Button variant="outline" asChild>
+                  <Link href={lastImportedPresentationHref}>
+                    Open Last Imported Deck
+                  </Link>
                 </Button>
               ) : null}
               <Button onClick={() => void handleImportPresentation()} disabled={presentationImportBusy}>
