@@ -75,9 +75,11 @@ export default function RootLayout({
               <Suspense fallback={null}>
                 <SiteTrafficTracker />
               </Suspense>
-              <MainLayout>
-                {children}
-              </MainLayout>
+              <Suspense fallback={null}>
+                <MainLayout>
+                  {children}
+                </MainLayout>
+              </Suspense>
               <Toaster />
             </ThemeProvider>
           </AuthProvider>
