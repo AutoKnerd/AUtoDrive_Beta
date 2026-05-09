@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
         reactivate_existing: false,
         send_welcome_email: false,
         custom_fields: [
+          { name: 'Email Address', value: parsed.email },
           { name: 'First Name', value: parsed.firstName },
           { name: 'Last Name', value: parsed.lastName },
           { name: 'Company / dealership', value: parsed.company },

@@ -128,10 +128,22 @@ export function BeehiivSubscriberDialog({
               event.preventDefault();
             }
           }}
-          className="!left-0 !top-0 !h-[100svh] !w-[100vw] !max-w-none !translate-x-0 !translate-y-0 !rounded-none overflow-y-auto overscroll-contain border border-[#bdfc00]/15 bg-[#101313] p-0 text-[#f4f3f3] shadow-[0_30px_100px_rgba(0,0,0,0.55)] max-h-[100svh] sm:!left-[50%] sm:!top-[50%] sm:!h-auto sm:!w-[calc(100vw-1rem)] sm:!max-w-[760px] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:!rounded-[28px] sm:max-h-[92vh]"
+          className="!left-0 !top-0 !h-[100svh] !w-[100vw] !max-w-none !translate-x-0 !translate-y-0 !rounded-none overflow-y-auto overscroll-contain border border-[#bdfc00]/15 bg-[#101313] p-0 text-[#f4f3f3] shadow-[0_30px_100px_rgba(0,0,0,0.55)] max-h-[100svh] sm:!left-[50%] sm:!top-[50%] sm:!h-auto sm:!w-[calc(100vw-1rem)] sm:!max-w-[1100px] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:!rounded-[28px] sm:max-h-[92vh] xl:!max-w-[1280px]"
         >
-          <div className="grid pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))] lg:h-full lg:min-h-0 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="relative order-1 overflow-hidden border-b border-[#232626] bg-[linear-gradient(180deg,rgba(189,252,0,0.12),rgba(16,19,19,0.96)_35%,rgba(16,19,19,1)_100%)] p-4 sm:p-5 lg:border-b-0 lg:border-r lg:p-8">
+          <div
+            className={cn(
+              'grid pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))]',
+              submissionState === 'schedule'
+                ? 'lg:h-full lg:min-h-0 lg:grid-cols-1'
+                : 'lg:h-full lg:min-h-0 lg:grid-cols-[0.82fr_1.18fr]'
+            )}
+          >
+            <div
+              className={cn(
+                'relative order-1 overflow-hidden border-b border-[#232626] bg-[linear-gradient(180deg,rgba(189,252,0,0.12),rgba(16,19,19,0.96)_35%,rgba(16,19,19,1)_100%)] p-4 sm:p-5 lg:border-b-0 lg:border-r lg:p-8',
+                submissionState === 'schedule' ? 'lg:hidden' : ''
+              )}
+            >
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(189,252,0,0.14),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(230,234,90,0.08),transparent_32%)]" />
               <div className="relative z-10">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#bdfc00]/20 bg-[#bdfc00]/8 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-[#eaffb8] sm:mb-5">
@@ -218,7 +230,12 @@ export function BeehiivSubscriberDialog({
               </div>
             </div>
 
-            <div className="relative order-2 p-4 sm:p-5 lg:p-6">
+            <div
+              className={cn(
+                'relative order-2 p-4 sm:p-5 lg:p-6',
+                submissionState === 'schedule' ? 'lg:col-span-2 lg:col-start-1 lg:p-8' : ''
+              )}
+            >
               {submissionState === 'form' ? (
                 <form className="space-y-3 pt-2 sm:pt-4" onSubmit={handleSubmit}>
                   <div className="grid gap-3">
@@ -351,8 +368,21 @@ export function BeehiivSubscriberDialog({
                   </div>
                 </form>
               ) : (
-                <div className="flex h-full flex-col pt-4">
-                  <div className="space-y-3">
+                <div className="flex h-full flex-col pt-4 lg:pt-2">
+                  <div className="mx-auto w-full max-w-[1120px] space-y-4">
+                    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#181818] p-3 sm:p-4 lg:p-5">
+                      <div className="overflow-hidden rounded-lg border border-white/10 bg-[#121212]">
+                        <iframe
+                          src={GOOGLE_BOOKING_URL}
+                          style={{ border: 0 }}
+                          width="100%"
+                          height="760"
+                          frameBorder="0"
+                          title="Schedule a call"
+                        />
+                      </div>
+                    </div>
+
                     <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0d0f0f] shadow-[0_0_40px_rgba(0,255,102,0.08)]">
                       <div className="border-b border-white/10 bg-[linear-gradient(135deg,rgba(189,252,0,0.12),rgba(16,19,19,0.96)_38%,rgba(16,19,19,1)_100%)] px-6 py-4">
                         <p className="text-[0.72rem] font-black uppercase tracking-[0.22em] text-[#eaffb8]">Weekly auto-intelligence</p>
@@ -365,19 +395,8 @@ export function BeehiivSubscriberDialog({
                           We use the submitted lead details to prep the call, then the calendar below handles the actual booking.
                         </p>
                       </div>
-                      <div className="bg-[#181818] p-3 sm:p-3.5">
-                        <div className="overflow-hidden rounded-lg border border-white/10 bg-[#121212]">
-                          <iframe
-                            src={GOOGLE_BOOKING_URL}
-                            style={{ border: 0 }}
-                            width="100%"
-                            height="590"
-                            frameBorder="0"
-                            title="Schedule a call"
-                          />
-                        </div>
-                      </div>
                     </div>
+
                     <div className="pt-1">
                       <Button
                         type="button"
