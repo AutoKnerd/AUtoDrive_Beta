@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, type ComponentType } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, type ComponentType } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
@@ -11,21 +11,31 @@ import { allRoles, managerialRoles, UserRole, User, Dealership, FreshUpArchetype
 import { hasDealershipAssignment } from '@/lib/billing/access';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/layout/header';
 import {
   Activity,
   AlertTriangle,
   BarChart3,
   Building2,
+  CheckCircle2,
   Copy,
   Download,
   ExternalLink,
   FlaskConical,
   Home,
+  ChevronLeft,
+  ChevronRight,
   Menu,
+  Pause,
+  Plus,
+  Presentation,
+  Play,
   RefreshCw,
+  Save,
   Settings2,
   SlidersHorizontal,
+  Upload,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -70,6 +80,7 @@ type SectionId =
   | 'people_access'
   | 'dealerships'
   | 'revenue_growth'
+  | 'presentations'
   | 'leads'
   | 'product_controls'
   | 'monitoring'
@@ -114,6 +125,140 @@ type SignalMapperUnlockRow = {
   lastUnlockedAt: string;
   count: number;
 };
+type PresentationDeckOption = {
+  deckId: string;
+  title: string;
+  description?: string;
+  href?: string;
+  slideCount?: number;
+  slides: string[];
+  companion?: {
+    enabled?: boolean;
+    entry?: string;
+    files?: string[];
+    bindingsByStep?: Record<string, {
+      slideStep: string;
+      responseKey?: string;
+      interactionMode?: string;
+      mainSlideEffect?: string;
+    }>;
+  };
+};
+
+type PresentationBuilderDraft = {
+  deckId: string;
+  description: string;
+  html: string;
+  importTitle: string;
+  overwrite: boolean;
+  companionDeckId: string;
+  companionHtml: string;
+  companionPreviewMode: 'draft' | 'saved';
+  companionResponseKey: string;
+  companionStep: string;
+  companionTitle: string;
+  savedAt: string;
+};
+
+type PresentationSaveConfirmation = {
+  href: string;
+  savedAt: string;
+  slideCount: number;
+};
+
+const PRESENTATION_BUILDER_DRAFT_STORAGE_KEY = 'developer:presentation-builder-draft';
+
+function inferStepFromSlideFile(slideFile: string, fallbackIndex = 1) {
+  const fileName = String(slideFile || '').split('/').pop() || '';
+  const match = fileName.match(/^(\d+)/);
+  const parsed = match ? Number.parseInt(match[1], 10) : NaN;
+  const resolvedIndex = Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackIndex;
+  return `slide${resolvedIndex}`;
+}
+
+function buildPresentationAssetHref(deckId: string, assetPath = '', search = '') {
+  const deckPath = encodeURIComponent(deckId.trim());
+  const assetSegments = assetPath
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment));
+  const suffix = assetSegments.length > 0 ? `/${assetSegments.join('/')}` : '';
+  return `/Presentations/${deckPath}${suffix}${search}`;
+}
+
+function createBlankPresentationSlideDocument(index: number, deckTitle: string) {
+  const slideLabel = `slide${index}`;
+  const readableTitle = deckTitle.trim().length > 0 ? deckTitle.trim() : 'New Presentation';
+
+  return `<!-- ${slideLabel} | New Slide -->
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${readableTitle} - ${index}</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        width: 100%;
+        background:
+          radial-gradient(circle at top left, rgba(142,255,113,0.16), transparent 24%),
+          linear-gradient(180deg, #050505 0%, #0d1018 100%);
+        color: #ffffff;
+        font-family: Inter, Arial, sans-serif;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        padding: 64px;
+        box-sizing: border-box;
+      }
+      .frame {
+        width: min(960px, 100%);
+        aspect-ratio: 16 / 9;
+        display: grid;
+        align-content: center;
+        gap: 20px;
+        padding: 48px;
+        border-radius: 36px;
+        border: 1px solid rgba(142,255,113,0.18);
+        background: rgba(255,255,255,0.04);
+        box-shadow: 0 24px 64px rgba(0,0,0,0.38);
+      }
+      .eyebrow {
+        color: #8eff71;
+        text-transform: uppercase;
+        letter-spacing: 0.28em;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(3rem, 8vw, 6rem);
+        line-height: 0.92;
+        letter-spacing: -0.06em;
+      }
+      p {
+        margin: 0;
+        max-width: 640px;
+        color: rgba(255,255,255,0.72);
+        font-size: 20px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="frame">
+      <div class="eyebrow">New Slide</div>
+      <h1>Replace this with your next idea.</h1>
+      <p>This slide is a starter scaffold. Swap in your own HTML, styles, and content when you’re ready.</p>
+    </section>
+  </body>
+</html>`;
+}
 
 const LIVE_CX_TRAITS: Array<{ key: LiveCxTrait; label: string }> = [
   { key: 'empathy', label: 'Empathy' },
@@ -138,6 +283,7 @@ const SECTION_LABELS: Record<SectionId, string> = {
   people_access: 'People & Access',
   dealerships: 'Dealerships',
   revenue_growth: 'Revenue & Growth',
+  presentations: 'Presentation',
   leads: 'Leads',
   product_controls: 'Product Controls',
   monitoring: 'Monitoring',
@@ -150,6 +296,7 @@ const SECTION_DESCRIPTIONS: Record<SectionId, string> = {
   people_access: 'Manage users, roles, invitations, assignments, and access changes.',
   dealerships: 'Create dealerships and manage dealership-level settings.',
   revenue_growth: 'Consultant performance, public links, lead capture, and growth surfaces.',
+  presentations: 'Presentation library, import tools, and deck-building workflows.',
   leads: 'Presentation leads, inboxes, activity streams, and source-specific pipelines.',
   product_controls: 'Feature access, PPP configuration, and product-level controls.',
   monitoring: 'Operational watchlists, activity streams, exports, and diagnostics.',
@@ -162,6 +309,7 @@ const SECTION_ICONS: Record<SectionId, ComponentType<{ className?: string }>> = 
   people_access: Users,
   dealerships: Building2,
   revenue_growth: BarChart3,
+  presentations: Presentation,
   leads: Activity,
   product_controls: Settings2,
   monitoring: Activity,
@@ -174,6 +322,7 @@ const SECTION_ORDER: SectionId[] = [
   'people_access',
   'dealerships',
   'revenue_growth',
+  'presentations',
   'leads',
   'product_controls',
   'monitoring',
@@ -192,7 +341,7 @@ const TOOLS: Array<{ id: ToolId; label: string; section: SectionId }> = [
   { id: 'ppp_global', label: 'PPP Global', section: 'product_controls' },
 ];
 
-const BOTTOM_NAV_SECTIONS: SectionId[] = ['dashboard', 'people_access', 'dealerships', 'revenue_growth', 'leads', 'product_controls', 'monitoring', 'sandbox'];
+const BOTTOM_NAV_SECTIONS: SectionId[] = ['dashboard', 'people_access', 'dealerships', 'revenue_growth', 'presentations', 'leads', 'product_controls', 'monitoring', 'sandbox'];
 const SANDBOX_SOURCE_TYPES: Array<{ value: FreshUpSandboxConfig['sourceType']; label: string }> = [
   { value: 'procedural', label: 'Procedural Customer' },
   { value: 'signature', label: 'Signature Scenario' },
@@ -536,7 +685,32 @@ export default function DeveloperPage() {
   const [presentationImportHtml, setPresentationImportHtml] = useState('');
   const [presentationImportOverwrite, setPresentationImportOverwrite] = useState(false);
   const [presentationImportBusy, setPresentationImportBusy] = useState(false);
+  const [presentationZipFile, setPresentationZipFile] = useState<File | null>(null);
+  const [presentationZipImportBusy, setPresentationZipImportBusy] = useState(false);
+  const [presentationZipInputKey, setPresentationZipInputKey] = useState(0);
+  const [presentationLoadBusy, setPresentationLoadBusy] = useState(false);
   const [lastImportedPresentationHref, setLastImportedPresentationHref] = useState<string | null>(null);
+  const [presentationCompanionStep, setPresentationCompanionStep] = useState('slide1');
+  const [presentationCompanionResponseKey, setPresentationCompanionResponseKey] = useState('');
+  const [presentationCompanionTitle, setPresentationCompanionTitle] = useState('');
+  const [presentationCompanionHtml, setPresentationCompanionHtml] = useState('');
+  const [presentationCompanionBusy, setPresentationCompanionBusy] = useState(false);
+  const [presentationDeckOptions, setPresentationDeckOptions] = useState<PresentationDeckOption[]>([]);
+  const [presentationDeckOptionsLoading, setPresentationDeckOptionsLoading] = useState(false);
+  const [presentationCompanionDeckId, setPresentationCompanionDeckId] = useState('');
+  const [presentationCompanionPreviewMode, setPresentationCompanionPreviewMode] = useState<'draft' | 'saved'>('draft');
+  const [presentationPreviewPlaying, setPresentationPreviewPlaying] = useState(false);
+  const [presentationActiveSlideBuildStep, setPresentationActiveSlideBuildStep] = useState('');
+  const [presentationActiveSlideBuildLabel, setPresentationActiveSlideBuildLabel] = useState('');
+  const [presentationSaveConfirmation, setPresentationSaveConfirmation] = useState<PresentationSaveConfirmation | null>(null);
+  const manualCompanionResponseKeyRef = useRef('');
+  const presentationImportHtmlRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const activeSlideImportDeck = useMemo(() => {
+    const importDeckId = presentationImportDeckId.trim();
+    if (!importDeckId) return null;
+    return presentationDeckOptions.find((deck) => deck.deckId === importDeckId) || null;
+  }, [presentationDeckOptions, presentationImportDeckId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -580,6 +754,494 @@ export default function DeveloperPage() {
       void loadFreshUpReleaseConfig();
     }
   }, [loading, originalUser, loadFreshUpReleaseConfig]);
+
+  const refreshPresentationDeckOptions = useCallback(async () => {
+    setPresentationDeckOptionsLoading(true);
+
+    try {
+      const response = await fetch('/api/presentations', { cache: 'no-store' });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      const decks: unknown[] = Array.isArray(payload?.decks) ? payload.decks : [];
+      setPresentationDeckOptions(
+        decks.filter((deck): deck is PresentationDeckOption => {
+          if (!deck || typeof deck !== 'object') return false;
+          const candidate = deck as { deckId?: unknown; slides?: unknown };
+          return typeof candidate.deckId === 'string' && Array.isArray(candidate.slides);
+        }),
+      );
+    } catch (error) {
+      console.error('Unable to load presentation decks.', error);
+    } finally {
+      setPresentationDeckOptionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshPresentationDeckOptions();
+  }, [refreshPresentationDeckOptions]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const raw = window.localStorage.getItem(PRESENTATION_BUILDER_DRAFT_STORAGE_KEY);
+      if (!raw) return;
+
+      const draft = JSON.parse(raw) as Partial<PresentationBuilderDraft>;
+      if (typeof draft.importTitle === 'string') setPresentationImportTitle(draft.importTitle);
+      if (typeof draft.deckId === 'string') setPresentationImportDeckId(draft.deckId);
+      if (typeof draft.description === 'string') setPresentationImportDescription(draft.description);
+      if (typeof draft.html === 'string') setPresentationImportHtml(draft.html);
+      if (typeof draft.overwrite === 'boolean') setPresentationImportOverwrite(draft.overwrite);
+      if (typeof draft.companionDeckId === 'string') setPresentationCompanionDeckId(draft.companionDeckId);
+      if (typeof draft.companionStep === 'string') setPresentationCompanionStep(draft.companionStep);
+      if (typeof draft.companionResponseKey === 'string') setPresentationCompanionResponseKey(draft.companionResponseKey);
+      if (typeof draft.companionTitle === 'string') setPresentationCompanionTitle(draft.companionTitle);
+      if (typeof draft.companionHtml === 'string') setPresentationCompanionHtml(draft.companionHtml);
+      if (draft.companionPreviewMode === 'saved' || draft.companionPreviewMode === 'draft') {
+        setPresentationCompanionPreviewMode(draft.companionPreviewMode);
+      }
+      if (typeof draft.companionStep === 'string') setPresentationActiveSlideBuildStep(draft.companionStep);
+    } catch (error) {
+      console.error('Unable to restore presentation draft.', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!presentationCompanionDeckId && presentationImportDeckId.trim()) {
+      setPresentationCompanionDeckId(presentationImportDeckId.trim());
+      return;
+    }
+
+    if (!presentationCompanionDeckId && presentationDeckOptions.length > 0) {
+      setPresentationCompanionDeckId(presentationDeckOptions[0].deckId);
+    }
+  }, [presentationCompanionDeckId, presentationDeckOptions, presentationImportDeckId]);
+
+  const selectedPresentationDeck = useMemo(
+    () => presentationDeckOptions.find((deck) => deck.deckId === presentationCompanionDeckId) || null,
+    [presentationCompanionDeckId, presentationDeckOptions],
+  );
+
+  const presentationDeckSelectOptions = useMemo(() => {
+    if (!presentationCompanionDeckId.trim()) return presentationDeckOptions;
+    if (presentationDeckOptions.some((deck) => deck.deckId === presentationCompanionDeckId.trim())) {
+      return presentationDeckOptions;
+    }
+
+    return [
+      {
+        deckId: presentationCompanionDeckId.trim(),
+        title: `Current Deck (${presentationCompanionDeckId.trim()})`,
+        slides: [],
+      },
+      ...presentationDeckOptions,
+    ];
+  }, [presentationCompanionDeckId, presentationDeckOptions]);
+
+  const presentationSelectedExistingDeckId = useMemo(() => {
+    const trimmedDeckId = presentationImportDeckId.trim();
+    if (!trimmedDeckId) return '';
+    return presentationDeckOptions.some((deck) => deck.deckId === trimmedDeckId) ? trimmedDeckId : '';
+  }, [presentationDeckOptions, presentationImportDeckId]);
+
+  const presentationCompanionStepOptions = useMemo(() => {
+    if (!selectedPresentationDeck) return [];
+
+    return selectedPresentationDeck.slides.map((slide, index) => {
+      const step = inferStepFromSlideFile(slide, index + 1);
+      const label = slide
+        .replace(/^\d+-/, '')
+        .replace(/\.html$/, '')
+        .replace(/[-_]+/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+      return {
+        step,
+        slide,
+        label: `${step} · ${label}`,
+      };
+    });
+  }, [selectedPresentationDeck]);
+
+  const presentationPreviewSlideOption = useMemo(() => {
+    if (!selectedPresentationDeck || presentationCompanionStepOptions.length === 0) return null;
+    return (
+      presentationCompanionStepOptions.find((option) => option.step === presentationCompanionStep.trim())
+      || presentationCompanionStepOptions[0]
+      || null
+    );
+  }, [presentationCompanionStep, presentationCompanionStepOptions, selectedPresentationDeck]);
+
+  const presentationPreviewSlideSrc = useMemo(() => {
+    if (!presentationCompanionDeckId.trim() || !presentationPreviewSlideOption) return '';
+    return buildPresentationAssetHref(presentationCompanionDeckId, presentationPreviewSlideOption.slide, '?embedded=1');
+  }, [presentationCompanionDeckId, presentationPreviewSlideOption]);
+
+  const presentationLaunchSlideSrc = useMemo(() => {
+    if (!presentationCompanionDeckId.trim() || !presentationPreviewSlideOption) return '';
+    return buildPresentationAssetHref(presentationCompanionDeckId, presentationPreviewSlideOption.slide);
+  }, [presentationCompanionDeckId, presentationPreviewSlideOption]);
+
+  const presentationCompanionPreviewSrcDoc = useMemo(() => {
+    if (presentationCompanionHtml.trim()) {
+      return presentationCompanionHtml;
+    }
+
+    return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at top left, rgba(142,255,113,0.12), transparent 24%),
+          #050505;
+        color: #f5f5f5;
+        font-family: Inter, Arial, sans-serif;
+      }
+      .card {
+        max-width: 420px;
+        padding: 28px;
+        border-radius: 24px;
+        border: 1px solid rgba(142,255,113,0.18);
+        background: rgba(255,255,255,0.04);
+        text-align: center;
+        box-shadow: 0 18px 54px rgba(0,0,0,0.32);
+      }
+      .eyebrow {
+        color: #8eff71;
+        text-transform: uppercase;
+        letter-spacing: 0.28em;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      h3 {
+        margin: 14px 0 10px;
+        font-size: 28px;
+        line-height: 1.05;
+      }
+      p {
+        margin: 0;
+        color: rgba(255,255,255,0.68);
+        line-height: 1.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="eyebrow">Companion Preview</div>
+      <h3>Paste companion HTML to preview it here.</h3>
+      <p>The preview will render live once content is inserted and stays tied to the step you selected.</p>
+    </div>
+  </body>
+</html>`;
+  }, [presentationCompanionHtml]);
+
+  const presentationSavedCompanionSrc = useMemo(() => {
+    const entry = selectedPresentationDeck?.companion?.entry?.trim() || '';
+    if (!presentationCompanionDeckId.trim() || !entry) return '';
+    return buildPresentationAssetHref(presentationCompanionDeckId, entry);
+  }, [presentationCompanionDeckId, selectedPresentationDeck]);
+
+  const presentationImportSlideCount = useMemo(() => {
+    return (presentationImportHtml.match(/<!DOCTYPE html>/gi) || []).length;
+  }, [presentationImportHtml]);
+
+  const presentationNextSlideIndex = Math.max(1, presentationImportSlideCount + 1);
+  const presentationNextSlideStep = `slide${presentationNextSlideIndex}`;
+  const presentationNextSlideTargetLabel = useMemo(() => {
+    const deckLabel = activeSlideImportDeck?.title || presentationImportTitle.trim() || presentationImportDeckId.trim() || 'New Presentation';
+    if (presentationImportSlideCount > 0) {
+      const currentSlideStep = `slide${presentationImportSlideCount}`;
+      return `${deckLabel} · append ${presentationNextSlideStep} after ${currentSlideStep}`;
+    }
+
+    return `${deckLabel} · start with ${presentationNextSlideStep}`;
+  }, [activeSlideImportDeck, presentationImportDeckId, presentationImportSlideCount, presentationImportTitle, presentationNextSlideStep]);
+
+  useEffect(() => {
+    if (!selectedPresentationDeck) return;
+
+    const hasCurrentStep = presentationCompanionStep.trim().length > 0
+      && selectedPresentationDeck.slides.some((slide, index) => inferStepFromSlideFile(slide, index + 1) === presentationCompanionStep.trim());
+
+    if (!hasCurrentStep) {
+      const nextStep = selectedPresentationDeck.slides.length > 0 ? inferStepFromSlideFile(selectedPresentationDeck.slides[0], 1) : '';
+      if (nextStep) {
+        setPresentationCompanionStep(nextStep);
+      }
+    }
+  }, [presentationCompanionStep, selectedPresentationDeck]);
+
+  useEffect(() => {
+    if (!presentationCompanionDeckId || !presentationCompanionStep.trim()) return;
+
+    const generatedResponseKey = `${presentationCompanionDeckId.trim()}-${presentationCompanionStep.trim()}`;
+    const currentValue = presentationCompanionResponseKey.trim();
+    if (!currentValue || currentValue === manualCompanionResponseKeyRef.current) {
+      setPresentationCompanionResponseKey(generatedResponseKey);
+      manualCompanionResponseKeyRef.current = generatedResponseKey;
+    }
+  }, [presentationCompanionDeckId, presentationCompanionResponseKey, presentationCompanionStep]);
+
+  const handleSavePresentationDraft = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    const draft: PresentationBuilderDraft = {
+      deckId: presentationImportDeckId.trim(),
+      description: presentationImportDescription.trim(),
+      html: presentationImportHtml,
+      importTitle: presentationImportTitle.trim(),
+      overwrite: presentationImportOverwrite,
+      companionDeckId: presentationCompanionDeckId.trim(),
+      companionHtml: presentationCompanionHtml,
+      companionPreviewMode: presentationCompanionPreviewMode,
+      companionResponseKey: presentationCompanionResponseKey.trim(),
+      companionStep: presentationCompanionStep.trim(),
+      companionTitle: presentationCompanionTitle.trim(),
+      savedAt: new Date().toISOString(),
+    };
+
+    try {
+      window.localStorage.setItem(PRESENTATION_BUILDER_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      toast({
+        title: 'Presentation draft saved',
+        description: 'Your current builder state has been stored locally.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Unable to save draft',
+        description: error instanceof Error ? error.message : 'The browser blocked local draft storage.',
+        variant: 'destructive',
+      });
+    }
+  }, [
+    presentationCompanionDeckId,
+    presentationCompanionHtml,
+    presentationCompanionPreviewMode,
+    presentationCompanionResponseKey,
+    presentationCompanionStep,
+    presentationCompanionTitle,
+    presentationImportDeckId,
+    presentationImportDescription,
+    presentationImportHtml,
+    presentationImportOverwrite,
+    presentationImportTitle,
+    toast,
+  ]);
+
+  const handleNewPresentation = useCallback(() => {
+    setPresentationImportTitle('');
+    setPresentationImportDeckId('');
+    setPresentationImportDescription('');
+    setPresentationImportHtml('');
+    setPresentationImportOverwrite(false);
+      setLastImportedPresentationHref(null);
+      setPresentationZipFile(null);
+      setPresentationZipInputKey((current) => current + 1);
+      setPresentationCompanionStep('slide1');
+    setPresentationCompanionResponseKey('');
+    setPresentationCompanionTitle('');
+    setPresentationCompanionHtml('');
+    setPresentationCompanionDeckId('');
+    setPresentationCompanionPreviewMode('draft');
+    setPresentationPreviewPlaying(false);
+    setPresentationActiveSlideBuildStep('');
+    setPresentationActiveSlideBuildLabel('');
+    setPresentationSaveConfirmation(null);
+    manualCompanionResponseKeyRef.current = '';
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(PRESENTATION_BUILDER_DRAFT_STORAGE_KEY);
+    }
+
+    toast({
+      title: 'New presentation started',
+      description: 'The builder has been reset to a clean draft.',
+    });
+  }, [toast]);
+
+  const handleLoadPresentationDeck = useCallback(async (deckId: string) => {
+    const selectedDeck = presentationDeckOptions.find((deck) => deck.deckId === deckId);
+    if (!selectedDeck) return;
+
+    setPresentationLoadBusy(true);
+
+    try {
+      setPresentationImportTitle(selectedDeck.title);
+      setPresentationImportDeckId(selectedDeck.deckId);
+      setPresentationImportDescription(selectedDeck.description ?? '');
+      setPresentationImportOverwrite(true);
+      setLastImportedPresentationHref(selectedDeck.href || `/Presentations/${selectedDeck.deckId}`);
+
+      const slideStepEntries = selectedDeck.slides.map((slide, index) => ({
+        slide,
+        step: inferStepFromSlideFile(slide, index + 1),
+      }));
+      const companionBindingSteps = Object.keys(selectedDeck.companion?.bindingsByStep ?? {});
+      const preferredStep = companionBindingSteps.find((step) => slideStepEntries.some((entry) => entry.step === step))
+        || slideStepEntries[0]?.step
+        || 'slide1';
+
+      setPresentationCompanionDeckId(selectedDeck.deckId);
+      setPresentationCompanionStep(preferredStep);
+      setPresentationCompanionTitle(selectedDeck.companion?.enabled
+        ? `${selectedDeck.title} Companion`
+        : `${selectedDeck.title} Companion`);
+      setPresentationCompanionPreviewMode(selectedDeck.companion?.enabled ? 'saved' : 'draft');
+      setPresentationPreviewPlaying(false);
+      setPresentationActiveSlideBuildStep('');
+      setPresentationActiveSlideBuildLabel('');
+      setPresentationSaveConfirmation(null);
+
+      const preferredBinding = selectedDeck.companion?.bindingsByStep?.[preferredStep];
+      if (preferredBinding?.responseKey) {
+        setPresentationCompanionResponseKey(preferredBinding.responseKey);
+        manualCompanionResponseKeyRef.current = preferredBinding.responseKey;
+      } else {
+        setPresentationCompanionResponseKey('');
+        manualCompanionResponseKeyRef.current = '';
+      }
+
+      if (selectedDeck.slides.length > 0) {
+        const slideHtmlDocuments = await Promise.all(
+          selectedDeck.slides.map(async (slide) => {
+            try {
+              const response = await fetch(
+                buildPresentationAssetHref(selectedDeck.deckId, slide),
+                { cache: 'no-store' },
+              );
+              if (!response.ok) return '';
+              return await response.text();
+            } catch {
+              return '';
+            }
+          }),
+        );
+
+        const source = slideHtmlDocuments.filter((document) => document.trim().length > 0).join('\n\n');
+        if (source.trim().length > 0) {
+          setPresentationImportHtml(source);
+        }
+      } else {
+        setPresentationImportHtml('');
+      }
+
+      const companionEntry = selectedDeck.companion?.entry?.trim();
+      if (companionEntry) {
+        try {
+          const companionResponse = await fetch(
+            buildPresentationAssetHref(selectedDeck.deckId, companionEntry),
+            { cache: 'no-store' },
+          );
+          if (companionResponse.ok) {
+            const companionSource = await companionResponse.text();
+            if (companionSource.trim().length > 0) {
+              setPresentationCompanionHtml(companionSource);
+              setPresentationCompanionPreviewMode('saved');
+            }
+          }
+        } catch (error) {
+          console.error('Unable to load saved companion HTML.', error);
+        }
+      } else {
+        setPresentationCompanionHtml('');
+      }
+
+      toast({
+        title: 'Presentation loaded',
+        description: `${selectedDeck.title} is ready for editing.`,
+      });
+    } catch (error) {
+      console.error('Unable to load presentation deck.', error);
+      toast({
+        title: 'Unable to load presentation',
+        description: error instanceof Error ? error.message : 'The deck could not be loaded into the builder.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresentationLoadBusy(false);
+    }
+  }, [presentationDeckOptions, toast]);
+
+  const handlePreviousPresentationSlide = useCallback(() => {
+    const currentIndex = presentationCompanionStepOptions.findIndex((option) => option.step === presentationCompanionStep.trim());
+    if (currentIndex <= 0) return;
+    setPresentationCompanionStep(presentationCompanionStepOptions[currentIndex - 1].step);
+  }, [presentationCompanionStep, presentationCompanionStepOptions]);
+
+  const handleNextPresentationSlide = useCallback(() => {
+    const currentIndex = presentationCompanionStepOptions.findIndex((option) => option.step === presentationCompanionStep.trim());
+    if (currentIndex < 0 || currentIndex >= presentationCompanionStepOptions.length - 1) return;
+    setPresentationCompanionStep(presentationCompanionStepOptions[currentIndex + 1].step);
+  }, [presentationCompanionStep, presentationCompanionStepOptions]);
+
+  const handleTogglePresentationPlayback = useCallback(() => {
+    if (presentationPreviewPlaying) {
+      setPresentationPreviewPlaying(false);
+      return;
+    }
+
+    if (presentationLaunchSlideSrc && typeof window !== 'undefined') {
+      window.open(presentationLaunchSlideSrc, '_blank', 'noopener,noreferrer');
+    }
+
+    setPresentationPreviewPlaying(true);
+  }, [presentationLaunchSlideSrc, presentationPreviewPlaying]);
+
+  useEffect(() => {
+    if (!presentationPreviewPlaying || presentationCompanionStepOptions.length === 0) return undefined;
+
+    const timer = window.setInterval(() => {
+      setPresentationCompanionStep((currentStep) => {
+        const currentIndex = presentationCompanionStepOptions.findIndex((option) => option.step === currentStep.trim());
+        if (currentIndex < 0 || currentIndex >= presentationCompanionStepOptions.length - 1) {
+          return presentationCompanionStepOptions[0].step;
+        }
+
+        return presentationCompanionStepOptions[currentIndex + 1].step;
+      });
+    }, 2600);
+
+    return () => window.clearInterval(timer);
+  }, [presentationCompanionStepOptions, presentationPreviewPlaying]);
+
+  const handleAddNewSlide = useCallback(() => {
+    const blankSlide = createBlankPresentationSlideDocument(presentationNextSlideIndex, presentationImportTitle || presentationImportDeckId || 'New Presentation');
+    const insertionStart = presentationImportHtml.trim().length > 0 ? presentationImportHtml.trim().length + 2 : 0;
+    const nextHtml = presentationImportHtml.trim().length > 0
+      ? `${presentationImportHtml.trim()}\n\n${blankSlide}`
+      : blankSlide;
+
+    setPresentationImportHtml(nextHtml);
+    setPresentationImportOverwrite(Boolean(presentationImportDeckId.trim()));
+    setPresentationPreviewPlaying(false);
+    setPresentationActiveSlideBuildStep(presentationNextSlideStep);
+    setPresentationActiveSlideBuildLabel(presentationNextSlideTargetLabel);
+    setPresentationSaveConfirmation(null);
+
+    window.setTimeout(() => {
+      const textarea = presentationImportHtmlRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(insertionStart, nextHtml.length);
+      textarea.scrollTop = textarea.scrollHeight;
+    }, 0);
+
+    toast({
+      title: 'New slide added',
+      description: `Added ${presentationNextSlideStep} to the current presentation buffer.`,
+    });
+  }, [presentationImportDeckId, presentationImportHtml, presentationImportTitle, presentationNextSlideIndex, presentationNextSlideStep, presentationNextSlideTargetLabel, toast]);
 
   const handleLaunchFreshUpSandbox = useCallback(() => {
     if (!freshUpSandboxConfig.enabled) {
@@ -664,11 +1326,27 @@ export default function DeveloperPage() {
       }
 
       const href = typeof payload?.href === 'string' ? payload.href : '/Presentations';
+      const savedSlideCount = typeof payload?.manifest?.slideCount === 'number'
+        ? payload.manifest.slideCount
+        : Array.isArray(payload?.manifest?.slides)
+          ? payload.manifest.slides.length
+          : presentationImportSlideCount;
       setLastImportedPresentationHref(href);
+      if (typeof payload?.deckId === 'string' && payload.deckId.trim().length > 0) {
+        setPresentationCompanionDeckId(payload.deckId.trim());
+      }
+      setPresentationSaveConfirmation({
+        href,
+        savedAt: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        slideCount: savedSlideCount,
+      });
+      setPresentationActiveSlideBuildStep('');
+      setPresentationActiveSlideBuildLabel('');
+      void refreshPresentationDeckOptions();
 
       toast({
-        title: 'Presentation imported',
-        description: `Deck ready at ${href}.`,
+        title: 'Presentation saved',
+        description: `${savedSlideCount} slide${savedSlideCount === 1 ? '' : 's'} saved to ${href}.`,
       });
     } catch (error) {
       toast({
@@ -685,7 +1363,180 @@ export default function DeveloperPage() {
     presentationImportHtml,
     presentationImportOverwrite,
     presentationImportTitle,
+    presentationImportSlideCount,
     toast,
+    refreshPresentationDeckOptions,
+  ]);
+
+  const handleImportPresentationZip = useCallback(async () => {
+    if (!presentationZipFile) {
+      toast({
+        title: 'Zip file required',
+        description: 'Choose a .zip file before importing.',
+      });
+      return;
+    }
+
+    if (!presentationImportTitle.trim() && !presentationImportDeckId.trim()) {
+      toast({
+        title: 'Deck name required',
+        description: 'Add a title or deck id so the engine can name the imported deck.',
+      });
+      return;
+    }
+
+    setPresentationZipImportBusy(true);
+
+    try {
+      const formData = new FormData();
+      formData.set('zip', presentationZipFile);
+      formData.set('title', presentationImportTitle.trim());
+      formData.set('deckId', presentationImportDeckId.trim());
+      formData.set('description', presentationImportDescription.trim());
+      formData.set('overwrite', String(presentationImportOverwrite));
+
+      const response = await fetch('/api/presentations/import-zip', {
+        method: 'POST',
+        body: formData,
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Unable to import zip.');
+      }
+
+      const href = typeof payload?.href === 'string' ? payload.href : '/Presentations';
+      const savedSlideCount = typeof payload?.manifest?.slideCount === 'number'
+        ? payload.manifest.slideCount
+        : Array.isArray(payload?.manifest?.slides)
+          ? payload.manifest.slides.length
+          : 0;
+      const importedDeckId = typeof payload?.deckId === 'string' ? payload.deckId.trim() : presentationImportDeckId.trim();
+      const importedTitle = typeof payload?.manifest?.title === 'string' ? payload.manifest.title : presentationImportTitle.trim();
+      const importedDescription = typeof payload?.manifest?.description === 'string' ? payload.manifest.description : presentationImportDescription.trim();
+
+      setPresentationImportDeckId(importedDeckId);
+      setPresentationImportTitle(importedTitle);
+      setPresentationImportDescription(importedDescription);
+      setPresentationImportHtml('');
+      setPresentationCompanionDeckId(importedDeckId);
+      setLastImportedPresentationHref(href);
+      setPresentationZipFile(null);
+      setPresentationZipInputKey((current) => current + 1);
+      setPresentationActiveSlideBuildStep('');
+      setPresentationActiveSlideBuildLabel('');
+      setPresentationSaveConfirmation({
+        href,
+        savedAt: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        slideCount: savedSlideCount,
+      });
+      void refreshPresentationDeckOptions();
+
+      toast({
+        title: 'Zip imported',
+        description: `${savedSlideCount} slide${savedSlideCount === 1 ? '' : 's'} saved to ${href}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Zip import failed',
+        description: error instanceof Error ? error.message : 'Unable to import zip.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresentationZipImportBusy(false);
+    }
+  }, [
+    presentationImportDeckId,
+    presentationImportDescription,
+    presentationImportOverwrite,
+    presentationImportTitle,
+    presentationZipFile,
+    refreshPresentationDeckOptions,
+    toast,
+  ]);
+
+  const handleImportCompanion = useCallback(async () => {
+    if (!presentationCompanionHtml.trim()) {
+      toast({
+        title: 'Companion HTML required',
+        description: 'Paste the companion app HTML before importing.',
+      });
+      return;
+    }
+
+    const targetDeckId = presentationCompanionDeckId.trim() || presentationImportDeckId.trim();
+
+    if (!targetDeckId) {
+      toast({
+        title: 'Deck id required',
+        description: 'Choose the deck id that this companion should attach to.',
+      });
+      return;
+    }
+
+    if (!presentationCompanionStep.trim()) {
+      toast({
+        title: 'Slide step required',
+        description: 'Pick the slide step that this companion should bind to.',
+      });
+      return;
+    }
+
+    setPresentationCompanionBusy(true);
+
+    try {
+      const response = await fetch('/api/presentations/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deckId: targetDeckId,
+          title: presentationCompanionTitle.trim() || presentationImportTitle.trim(),
+          description: presentationImportDescription.trim(),
+          html: presentationCompanionHtml,
+          mode: 'companion',
+          step: presentationCompanionStep.trim(),
+          responseKey: presentationCompanionResponseKey.trim(),
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Unable to import companion content.');
+      }
+
+      const href = typeof payload?.href === 'string' ? payload.href : '/Presentations';
+      setPresentationCompanionDeckId(targetDeckId);
+      manualCompanionResponseKeyRef.current = presentationCompanionResponseKey.trim();
+      void refreshPresentationDeckOptions();
+
+      toast({
+        title: 'Companion imported',
+        description: `Companion content bound to ${presentationCompanionStep.trim()} in ${href}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Companion import failed',
+        description: error instanceof Error ? error.message : 'Unable to import companion content.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresentationCompanionBusy(false);
+    }
+  }, [
+    presentationCompanionHtml,
+    presentationCompanionResponseKey,
+    presentationCompanionStep,
+    presentationCompanionTitle,
+    presentationImportDeckId,
+    presentationImportDescription,
+    presentationImportOverwrite,
+    presentationImportTitle,
+    toast,
+    presentationCompanionDeckId,
+    refreshPresentationDeckOptions,
   ]);
 
   const scoreInterpretationPreview = useMemo(() => {
@@ -2749,62 +3600,61 @@ export default function DeveloperPage() {
           </Button>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Presentation Importer</CardTitle>
-          <CardDescription>Paste raw presentation HTML and turn it into a reusable engine deck.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="presentation-import-title">Deck Title</Label>
-              <Input
-                id="presentation-import-title"
-                value={presentationImportTitle}
-                onChange={(event) => setPresentationImportTitle(event.target.value)}
-                placeholder="AutoKnerd Strategic Deck"
-              />
+    </div>
+  );
+
+  const renderPresentations = () => (
+    <div className="space-y-6">
+      <Card className="overflow-hidden border-[#8eff71]/20 bg-gradient-to-br from-[#8eff71]/12 via-background to-background">
+        <CardHeader className="space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-3xl">Presentation Builder</CardTitle>
+              <CardDescription className="mt-2 max-w-3xl text-base">
+                Bring in raw HTML decks, name them, and turn them into launchable presentation packages without leaving the developer dashboard.
+              </CardDescription>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="presentation-import-deck-id">Deck Id</Label>
-              <Input
-                id="presentation-import-deck-id"
-                value={presentationImportDeckId}
-                onChange={(event) => setPresentationImportDeckId(event.target.value)}
-                placeholder="autoknerd-strategic-deck"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="presentation-import-description">Description</Label>
-            <Input
-              id="presentation-import-description"
-              value={presentationImportDescription}
-              onChange={(event) => setPresentationImportDescription(event.target.value)}
-              placeholder="Executive narrative deck for dealership performance transformation."
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="presentation-import-html">Raw HTML</Label>
-            <Textarea
-              id="presentation-import-html"
-              value={presentationImportHtml}
-              onChange={(event) => setPresentationImportHtml(event.target.value)}
-              placeholder="Paste one or more full slide HTML documents here..."
-              className="min-h-[220px] font-mono text-xs"
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <label className="flex items-center gap-3 text-sm text-muted-foreground">
-              <Checkbox
-                checked={presentationImportOverwrite}
-                onCheckedChange={(checked) => setPresentationImportOverwrite(checked === true)}
-              />
-              Overwrite existing deck if it already exists
-            </label>
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={handleNewPresentation}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Presentation
+              </Button>
+              <Button variant="secondary" onClick={handleSavePresentationDraft}>
+                <Save className="mr-2 h-4 w-4" />
+                Save Draft
+              </Button>
+              <div className="min-w-[260px] space-y-2">
+                <Label htmlFor="presentation-load-existing" className="text-[10px] uppercase tracking-[0.26em] text-muted-foreground">
+                  Load Existing
+                </Label>
+                <Select
+                  value={presentationSelectedExistingDeckId}
+                  onValueChange={(value) => void handleLoadPresentationDeck(value)}
+                  disabled={presentationDeckOptionsLoading || presentationLoadBusy}
+                >
+                  <SelectTrigger id="presentation-load-existing" className="h-10">
+                    <SelectValue
+                      placeholder={
+                        presentationLoadBusy
+                          ? 'Loading presentation...'
+                          : presentationDeckOptionsLoading
+                            ? 'Loading decks...'
+                            : 'Select a presentation'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {presentationDeckOptions.map((deck) => (
+                      <SelectItem key={deck.deckId} value={deck.deckId}>
+                        {deck.title} ({deck.deckId})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button variant="outline" asChild>
                 <Link href="/Presentations">
+                  <ExternalLink className="mr-2 h-4 w-4" />
                   Open Library
                 </Link>
               </Button>
@@ -2815,13 +3665,423 @@ export default function DeveloperPage() {
                   </Link>
                 </Button>
               ) : null}
-              <Button onClick={() => void handleImportPresentation()} disabled={presentationImportBusy}>
-                {presentationImportBusy ? 'Importing…' : 'Import Presentation'}
-              </Button>
             </div>
           </div>
-        </CardContent>
+        </CardHeader>
       </Card>
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader className="space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTitle>Slide Import</CardTitle>
+                  {presentationActiveSlideBuildStep ? (
+                    <Badge className="border-[#8eff71]/30 bg-[#8eff71]/15 text-[#8eff71] hover:bg-[#8eff71]/15">
+                      Building {presentationActiveSlideBuildStep}
+                    </Badge>
+                  ) : null}
+                  {presentationSaveConfirmation ? (
+                    <Badge variant="outline" className="border-[#8eff71]/30 text-[#8eff71]">
+                      Saved {presentationSaveConfirmation.slideCount} slide{presentationSaveConfirmation.slideCount === 1 ? '' : 's'}
+                    </Badge>
+                  ) : null}
+                </div>
+                <CardDescription>Paste one or more full HTML slide documents and let the engine package them into a deck.</CardDescription>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Next slide target: <span className="font-medium text-foreground">{presentationNextSlideTargetLabel}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Editing deck: <span className="font-medium text-foreground">
+                    {presentationImportDeckId.trim()
+                      ? `${presentationImportTitle.trim() || activeSlideImportDeck?.title || presentationImportDeckId.trim()} (${presentationImportDeckId.trim()})`
+                      : 'No deck selected yet'}
+                  </span>
+                </p>
+              </div>
+              <Button type="button" variant="outline" onClick={handleAddNewSlide}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add New Slide
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="presentation-import-title">Deck Title</Label>
+                <Input
+                  id="presentation-import-title"
+                  value={presentationImportTitle}
+                  onChange={(event) => setPresentationImportTitle(event.target.value)}
+                  placeholder="AutoKnerd Strategic Deck"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="presentation-import-deck-id">Deck Id</Label>
+                <Input
+                  id="presentation-import-deck-id"
+                  value={presentationImportDeckId}
+                  onChange={(event) => setPresentationImportDeckId(event.target.value)}
+                  placeholder="autoknerd-strategic-deck"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="presentation-import-description">Description</Label>
+              <Input
+                id="presentation-import-description"
+                value={presentationImportDescription}
+                onChange={(event) => setPresentationImportDescription(event.target.value)}
+                placeholder="Executive narrative deck for dealership performance transformation."
+              />
+            </div>
+            <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-[1fr_auto] md:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="presentation-zip-import">Import HTML Zip</Label>
+                <Input
+                  key={presentationZipInputKey}
+                  id="presentation-zip-import"
+                  type="file"
+                  accept=".zip,application/zip,application/x-zip-compressed"
+                  onChange={(event) => setPresentationZipFile(event.target.files?.[0] ?? null)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {presentationZipFile
+                    ? `Ready: ${presentationZipFile.name}`
+                    : 'Upload a zip with HTML files plus any assets, images, CSS, or JS folders.'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleImportPresentationZip()}
+                disabled={presentationZipImportBusy || !presentationZipFile}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {presentationZipImportBusy ? 'Importing...' : 'Import Zip'}
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="presentation-import-html">Raw HTML</Label>
+              <Textarea
+                id="presentation-import-html"
+                ref={presentationImportHtmlRef}
+                value={presentationImportHtml}
+                onChange={(event) => {
+                  setPresentationImportHtml(event.target.value);
+                  setPresentationSaveConfirmation(null);
+                }}
+                placeholder="Paste one or more full slide HTML documents here..."
+                className="min-h-[240px] font-mono text-xs"
+              />
+            </div>
+            {presentationActiveSlideBuildStep ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[#8eff71]/25 bg-[#8eff71]/10 px-3 py-2 text-sm">
+                <div>
+                  <p className="font-medium text-foreground">Currently adding {presentationActiveSlideBuildStep}</p>
+                  <p className="text-xs text-muted-foreground">{presentationActiveSlideBuildLabel || presentationNextSlideTargetLabel}</p>
+                </div>
+                <Badge variant="outline" className="border-[#8eff71]/30 text-[#8eff71]">
+                  Unsaved
+                </Badge>
+              </div>
+            ) : null}
+            {presentationSaveConfirmation ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[#8eff71]/25 bg-[#8eff71]/10 px-3 py-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-[#8eff71]" />
+                  <div>
+                    <p className="font-medium text-foreground">Saved at {presentationSaveConfirmation.savedAt}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {presentationSaveConfirmation.slideCount} slide{presentationSaveConfirmation.slideCount === 1 ? '' : 's'} available at {presentationSaveConfirmation.href}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={presentationSaveConfirmation.href}>Open Deck</Link>
+                </Button>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <label className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={presentationImportOverwrite}
+                  onCheckedChange={(checked) => setPresentationImportOverwrite(checked === true)}
+                />
+                Overwrite existing deck if it already exists
+              </label>
+              <Button onClick={() => void handleImportPresentation()} disabled={presentationImportBusy}>
+                {presentationImportBusy ? 'Saving...' : 'Save Presentation'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <CardHeader className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Presentation Preview</CardTitle>
+                <CardDescription>The selected slide renders on the left. The companion HTML renders on the right.</CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTogglePresentationPlayback}
+                  disabled={presentationCompanionStepOptions.length === 0}
+                >
+                  {presentationPreviewPlaying ? (
+                    <>
+                      <Pause className="mr-1 h-4 w-4" />
+                      Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play className="mr-1 h-4 w-4" />
+                      Play
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPresentationSlide}
+                  disabled={presentationCompanionStepOptions.findIndex((option) => option.step === presentationCompanionStep.trim()) <= 0}
+                >
+                  <ChevronLeft className="mr-1 h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPresentationSlide}
+                  disabled={
+                    presentationCompanionStepOptions.length === 0
+                    || presentationCompanionStepOptions.findIndex((option) => option.step === presentationCompanionStep.trim()) >= presentationCompanionStepOptions.length - 1
+                  }
+                >
+                  Next
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+                {presentationPreviewSlideOption ? (
+                  <p className="text-xs uppercase tracking-[0.26em] text-muted-foreground">
+                    {presentationCompanionDeckId.trim()} / {presentationPreviewSlideOption.step}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[1.45fr_0.85fr]">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.26em] text-muted-foreground">Presentation Slide</p>
+                    <p className="mt-1 text-sm text-foreground">
+                      {presentationPreviewSlideOption
+                        ? `${presentationPreviewSlideOption.step} · ${presentationPreviewSlideOption.slide}`
+                        : 'Choose a deck and step to preview the presentation slide.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-white/10 bg-black/60">
+                  {presentationPreviewSlideSrc ? (
+                    <iframe
+                      key={presentationPreviewSlideSrc}
+                      title="Presentation slide preview"
+                      src={presentationPreviewSlideSrc}
+                      className="absolute inset-0 h-full w-full border-0 bg-black"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+                      Select a deck step to preview the presentation slide here.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Tabs value={presentationCompanionPreviewMode} onValueChange={(value) => setPresentationCompanionPreviewMode(value === 'saved' ? 'saved' : 'draft')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="draft">Draft</TabsTrigger>
+                    <TabsTrigger value="saved" disabled={!presentationSavedCompanionSrc}>
+                      Saved
+                    </TabsTrigger>
+                  </TabsList>
+                  <div className="pt-4">
+                    <TabsContent value="draft" className="mt-0 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.26em] text-muted-foreground">Companion Draft</p>
+                          <p className="mt-1 text-sm text-foreground">
+                            {presentationCompanionHtml.trim().length > 0
+                              ? 'Live preview from the HTML currently pasted into the companion builder.'
+                              : 'Paste companion HTML to preview it live here.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-white/10 bg-black/60">
+                        <iframe
+                          title="Companion draft preview"
+                          srcDoc={presentationCompanionPreviewSrcDoc}
+                          sandbox="allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
+                          className="absolute inset-0 h-full w-full border-0 bg-black"
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="saved" className="mt-0 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.26em] text-muted-foreground">Saved Companion File</p>
+                          <p className="mt-1 text-sm text-foreground">
+                            {presentationSavedCompanionSrc
+                              ? 'This is the companion file stored on disk for the selected deck and step.'
+                              : 'No saved companion file exists yet for this selection.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-white/10 bg-black/60">
+                        {presentationSavedCompanionSrc ? (
+                          <iframe
+                            key={presentationSavedCompanionSrc}
+                            title="Saved companion preview"
+                            src={`${presentationSavedCompanionSrc}?embedded=1`}
+                            className="absolute inset-0 h-full w-full border-0 bg-black"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+                            Import a companion file to preview the saved version here.
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Companion Import</CardTitle>
+            <CardDescription>Attach a companion HTML page to an existing slide step later, without re-importing the main deck.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="presentation-companion-deck">Target Deck</Label>
+                <Select value={presentationCompanionDeckId} onValueChange={setPresentationCompanionDeckId} disabled={presentationDeckOptionsLoading}>
+                  <SelectTrigger id="presentation-companion-deck">
+                    <SelectValue placeholder={presentationDeckOptionsLoading ? 'Loading decks…' : 'Choose a deck'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {presentationDeckSelectOptions.map((deck) => (
+                      <SelectItem key={deck.deckId} value={deck.deckId}>
+                        {deck.title} ({deck.deckId})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="presentation-companion-step">Target Slide Step</Label>
+                <Select
+                  value={presentationCompanionStep}
+                  onValueChange={setPresentationCompanionStep}
+                  disabled={!selectedPresentationDeck || presentationCompanionStepOptions.length === 0}
+                >
+                  <SelectTrigger id="presentation-companion-step">
+                    <SelectValue placeholder={
+                      !selectedPresentationDeck
+                        ? 'Pick a deck first'
+                        : presentationCompanionStepOptions.length === 0
+                          ? 'No slide steps found'
+                          : 'Choose a step'
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {presentationCompanionStepOptions.map((option) => (
+                      <SelectItem key={option.step} value={option.step}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="presentation-companion-response-key">Response Key</Label>
+                <Input
+                  id="presentation-companion-response-key"
+                  value={presentationCompanionResponseKey}
+                  onChange={(event) => {
+                    manualCompanionResponseKeyRef.current = event.target.value;
+                    setPresentationCompanionResponseKey(event.target.value);
+                  }}
+                  placeholder="autoknerd-strategic-deck-slide1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="presentation-companion-title">Companion Title</Label>
+                <Input
+                  id="presentation-companion-title"
+                  value={presentationCompanionTitle}
+                  onChange={(event) => setPresentationCompanionTitle(event.target.value)}
+                  placeholder="Audience Companion"
+                />
+              </div>
+            </div>
+            {selectedPresentationDeck ? (
+              <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                <p className="text-[10px] uppercase tracking-[0.26em] text-muted-foreground">Selected Deck</p>
+                <p className="mt-2 text-sm text-foreground">{selectedPresentationDeck.title}</p>
+                <p className="mt-1 break-all text-xs">{selectedPresentationDeck.deckId}</p>
+                <p className="mt-2 text-xs">
+                  {selectedPresentationDeck.companion?.enabled
+                    ? 'Companion content already exists for this deck.'
+                    : 'No companion page imported yet for this deck.'}
+                </p>
+                {selectedPresentationDeck.companion?.bindingsByStep?.[presentationCompanionStep] ? (
+                  <p className="mt-2 text-xs text-[#8eff71]">
+                    Current binding: {selectedPresentationDeck.companion.bindingsByStep[presentationCompanionStep]?.responseKey || 'default response key'}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                <p className="text-[10px] uppercase tracking-[0.26em] text-muted-foreground">Selected Deck</p>
+                <p className="mt-2 text-sm">Pick a deck to reveal its slide steps and companion bindings.</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="presentation-companion-html">Companion HTML</Label>
+              <Textarea
+                id="presentation-companion-html"
+                value={presentationCompanionHtml}
+                onChange={(event) => setPresentationCompanionHtml(event.target.value)}
+                placeholder="Paste the companion app HTML here..."
+                className="min-h-[240px] font-mono text-xs"
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="text-xs text-muted-foreground">
+                We’ll store the companion page under the selected deck and bind it to the chosen step in the manifest.
+              </p>
+              <Button onClick={() => void handleImportCompanion()} disabled={presentationCompanionBusy}>
+                {presentationCompanionBusy ? 'Importing…' : 'Import Companion'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 
@@ -3212,6 +4472,7 @@ export default function DeveloperPage() {
   const renderMainSection = () => {
     if (activeSection === 'dashboard') return renderDashboard();
     if (activeSection === 'revenue_growth') return renderRevenueGrowth();
+    if (activeSection === 'presentations') return renderPresentations();
     if (activeSection === 'leads') return renderLeads();
     if (activeSection === 'monitoring') return renderMonitoring();
     if (activeSection === 'sandbox') return renderSandbox();

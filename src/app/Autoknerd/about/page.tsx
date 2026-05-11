@@ -1,8 +1,14 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
+import { BeehiivSubscriberDialog } from '@/components/autoknerd/beehiiv-subscriber-dialog';
 import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 export default function AutoknerdAboutPage() {
+  const [isScheduleCallModalOpen, setIsScheduleCallModalOpen] = useState(false);
+
   return (
     <AutoknerdShell active="about">
       <main className="grid-bg pt-28">
@@ -13,15 +19,19 @@ export default function AutoknerdAboutPage() {
               This isn&apos;t a <span className="text-[#b1ed00]">training company.</span>
             </h1>
             <p className="mb-4 max-w-3xl text-2xl font-light leading-snug text-[#aaabab] md:text-3xl">
-              AutoKnerd is a dealership performance system built to fix inconsistent behavior customers can feel.
+              AutoKnerd is a dealership performance system built to fix the inconsistent behaviors customers can feel.
             </p>
             <p className="mb-10 max-w-2xl text-lg text-[#747675]">
               Effort is easy to measure. Consistency is what actually drives results.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link href="/Autoknerd/find-your-fit" className="glow-hover bg-[#bdfc00] px-10 py-4 text-lg font-bold text-[#445d00] transition-all">
-                Find Your Fit
-              </Link>
+              <button
+                type="button"
+                onClick={() => setIsScheduleCallModalOpen(true)}
+                className="glow-hover bg-[#bdfc00] px-10 py-4 text-lg font-bold text-[#445d00] transition-all"
+              >
+                Schedule a Call
+              </button>
               <Link href="/Autoknerd" className="border border-[#464848] px-10 py-4 text-lg font-bold transition-all hover:bg-[#2a2d2d]">
                 Explore the System
               </Link>
@@ -49,7 +59,7 @@ export default function AutoknerdAboutPage() {
             <div className="space-y-6">
               {[
                 ['analytics', 'Fragmented Consulting', 'Every consultant brings their own flavor, leading to a disjointed brand experience.'],
-                ['diversity_3', 'Management Gaps', 'Individual manager styles override standard operating procedures.'],
+                ['diversity_3', 'Management Gaps', 'Individual manager styles override shared operating standards.'],
                 ['sentiment_dissatisfied', 'Customer Whiplash', 'Customers receive different levels of service depending on who they speak with.'],
               ].map(([icon, title, copy]) => (
                 <div key={title} className="flex gap-4 border-l-4 border-[#eaffb8] bg-[#181a1a] p-6">
@@ -128,10 +138,10 @@ export default function AutoknerdAboutPage() {
           <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-0 border border-[#464848]/20 md:grid-cols-3">
             <div className="absolute left-1/3 top-1/2 hidden h-0.5 w-12 -translate-y-1/2 bg-[#eaffb8]/30 md:block" />
             <div className="absolute left-2/3 top-1/2 hidden h-0.5 w-12 -translate-y-1/2 bg-[#eaffb8]/30 md:block" />
-            {[
-              ['Phase 01', 'AutoShop', 'TOOLS', 'Precision instruments designed to standardize interaction and capture behavioral data in real-time.', '/autoshop', 'View Tools'],
-              ['Phase 02', 'AutoDriveCX', 'PLATFORM', 'The intelligence layer that converts data into visible trends and actionable coaching directives.', '/login', 'Explore Platform'],
-              ['Phase 03', 'AutoForge', 'DEPLOYMENT', 'High-intensity execution cycles where behavior is hardened through expert-led accountability.', '/autoforge', 'See Deployment'],
+              {[
+              ['Phase 01', 'AutoShop', 'TOOLS', 'Practical diagnostic tools that standardize interactions and capture behavioral data in real time.', '/autoshop', 'View Tools'],
+              ['Phase 02', 'AutoDriveCX', 'PLATFORM', 'The intelligence layer that turns behavior data into visible trends and clear coaching priorities.', '/login', 'Explore Platform'],
+              ['Phase 03', 'AutoForge', 'DEPLOYMENT', 'Manager-led execution cycles that reinforce the behaviors your dealership needs every week.', '/autoforge', 'See Deployment'],
             ].map(([phase, title, eyebrow, copy, href, cta], index) => (
               <div
                 key={title}
@@ -163,9 +173,9 @@ export default function AutoknerdAboutPage() {
             </div>
             <div className="w-full space-y-12 md:w-2/3">
               {[
-                ['Training doesn&apos;t stick.', 'Workshops create temporary spikes in excitement, but Monday morning always reverts to the status quo. AutoKnerd replaces spikes with a sustained baseline.'],
-                ['Processes aren&apos;t followed.', 'A manual in a drawer isn&apos;t a process. A process is only real if it&apos;s visible, measurable, and mandatory. We make it all three.'],
-                ['Execution varies by shift.', 'Closing rates shouldn&apos;t plummet because of a roster change. Our system ensures the performance is owned by the dealership, not the individual.'],
+                ["Training doesn't stick.", 'Workshops create temporary spikes in excitement, but Monday morning often drifts back to the old routine. AutoKnerd replaces spikes with a sustained baseline.'],
+                ["Processes aren't followed.", "A manual in a drawer isn't a process. A process is only real when it's visible, measurable, and reinforced. We make it all three."],
+                ["Execution varies by shift.", "Closing rates shouldn't depend on who's on the schedule. The system helps the dealership own the standard, not just the individual."],
               ].map(([title, copy]) => (
                 <div key={title} className="border-b border-[#464848]/10 pb-12">
                   <h4 className="mb-4 text-2xl font-bold">{title}</h4>
@@ -188,7 +198,7 @@ export default function AutoknerdAboutPage() {
                 {[
                   ['chat', 'Clearer Conversations', 'Scripts become frameworks. Frameworks become natural confidence.'],
                   ['payments', 'Calmer Pricing', 'Value-based presentation reduces negotiation friction and protects margins.'],
-                  ['sync_alt', 'Improved Handoffs', 'Seamless transitions between sales, finance, and delivery.'],
+                  ['sync_alt', 'Improved Handoffs', 'Clearer transitions between sales, finance, and delivery.'],
                   ['verified', 'Stronger Follow-through', 'Every lead is nurtured according to a rigorous, systematic timeline.'],
                 ].map(([icon, title, copy]) => (
                   <div key={title} className="space-y-4">
@@ -231,20 +241,38 @@ export default function AutoknerdAboutPage() {
             </h2>
             <p className="mb-12 text-lg">Choose your path into the system.</p>
             <div className="flex flex-col justify-center gap-4 md:flex-row">
-              <Link href="/Autoknerd/find-your-fit" className="bg-[#f4f3f3] px-8 py-5 text-lg font-bold text-[#0d0f0f] transition-all hover:bg-white">
-                Find Your Fit
-              </Link>
-              <Link href="/login" className="border-2 border-[#445d00] px-8 py-5 text-lg font-bold transition-all hover:bg-[#445d00] hover:text-[#bdfc00]">
+              <button
+                type="button"
+                onClick={() => setIsScheduleCallModalOpen(true)}
+                className="bg-[#f4f3f3] px-8 py-5 text-lg font-bold text-[#0d0f0f] transition-all hover:bg-white"
+              >
+                Schedule a Call
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsScheduleCallModalOpen(true)}
+                className="border-2 border-[#445d00] px-8 py-5 text-lg font-bold transition-all hover:bg-[#445d00] hover:text-[#bdfc00]"
+              >
                 Start AutoDriveCX
-              </Link>
-              <Link href="/autoforge" className="border-2 border-[#445d00] px-8 py-5 text-lg font-bold transition-all hover:bg-[#445d00] hover:text-[#bdfc00]">
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsScheduleCallModalOpen(true)}
+                className="border-2 border-[#445d00] px-8 py-5 text-lg font-bold transition-all hover:bg-[#445d00] hover:text-[#bdfc00]"
+              >
                 Book AutoForge Diagnostic
-              </Link>
+              </button>
             </div>
           </div>
         </section>
       </main>
 
+      <BeehiivSubscriberDialog
+        open={isScheduleCallModalOpen}
+        onOpenChange={setIsScheduleCallModalOpen}
+        title="Schedule a Call"
+        description="Built for dealerships that want clearer communication, stronger customer trust, and more consistent experiences."
+      />
       <AutoknerdFooter />
     </AutoknerdShell>
   );

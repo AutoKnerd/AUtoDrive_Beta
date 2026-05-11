@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Application - Executive Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "on-tertiary-fixed-variant": "#454747",
+                            "on-surface-variant": "#c0cab5",
+                            "surface-dim": "#10150c",
+                            "primary-fixed": "#a4f875",
+                            "surface-tint": "#8adb5c",
+                            "on-primary-fixed": "#082100",
+                            "surface-container-lowest": "#0b1008",
+                            "error-container": "#93000a",
+                            "tertiary-fixed-dim": "#c6c6c7",
+                            "on-secondary-fixed-variant": "#474746",
+                            "tertiary-fixed": "#e2e2e2",
+                            "surface": "#10150c",
+                            "on-tertiary-container": "#3e4041",
+                            "surface-container": "#1c2118",
+                            "secondary-fixed-dim": "#c8c6c5",
+                            "on-secondary-fixed": "#1c1b1b",
+                            "on-secondary": "#313030",
+                            "surface-container-high": "#262c22",
+                            "tertiary": "#c7c7c7",
+                            "surface-container-highest": "#31362d",
+                            "surface-container-low": "#181d14",
+                            "on-error": "#690005",
+                            "on-background": "#dfe4d6",
+                            "on-secondary-container": "#b7b5b4",
+                            "on-tertiary": "#2f3131",
+                            "tertiary-container": "#abacac",
+                            "secondary-fixed": "#e5e2e1",
+                            "outline-variant": "#41493a",
+                            "on-surface": "#dfe4d6",
+                            "inverse-primary": "#2c6c00",
+                            "on-tertiary-fixed": "#1a1c1c",
+                            "on-error-container": "#ffdad6",
+                            "error": "#ffb4ab",
+                            "on-primary": "#133800",
+                            "inverse-surface": "#dfe4d6",
+                            "primary-fixed-dim": "#8adb5c",
+                            "on-primary-fixed-variant": "#1f5100",
+                            "inverse-on-surface": "#2d3228",
+                            "background": "#10150c",
+                            "secondary-container": "#474746",
+                            "surface-variant": "#31362d",
+                            "on-primary-container": "#1b4a00",
+                            "primary-container": "#70bf44",
+                            "primary": "#8adc5d",
+                            "surface-bright": "#363b31",
+                            "secondary": "#c8c6c5",
+                            "outline": "#8a9481"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.125rem",
+                            "lg": "0.25rem",
+                            "xl": "0.5rem",
+                            "full": "0.75rem"
+                    },
+                    "spacing": {
+                            "md": "24px",
+                            "xs": "4px",
+                            "sm": "12px",
+                            "container-max": "1440px",
+                            "base": "8px",
+                            "lg": "48px",
+                            "xl": "80px",
+                            "gutter": "24px"
+                    },
+                    "fontFamily": {
+                            "data-mono": ["Inter"],
+                            "h2": ["Manrope"],
+                            "body-sm": ["Inter"],
+                            "label": ["Inter"],
+                            "body-lg": ["Inter"],
+                            "h3": ["Manrope"],
+                            "h1": ["Manrope"]
+                    },
+                    "fontSize": {
+                            "data-mono": ["16px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                            "h2": ["32px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                            "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "300"}],
+                            "label": ["12px", {"lineHeight": "1", "fontWeight": "500"}],
+                            "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                            "h3": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                            "h1": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glow-effect:hover {
+            box-shadow: 0 0 15px #8adc5d;
+        }
+        .flat-depth-card {
+            border: 1px solid #222222;
+        }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-[#0A0A0A] text-on-surface font-body-lg min-h-screen flex flex-col selection:bg-primary-container selection:text-on-primary-container">
+<header class="bg-[#0A0A0A] flex justify-between items-center w-full px-12 h-20 docked full-width top-0 border-b border-b border-[#222222] flat no shadows z-50 fixed">
+<div class="flex items-center">
+<span class="text-xl font-black text-[#70BF44] tracking-tighter mr-8">ENABLEMENT ENGINE</span>
+</div>
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined text-[#70BF44] cursor-pointer hover:text-[#70BF44] transition-colors duration-300">settings</span>
+<span class="material-symbols-outlined text-[#70BF44] cursor-pointer hover:text-[#70BF44] transition-colors duration-300">sync_alt</span>
+<span class="material-symbols-outlined text-[#70BF44] cursor-pointer hover:text-[#70BF44] transition-colors duration-300">account_circle</span>
+</div>
+</header>
+<div class="flex flex-1 pt-20 items-center justify-center">
+<main class="p-lg max-w-container-max mx-auto w-full">
+<div class="mb-xl text-center md:text-left">
+<h1 class="font-h1 text-h1 text-on-surface mb-xs">This is where learning becomes behavior</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">They practice. You see it.</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-md items-start">
+<div class="lg:col-span-7 flex flex-col gap-md">
+<div class="bg-[#141414] flat-depth-card rounded-xl p-md relative overflow-hidden group">
+<div class="absolute top-md right-md opacity-20 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary-container">psychology</span>
+</div>
+<h3 class="font-h3 text-h3 text-on-surface mb-sm">Scenario Context</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">Customer objects to the initial diagnostic fee. Formulate a response that justifies value without conceding operational margins.</p>
+<div class="bg-surface-container rounded-lg p-sm border border-outline-variant">
+<div class="flex items-center gap-sm mb-xs">
+<span class="material-symbols-outlined text-surface-tint" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-label text-label text-on-surface">Client Node: Active</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary italic">"I'm not paying $180 just for you to look at it when the guy down the street does it for free."</p>
+</div>
+</div>
+<div class="bg-[#141414] flat-depth-card rounded-xl p-md border-l-4 border-l-primary-container">
+<div class="flex justify-between items-center mb-sm">
+<h3 class="font-h3 text-h3 text-on-surface">Simulated Response Capture</h3>
+<span class="flex h-3 w-3 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-container opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-primary-container"></span>
+</span>
+</div>
+<div class="relative mt-md">
+<textarea class="w-full bg-[#0A0A0A] border border-[#222222] rounded-lg p-sm text-on-surface font-body-sm focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors resize-none" placeholder="Enter behavioral response pattern..." rows="4"></textarea>
+<div class="absolute bottom-sm right-sm flex gap-xs">
+<button class="bg-[#0A0A0A] border border-outline-variant rounded p-xs hover:border-primary-container hover:text-primary-container transition-colors">
+<span class="material-symbols-outlined text-[16px]">mic</span>
+</button>
+<button class="bg-primary-container text-[#0A0A0A] rounded px-sm py-xs font-label text-label font-bold glow-effect transition-all flex items-center gap-xs">
+                                    EXECUTE <span class="material-symbols-outlined text-[14px]">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-5 flex flex-col gap-md">
+<div class="bg-[#141414] flat-depth-card rounded-xl p-md relative">
+<div class="absolute top-md right-md opacity-10">
+<span class="material-symbols-outlined text-[48px] text-white">memory</span>
+</div>
+<h3 class="font-label text-label text-on-surface-variant uppercase tracking-widest mb-lg">Real-Time Analysis Engine</h3>
+<div class="space-y-sm">
+<div class="flex justify-between items-center border-b border-[#222222] pb-xs">
+<span class="font-body-sm text-body-sm text-secondary">Empathy Quotient</span>
+<div class="flex items-center gap-xs">
+<div class="w-32 h-1 bg-[#0A0A0A] rounded-full overflow-hidden">
+<div class="h-full bg-primary-container w-[75%]"></div>
+</div>
+<span class="font-data-mono text-data-mono text-primary-container">75%</span>
+</div>
+</div>
+<div class="flex justify-between items-center border-b border-[#222222] pb-xs">
+<span class="font-body-sm text-body-sm text-secondary">Value Articulation</span>
+<div class="flex items-center gap-xs">
+<div class="w-32 h-1 bg-[#0A0A0A] rounded-full overflow-hidden">
+<div class="h-full bg-surface-variant w-[40%]"></div>
+</div>
+<span class="font-data-mono text-data-mono text-on-surface">40%</span>
+</div>
+</div>
+<div class="flex justify-between items-center pb-xs">
+<span class="font-body-sm text-body-sm text-secondary">Operational Defense</span>
+<div class="flex items-center gap-xs">
+<div class="w-32 h-1 bg-[#0A0A0A] rounded-full overflow-hidden">
+<div class="h-full bg-primary-container w-[92%]"></div>
+</div>
+<span class="font-data-mono text-data-mono text-primary-container">92%</span>
+</div>
+</div>
+</div>
+<div class="mt-md bg-[#1C1C1C] rounded-lg p-sm border border-[#222222] shadow-[0_0_15px_rgba(112,191,68,0.05)]">
+<div class="flex items-start gap-sm">
+<span class="material-symbols-outlined text-primary-container mt-1">check_circle</span>
+<div>
+<span class="block font-label text-label text-on-surface mb-1">OPTIMAL BEHAVIOR DETECTED</span>
+<span class="block font-body-sm text-body-sm text-on-surface-variant">Strong adherence to standard operating procedure. Value statement requires reinforcement.</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-[#141414] flat-depth-card rounded-xl p-md">
+<h3 class="font-label text-label text-on-surface-variant uppercase tracking-widest mb-md">Cohort Progression</h3>
+<div class="h-40 w-full relative border-b border-l border-[#1A1A1A]">
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 100 100">
+<path d="M0,80 Q25,70 50,50 T100,20" fill="none" stroke="#70bf44" stroke-width="2"></path>
+<path d="M0,90 Q30,85 60,60 T100,50" fill="none" stroke="#474746" stroke-dasharray="2,2" stroke-width="1"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+<div class="border-t border-[#1A1A1A] w-full"></div>
+<div class="border-t border-[#1A1A1A] w-full"></div>
+<div class="border-t border-[#1A1A1A] w-full"></div>
+<div class="border-t border-[#1A1A1A] w-full"></div>
+</div>
+</div>
+<div class="flex justify-between mt-xs font-label text-[10px] text-secondary">
+<span>W1</span>
+<span>W2</span>
+<span>W3</span>
+<span>W4</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-8 px-8 py-3 bg-[#10150c]/92 backdrop-blur-md rounded-full border border-[#8a9481]/24 shadow-[0_0_20px_rgba(138,220,93,0.08)] font-[Inter] text-[11px] tracking-[0.22em] uppercase">
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/07-the-experience.html">
+    <span class="material-symbols-outlined text-sm">chevron_left</span>
+    <span>Back</span>
+  </a>
+  <div class="flex items-center gap-4 px-5 py-2 rounded-full border border-[#8a9481]/18 bg-[#181d14] text-[#8adc5d] font-semibold tracking-[0.28em]">
+    <span class="material-symbols-outlined text-sm">play_arrow</span>
+    <span>8 / 9</span>
+  </div>
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/09-why-this-doesnt-exist-yet.html">
+    <span>Forward</span>
+    <span class="material-symbols-outlined text-sm">chevron_right</span>
+  </a>
+</footer>
+</body></html>

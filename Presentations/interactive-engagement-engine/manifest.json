@@ -1,0 +1,40 @@
+{
+  "deckId": "interactive-engagement-engine",
+  "title": "Enablement Engine",
+  "description": "Mission control deck for the AutoKnerd enablement engine presentation.",
+  "slides": [
+    "01-the-hook.html",
+    "02-the-problem.html",
+    "03-the-real-problem.html",
+    "04-the-gap.html",
+    "05-the-opportunity.html",
+    "06-the-model.html",
+    "07-the-experience.html",
+    "08-the-application.html",
+    "09-why-this-doesnt-exist-yet.html",
+    "10-the-outcome.html",
+    "11-let-s-build-this-together.html"
+  ],
+  "entry": "index.html",
+  "slideCount": 11,
+  "audience": {
+    "enabled": true,
+    "liveSessionId": "interactive-engagement-engine-main",
+    "qrOverlayEnabled": true,
+    "contentByStep": {
+      "slide1": {
+        "eyebrow": "Mission Control",
+        "title": "Training Doesn’t Fail From Lack of Content",
+        "body": "It fails from lack of application",
+        "prompt": "Start here when you want the room to see the difference between static content and applied behavior.",
+        "speakerNotes": [
+          "Training content alone is not the answer.",
+          "---",
+          "The real problem is application.",
+          "---",
+          "The system has to help people do the right thing in the moment."
+        ]
+      }
+    }
+  }
+}

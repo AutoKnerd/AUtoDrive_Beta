@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AutoKnerd Presentation Deck</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Manrope:wght@500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-lowest": "#0b1008",
+                        "primary": "#8adc5d",
+                        "surface-container-high": "#262c22",
+                        "surface-bright": "#363b31",
+                        "surface": "#10150c",
+                        "outline": "#8a9481",
+                        "on-primary-fixed-variant": "#1f5100",
+                        "on-secondary-container": "#b7b5b4",
+                        "tertiary": "#c7c7c7",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-surface-variant": "#c0cab5",
+                        "surface-dim": "#10150c",
+                        "inverse-surface": "#dfe4d6",
+                        "primary-fixed": "#a4f875",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-secondary": "#313030",
+                        "on-error-container": "#ffdad6",
+                        "surface-container": "#1c2118",
+                        "primary-container": "#70bf44",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "secondary-fixed": "#e5e2e1",
+                        "inverse-on-surface": "#2d3228",
+                        "secondary-container": "#474746",
+                        "on-primary": "#133800",
+                        "on-surface": "#dfe4d6",
+                        "surface-container-highest": "#31362d",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-primary-container": "#1b4a00",
+                        "on-error": "#690005",
+                        "background": "#10150c",
+                        "surface-variant": "#31362d",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed": "#e2e2e2",
+                        "outline-variant": "#41493a",
+                        "on-secondary-fixed-variant": "#474746",
+                        "on-tertiary": "#2f3131",
+                        "primary-fixed-dim": "#8adb5c",
+                        "on-tertiary-container": "#3e4041",
+                        "tertiary-container": "#abacac",
+                        "on-background": "#dfe4d6",
+                        "inverse-primary": "#2c6c00",
+                        "on-primary-fixed": "#082100",
+                        "secondary": "#c8c6c5",
+                        "surface-tint": "#8adb5c",
+                        "error-container": "#93000a",
+                        "surface-container-low": "#181d14"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "xs": "4px",
+                        "lg": "48px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "sm": "12px",
+                        "container-max": "1440px",
+                        "base": "8px",
+                        "md": "24px"
+                    },
+                    fontFamily: {
+                        "body-lg": ["Inter"],
+                        "label": ["Inter"],
+                        "h1": ["Manrope"],
+                        "h2": ["Manrope"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["Inter"],
+                        "h3": ["Manrope"]
+                    },
+                    fontSize: {
+                        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "label": ["12px", { lineHeight: "1", fontWeight: "500" }],
+                        "h1": ["40px", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "800" }],
+                        "h2": ["32px", { lineHeight: "1.3", letterSpacing: "-0.01em", fontWeight: "700" }],
+                        "body-sm": ["14px", { lineHeight: "1.5", fontWeight: "300" }],
+                        "data-mono": ["16px", { lineHeight: "1", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "h3": ["24px", { lineHeight: "1.4", fontWeight: "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-[#0A0A0A] text-on-surface font-body-sm h-screen w-full overflow-hidden flex flex-col selection:bg-primary-container selection:text-black">
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-12 py-4 bg-black dark:bg-[#0A0A0A] border-b border-[#222222]">
+<div class="flex items-center gap-4">
+<span class="text-xl font-black tracking-tighter text-[#70BF44]">AutoKnerd</span>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-zinc-500 hover:text-[#70BF44] transition-colors scale-95 active:opacity-80">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="text-zinc-500 hover:text-[#70BF44] transition-colors scale-95 active:opacity-80">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<div class="flex flex-1 pt-[65px]">
+<main class="flex-1 bg-[#0A0A0A] flex items-center justify-center p-8 lg:p-12 relative overflow-y-auto">
+<div class="w-full max-w-[1200px] aspect-[16/9] bg-[#141414] border border-[#222222] rounded-xl relative overflow-hidden flex flex-col shadow-2xl">
+<div class="absolute inset-0 z-0 mix-blend-screen opacity-30 pointer-events-none" style="background-image: radial-gradient(circle at 70% 50%, rgba(112,191,68,0.08) 0%, transparent 60%);">
+<img alt="" class="w-full h-full object-cover opacity-20 grayscale contrast-150" data-alt="Abstract low-poly human head silhouette against deep black void with subtle neon green wireframe edge lighting, minimal, high-tech, futuristic data aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBk7GvktzgJVyEt7SzkrHfkVxi1Bg_2Kg6qCEXTAqkav2f1lhKvfRCnLo6ljW7gK7R3ZMqembVsNgZ6XcyZ3pC3B2LdxW0oHLSC7LTw8q313mNOqqrD9hvaiOJjLXNBkNGUU1pZRTbr9fJYM298Ppwn-LA8ZG1Ndimkv7_fTp6-NZxARLElCDiWCrxLD3gTsaIdCKMQaf30Zm7z7XwGy1o_2V8KJSESO_aqUZfdVUs4LtN5x74BJmotx4IT2PnMZsRBZvftqhzEWmg"/>
+</div>
+<div class="relative z-10 flex flex-col h-full p-16 justify-between">
+<div class="max-w-3xl">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-[#1C1C1C] border border-[#222222] rounded-full mb-6">
+<span class="material-symbols-outlined text-[#70BF44] text-[16px]">psychology</span>
+<span class="font-label text-label text-[#70BF44] uppercase tracking-wider">Slide Insert 1</span>
+</div>
+<h2 class="font-h3 text-h3 text-[#70BF44] mb-3">Not theory. Not generic AI.</h2>
+<h1 class="font-h1 text-h1 text-white leading-tight">This Only Works If It’s Built on <br/><span class="text-[#b7b5b4]">Real Behavior</span></h1>
+</div>
+<div class="grid grid-cols-2 gap-6 w-full max-w-4xl self-end mt-12">
+<div class="group bg-[#1C1C1C]/80 backdrop-blur-sm border border-[#222222] p-8 rounded-lg hover:border-[#70BF44]/50 transition-colors duration-300 flex flex-col gap-4">
+<div class="w-10 h-10 rounded-full bg-black border border-[#222222] flex items-center justify-center group-hover:border-[#70BF44] group-hover:shadow-[0_0_10px_rgba(112,191,68,0.2)] transition-all">
+<span class="material-symbols-outlined text-zinc-400 group-hover:text-[#70BF44] transition-colors">forum</span>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant font-medium">Built from real dealership conversations</p>
+</div>
+<div class="group bg-[#1C1C1C]/80 backdrop-blur-sm border border-[#222222] p-8 rounded-lg hover:border-[#70BF44]/50 transition-colors duration-300 flex flex-col gap-4">
+<div class="w-10 h-10 rounded-full bg-black border border-[#222222] flex items-center justify-center group-hover:border-[#70BF44] group-hover:shadow-[0_0_10px_rgba(112,191,68,0.2)] transition-all">
+<span class="material-symbols-outlined text-zinc-400 group-hover:text-[#70BF44] transition-colors">model_training</span>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant font-medium">Focused on behavior, not just knowledge</p>
+</div>
+<div class="group bg-[#1C1C1C]/80 backdrop-blur-sm border border-[#222222] p-8 rounded-lg hover:border-[#70BF44]/50 transition-colors duration-300 flex flex-col gap-4">
+<div class="w-10 h-10 rounded-full bg-black border border-[#222222] flex items-center justify-center group-hover:border-[#70BF44] group-hover:shadow-[0_0_10px_rgba(112,191,68,0.2)] transition-all">
+<span class="material-symbols-outlined text-zinc-400 group-hover:text-[#70BF44] transition-colors">workspace_premium</span>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant font-medium">Designed around how consultants actually learn</p>
+</div>
+<div class="group bg-[#1C1C1C]/80 backdrop-blur-sm border border-[#222222] p-8 rounded-lg hover:border-[#70BF44]/50 transition-colors duration-300 flex flex-col gap-4">
+<div class="w-10 h-10 rounded-full bg-black border border-[#222222] flex items-center justify-center group-hover:border-[#70BF44] group-hover:shadow-[0_0_10px_rgba(112,191,68,0.2)] transition-all">
+<span class="material-symbols-outlined text-zinc-400 group-hover:text-[#70BF44] transition-colors">settings_system_daydream</span>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant font-medium">Already being translated into working systems</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-8 px-8 py-3 bg-[#10150c]/92 backdrop-blur-md rounded-full border border-[#8a9481]/24 shadow-[0_0_20px_rgba(138,220,93,0.08)] font-[Inter] text-[11px] tracking-[0.22em] uppercase">
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/02-the-problem.html">
+    <span class="material-symbols-outlined text-sm">chevron_left</span>
+    <span>Back</span>
+  </a>
+  <div class="flex items-center gap-4 px-5 py-2 rounded-full border border-[#8a9481]/18 bg-[#181d14] text-[#8adc5d] font-semibold tracking-[0.28em]">
+    <span class="material-symbols-outlined text-sm">play_arrow</span>
+    <span>3 / 4</span>
+  </div>
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/04-the-gap.html">
+    <span>Forward</span>
+    <span class="material-symbols-outlined text-sm">chevron_right</span>
+  </a>
+</footer>
+</body></html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Traditional Training Problem Slide</title>
+<!-- Google Fonts: Montserrat for the technical aesthetic -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Montserrat', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              orange: '#FF6B00',
+              dark: '#0A0A0A',
+              card: '#1A1A1A',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-styling">
+    /* Ensure the background image covers the slide and mimics the reference dark/blurred aesthetic */
+    .bg-trainer {
+      background: linear-gradient(90deg, rgba(10,10,10,1) 0%, rgba(10,10,10,0.8) 40%, rgba(10,10,10,0.4) 100%), 
+                  url('https://placehold.co/1536x1024/222/444?text=Trainer+Background');
+      background-size: cover;
+      background-position: center;
+    }
+
+    /* Subtle orange glow for the result box border */
+    .result-box {
+      border-left: 4px solid #FF6B00;
+      background: rgba(255, 107, 0, 0.05);
+    }
+    
+    /* Cross icon styling */
+    .icon-cross {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid #FF6B00;
+      color: #FF6B00;
+      font-size: 14px;
+      font-weight: bold;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+  </style>
+<link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="bg-brand-dark text-white font-sans h-full overflow-hidden">
+<!-- BEGIN: Main Slide Container -->
+<main class="relative w-full h-screen bg-trainer flex flex-col justify-between p-12 lg:p-20 overflow-hidden" data-purpose="presentation-slide">
+<!-- BEGIN: Slide Content Section -->
+<div class="z-10 grid grid-cols-12 gap-10 items-start">
+<div class="col-span-6 max-w-4xl">
+<!-- Label/Subheader -->
+<p class="text-brand-orange uppercase tracking-widest font-bold text-sm mb-4">The Problem</p>
+<!-- Title -->
+<h1 class="text-4xl lg:text-6xl font-extrabold leading-tight mb-12 uppercase">
+        Traditional Training<br/>
+        Has A <span class="text-brand-orange">Visibility<br/>Problem</span>
+</h1>
+<!-- Checklist of Bullet Points -->
+<ul class="space-y-6 mb-16">
+<!-- Static slide decks -->
+<li class="flex items-center text-lg lg:text-xl font-medium">
+<span class="icon-cross">✕</span>
+<span>Static slide decks</span>
+</li>
+<!-- One-way presentations -->
+<li class="flex items-center text-lg lg:text-xl font-medium">
+<span class="icon-cross">✕</span>
+<span>One-way presentations</span>
+</li>
+<!-- Minimal engagement tracking -->
+<li class="flex items-center text-lg lg:text-xl font-medium">
+<span class="icon-cross">✕</span>
+<span>Minimal engagement tracking</span>
+</li>
+<!-- Little post-session reinforcement -->
+<li class="flex items-center text-lg lg:text-xl font-medium">
+<span class="icon-cross">✕</span>
+<span>Little post-session reinforcement</span>
+</li>
+<!-- Almost no behavioral insight -->
+<li class="flex items-center text-lg lg:text-xl font-medium">
+<span class="icon-cross">✕</span>
+<span>Almost no behavioral insight</span>
+</li>
+</ul>
+</div>
+<section class="col-span-5 col-start-8 self-center rounded-3xl border border-white/10 bg-black/35 p-8 backdrop-blur-md shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-2 h-2 rounded-full bg-brand-orange shadow-[0_0_10px_rgba(255,107,0,0.7)] animate-pulse"></div>
+<p class="text-brand-orange uppercase tracking-[0.28em] font-bold text-xs">Live Room Signal</p>
+</div>
+<h3 class="text-3xl font-bold leading-tight mb-3">What the audience says breaks training after delivery.</h3>
+<p class="text-sm text-gray-400 leading-relaxed mb-8">This chart updates as phones answer the companion prompt. The tallest bar shows the strongest room signal.</p>
+<div class="h-72 flex items-end gap-5" data-presenter-chart="">
+<div class="flex-1 flex flex-col items-center gap-4">
+<div class="w-full max-w-[88px] rounded-t-xl border border-brand-orange/25 bg-brand-orange/15 transition-all duration-300" data-presenter-bar="" style="height:72px"></div>
+<div class="text-center">
+<p class="text-3xl font-extrabold text-brand-orange leading-none" data-presenter-percent="">0%</p>
+<p class="text-[11px] uppercase tracking-[0.18em] text-gray-400 mt-2">Forget</p>
+</div>
+</div>
+<div class="flex-1 flex flex-col items-center gap-4">
+<div class="w-full max-w-[88px] rounded-t-xl border border-brand-orange/35 bg-brand-orange/25 transition-all duration-300" data-presenter-bar="" style="height:104px"></div>
+<div class="text-center">
+<p class="text-3xl font-extrabold text-brand-orange leading-none" data-presenter-percent="">0%</p>
+<p class="text-[11px] uppercase tracking-[0.18em] text-gray-400 mt-2">Reinforce</p>
+</div>
+</div>
+<div class="flex-1 flex flex-col items-center gap-4">
+<div class="w-full max-w-[88px] rounded-t-xl border border-brand-orange/20 bg-brand-orange/10 transition-all duration-300" data-presenter-bar="" style="height:56px"></div>
+<div class="text-center">
+<p class="text-3xl font-extrabold text-brand-orange leading-none" data-presenter-percent="">0%</p>
+<p class="text-[11px] uppercase tracking-[0.18em] text-gray-400 mt-2">Measure</p>
+</div>
+</div>
+<div class="flex-1 flex flex-col items-center gap-4">
+<div class="w-full max-w-[88px] rounded-t-xl border border-brand-orange/30 bg-brand-orange/20 transition-all duration-300" data-presenter-bar="" style="height:88px"></div>
+<div class="text-center">
+<p class="text-3xl font-extrabold text-brand-orange leading-none" data-presenter-percent="">0%</p>
+<p class="text-[11px] uppercase tracking-[0.18em] text-gray-400 mt-2">Disconnect</p>
+</div>
+</div>
+</div>
+<div class="mt-8 flex items-center justify-between border-t border-white/10 pt-5">
+<div>
+<p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">Top Signal</p>
+<p class="text-xl font-semibold text-white" data-presenter-summary="">Waiting for first response…</p>
+</div>
+<div class="text-right">
+<p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">Responses</p>
+<p class="text-2xl font-bold text-brand-orange" data-presenter-total="">0</p>
+</div>
+</div>
+</section>
+</div>
+<!-- END: Slide Content Section -->
+<!-- BEGIN: Result Box Section -->
+<div class="z-10 self-start lg:ml-24">
+<div class="result-box p-6 max-w-md backdrop-blur-sm bg-black/30">
+<h3 class="text-brand-orange font-bold uppercase tracking-wider text-sm mb-2">The Result</h3>
+<p class="text-xl lg:text-2xl font-semibold leading-snug italic">
+          Training gets delivered...<br/>
+<span class="text-gray-300 font-normal text-lg lg:text-xl">but behavior often doesn't change.</span>
+</p>
+</div>
+</div>
+<!-- END: Result Box Section -->
+<!-- BEGIN: Slide Number -->
+<div class="absolute bottom-6 right-6 lg:bottom-10 lg:right-10">
+<div class="bg-brand-orange text-brand-dark font-bold px-3 py-1 text-xl">
+        02
+      </div>
+</div>
+<!-- END: Slide Number -->
+</main>
+<!-- END: Main Slide Container -->
+<script src="/Presentations/_shared/deck-controls.js"></script>
+<script>
+  (function () {
+    const RESPONSE_OPTIONS = [
+      { label: 'Employees forget key concepts', short: 'Forget' },
+      { label: 'Managers rarely reinforce training', short: 'Reinforce' },
+      { label: 'Engagement is difficult to measure', short: 'Measure' },
+      { label: 'Training feels disconnected from work', short: 'Disconnect' }
+    ];
+    const bars = Array.from(document.querySelectorAll('[data-presenter-bar]'));
+    const percents = Array.from(document.querySelectorAll('[data-presenter-percent]'));
+    const summaryNode = document.querySelector('[data-presenter-summary]');
+    const totalNode = document.querySelector('[data-presenter-total]');
+
+    async function getLiveState() {
+      try {
+        const response = await fetch('/api/live-session', { cache: 'no-store' });
+        if (!response.ok) {
+          return { deckId: 'audienceos', sessionToken: '' };
+        }
+        const payload = await response.json();
+        return {
+          deckId: payload && payload.state && payload.state.deckId ? payload.state.deckId : 'audienceos',
+          sessionToken: payload && payload.state && payload.state.sessionToken ? payload.state.sessionToken : ''
+        };
+      } catch {
+        return { deckId: 'audienceos', sessionToken: '' };
+      }
+    }
+
+    function summarizeLeadingOption(counts) {
+      const ranked = RESPONSE_OPTIONS
+        .map((option, index) => ({ option, count: counts[index] || 0 }))
+        .sort((a, b) => b.count - a.count);
+      const leader = ranked[0];
+      if (!leader || leader.count === 0) {
+        return 'Waiting for first response…';
+      }
+      return leader.option.label;
+    }
+
+    async function refreshPresenterChart() {
+      try {
+        const liveState = await getLiveState();
+        const sessionToken = liveState.sessionToken;
+        const deckId = liveState.deckId;
+        const query = '/api/live-session/responses?includeDetails=1&deckId=' + encodeURIComponent(deckId) + '&slideStep=' + encodeURIComponent('slide2') + '&responseKey=' + encodeURIComponent('audienceos-slide2') + '&sessionToken=' + encodeURIComponent(sessionToken);
+        const response = await fetch(query, { cache: 'no-store' });
+        if (!response.ok) return;
+        const payload = await response.json();
+        const counts = RESPONSE_OPTIONS.map((option) => (
+          (payload.records || []).filter((record) => record.answer === option.label).length
+        ));
+        const total = counts.reduce((sum, value) => sum + value, 0);
+        const peak = Math.max(...counts, 1);
+
+        bars.forEach((bar, index) => {
+          const count = counts[index] || 0;
+          const height = total === 0 ? 56 : Math.max(56, Math.round((count / peak) * 184));
+          bar.style.height = height + 'px';
+          bar.style.opacity = count === 0 ? '0.35' : '1';
+        });
+
+        percents.forEach((node, index) => {
+          const percent = total === 0 ? 0 : Math.round((counts[index] / total) * 100);
+          node.textContent = percent + '%';
+        });
+
+        if (summaryNode) {
+          summaryNode.textContent = summarizeLeadingOption(counts);
+        }
+        if (totalNode) {
+          totalNode.textContent = String(total);
+        }
+      } catch {
+        // Preserve the last rendered values when polling temporarily fails.
+      }
+    }
+
+    refreshPresenterChart();
+    window.setInterval(refreshPresenterChart, 4000);
+  })();
+</script>
+</body></html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aether - Presentation Companion</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&amp;family=Inter:wght@400;600&amp;family=Space+Grotesk:wght@600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 100, 'GRAD' 0, 'opsz' 24;
+        }
+        .glow-orange {
+            box-shadow: 0 0 15px rgba(255, 120, 0, 0.3);
+        }
+        .glow-text-orange {
+            text-shadow: 0 0 8px rgba(255, 120, 0, 0.6);
+        }
+        .kinetic-line {
+            background: linear-gradient(90deg, transparent, #ff7800, transparent);
+            height: 1px;
+            width: 100%;
+        }
+        .vertical-texture {
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255, 255, 255, 0.03) 1px, rgba(255, 255, 255, 0.03) 2px);
+            background-size: 100% 4px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#00dbe9",
+                        "tertiary-fixed": "#7df4ff",
+                        "tertiary-container": "#000c0e",
+                        "surface-container-high": "#2b2a2a",
+                        "surface-tint": "#c9c6c5",
+                        "on-surface-variant": "#c4c7c7",
+                        "on-primary": "#313030",
+                        "primary": "#c9c6c5",
+                        "error": "#ffb4ab",
+                        "secondary": "#ecffe2",
+                        "on-tertiary-fixed-variant": "#004f54",
+                        "tertiary": "#00dbe9",
+                        "surface-container-highest": "#353434",
+                        "surface-container": "#201f1f",
+                        "on-primary-fixed": "#1c1b1b",
+                        "primary-fixed-dim": "#c9c6c5",
+                        "inverse-primary": "#5f5e5e",
+                        "on-tertiary-container": "#00868f",
+                        "on-surface": "#e5e2e1",
+                        "surface": "#141313",
+                        "secondary-fixed-dim": "#00e61c",
+                        "on-tertiary": "#00363a",
+                        "on-primary-fixed-variant": "#474646",
+                        "secondary-container": "#23ff2c",
+                        "surface-dim": "#141313",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "background": "#141313",
+                        "on-secondary-container": "#007107",
+                        "outline": "#8e9192",
+                        "primary-container": "#0a0a0a",
+                        "outline-variant": "#444748",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed": "#002022",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-background": "#e5e2e1",
+                        "on-secondary-fixed-variant": "#005304",
+                        "surface-variant": "#353434",
+                        "surface-bright": "#3a3939",
+                        "primary-fixed": "#e5e2e1",
+                        "inverse-on-surface": "#313030",
+                        "on-secondary": "#003a02",
+                        "on-primary-container": "#7b7979",
+                        "secondary-fixed": "#76ff66",
+                        "on-secondary-fixed": "#002201",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-container-low": "#1c1b1b",
+                        "performance-orange": "#ff7800"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "unit": "8px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Space Grotesk"],
+                        "headline-md": ["Montserrat"],
+                        "headline-lg": ["Montserrat"],
+                        "body-md": ["Inter"],
+                        "headline-xl": ["Montserrat"],
+                        "headline-lg-mobile": ["Montserrat"],
+                        "body-lg": ["Inter"],
+                        "headline-xl-mobile": ["Montserrat"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.1em", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-xl-mobile": ["32px", {"lineHeight": "1.1", "fontWeight": "800"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: 100dvh;
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md vertical-texture min-h-screen selection:bg-performance-orange/30">
+<div class="fixed inset-0 pointer-events-none z-0">
+<div class="absolute inset-0 bg-gradient-to-b from-surface-container-lowest via-background to-surface-container-lowest opacity-90"></div>
+<div class="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_70%_20%,_rgba(255,120,0,0.08),transparent_50%)]"></div>
+</div>
+<main class="relative z-10 px-margin-mobile pt-16 pb-12 flex flex-col gap-10">
+<header class="flex flex-col gap-3">
+<div class="flex items-center gap-2">
+<span class="w-8 h-[1px] bg-performance-orange"></span>
+<span class="font-label-caps text-label-caps text-performance-orange uppercase tracking-[0.2em]">Kinetic Engine v4</span>
+</div>
+<h1 class="font-headline-xl-mobile text-headline-xl-mobile text-on-surface leading-none">
+                WHAT MAKES THIS <br/> <span class="text-performance-orange glow-text-orange font-extrabold italic">DIFFERENT?</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-[90%] leading-relaxed">
+                Not just slides. A <span class="text-on-surface font-semibold">connected learning experience.</span>
+</p>
+</header>
+<section class="grid grid-cols-3 gap-2 border-y border-outline-variant/10 py-6">
+<div class="flex flex-col">
+<span class="font-label-caps text-[10px] text-on-surface-variant/60 uppercase">Engagement Rate</span>
+<span class="font-headline-md text-headline-md text-performance-orange">89%</span>
+</div>
+<div class="flex flex-col border-x border-outline-variant/10 px-2">
+<span class="font-label-caps text-[10px] text-on-surface-variant/60 uppercase">Audience Sync</span>
+<span class="font-headline-md text-headline-md text-on-surface">Stable</span>
+</div>
+<div class="flex flex-col pl-2">
+<span class="font-label-caps text-[10px] text-on-surface-variant/60 uppercase">Watching Now</span>
+<span class="font-headline-md text-headline-md text-on-surface" data-active-viewer-count="">--</span>
+</div>
+</section>
+<section class="flex flex-col gap-3">
+<div class="flex justify-between items-end mb-2">
+<h2 class="font-label-caps text-label-caps text-on-surface-variant tracking-widest uppercase">System Core Features</h2>
+<span class="font-label-caps text-[10px] text-performance-orange/70">SELECT TO PREVIEW</span>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="p-4 bg-surface-container/40 border border-outline-variant/20 rounded-lg flex flex-col gap-3 opacity-60">
+<span class="material-symbols-outlined text-performance-orange/60" data-icon="sync">sync</span>
+<span class="font-label-caps text-[11px] text-on-surface">Live Sync</span>
+</div>
+<div class="p-4 bg-surface-container/40 border border-outline-variant/20 rounded-lg flex flex-col gap-3 opacity-60">
+<span class="material-symbols-outlined text-performance-orange/60" data-icon="sticky_note_2">sticky_note_2</span>
+<span class="font-label-caps text-[11px] text-on-surface">Presenter Notes</span>
+</div>
+</div>
+<div class="p-6 bg-surface-container-highest/60 border border-performance-orange/50 rounded-xl glow-orange relative overflow-hidden">
+<div class="absolute top-0 right-0 p-2">
+<span class="flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-performance-orange opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-performance-orange"></span>
+</span>
+</div>
+<div class="flex items-center gap-4 mb-4">
+<div class="p-3 bg-performance-orange/10 rounded-full border border-performance-orange/20">
+<span class="material-symbols-outlined text-performance-orange text-2xl" data-icon="groups" data-weight="fill" style="font-variation-settings: 'FILL' 1;">groups</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface uppercase tracking-tight">Audience Interaction</h3>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                    Keep learners engaged with live polls, synced slides, reactions, and participation tools.
+                </p>
+<div class="mt-6 pt-4 border-t border-outline-variant/10 flex gap-4">
+<span class="font-label-caps text-[10px] px-2 py-1 bg-performance-orange/20 text-performance-orange border border-performance-orange/30 rounded">LIVE NOW</span>
+<span class="font-label-caps text-[10px] px-2 py-1 bg-on-surface-variant/10 text-on-surface-variant border border-outline-variant/20 rounded">SYNCED</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="p-4 bg-surface-container/40 border border-outline-variant/20 rounded-lg flex flex-col gap-3 opacity-60">
+<span class="material-symbols-outlined text-performance-orange/60" data-icon="psychology">psychology</span>
+<span class="font-label-caps text-[11px] text-on-surface">AI Coaching</span>
+</div>
+<div class="p-4 bg-surface-container/40 border border-outline-variant/20 rounded-lg flex flex-col gap-3 opacity-60">
+<span class="material-symbols-outlined text-performance-orange/60" data-icon="monitoring">monitoring</span>
+<span class="font-label-caps text-[11px] text-on-surface">Analytics</span>
+</div>
+</div>
+</section>
+<section class="mt-4 p-8 bg-surface-container-lowest border border-outline-variant/10 rounded-2xl relative">
+<div class="mb-10 text-center">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-2">ADAPTIVE LEARNING FLOW</h2>
+<div class="kinetic-line mx-auto w-1/2 opacity-50"></div>
+</div>
+<div class="relative flex flex-col items-center gap-12">
+<div class="flex flex-col items-center gap-12 relative z-10 w-full">
+<div class="flex flex-col items-center gap-2"><div class="w-12 h-12 rounded-full border border-performance-orange/40 bg-surface-container flex items-center justify-center glow-orange"><span class="material-symbols-outlined text-performance-orange text-xl" data-icon="present_to_all">present_to_all</span></div><span class="font-label-caps text-[12px] text-on-surface uppercase">Present</span></div>
+<div class="material-symbols-outlined text-performance-orange/40 animate-bounce" data-icon="keyboard_double_arrow_down">keyboard_double_arrow_down</div>
+<div class="flex flex-col items-center gap-2"><div class="w-12 h-12 rounded-full border border-performance-orange/40 bg-surface-container flex items-center justify-center glow-orange"><span class="material-symbols-outlined text-performance-orange text-xl" data-icon="bolt">bolt</span></div><span class="font-label-caps text-[12px] text-on-surface uppercase">Engage</span></div>
+<div class="material-symbols-outlined text-performance-orange/40 animate-bounce" data-icon="keyboard_double_arrow_down">keyboard_double_arrow_down</div>
+<div class="flex flex-col items-center gap-2"><div class="w-12 h-12 rounded-full border border-performance-orange/40 bg-surface-container flex items-center justify-center glow-orange"><span class="material-symbols-outlined text-performance-orange text-xl" data-icon="auto_awesome">auto_awesome</span></div><span class="font-label-caps text-[12px] text-on-surface uppercase">Reinforce</span></div>
+<div class="material-symbols-outlined text-performance-orange/40 animate-bounce" data-icon="keyboard_double_arrow_down">keyboard_double_arrow_down</div>
+<div class="flex flex-col items-center gap-2"><div class="w-12 h-12 rounded-full border border-performance-orange/40 bg-surface-container flex items-center justify-center glow-orange"><span class="material-symbols-outlined text-performance-orange text-xl" data-icon="square_foot">square_foot</span></div><span class="font-label-caps text-[12px] text-on-surface uppercase">Measure</span></div>
+</div>
+<div class="absolute left-1/2 top-16 bottom-16 w-[1px] bg-gradient-to-b from-transparent via-performance-orange/30 to-transparent -translate-x-1/2 z-0"></div>
+</div>
+<div class="absolute inset-0 z-0 opacity-10 overflow-hidden rounded-2xl">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQU1M4KkzUgWkyRMx3lZiJUq7gbIWIlg8bnPzvyRdXkoWZ2HBISvP6d8FQbr69eL1udxOCGgTZBZ0EUjpXFGtkqXlGcJai4aWifRhv8K6EtRm3BksNXYCZRrZW6yXs4l2yz4Br2eLA-xijKQojg3ry4cUnWgVPfHdH7bgG4aQOtRRMJfog--8EdwE4l1bzPC3SzogJnPr5e57wkugkSmQACykXwFORAIpyKXzsqRWt4XSgK4EnZY5Z7M1FXCDRUdzKgxj6wGvNc2Fw"/>
+</div>
+</section>
+<div class="mt-4 flex justify-between items-center px-4">
+<div class="flex flex-col">
+<span class="font-label-caps text-[10px] text-on-surface-variant/40">SYSTEM STATUS</span>
+<span class="font-label-caps text-[10px] text-secondary-fixed-dim">OPTIMIZED</span>
+</div>
+<div class="w-12 h-12 rounded-full border border-outline-variant/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-lg" data-icon="qr_code_2">qr_code_2</span>
+</div>
+</div>
+</main>
+<div class="fixed top-0 left-0 w-[1px] h-full bg-gradient-to-b from-transparent via-performance-orange/20 to-transparent"></div>
+<div class="fixed top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-performance-orange/20 to-transparent"></div>
+<script>
+    (function () {
+      const countNode = document.querySelector('[data-active-viewer-count]');
+      if (!countNode) return;
+
+      let intervalId = null;
+
+      async function updatePresence() {
+        try {
+          const response = await fetch('/api/live-session/presence', { cache: 'no-store' });
+          if (!response.ok) return;
+          const payload = await response.json();
+          const nextValue = typeof payload.activeAudienceCount === 'number' ? payload.activeAudienceCount : 0;
+          countNode.textContent = String(nextValue);
+        } catch {
+          // Keep the last rendered value if presence is temporarily unavailable.
+        }
+      }
+
+      updatePresence();
+      intervalId = window.setInterval(updatePresence, 5000);
+      window.addEventListener('beforeunload', function () {
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+        }
+      });
+    })();
+  </script>
+</body></html>

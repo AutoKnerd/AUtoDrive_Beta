@@ -4,6 +4,21 @@ import type { LiveSessionAudienceContent } from '@/lib/live-session';
 
 export type PresentationAudienceContentMap = Record<string, LiveSessionAudienceContent>;
 
+export type PresentationCompanionBinding = {
+  slideStep: string;
+  responseKey?: string;
+  interactionMode?: 'counter' | 'stage' | 'toggle' | 'advance' | 'question';
+  mainSlideEffect?: 'counter' | 'visual' | 'advance' | 'none';
+};
+
+export type PresentationCompanionConfig = {
+  enabled?: boolean;
+  entry?: string;
+  files?: string[];
+  contentByStep?: PresentationAudienceContentMap;
+  bindingsByStep?: Record<string, PresentationCompanionBinding>;
+};
+
 export type PresentationAudienceConfig = {
   enabled?: boolean;
   liveSessionId?: string;
@@ -19,6 +34,7 @@ export type PresentationDeckManifest = {
   createdAt?: string;
   updatedAt?: string;
   audience?: PresentationAudienceConfig;
+  companion?: PresentationCompanionConfig;
 };
 
 export type PresentationDeckSummary = PresentationDeckManifest & {
@@ -27,6 +43,18 @@ export type PresentationDeckSummary = PresentationDeckManifest & {
 };
 
 const PRESENTATIONS_ROOT = path.join(process.cwd(), 'Presentations');
+
+function normalizeCompanionFileList(files?: string[]) {
+  if (!Array.isArray(files)) return [];
+
+  return Array.from(
+    new Set(
+      files
+        .filter((file): file is string => typeof file === 'string' && file.trim().length > 0)
+        .map((file) => file.trim()),
+    ),
+  );
+}
 
 function toTitleFromSlideFile(slide: string) {
   return slide
@@ -73,6 +101,38 @@ function normalizeAudienceConfig(
   };
 }
 
+function normalizeCompanionConfig(
+  deckId: string,
+  slides: string[],
+  input?: PresentationCompanionConfig,
+): PresentationCompanionConfig {
+  const generatedBindingsByStep = slides.reduce<Record<string, PresentationCompanionBinding>>((accumulator, slide, index) => {
+    const step = inferStepFromSlide(slide, index);
+    accumulator[step] = {
+      slideStep: step,
+      responseKey: `${deckId}-${step}`,
+      interactionMode: 'question',
+      mainSlideEffect: 'counter',
+    };
+    return accumulator;
+  }, {});
+
+  return {
+    enabled: input?.enabled === true,
+    entry: typeof input?.entry === 'string' && input.entry.trim().length > 0
+      ? input.entry.trim()
+      : 'companion/index.html',
+    files: normalizeCompanionFileList(input?.files),
+    contentByStep: {
+      ...(input?.contentByStep ?? {}),
+    },
+    bindingsByStep: {
+      ...generatedBindingsByStep,
+      ...(input?.bindingsByStep ?? {}),
+    },
+  };
+}
+
 function isValidDeckId(value: string) {
   return value.length > 0 && !value.includes('..') && !value.startsWith('.');
 }
@@ -98,6 +158,11 @@ export async function readPresentationDeckManifest(deckId: string): Promise<Pres
         deckId,
         parsed.slides.filter((slide): slide is string => typeof slide === 'string' && slide.trim().length > 0),
         parsed.audience && typeof parsed.audience === 'object' ? parsed.audience : undefined,
+      ),
+      companion: normalizeCompanionConfig(
+        deckId,
+        parsed.slides.filter((slide): slide is string => typeof slide === 'string' && slide.trim().length > 0),
+        parsed.companion && typeof parsed.companion === 'object' ? parsed.companion : undefined,
       ),
     };
   } catch {
@@ -147,4 +212,51 @@ export function getAudienceContentForDeck(
     body: 'This presentation is live.',
     prompt: 'Keep this page open. It updates as the presentation advances.',
   };
+}
+
+function findCompanionEntryInFileList(files: string[], currentStep: string) {
+  const normalizedStep = currentStep.trim().toLowerCase();
+
+  return files.find((file) => {
+    const baseName = path.basename(file).toLowerCase();
+    return baseName.startsWith(`${normalizedStep}-`);
+  }) ?? null;
+}
+
+export async function resolveCompanionEntryForStep(
+  deckId: string,
+  manifest: PresentationDeckManifest,
+  currentStep: string,
+): Promise<string | null> {
+  if (manifest.companion?.enabled !== true) {
+    return null;
+  }
+
+  const manifestFiles = normalizeCompanionFileList(manifest.companion.files);
+  const manifestMatch = findCompanionEntryInFileList(manifestFiles, currentStep);
+  if (manifestMatch) {
+    return manifestMatch;
+  }
+
+  const companionDir = path.join(PRESENTATIONS_ROOT, deckId, 'companion');
+
+  try {
+    const diskFiles = await readdir(companionDir, { withFileTypes: true });
+    const candidateFiles = diskFiles
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.html'))
+      .map((entry) => path.posix.join('companion', entry.name));
+
+    const diskMatch = findCompanionEntryInFileList(candidateFiles, currentStep);
+    if (diskMatch) {
+      return diskMatch;
+    }
+  } catch {
+    // Ignore missing companion directories and fall back to the manifest entry.
+  }
+
+  if (typeof manifest.companion.entry === 'string' && manifest.companion.entry.trim().length > 0) {
+    return manifest.companion.entry.trim();
+  }
+
+  return null;
 }

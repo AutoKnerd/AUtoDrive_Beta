@@ -38,6 +38,31 @@ function normalizeSlideNumber(value: string | null) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function encodeKeyPart(value: string) {
+  return encodeURIComponent(value.trim() || 'none');
+}
+
+function buildAudienceResponseDocId(record: LiveSessionAudienceResponseRecord) {
+  const identity =
+    normalizeText(record.sessionToken)
+    || normalizeText(record.sessionId)
+    || normalizeText(record.userId);
+  const deckId = normalizeText(record.deckId) || 'deck';
+  const slideStep = normalizeText(record.slideStep) || normalizeText(record.slideId) || 'slide';
+  const responseKey = normalizeText(record.responseKey) || 'default';
+  const audienceStep = typeof record.audienceStep === 'number' && Number.isFinite(record.audienceStep)
+    ? String(record.audienceStep)
+    : 'base';
+
+  return [
+    encodeKeyPart(identity || 'anonymous'),
+    encodeKeyPart(deckId),
+    encodeKeyPart(slideStep),
+    encodeKeyPart(responseKey),
+    encodeKeyPart(audienceStep),
+  ].join('__');
+}
+
 function normalizeAnswer(body: Partial<LiveSessionAudienceResponseInput>) {
   const answer = normalizeText(body.answer);
   if (answer) return answer;
@@ -126,6 +151,7 @@ export async function GET(request: Request) {
     const currentSlide = normalizeText(url.searchParams.get('currentSlide'));
     const slideNumber = normalizeSlideNumber(url.searchParams.get('slideNumber'));
     const sessionToken = normalizeText(url.searchParams.get('sessionToken'));
+    const responseKey = normalizeText(url.searchParams.get('responseKey'));
     const includeDetails = url.searchParams.get('includeDetails') === '1' || url.searchParams.get('includeDetails') === 'true';
 
     if (!slideStep && !currentSlide && slideNumber === null && !sessionToken) {
@@ -149,6 +175,7 @@ export async function GET(request: Request) {
         }
         if (slideStep && normalizeText(record.slideStep) !== slideStep) return false;
         if (!slideStep && currentSlide && normalizeText(record.currentSlide) !== currentSlide) return false;
+        if (responseKey && normalizeText(record.responseKey) !== responseKey) return false;
         return true;
       });
 
@@ -243,22 +270,27 @@ export async function POST(request: Request) {
       createdAt: null,
     };
 
+    const responseDocId = buildAudienceResponseDocId(record);
+    const responseRef = getAdminDb()
+      .collection(LIVE_SESSION_AUDIENCE_RESPONSE_COLLECTION)
+      .doc(responseDocId);
+    const existingSnapshot = await responseRef.get();
+
     const responseData = Object.fromEntries(
       Object.entries({
         ...record,
-        createdAt: FieldValue.serverTimestamp(),
+        ...(existingSnapshot.exists ? {} : { createdAt: FieldValue.serverTimestamp() }),
+        updatedAt: FieldValue.serverTimestamp(),
       }).filter(([, value]) => value !== undefined),
     );
 
-    const responseRef = await getAdminDb()
-      .collection(LIVE_SESSION_AUDIENCE_RESPONSE_COLLECTION)
-      .add(responseData);
+    await responseRef.set(responseData, { merge: true });
 
     await upsertPresentationLead(record);
 
     return NextResponse.json({
       ok: true,
-      responseId: responseRef.id,
+      responseId: responseDocId,
     });
   } catch (error) {
     console.error('Unable to store live session audience response.', error);

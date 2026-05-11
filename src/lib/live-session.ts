@@ -73,6 +73,7 @@ export type LiveSessionPayload = {
   audienceEnabled: boolean;
   qrOverlayEnabled: boolean;
   audienceUrl?: string;
+  companionUrl?: string;
   content: LiveSessionAudienceContent;
 };
 
@@ -87,6 +88,7 @@ export const LIVE_SESSION_DEFAULT_STATE: LiveSessionState = {
 
 export const LIVE_SESSION_AUDIENCE_RESPONSE_COLLECTION = 'presentation_live_session_responses';
 export const LIVE_SESSION_PRESENTATION_LEADS_COLLECTION = 'presentation_live_presentation_leads';
+export const LIVE_SESSION_AUDIENCE_PRESENCE_COLLECTION = 'presentation_live_session_presence';
 
 export function normalizeLiveSessionState(input?: Partial<LiveSessionState> | null): LiveSessionState {
   return {

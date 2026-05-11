@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enablement Engine</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --panel: #101010;
+      --panel-2: #171717;
+      --line: rgba(142, 255, 113, 0.18);
+      --text: #f4f4f4;
+      --muted: #9a9a9a;
+      --accent: #8eff71;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(142, 255, 113, 0.12), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(23, 238, 250, 0.08), transparent 24%),
+        var(--bg);
+      color: var(--text);
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 48px 24px 64px;
+    }
+    .eyebrow {
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: clamp(2.6rem, 8vw, 5.4rem);
+      line-height: 0.94;
+      margin: 0 0 16px;
+      text-transform: uppercase;
+      letter-spacing: -0.05em;
+    }
+    p.lead {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.7;
+      margin: 0 0 40px;
+    }
+    .actions {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      text-decoration: none;
+      background: linear-gradient(180deg, rgba(142, 255, 113, 0.12), rgba(142, 255, 113, 0.04));
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.78rem;
+    }
+    .button.secondary {
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+      border-radius: 18px;
+      padding: 18px;
+      text-decoration: none;
+      color: inherit;
+      min-height: 152px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: var(--line);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
+    }
+    .card .num {
+      color: var(--accent);
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .card h2 {
+      margin: 8px 0 6px;
+      font-size: 1.15rem;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Presentations / Developer Dashboard Ready</div>
+    <h1>Enablement Engine</h1>
+    <p class="lead">
+      Fresh mission-control deck. Open slide 1 below and rebuild the rest from scratch.
+    </p>
+    <div class="actions">
+      <a class="button" href="/Presentations/interactive-engagement-engine/01-the-hook.html">Open Slide 01</a>
+    </div>
+    <div class="grid">
+      <a class="card" href="/Presentations/interactive-engagement-engine/01-the-hook.html"><div><div class="num">Slide 01</div><h2>Mission Control</h2><p>Training doesn’t fail from lack of content. It fails from lack of application.</p></div></a>
+    </div>
+  </main>
+</body>
+</html>

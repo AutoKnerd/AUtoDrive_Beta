@@ -1,5 +1,11 @@
 (function () {
-  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  const pathParts = window.location.pathname.split('/').filter(Boolean).map((segment) => {
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      return segment;
+    }
+  });
   if (pathParts.length < 3 || pathParts[0] !== 'Presentations') return;
   if (new URLSearchParams(window.location.search).get('embedded') === '1') {
     const embeddedStyle = document.createElement('style');
@@ -24,7 +30,7 @@
   }
 
   const deckBasePath = `/${pathParts.slice(0, 2).join('/')}`;
-  const currentFile = pathParts[pathParts.length - 1];
+  const currentFile = pathParts.slice(2).join('/');
   const deckId = pathParts[1];
   let activeSlideFile = currentFile;
 
@@ -148,6 +154,7 @@
   let pendingLocalSlideFile = null;
   let ignoreLiveSessionUntil = 0;
   let presentationShellVisible = false;
+  let companionBindingsByStep = {};
 
   try {
     const storedPendingSlide = window.sessionStorage.getItem(pendingSlideStorageKey);
@@ -285,6 +292,116 @@
       : (typeof fallbackIndex === 'number' && fallbackIndex > 0 ? fallbackIndex : 1);
   };
 
+  const getCompanionBindingForStep = (step) => {
+    if (!step || !companionBindingsByStep || typeof companionBindingsByStep !== 'object') {
+      return null;
+    }
+
+    const binding = companionBindingsByStep[step];
+    if (!binding || typeof binding !== 'object') {
+      return null;
+    }
+
+    return binding;
+  };
+
+  const getCompanionRoots = () => {
+    const roots = [document];
+
+    if (
+      presentationShellVisible
+      && presentationFrame instanceof HTMLIFrameElement
+      && presentationFrame.contentDocument
+      && presentationFrame.contentDocument !== document
+    ) {
+      roots.push(presentationFrame.contentDocument);
+    }
+
+    return roots;
+  };
+
+  const queryCompanionTargets = (root, attributeName, binding) => {
+    if (!root || typeof root.querySelectorAll !== 'function') return [];
+
+    return Array.from(root.querySelectorAll(`[${attributeName}]`)).filter((element) => {
+      const rawValue = element.getAttribute(attributeName);
+      const value = typeof rawValue === 'string' ? rawValue.trim() : '';
+      if (!value) return true;
+      return value === binding?.slideStep || value === binding?.responseKey;
+    });
+  };
+
+  const setCompanionRootState = (root, binding, currentStep, responseCount, respondentCount, fillPercent, latestAt) => {
+    const state = responseCount > 0 ? 'active' : 'idle';
+
+    if (root.documentElement instanceof HTMLElement) {
+      root.documentElement.dataset.companionStep = currentStep;
+      root.documentElement.dataset.companionState = state;
+      root.documentElement.dataset.companionResponseCount = String(responseCount);
+      root.documentElement.dataset.companionRespondentCount = String(respondentCount);
+      root.documentElement.dataset.companionFillPercent = String(fillPercent);
+      root.documentElement.dataset.companionLatestAt = latestAt || '';
+      root.documentElement.dataset.companionResponseKey = binding?.responseKey || '';
+      root.documentElement.dataset.companionInteractionMode = binding?.interactionMode || '';
+      root.documentElement.dataset.companionMainEffect = binding?.mainSlideEffect || '';
+    }
+
+    const counterTargets = queryCompanionTargets(root, 'data-companion-counter', binding);
+    counterTargets.forEach((element) => {
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+        element.value = String(responseCount);
+      } else {
+        element.textContent = String(responseCount);
+      }
+      element.dataset.companionState = state;
+      element.dataset.companionResponseCount = String(responseCount);
+      element.dataset.companionRespondentCount = String(respondentCount);
+    });
+
+    const stageTargets = [
+      ...queryCompanionTargets(root, 'data-companion-stage', binding),
+      ...queryCompanionTargets(root, 'data-companion-toggle', binding),
+      ...queryCompanionTargets(root, 'data-companion-visual', binding),
+    ];
+
+    stageTargets.forEach((element) => {
+      element.dataset.companionState = state;
+      element.dataset.companionResponseCount = String(responseCount);
+      element.dataset.companionRespondentCount = String(respondentCount);
+      element.dataset.companionFillPercent = String(fillPercent);
+      element.dataset.companionLatestAt = latestAt || '';
+      element.classList.toggle('is-visible', responseCount > 0);
+      element.classList.toggle('is-active', responseCount > 0);
+      element.classList.toggle('is-hidden', responseCount === 0);
+      element.setAttribute('aria-hidden', String(responseCount === 0));
+    });
+
+    const eventDetail = {
+      step: currentStep,
+      binding,
+      responseCount,
+      respondentCount,
+      fillPercent,
+      latestAt: latestAt || null,
+    };
+
+    root.dispatchEvent(new CustomEvent('presentation:companion-update', { detail: eventDetail }));
+  };
+
+  const applyCompanionBindingState = (currentStep, summaryPayload) => {
+    const binding = getCompanionBindingForStep(currentStep);
+    const responseCount = Number.isFinite(summaryPayload?.responseCount) ? summaryPayload.responseCount : 0;
+    const respondentCount = Number.isFinite(summaryPayload?.respondentCount) ? summaryPayload.respondentCount : 0;
+    const fillPercent = Number.isFinite(summaryPayload?.fillPercent)
+      ? summaryPayload.fillPercent
+      : Math.min(100, responseCount * 20);
+    const latestAt = typeof summaryPayload?.latestAt === 'string' ? summaryPayload.latestAt : '';
+
+    getCompanionRoots().forEach((root) => {
+      setCompanionRootState(root, binding, currentStep, responseCount, respondentCount, fillPercent, latestAt);
+    });
+  };
+
   const getLiveSessionStateUpdatedAtEpoch = (state) => {
     const raw = state && typeof state.updatedAt === 'string' ? state.updatedAt : '';
     if (!raw.trim()) return 0;
@@ -384,7 +501,10 @@
     window.location.href = `${deckBasePath}`;
   });
 
-  const setAudienceQrVisible = (visible) => {
+  const setAudienceQrVisible = async (visible) => {
+    if (visible) {
+      await pushToAudience(inferStepFromFile(activeSlideFile, currentIndex + 1), activeSlideFile);
+    }
     syncAudienceQrFrame({ title: 'Live QR' });
     audienceQrOverlay.classList.toggle('deck-audience-qr--visible', visible);
     if (audienceQrButton instanceof HTMLButtonElement) {
@@ -401,9 +521,13 @@
     }
   };
 
-  audienceQrButton?.addEventListener('click', () => {
+  audienceQrButton?.addEventListener('click', async () => {
     setMenuOpen(false);
-    setAudienceQrVisible(!audienceQrOverlay.classList.contains('deck-audience-qr--visible'));
+    try {
+      await setAudienceQrVisible(!audienceQrOverlay.classList.contains('deck-audience-qr--visible'));
+    } catch (error) {
+      console.error('Unable to toggle audience QR.', error);
+    }
   });
 
   contractQrButton?.addEventListener('click', () => {
@@ -481,8 +605,8 @@
     }
   });
 
-  audienceQrCloseButton?.addEventListener('click', () => {
-    setAudienceQrVisible(false);
+  audienceQrCloseButton?.addEventListener('click', async () => {
+    await setAudienceQrVisible(false);
   });
 
   const syncNotesState = () => {
@@ -668,12 +792,16 @@
     if (!currentSessionToken) return;
     const currentStep = inferStepFromFile(activeSlideFile, currentIndex + 1);
     const currentSlideNumber = inferSlideNumberFromFile(activeSlideFile, currentIndex + 1);
+    const companionBinding = getCompanionBindingForStep(currentStep);
     const summaryUrl = new URL('/api/live-session/responses', window.location.origin);
     summaryUrl.searchParams.set('deckId', deckId);
     summaryUrl.searchParams.set('slideStep', currentStep);
     summaryUrl.searchParams.set('currentSlide', activeSlideFile);
     summaryUrl.searchParams.set('slideNumber', String(currentSlideNumber));
     summaryUrl.searchParams.set('sessionToken', currentSessionToken);
+    if (companionBinding?.responseKey) {
+      summaryUrl.searchParams.set('responseKey', companionBinding.responseKey);
+    }
 
     try {
       const response = await fetch(summaryUrl.toString(), { cache: 'no-store' });
@@ -709,10 +837,18 @@
         }, 650);
         lastRespondentCount = responseCount;
       }
+
+      applyCompanionBindingState(currentStep, payload);
     } catch (error) {
       console.error('Unable to refresh response summary.', error);
     }
   };
+
+  presentationFrame?.addEventListener('load', () => {
+    if (presentationShellVisible) {
+      void syncResponseRail();
+    }
+  });
 
   const canHandleKeyEvent = (event) => {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return false;
@@ -762,6 +898,9 @@
     .then(async (manifest) => {
       if (!manifest || !Array.isArray(manifest.slides)) return;
       slideOrder = manifest.slides.filter((slide) => typeof slide === 'string');
+      companionBindingsByStep = manifest?.companion?.bindingsByStep && typeof manifest.companion.bindingsByStep === 'object'
+        ? manifest.companion.bindingsByStep
+        : {};
       const qrOverlayEnabled = manifest.audience?.qrOverlayEnabled !== false;
       if (audienceQrButton instanceof HTMLButtonElement && !qrOverlayEnabled) {
         audienceQrButton.style.display = 'none';

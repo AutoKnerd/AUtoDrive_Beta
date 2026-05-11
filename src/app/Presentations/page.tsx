@@ -31,6 +31,7 @@ export default async function PresentationsIndexPage() {
               <div className="mt-6 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/40">
                 <span>{deck.slideCount} Slides</span>
                 <span>{deck.audience?.enabled === false ? 'Audience Off' : 'Audience Ready'}</span>
+                <span>{deck.companion?.enabled ? 'Companion Ready' : 'Companion Off'}</span>
               </div>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link

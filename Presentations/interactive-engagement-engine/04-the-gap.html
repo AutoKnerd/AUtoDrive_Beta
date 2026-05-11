@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Gap - Enablement Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-surface-variant": "#c0cab5",
+                        "surface-dim": "#10150c",
+                        "primary-fixed": "#a4f875",
+                        "surface-tint": "#8adb5c",
+                        "on-primary-fixed": "#082100",
+                        "surface-container-lowest": "#0b1008",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed-variant": "#474746",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface": "#10150c",
+                        "on-tertiary-container": "#3e4041",
+                        "surface-container": "#1c2118",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-secondary": "#313030",
+                        "surface-container-high": "#262c22",
+                        "tertiary": "#c7c7c7",
+                        "surface-container-highest": "#31362d",
+                        "surface-container-low": "#181d14",
+                        "on-error": "#690005",
+                        "on-background": "#dfe4d6",
+                        "on-secondary-container": "#b7b5b4",
+                        "on-tertiary": "#2f3131",
+                        "tertiary-container": "#abacac",
+                        "secondary-fixed": "#e5e2e1",
+                        "outline-variant": "#41493a",
+                        "on-surface": "#dfe4d6",
+                        "inverse-primary": "#2c6c00",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-error-container": "#ffdad6",
+                        "error": "#ffb4ab",
+                        "on-primary": "#133800",
+                        "inverse-surface": "#dfe4d6",
+                        "primary-fixed-dim": "#8adb5c",
+                        "on-primary-fixed-variant": "#1f5100",
+                        "inverse-on-surface": "#2d3228",
+                        "background": "#10150c",
+                        "secondary-container": "#474746",
+                        "surface-variant": "#31362d",
+                        "on-primary-container": "#1b4a00",
+                        "primary-container": "#70bf44",
+                        "primary": "#8adc5d",
+                        "surface-bright": "#363b31",
+                        "secondary": "#c8c6c5",
+                        "outline": "#8a9481"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "md": "24px",
+                        "xs": "4px",
+                        "sm": "12px",
+                        "container-max": "1440px",
+                        "base": "8px",
+                        "lg": "48px",
+                        "xl": "80px",
+                        "gutter": "24px"
+                    },
+                    fontFamily: {
+                        "data-mono": ["Inter"],
+                        "h2": ["Manrope"],
+                        "body-sm": ["Inter"],
+                        "label": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "h3": ["Manrope"],
+                        "h1": ["Manrope"]
+                    },
+                    fontSize: {
+                        "data-mono": ["16px", { lineHeight: "1", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "h2": ["32px", { lineHeight: "1.3", letterSpacing: "-0.01em", fontWeight: "700" }],
+                        "body-sm": ["14px", { lineHeight: "1.5", fontWeight: "300" }],
+                        "label": ["12px", { lineHeight: "1", fontWeight: "500" }],
+                        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "h3": ["24px", { lineHeight: "1.4", fontWeight: "600" }],
+                        "h1": ["40px", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "800" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .neon-glow {
+            box-shadow: 0 0 15px #70bf44;
+        }
+        .neon-text-glow {
+            text-shadow: 0 0 10px rgba(112, 191, 68, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-[#10150c] text-on-background min-h-screen flex flex-col font-body-sm overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<header class="flex justify-between items-center w-full px-12 h-20 bg-[#0A0A0A] top-0 border-b border-[#222222] z-50 fixed">
+<div class="text-xl font-black text-[#70BF44] tracking-tighter">ENABLEMENT ENGINE</div>
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined text-[#70BF44] cursor-pointer hover:text-[#70BF44] transition-colors duration-300">settings</span>
+<span class="material-symbols-outlined text-[#70BF44] cursor-pointer hover:text-[#70BF44] transition-colors duration-300">sync_alt</span>
+<span class="material-symbols-outlined text-[#70BF44] cursor-pointer hover:text-[#70BF44] transition-colors duration-300">account_circle</span>
+</div>
+</header>
+<div class="flex flex-1 pt-20">
+<main class="flex-1 flex flex-col relative bg-[#10150c]">
+<div class="flex-1 flex flex-col justify-center items-center px-lg py-xl">
+<div class="max-w-4xl w-full text-center space-y-12 z-10">
+<div class="space-y-4">
+<h1 class="font-h1 text-h1 text-on-surface tracking-tight uppercase">
+                            Knowing <span class="text-primary-container neon-text-glow">≠</span> Doing
+                        </h1>
+<h3 class="font-h3 text-h3 text-on-surface-variant font-light">
+                            There is no system connecting training to behavior
+                        </h3>
+</div>
+<div class="relative h-64 w-full flex items-center justify-center mt-16">
+<div class="absolute left-[15%] w-1/4 h-2 bg-outline-variant rounded-full"></div>
+<div class="absolute right-[15%] w-1/4 h-2 bg-outline-variant rounded-full"></div>
+<svg class="absolute w-full h-full" fill="none" viewbox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+<path class="opacity-70" d="M280 100 Q 350 100 380 40" stroke="#70bf44" stroke-dasharray="10 5" stroke-linecap="round" stroke-width="3"></path>
+<circle cx="380" cy="40" fill="#70bf44" r="4"></circle>
+<path class="opacity-70" d="M520 100 Q 450 100 420 160" stroke="#70bf44" stroke-dasharray="10 5" stroke-linecap="round" stroke-width="3"></path>
+<circle cx="420" cy="160" fill="#70bf44" r="4"></circle>
+<circle class="opacity-50" cx="400" cy="100" fill="#70bf44" r="2"></circle>
+<circle class="opacity-80" cx="410" cy="85" fill="#70bf44" r="3"></circle>
+<circle class="opacity-60" cx="390" cy="115" fill="#70bf44" r="2"></circle>
+<circle class="opacity-40" cx="395" cy="70" fill="#70bf44" r="1.5"></circle>
+<circle class="opacity-40" cx="405" cy="130" fill="#70bf44" r="1.5"></circle>
+</svg>
+<div class="absolute left-[20%] top-[60%] font-data-mono text-data-mono text-on-surface-variant opacity-60">TRAINING<br/>PLATFORMS</div>
+<div class="absolute right-[20%] top-[60%] font-data-mono text-data-mono text-on-surface-variant opacity-60">OPERATIONAL<br/>BEHAVIOR</div>
+</div>
+</div>
+<div class="absolute inset-0 pointer-events-none opacity-[0.03]" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 32px 32px;"></div>
+</div>
+</main>
+</div>
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-8 px-8 py-3 bg-[#10150c]/92 backdrop-blur-md rounded-full border border-[#8a9481]/24 shadow-[0_0_20px_rgba(138,220,93,0.08)] font-[Inter] text-[11px] tracking-[0.22em] uppercase">
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/03-the-real-problem.html">
+    <span class="material-symbols-outlined text-sm">chevron_left</span>
+    <span>Back</span>
+  </a>
+  <div class="flex items-center gap-4 px-5 py-2 rounded-full border border-[#8a9481]/18 bg-[#181d14] text-[#8adc5d] font-semibold tracking-[0.28em]">
+    <span class="material-symbols-outlined text-sm">play_arrow</span>
+    <span>4 / 5</span>
+  </div>
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/05-the-opportunity.html">
+    <span>Forward</span>
+    <span class="material-symbols-outlined text-sm">chevron_right</span>
+  </a>
+</footer>
+</body></html>

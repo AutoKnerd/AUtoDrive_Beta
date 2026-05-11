@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 function parseArgs(argv) {
@@ -222,14 +223,102 @@ function createAudienceContent(slides) {
   }, {});
 }
 
+function createCompanionContent({ step, title }) {
+  return {
+    eyebrow: 'Companion App',
+    title,
+    body: `Companion content for ${title}.`,
+    prompt: 'This companion page can now be wired to the main presentation.',
+    speakerNotes: [`Binds to ${step}`],
+  };
+}
+
+async function readExistingManifest(deckDir) {
+  try {
+    const payload = await readFile(path.join(deckDir, 'manifest.json'), 'utf8');
+    const parsed = JSON.parse(payload);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildManifest({
+  deckId,
+  title,
+  description,
+  slides,
+  existingManifest,
+  companion,
+}) {
+  const existingAudience = existingManifest?.audience && typeof existingManifest.audience === 'object'
+    ? existingManifest.audience
+    : undefined;
+  const existingCompanion = existingManifest?.companion && typeof existingManifest.companion === 'object'
+    ? existingManifest.companion
+    : undefined;
+
+  return {
+    deckId,
+    title,
+    description,
+    entry: 'index.html',
+    slideCount: slides.length,
+    slides,
+    audience: {
+      enabled: existingAudience?.enabled !== false,
+      liveSessionId: typeof existingAudience?.liveSessionId === 'string' && existingAudience.liveSessionId.trim().length > 0
+        ? existingAudience.liveSessionId.trim()
+        : `${deckId}-main`,
+      qrOverlayEnabled: existingAudience?.qrOverlayEnabled !== false,
+      contentByStep: {
+        ...(slides.length > 0 ? createAudienceContent(slides) : {}),
+        ...(existingAudience?.contentByStep ?? {}),
+      },
+    },
+    companion: {
+      enabled: companion ? true : existingCompanion?.enabled === true,
+      entry: companion?.entry || existingCompanion?.entry || 'companion/index.html',
+      files: companion?.files || existingCompanion?.files || [],
+      contentByStep: {
+        ...(existingCompanion?.contentByStep ?? {}),
+        ...(companion?.contentByStep ?? {}),
+      },
+      bindingsByStep: {
+        ...(existingCompanion?.bindingsByStep ?? {}),
+        ...(companion?.bindingsByStep ?? {}),
+      },
+    },
+    createdAt: existingManifest?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function writeManifestFile(deckDir, manifest) {
+  return writeFile(path.join(deckDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+}
+
+function buildCompanionFileName(step, chunk) {
+  const commentLabel = readCommentLabel(chunk);
+  const htmlTitle = readHtmlTitle(chunk);
+  const rawLabel = commentLabel.includes('|')
+    ? commentLabel.split('|').slice(1).join('|').trim()
+    : (commentLabel || htmlTitle || step);
+  const slug = slugify(rawLabel) || step;
+  return `${step}-${slug}.html`;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const inputPath = args.input ? path.resolve(process.cwd(), args.input) : '';
   const deckId = slugify(args['deck-id'] || args.deck || '');
   const overwrite = args.overwrite === 'true';
+  const mode = (args.mode || 'slides').toLowerCase();
+  const targetStep = String(args['target-step'] || args.step || '').trim();
+  const responseKey = String(args['response-key'] || args.responseKey || '').trim();
 
   if (!inputPath || !deckId) {
-    console.error('Usage: npm run import:presentation -- --input path/to/presentation.html --deck-id your-deck-id [--title "Deck Title"] [--description "Deck description"] [--overwrite]');
+    console.error('Usage: npm run import:presentation -- --input path/to/presentation.html --deck-id your-deck-id [--mode slides|companion] [--step slide1] [--response-key key] [--title "Deck Title"] [--description "Deck description"] [--overwrite]');
     process.exit(1);
   }
 
@@ -237,19 +326,94 @@ async function main() {
   const documents = extractSlideDocuments(source);
 
   if (documents.length === 0) {
-    console.error('No HTML slide documents found. Expected one or more full <!DOCTYPE html> ... </html> blocks.');
+    console.error('No HTML documents found. Expected one or more full <!DOCTYPE html> ... </html> blocks.');
     process.exit(1);
   }
 
   const deckTitle = args.title || titleCaseDeckId(deckId);
   const description = args.description || 'Imported from raw HTML into the AutoKnerd presentation engine.';
   const deckDir = path.join(process.cwd(), 'Presentations', deckId);
+  const existingManifestBeforeOverwrite = await readExistingManifest(deckDir);
+  let preservedCompanionDir = '';
 
-  if (overwrite) {
+  if (overwrite && mode !== 'companion' && existingManifestBeforeOverwrite?.companion?.enabled === true) {
+    const sourceCompanionDir = path.join(deckDir, 'companion');
+    try {
+      preservedCompanionDir = await mkdtemp(path.join(os.tmpdir(), `${deckId}-companion-`));
+      await cp(sourceCompanionDir, path.join(preservedCompanionDir, 'companion'), { recursive: true });
+    } catch {
+      preservedCompanionDir = '';
+    }
+  }
+
+  if (overwrite && mode !== 'companion') {
     await rm(deckDir, { recursive: true, force: true });
   }
 
   await mkdir(deckDir, { recursive: true });
+
+  const existingManifest = overwrite && mode !== 'companion'
+    ? existingManifestBeforeOverwrite
+    : await readExistingManifest(deckDir);
+
+  if (mode === 'companion') {
+    if (!existingManifest || !Array.isArray(existingManifest.slides) || existingManifest.slides.length === 0) {
+      console.error('Companion import requires an existing deck with slides. Import slide HTML first.');
+      process.exit(1);
+    }
+
+    if (!targetStep) {
+      console.error('Companion import requires --step slide1 (or another slide step) so the companion page can be bound.');
+      process.exit(1);
+    }
+
+    const companionDir = path.join(deckDir, 'companion');
+    await mkdir(companionDir, { recursive: true });
+    const companionDocs = documents.slice(0, 1);
+    const companionFileName = buildCompanionFileName(targetStep, companionDocs[0]);
+    const companionPath = path.join('companion', companionFileName);
+    const existingCompanionFiles = Array.isArray(existingManifest.companion?.files)
+      ? existingManifest.companion.files.filter((file) => typeof file === 'string' && file.trim().length > 0)
+      : [];
+    const mergedCompanionFiles = Array.from(new Set([...existingCompanionFiles, companionPath]));
+
+    await writeFile(
+      path.join(companionDir, companionFileName),
+      companionDocs[0],
+      'utf8',
+    );
+
+    const manifest = buildManifest({
+      deckId,
+      title: typeof existingManifest.title === 'string' && existingManifest.title.trim().length > 0 ? existingManifest.title.trim() : deckTitle,
+      description: typeof existingManifest.description === 'string' && existingManifest.description.trim().length > 0 ? existingManifest.description.trim() : description,
+      slides: existingManifest.slides.filter((slide) => typeof slide === 'string' && slide.trim().length > 0),
+      existingManifest,
+      companion: {
+        enabled: true,
+        entry: companionPath,
+        files: mergedCompanionFiles,
+        contentByStep: {
+          [targetStep]: createCompanionContent({
+            step: targetStep,
+            title: readHtmlTitle(companionDocs[0]) || titleCaseDeckId(deckId),
+          }),
+        },
+        bindingsByStep: {
+          [targetStep]: {
+            slideStep: targetStep,
+            responseKey: responseKey || `${deckId}-${targetStep}`,
+            interactionMode: 'question',
+            mainSlideEffect: 'counter',
+          },
+        },
+      },
+    });
+
+    await writeManifestFile(deckDir, manifest);
+    console.log(`Imported companion HTML for ${targetStep} into Presentations/${deckId}`);
+    return;
+  }
 
   const usedNames = new Set();
   const slides = [];
@@ -274,23 +438,25 @@ async function main() {
     );
   }
 
-  const manifest = {
+  const manifest = buildManifest({
     deckId,
     title: deckTitle,
     description,
-    entry: 'index.html',
-    slideCount: slides.length,
     slides,
-    audience: {
-      enabled: true,
-      liveSessionId: `${deckId}-main`,
-      qrOverlayEnabled: true,
-      contentByStep: createAudienceContent(slides),
-    },
-    createdAt: new Date().toISOString(),
-  };
+    existingManifest,
+  });
 
-  await writeFile(path.join(deckDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  if (preservedCompanionDir) {
+    try {
+      await cp(path.join(preservedCompanionDir, 'companion'), path.join(deckDir, 'companion'), { recursive: true });
+    } catch {
+      // Ignore restoration failures; the manifest still preserves metadata for later repair.
+    } finally {
+      await rm(preservedCompanionDir, { recursive: true, force: true });
+    }
+  }
+
+  await writeManifestFile(deckDir, manifest);
   await writeFile(path.join(deckDir, 'index.html'), createDeckIndex({ deckId, deckTitle, description, slides }), 'utf8');
 
   console.log(`Imported ${slides.length} slides into Presentations/${deckId}`);

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Enablement Engine - Mission Control</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration (Design System) -->
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed-variant": "#454747",
+                      "on-surface-variant": "#c0cab5",
+                      "surface-dim": "#10150c",
+                      "primary-fixed": "#a4f875",
+                      "surface-tint": "#8adb5c",
+                      "on-primary-fixed": "#082100",
+                      "surface-container-lowest": "#0b1008",
+                      "error-container": "#93000a",
+                      "tertiary-fixed-dim": "#c6c6c7",
+                      "on-secondary-fixed-variant": "#474746",
+                      "tertiary-fixed": "#e2e2e2",
+                      "surface": "#10150c",
+                      "on-tertiary-container": "#3e4041",
+                      "surface-container": "#1c2118",
+                      "secondary-fixed-dim": "#c8c6c5",
+                      "on-secondary-fixed": "#1c1b1b",
+                      "on-secondary": "#313030",
+                      "surface-container-high": "#262c22",
+                      "tertiary": "#c7c7c7",
+                      "surface-container-highest": "#31362d",
+                      "surface-container-low": "#181d14",
+                      "on-error": "#690005",
+                      "on-background": "#dfe4d6",
+                      "on-secondary-container": "#b7b5b4",
+                      "on-tertiary": "#2f3131",
+                      "tertiary-container": "#abacac",
+                      "secondary-fixed": "#e5e2e1",
+                      "outline-variant": "#41493a",
+                      "on-surface": "#dfe4d6",
+                      "inverse-primary": "#2c6c00",
+                      "on-tertiary-fixed": "#1a1c1c",
+                      "on-error-container": "#ffdad6",
+                      "error": "#ffb4ab",
+                      "on-primary": "#133800",
+                      "inverse-surface": "#dfe4d6",
+                      "primary-fixed-dim": "#8adb5c",
+                      "on-primary-fixed-variant": "#1f5100",
+                      "inverse-on-surface": "#2d3228",
+                      "background": "#10150c",
+                      "secondary-container": "#474746",
+                      "surface-variant": "#31362d",
+                      "on-primary-container": "#1b4a00",
+                      "primary-container": "#70bf44",
+                      "primary": "#8adc5d",
+                      "surface-bright": "#363b31",
+                      "secondary": "#c8c6c5",
+                      "outline": "#8a9481"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "24px",
+                      "xs": "4px",
+                      "sm": "12px",
+                      "container-max": "1440px",
+                      "base": "8px",
+                      "lg": "48px",
+                      "xl": "80px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "data-mono": ["Inter"],
+                      "h2": ["Manrope"],
+                      "body-sm": ["Inter"],
+                      "label": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "h3": ["Manrope"],
+                      "h1": ["Manrope"]
+              },
+              "fontSize": {
+                      "data-mono": ["16px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "h2": ["32px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                      "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "300"}],
+                      "label": ["12px", {"lineHeight": "1", "fontWeight": "500"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "h3": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                      "h1": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface h-screen overflow-hidden flex font-body-lg text-body-lg w-full">
+<!-- Main Content Area -->
+<main class="w-full flex-1 flex flex-col h-full relative z-40">
+<!-- TopAppBar (Shared Component) -->
+<header class="bg-[#0A0A0A] docked full-width top-0 border-b border-b border-[#222222] flat no shadows flex justify-between items-center w-full px-12 h-20 shrink-0">
+<!-- Brand -->
+<div class="flex items-center">
+<span class="text-xl font-black text-[#70BF44] tracking-tighter">ENABLEMENT ENGINE</span>
+</div>
+<!-- Trailing Icons -->
+<div class="flex items-center gap-md text-[#70BF44]">
+<button class="hover:text-[#70BF44] transition-colors duration-300 opacity-80">
+<span class="material-symbols-outlined text-[24px]">settings</span>
+</button>
+<button class="hover:text-[#70BF44] transition-colors duration-300 opacity-80">
+<span class="material-symbols-outlined text-[24px]">sync_alt</span>
+</button>
+<button class="hover:text-[#70BF44] transition-colors duration-300 opacity-80">
+<span class="material-symbols-outlined text-[24px]">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Slide Canvas -->
+<div class="flex-1 overflow-y-auto bg-background p-xl flex flex-col justify-center items-center">
+<div class="w-full max-w-[1200px] flex flex-col items-center">
+<!-- Headers -->
+<div class="text-center mb-xl">
+<h1 class="font-h1 text-h1 text-on-surface mb-sm">Training Doesn’t Fail From Lack of Content</h1>
+<h2 class="font-h2 text-h2 text-primary">It fails from lack of application</h2>
+</div>
+<!-- High Contrast Split Diagram -->
+<div class="w-full flex items-stretch gap-lg relative mt-md">
+<!-- Left: Content (Diminished) -->
+<div class="flex-1 bg-surface-container border border-outline-variant rounded-xl p-xl flex flex-col items-center justify-center opacity-70 transition-opacity hover:opacity-100">
+<span class="material-symbols-outlined text-[64px] text-on-surface-variant mb-md" style="font-variation-settings: 'wght' 200;">description</span>
+<h3 class="font-data-mono text-data-mono text-on-surface-variant tracking-[0.2em] mb-sm">STATIC CONTENT</h3>
+<p class="font-body-sm text-body-sm text-center text-outline max-w-[280px]">
+                            Information stored without contextual triggers or behavioral reinforcement mechanisms.
+                        </p>
+</div>
+<!-- Center Divider -->
+<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-background rounded-full p-2 border border-outline-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[32px]">arrow_forward</span>
+</div>
+<!-- Right: Application (Highlighted) -->
+<div class="flex-1 bg-[#141414] border border-[#222222] border-b-4 border-b-primary rounded-xl p-xl flex flex-col items-center justify-center shadow-[0_8px_32px_rgba(112,191,68,0.05)] relative overflow-hidden group">
+<!-- Subtle Glow -->
+<div class="absolute inset-0 bg-gradient-to-b from-transparent to-[rgba(112,191,68,0.03)] opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+<span class="material-symbols-outlined text-[64px] text-primary mb-md drop-shadow-[0_0_15px_rgba(112,191,68,0.4)]" style="font-variation-settings: 'FILL' 1;">electric_bolt</span>
+<h3 class="font-data-mono text-data-mono text-on-surface tracking-[0.2em] mb-sm">APPLIED BEHAVIOR</h3>
+<p class="font-body-sm text-body-sm text-center text-on-surface-variant max-w-[280px]">
+                            Active utilization of knowledge directly within the operational workflow.
+                        </p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-8 px-8 py-3 bg-[#10150c]/92 backdrop-blur-md rounded-full border border-[#8a9481]/24 shadow-[0_0_20px_rgba(138,220,93,0.08)] font-[Inter] text-[11px] tracking-[0.22em] uppercase">
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations">
+    <span class="material-symbols-outlined text-sm">chevron_left</span>
+    <span>Back</span>
+  </a>
+  <div class="flex items-center gap-4 px-5 py-2 rounded-full border border-[#8a9481]/18 bg-[#181d14] text-[#8adc5d] font-semibold tracking-[0.28em]">
+    <span class="material-symbols-outlined text-sm">play_arrow</span>
+    <span>1 / 3</span>
+  </div>
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/02-the-problem.html">
+    <span>Forward</span>
+    <span class="material-symbols-outlined text-sm">chevron_right</span>
+  </a>
+</footer>
+</body></html>

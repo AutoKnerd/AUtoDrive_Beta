@@ -1,0 +1,311 @@
+{
+  "deckId": "audienceos",
+  "title": "AutoKnerd AudienceOS",
+  "description": "This is the presentation system with companion app",
+  "entry": "index.html",
+  "slideCount": 13,
+  "slides": [
+    "01-the-presentation-engine-slide-01.html",
+    "02-traditional-training-problem-slide.html",
+    "03-missing-images-background-image-of-a-trainer-in-front-of-a-dashboard-used-placeholder.html",
+    "04-modular-presentation-architecture-slide.html",
+    "05-presentation-slide-05-built-for-live-facilitation.html",
+    "06-slide-06-a-connected-learning-environment.html",
+    "07-slide-07-ai-support-layer.html",
+    "08-live-session-intelligence-slide-08.html",
+    "09-slide-09-why-this-matters.html",
+    "10-slide-10-better-training-data.html",
+    "11-industry-agnostic-by-design-slide-11.html",
+    "12-presentation-slide-12-vision.html",
+    "13-questions-and-amp-brainstorming-autoknerd.html"
+  ],
+  "audience": {
+    "enabled": true,
+    "liveSessionId": "audienceos-main",
+    "qrOverlayEnabled": true,
+    "contentByStep": {
+      "slide1": {
+        "eyebrow": "Live Session",
+        "title": "The Presentation Engine Slide 01",
+        "body": "You are viewing synced audience content for The Presentation Engine Slide 01.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide2": {
+        "eyebrow": "Live Session",
+        "title": "Traditional Training Problem Slide",
+        "body": "You are viewing synced audience content for Traditional Training Problem Slide.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide3": {
+        "eyebrow": "Live Session",
+        "title": "Missing Images Background Image Of A Trainer In Front Of A Dashboard Used Placeholder",
+        "body": "You are viewing synced audience content for Missing Images Background Image Of A Trainer In Front Of A Dashboard Used Placeholder.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide4": {
+        "eyebrow": "Live Session",
+        "title": "Modular Presentation Architecture Slide",
+        "body": "You are viewing synced audience content for Modular Presentation Architecture Slide.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide5": {
+        "eyebrow": "Live Session",
+        "title": "Presentation Slide 05 Built For Live Facilitation",
+        "body": "You are viewing synced audience content for Presentation Slide 05 Built For Live Facilitation.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide6": {
+        "eyebrow": "Live Session",
+        "title": "Slide 06 A Connected Learning Environment",
+        "body": "You are viewing synced audience content for Slide 06 A Connected Learning Environment.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide7": {
+        "eyebrow": "Live Session",
+        "title": "Slide 07 Ai Support Layer",
+        "body": "You are viewing synced audience content for Slide 07 Ai Support Layer.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide8": {
+        "eyebrow": "Live Session",
+        "title": "Live Session Intelligence Slide 08",
+        "body": "You are viewing synced audience content for Live Session Intelligence Slide 08.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide9": {
+        "eyebrow": "Live Session",
+        "title": "Slide 09 Why This Matters",
+        "body": "You are viewing synced audience content for Slide 09 Why This Matters.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide10": {
+        "eyebrow": "Live Session",
+        "title": "Slide 10 Better Training Data",
+        "body": "You are viewing synced audience content for Slide 10 Better Training Data.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide11": {
+        "eyebrow": "Live Session",
+        "title": "Industry Agnostic By Design Slide 11",
+        "body": "You are viewing synced audience content for Industry Agnostic By Design Slide 11.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide12": {
+        "eyebrow": "Live Session",
+        "title": "Presentation Slide 12 Vision",
+        "body": "You are viewing synced audience content for Presentation Slide 12 Vision.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      },
+      "slide13": {
+        "eyebrow": "Live Session",
+        "title": "Questions And Amp Brainstorming Autoknerd",
+        "body": "You are viewing synced audience content for Questions And Amp Brainstorming Autoknerd.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
+      }
+    }
+  },
+  "companion": {
+    "enabled": true,
+    "entry": "companion/slide1-aether-presentation-companion.html",
+    "files": [
+      "companion/slide1-aether-presentation-companion.html",
+      "companion/slide2-autoknerd-live-session.html",
+      "companion/slide3-aether-modern-system-slide.html",
+      "companion/slide4-aether-modular-presentation-architecture.html",
+      "companion/slide5-presenter-assistance-layer.html",
+      "companion/slide6-slide6.html",
+      "companion/slide7-ai-as-a-training-partner.html",
+      "companion/slide8-live-session-intelligence-kinetic-engine.html",
+      "companion/slide9-aether-presentation-companion.html",
+      "companion/slide10-slide10.html",
+      "companion/slide11-slide11.html",
+      "companion/slide12-kinetic-engine-companion-slide.html"
+    ],
+    "contentByStep": {
+      "slide1": {
+        "eyebrow": "Companion App",
+        "title": "Aether - Presentation Companion",
+        "body": "Companion content for Aether - Presentation Companion.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide1"
+        ]
+      },
+      "slide2": {
+        "eyebrow": "Companion App",
+        "title": "AutoKnerd Live Session",
+        "body": "Companion content for AutoKnerd Live Session.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide2"
+        ]
+      },
+      "slide3": {
+        "eyebrow": "Companion App",
+        "title": "AETHER - Modern System Slide",
+        "body": "Companion content for AETHER - Modern System Slide.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide3"
+        ]
+      },
+      "slide4": {
+        "eyebrow": "Companion App",
+        "title": "AETHER - Modular Presentation Architecture",
+        "body": "Companion content for AETHER - Modular Presentation Architecture.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide4"
+        ]
+      },
+      "slide5": {
+        "eyebrow": "Companion App",
+        "title": "Presenter Assistance Layer",
+        "body": "Companion content for Presenter Assistance Layer.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide5"
+        ]
+      },
+      "slide6": {
+        "eyebrow": "Companion App",
+        "title": "Live Audience Participation",
+        "body": "Companion content for Live Audience Participation.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide6"
+        ]
+      },
+      "slide7": {
+        "eyebrow": "Companion App",
+        "title": "AI AS A TRAINING PARTNER",
+        "body": "Companion content for AI AS A TRAINING PARTNER.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide7"
+        ]
+      },
+      "slide8": {
+        "eyebrow": "Companion App",
+        "title": "Live Session Intelligence - Kinetic Engine",
+        "body": "Companion content for Live Session Intelligence - Kinetic Engine.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide8"
+        ]
+      },
+      "slide9": {
+        "eyebrow": "Companion App",
+        "title": "Strategic Opportunity Assessment",
+        "body": "Companion content for Strategic Opportunity Assessment.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide9"
+        ]
+      },
+      "slide10": {
+        "eyebrow": "Companion App",
+        "title": "Operational Intelligence Assessment",
+        "body": "Companion content for Operational Intelligence Assessment.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide10"
+        ]
+      },
+      "slide11": {
+        "eyebrow": "Companion App",
+        "title": "Industry-Agnostic Flexibility",
+        "body": "Companion content for Industry-Agnostic Flexibility.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide11"
+        ]
+      },
+      "slide12": {
+        "eyebrow": "Companion App",
+        "title": "Kinetic Engine - Companion Slide",
+        "body": "Companion content for Kinetic Engine - Companion Slide.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide12"
+        ]
+      }
+    },
+    "bindingsByStep": {
+      "slide1": {
+        "slideStep": "slide1",
+        "responseKey": "audienceos-slide1",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide2": {
+        "slideStep": "slide2",
+        "responseKey": "audienceos-slide2",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide3": {
+        "slideStep": "slide3",
+        "responseKey": "audienceos-slide3",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide4": {
+        "slideStep": "slide4",
+        "responseKey": "audienceos-slide4",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide5": {
+        "slideStep": "slide5",
+        "responseKey": "audienceos-slide5",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide6": {
+        "slideStep": "slide6",
+        "responseKey": "audienceos-slide6",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide7": {
+        "slideStep": "slide7",
+        "responseKey": "audienceos-slide7",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide8": {
+        "slideStep": "slide8",
+        "responseKey": "audienceos-slide8",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide9": {
+        "slideStep": "slide9",
+        "responseKey": "audienceos-slide9",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide10": {
+        "slideStep": "slide10",
+        "responseKey": "audienceos-slide10",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide11": {
+        "slideStep": "slide11",
+        "responseKey": "audienceos-slide11",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide12": {
+        "slideStep": "slide12",
+        "responseKey": "audienceos-slide12",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      }
+    }
+  },
+  "createdAt": "2026-05-11T00:35:40.705Z",
+  "updatedAt": "2026-05-11T01:09:11.074Z"
+}

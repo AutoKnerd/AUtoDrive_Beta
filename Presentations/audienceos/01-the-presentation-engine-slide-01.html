@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Presentation Engine - Slide 01</title>
+<!-- Tailwind CSS v3 CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Montserrat -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Montserrat', 'sans-serif'],
+          },
+          colors: {
+            'brand-orange': '#F47321',
+            'dark-bg': '#0D0D0D',
+            'card-bg': '#151515',
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-layout">
+    body {
+      background-color: #0D0D0D;
+      color: #FFFFFF;
+      overflow: hidden; /* Keep it as a clean slide */
+    }
+    
+    .gradient-overlay {
+      background: radial-gradient(circle at 70% 30%, rgba(244, 115, 33, 0.15) 0%, transparent 60%);
+    }
+
+    .slide-container {
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .laptop-mockup {
+      perspective: 1000px;
+    }
+
+    .glow-orange {
+      box-shadow: 0 0 40px rgba(244, 115, 33, 0.2);
+    }
+  </style>
+<link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="font-sans antialiased">
+<!-- BEGIN: MainSlideContent -->
+<main class="slide-container p-12 relative overflow-hidden" data-purpose="slide-01">
+<!-- Background Decor -->
+<div class="absolute inset-0 gradient-overlay pointer-events-none"></div>
+<!-- BEGIN: HeaderSection -->
+<header class="flex justify-between items-start z-10">
+<div class="flex items-center gap-2">
+<!-- Logo Placeholder using CSS Shapes & SVG -->
+<svg class="w-10 h-10" fill="none" viewbox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<path d="M20 80L50 20L80 80" stroke="#F47321" stroke-linecap="round" stroke-width="8"></path>
+<path d="M40 50H60" stroke="#F47321" stroke-linecap="round" stroke-width="8"></path>
+</svg>
+<div>
+<h2 class="text-xl font-bold tracking-tighter uppercase leading-none">AUTOKNERD</h2>
+<p class="text-[8px] tracking-[0.2em] text-gray-400">KNOWLEDGE. CONFIDENCE. PERFORMANCE.</p>
+</div>
+</div>
+</header>
+<!-- END: HeaderSection -->
+<!-- BEGIN: HeroGrid -->
+<div class="grid grid-cols-12 gap-8 mt-16 z-10 flex-grow content-center">
+<!-- Left Column: Text Content -->
+<div class="col-span-5 flex flex-col justify-center">
+<h1 class="text-6xl font-extrabold leading-tight tracking-tight">
+          THE<br/>
+<span class="text-brand-orange">PRESENTATION</span><br/>
+          ENGINE
+        </h1>
+<div class="mt-6 flex gap-3 text-sm font-bold tracking-wider">
+<span class="text-gray-400">ADAPTIVE.</span>
+<span class="text-gray-400">INTERACTIVE.</span>
+<span class="text-brand-orange">INTELLIGENT.</span>
+</div>
+<p class="mt-8 text-gray-400 text-lg leading-relaxed max-w-md">
+          A standalone platform that transforms traditional slide decks into live, AI-enhanced learning experiences that drive <span class="text-brand-orange">engagement</span> and <span class="text-brand-orange">results</span>.
+        </p>
+</div>
+<!-- Right Column: Visual Device Mockup -->
+<div class="col-span-7 relative flex justify-center items-center laptop-mockup">
+<!-- Main Laptop -->
+<div class="relative w-full max-w-2xl transform rotate-[-2deg] transition-transform">
+<!-- Screen Frame -->
+<div class="bg-zinc-800 p-2 rounded-t-xl border-t border-x border-zinc-700 glow-orange">
+<div class="aspect-video bg-black rounded-sm overflow-hidden relative flex flex-col items-center justify-center border border-zinc-900">
+<div class="text-center p-8 border border-brand-orange/30 rounded-lg">
+<p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Build Trust.</p>
+<h3 class="text-2xl font-bold text-white tracking-wide">DELIVER VALUE.</h3>
+<p class="text-brand-orange font-bold text-sm mt-2 tracking-widest uppercase">Earn Loyalty.</p>
+</div>
+<!-- Simulated UI Elements -->
+<div class="absolute right-4 top-1/4 space-y-2">
+<div class="h-1 w-12 bg-zinc-700 rounded"></div>
+<div class="h-1 w-12 bg-zinc-700 rounded"></div>
+<div class="h-1 w-12 bg-zinc-700 rounded"></div>
+</div>
+</div>
+</div>
+<!-- Laptop Base -->
+<div class="h-4 bg-zinc-800 rounded-b-xl border-b-4 border-zinc-900 shadow-2xl"></div>
+<!-- Mobile Phone Overlay -->
+<div class="absolute -right-4 -bottom-8 w-32 h-64 bg-zinc-900 rounded-[2rem] border-4 border-zinc-800 shadow-2xl p-2 hidden lg:block transform rotate-[5deg]">
+<div class="w-full h-full bg-black rounded-[1.5rem] overflow-hidden flex flex-col items-center justify-center border border-zinc-700">
+<div class="w-12 h-1 bg-zinc-800 rounded-full mb-4"></div>
+<div class="flex flex-1 flex-col items-center justify-center gap-2 px-3 text-center">
+<p class="text-[6px] text-zinc-500 font-bold uppercase tracking-[0.28em]">Audience Live</p>
+<p class="text-3xl font-extrabold leading-none text-brand-orange" data-device-viewer-count="">--</p>
+<p class="text-[8px] text-white/70 font-semibold uppercase tracking-[0.2em]">Devices Watching</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- END: HeroGrid -->
+<!-- BEGIN: FeaturesFooter -->
+<div class="mt-auto grid grid-cols-6 gap-4 border-t border-zinc-800 pt-8 pb-4 z-10" data-purpose="icon-features">
+<!-- Feature 1 -->
+<div class="flex flex-col items-center text-center">
+<div class="p-3 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/50">
+<svg class="w-6 h-6 text-brand-orange" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-300">Live Engagement</p>
+</div>
+<!-- Feature 2 -->
+<div class="flex flex-col items-center text-center">
+<div class="p-3 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/50">
+<svg class="w-6 h-6 text-brand-orange" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-300">Real-Time Sync</p>
+</div>
+<!-- Feature 3 -->
+<div class="flex flex-col items-center text-center">
+<div class="p-3 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/50">
+<svg class="w-6 h-6 text-brand-orange" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9.663 17h4.674a1 1 0 00.922-.617l2.108-4.742A1 1 0 0016.445 10H14.5l.847-3.388A1 1 0 0014.373 5.383l-4.742 2.108A1 1 0 009 8.411V10H7.555a1 1 0 00-.922 1.383l2.108 4.742a1 1 0 00.922.617z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-300">AI-Powered</p>
+</div>
+<!-- Feature 4 -->
+<div class="flex flex-col items-center text-center">
+<div class="p-3 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/50">
+<svg class="w-6 h-6 text-brand-orange" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-300">Actionable Insights</p>
+</div>
+<!-- Feature 5 -->
+<div class="flex flex-col items-center text-center">
+<div class="p-3 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/50">
+<svg class="w-6 h-6 text-brand-orange" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<p class="text-[10px] font-bold uppercase tracking-tighter text-gray-300">Secure &amp; Reliable</p>
+</div>
+<!-- Slide Number Badge -->
+<div class="flex justify-end items-end">
+<div class="bg-brand-orange text-white font-bold py-1 px-4 rounded-sm text-sm">01</div>
+</div>
+</div>
+<!-- END: FeaturesFooter -->
+</main>
+<!-- END: MainSlideContent -->
+<script src="/Presentations/_shared/deck-controls.js"></script>
+<script>
+  (function () {
+    const countNode = document.querySelector('[data-device-viewer-count]');
+    if (!countNode) return;
+
+    let intervalId = null;
+
+    async function updatePresence() {
+      try {
+        const response = await fetch('/api/live-session/presence', { cache: 'no-store' });
+        if (!response.ok) return;
+        const payload = await response.json();
+        const nextValue = typeof payload.activeAudienceCount === 'number' ? payload.activeAudienceCount : 0;
+        countNode.textContent = String(nextValue);
+      } catch {
+        // Preserve the previous count when presence polling temporarily fails.
+      }
+    }
+
+    updatePresence();
+    intervalId = window.setInterval(updatePresence, 5000);
+    window.addEventListener('beforeunload', function () {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
+    });
+  })();
+</script>
+</body></html>

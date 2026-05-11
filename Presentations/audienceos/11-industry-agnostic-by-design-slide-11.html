@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Industry-Agnostic By Design - Slide 11</title>
+<!-- Load Tailwind CSS v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Montserrat -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="typography">
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: #0d0d0d;
+      color: #ffffff;
+      overflow: hidden; /* Standard for a single presentation slide */
+    }
+    .text-orange-accent {
+      color: #ff6600;
+    }
+    .bg-orange-accent {
+      background-color: #ff6600;
+    }
+  </style>
+<style data-purpose="layout-styling">
+    /* Custom spacing and subtle borders to match the reference aesthetic */
+    .slide-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .main-content {
+      flex-grow: 1;
+      padding: 4rem 6rem;
+    }
+    .icon-box {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+    .icon-box:hover {
+      border-color: #ff6600;
+      background-color: rgba(255, 102, 0, 0.05);
+    }
+    .slide-number {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ff6600;
+    }
+  </style>
+<link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="bg-black">
+<!-- BEGIN: Slide11 -->
+<main class="slide-container" data-purpose="presentation-slide">
+<!-- BEGIN: Slide Header Content -->
+<div class="main-content">
+<header class="mb-12">
+<h2 class="text-orange-accent text-sm font-bold uppercase tracking-widest mb-2">Built to be flexible</h2>
+<h1 class="text-5xl font-extrabold uppercase leading-tight tracking-tight">
+          Industry-Agnostic<br/>
+          By Design
+        </h1>
+<p class="mt-6 text-gray-400 text-lg">The platform can support:</p>
+</header>
+<!-- END: Slide Header Content -->
+<!-- BEGIN: Industry Grid -->
+<div class="grid grid-cols-4 gap-8 mt-12 max-w-6xl">
+<!-- Automotive Training -->
+<div class="flex flex-col items-center text-center group" data-purpose="industry-item">
+<div class="mb-4 p-6 icon-box rounded-lg">
+<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+<path d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<span class="text-sm font-semibold uppercase tracking-wider">Automotive<br/>Training</span>
+</div>
+<!-- Corporate Onboarding -->
+<div class="flex flex-col items-center text-center group" data-purpose="industry-item">
+<div class="mb-4 p-6 icon-box rounded-lg">
+<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<span class="text-sm font-semibold uppercase tracking-wider">Corporate<br/>Onboarding</span>
+</div>
+<!-- Franchise Systems -->
+<div class="flex flex-col items-center text-center group" data-purpose="industry-item">
+<div class="mb-4 p-6 icon-box rounded-lg">
+<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<span class="text-sm font-semibold uppercase tracking-wider">Franchise<br/>Systems</span>
+</div>
+<!-- Compliance Education -->
+<div class="flex flex-col items-center text-center group" data-purpose="industry-item">
+<div class="mb-4 p-6 icon-box rounded-lg">
+<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<span class="text-sm font-semibold uppercase tracking-wider">Compliance<br/>Education</span>
+</div>
+<!-- Leadership Development -->
+<div class="flex flex-col items-center text-center group mt-8" data-purpose="industry-item">
+<div class="mb-4 p-6 icon-box rounded-lg">
+<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<span class="text-sm font-semibold uppercase tracking-wider">Leadership<br/>Development</span>
+</div>
+<!-- Remote Workshops -->
+<div class="flex flex-col items-center text-center group mt-8" data-purpose="industry-item">
+<div class="mb-4 p-6 icon-box rounded-lg">
+<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<span class="text-sm font-semibold uppercase tracking-wider">Remote<br/>Workshops</span>
+</div>
+</div>
+<!-- END: Industry Grid -->
+<!-- Slide Number indicator -->
+<div class="slide-number">11</div>
+</div>
+<!-- BEGIN: Footer Banner -->
+<footer class="bg-orange-accent py-4 w-full mt-auto" data-purpose="bottom-banner">
+<div class="text-center">
+<p class="text-black font-extrabold uppercase tracking-[0.3em] text-lg">
+          Your Content. Your Brand. Your Audience.
+        </p>
+</div>
+</footer>
+<!-- END: Footer Banner -->
+</main>
+<!-- END: Slide11 -->
+<script src="/Presentations/_shared/deck-controls.js"></script>
+</body></html>

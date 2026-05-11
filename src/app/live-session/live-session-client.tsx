@@ -188,6 +188,43 @@ function getOrCreateAudienceUserId() {
   }
 }
 
+function sendAudiencePresence(payload: LiveSessionPayload) {
+  const userId = getOrCreateAudienceUserId();
+  const record = {
+    userId,
+    deckId: payload.state.deckId,
+    sessionToken: payload.state.sessionToken,
+    currentStep: payload.state.currentStep,
+    currentSlide: payload.state.currentSlide,
+  };
+
+  if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+    try {
+      const didSend = navigator.sendBeacon(
+        '/api/live-session/presence',
+        new Blob([JSON.stringify(record)], { type: 'application/json' }),
+      );
+
+      if (didSend) {
+        return;
+      }
+    } catch {
+      // Fall back to fetch below.
+    }
+  }
+
+  void fetch('/api/live-session/presence', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(record),
+    keepalive: true,
+  }).catch((error) => {
+    console.error('Unable to update live session presence.', error);
+  });
+}
+
 function storeSlide8Response(sessionToken: string, record: Slide8StoredResponse) {
   if (typeof window === 'undefined') return;
 
@@ -704,6 +741,109 @@ function GenericLiveSessionView({ payload, status }: { payload: LiveSessionPaylo
   );
 }
 
+function CompanionLiveSessionView({
+  payload,
+  status,
+}: {
+  payload: LiveSessionPayload;
+  status: 'connecting' | 'live' | 'offline';
+}) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const [iframeHeight, setIframeHeight] = useState(960);
+
+  useEffect(() => {
+    setIframeHeight(960);
+  }, [payload.companionUrl]);
+
+  useEffect(() => {
+    return () => {
+      resizeObserverRef.current?.disconnect();
+    };
+  }, []);
+
+  if (!payload.companionUrl) {
+    return <GenericLiveSessionView payload={payload} status={status} />;
+  }
+
+  const syncIframeHeight = () => {
+    const frame = iframeRef.current;
+    if (!frame) return;
+
+    try {
+      const frameDocument = frame.contentDocument;
+      const body = frameDocument?.body;
+      const documentElement = frameDocument?.documentElement;
+      if (!body || !documentElement) return;
+
+      const nextHeight = Math.max(
+        body.scrollHeight,
+        body.offsetHeight,
+        documentElement.scrollHeight,
+        documentElement.offsetHeight,
+        720,
+      );
+
+      setIframeHeight(nextHeight);
+
+      resizeObserverRef.current?.disconnect();
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserverRef.current = new ResizeObserver(() => {
+          const updatedHeight = Math.max(
+            body.scrollHeight,
+            body.offsetHeight,
+            documentElement.scrollHeight,
+            documentElement.offsetHeight,
+            720,
+          );
+          setIframeHeight(updatedHeight);
+        });
+        resizeObserverRef.current.observe(body);
+        resizeObserverRef.current.observe(documentElement);
+      }
+    } catch {
+      // Same-origin is expected here, but fail quietly if the frame is still booting.
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-[#050505] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-4 pt-4">
+        <div className="mb-3 flex items-center justify-between gap-4 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.32em] text-[#8eff71]">Live Session</p>
+            <h1 className="mt-2 truncate text-lg font-black tracking-tight text-white">{payload.deckTitle}</h1>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-white/42">{payload.state.currentStep}</p>
+          </div>
+          <div
+            className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] ${
+              status === 'live'
+                ? 'border-[#8eff71]/40 bg-[#8eff71]/10 text-[#8eff71]'
+                : status === 'connecting'
+                  ? 'border-white/15 bg-white/5 text-white/65'
+                  : 'border-[#ff8f78]/40 bg-[#ff8f78]/10 text-[#ff8f78]'
+            }`}
+          >
+            {status === 'live' ? 'Synced' : status === 'connecting' ? 'Connecting' : 'Reconnecting'}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-[28px] border border-white/8 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.38)]">
+          <iframe
+            ref={iframeRef}
+            key={payload.companionUrl}
+            src={payload.companionUrl}
+            title={`${payload.deckTitle} companion`}
+            onLoad={syncIframeHeight}
+            className="block w-full border-0 bg-black"
+            style={{ height: `${iframeHeight}px` }}
+          />
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export function LiveSessionClient({ initialPayload }: { initialPayload?: LiveSessionPayload }) {
   const seededPayload = initialPayload ?? fallbackPayload();
   const [payload, setPayload] = useState<LiveSessionPayload>(seededPayload);
@@ -794,6 +934,43 @@ export function LiveSessionClient({ initialPayload }: { initialPayload?: LiveSes
     };
   }, []);
 
+  const shouldUseAudienceExperience = isMobileAudience || isForcedAudience;
+  const shouldUseStrategicSnapshot =
+    shouldUseAudienceExperience && payload.state.deckId === 'autoknerd-strategic-deck';
+  const showCompanionAudienceFlow = shouldUseAudienceExperience && typeof payload.companionUrl === 'string' && payload.companionUrl.length > 0;
+  const showSlideEightAudienceFlow = shouldUseStrategicSnapshot && payload.state.currentStep === 'slide8';
+  const showSlideTwoAudienceFlow = shouldUseStrategicSnapshot && payload.state.currentStep === 'slide2';
+  const showSlideOneAudienceFlow = shouldUseStrategicSnapshot && payload.state.currentStep === 'slide1';
+  const showSnapshotAudienceFlow = shouldUseStrategicSnapshot;
+
+  useEffect(() => {
+    if (!shouldUseAudienceExperience) return;
+
+    sendAudiencePresence(payload);
+    const intervalId = window.setInterval(() => {
+      sendAudiencePresence(payload);
+    }, 15000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        sendAudiencePresence(payload);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [
+    payload.state.currentSlide,
+    payload.state.currentStep,
+    payload.state.deckId,
+    payload.state.sessionToken,
+    shouldUseAudienceExperience,
+  ]);
+
   useEffect(() => {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
 
@@ -858,11 +1035,9 @@ export function LiveSessionClient({ initialPayload }: { initialPayload?: LiveSes
     };
   }, [payload.state.currentStep]);
 
-  const shouldUseAudienceExperience = isMobileAudience || isForcedAudience;
-  const showSlideEightAudienceFlow = shouldUseAudienceExperience && payload.state.currentStep === 'slide8';
-  const showSlideTwoAudienceFlow = shouldUseAudienceExperience && payload.state.currentStep === 'slide2';
-  const showSlideOneAudienceFlow = shouldUseAudienceExperience && payload.state.currentStep === 'slide1';
-  const showSnapshotAudienceFlow = shouldUseAudienceExperience;
+  if (showCompanionAudienceFlow) {
+    return <CompanionLiveSessionView payload={payload} status={status} />;
+  }
 
   if (showSnapshotAudienceFlow) {
     return <AutoKnerdLiveSnapshot payload={payload} status={status} />;

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Let's Build This Together</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Manrope:wght@500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#0b1008",
+                        "primary": "#8adc5d",
+                        "surface-container-high": "#262c22",
+                        "surface-bright": "#363b31",
+                        "surface": "#10150c",
+                        "outline": "#8a9481",
+                        "on-primary-fixed-variant": "#1f5100",
+                        "on-secondary-container": "#b7b5b4",
+                        "tertiary": "#c7c7c7",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-surface-variant": "#c0cab5",
+                        "surface-dim": "#10150c",
+                        "inverse-surface": "#dfe4d6",
+                        "primary-fixed": "#a4f875",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-secondary": "#313030",
+                        "on-error-container": "#ffdad6",
+                        "surface-container": "#1c2118",
+                        "primary-container": "#70bf44",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "secondary-fixed": "#e5e2e1",
+                        "inverse-on-surface": "#2d3228",
+                        "secondary-container": "#474746",
+                        "on-primary": "#133800",
+                        "on-surface": "#dfe4d6",
+                        "surface-container-highest": "#31362d",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-primary-container": "#1b4a00",
+                        "on-error": "#690005",
+                        "background": "#10150c",
+                        "surface-variant": "#31362d",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed": "#e2e2e2",
+                        "outline-variant": "#41493a",
+                        "on-secondary-fixed-variant": "#474746",
+                        "on-tertiary": "#2f3131",
+                        "primary-fixed-dim": "#8adb5c",
+                        "on-tertiary-container": "#3e4041",
+                        "tertiary-container": "#abacac",
+                        "on-background": "#dfe4d6",
+                        "inverse-primary": "#2c6c00",
+                        "on-primary-fixed": "#082100",
+                        "secondary": "#c8c6c5",
+                        "surface-tint": "#8adb5c",
+                        "error-container": "#93000a",
+                        "surface-container-low": "#181d14"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "lg": "48px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "sm": "12px",
+                        "container-max": "1440px",
+                        "base": "8px",
+                        "md": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label": ["Inter"],
+                        "h1": ["Manrope"],
+                        "h2": ["Manrope"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["Inter"],
+                        "h3": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label": ["12px", {"lineHeight": "1", "fontWeight": "500"}],
+                        "h1": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "h2": ["32px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "300"}],
+                        "data-mono": ["16px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "h3": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body-lg overflow-x-hidden min-h-screen">
+<header class="fixed z-50 bg-black dark:bg-[#0A0A0A] border-b border-[#222222] flex justify-between items-center w-full px-12 py-4 full-width top-0">
+<div class="flex items-center">
+<span class="text-xl font-black tracking-tighter text-[#70BF44] font-manrope tracking-tight uppercase font-bold">AutoKnerd</span>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-zinc-500 hover:text-[#70BF44] transition-colors scale-95 active:opacity-80">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="text-zinc-500 hover:text-[#70BF44] transition-colors scale-95 active:opacity-80">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<img alt="Executive Profile" class="w-8 h-8 rounded-full border border-[#222222] object-cover" data-alt="Close up portrait of a confident male executive in a dark tailored suit against a dark background, dramatic studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-4oA4N7ZF1PsltThm5d-a8MzjgeQu-hYOaTjO-8GKBZQURgw20uK2qHN5G2ejI3QOl7z4c_PFYeJhrakfocxLTB9Ab2ptnc2D4MTYLghkKcpn8wCy_QR920TLxOdswHU_1hSKnzbP9h-b_6UiLMhWL437cMy0MITNJj4BDjUzqGFd_dwOknLB-6X-JR6QEvLWf1nL3MZeqgZ7hjItKI4ukztDpD_HcGn0_teis7cdJIF7AVrZ46Fha8pfLvoVS2p9MObZt2Hm-eY"/>
+</div>
+</header>
+<main class="pt-24 pb-12 px-lg flex flex-col min-h-screen relative">
+<div class="absolute inset-0 z-0 opacity-20 pointer-events-none overflow-hidden flex justify-end">
+<div class="w-1/2 h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-surface-container-lowest to-surface-container-lowest"></div>
+</div>
+<div class="relative z-10 w-full max-w-container-max mx-auto grid grid-cols-12 gap-gutter flex-1 items-center">
+<div class="col-span-12 lg:col-span-8 flex flex-col justify-center pr-0 lg:pr-lg">
+<div class="mb-xl">
+<h1 class="font-h1 text-h1 text-on-surface mb-sm">Let’s Build This Together</h1>
+<h2 class="font-h2 text-h2 text-primary">Start small. Prove it. Scale it.</h2>
+</div>
+<div class="relative w-full bg-surface-container border border-outline-variant rounded-xl p-lg overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+<div class="absolute inset-0 pointer-events-none opacity-[0.03]" style="background-image: radial-gradient(#8a9481 1px, transparent 1px); background-size: 24px 24px;"></div>
+<div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 md:gap-4">
+<div class="hidden md:block absolute top-1/2 left-8 right-8 h-[2px] bg-outline-variant -translate-y-1/2 z-0"></div>
+<div class="hidden md:block absolute top-1/2 left-8 w-[60%] h-[2px] bg-primary shadow-[0_0_10px_#70bf44] -translate-y-1/2 z-0"></div>
+<div class="md:hidden absolute left-[31px] top-8 bottom-8 w-[2px] bg-outline-variant z-0"></div>
+<div class="relative z-10 flex flex-row md:flex-col items-center md:items-center gap-4 w-full md:w-1/3 text-left md:text-center group">
+<div class="w-16 h-16 rounded-full bg-surface border-2 border-primary flex items-center justify-center shadow-[0_0_15px_rgba(112,191,68,0.3)] transition-transform group-hover:scale-105 shrink-0">
+<span class="material-symbols-outlined text-primary text-[32px]" data-icon="model_training">model_training</span>
+</div>
+<div class="bg-surface-container md:bg-transparent p-4 md:p-0 rounded-lg md:rounded-none border border-outline-variant md:border-none w-full">
+<p class="font-data-mono text-data-mono text-on-surface-variant mb-1">STEP 01</p>
+<p class="font-body-lg text-body-lg text-on-surface leading-snug">Modernize one core training module</p>
+</div>
+</div>
+<div class="relative z-10 flex flex-row md:flex-col items-center gap-4 w-full md:w-1/3 text-left md:text-center group">
+<div class="w-16 h-16 rounded-full bg-surface border-2 border-primary flex items-center justify-center shadow-[0_0_15px_rgba(112,191,68,0.3)] transition-transform group-hover:scale-105 shrink-0">
+<span class="material-symbols-outlined text-primary text-[32px]" data-icon="smart_toy">smart_toy</span>
+</div>
+<div class="bg-surface-container md:bg-transparent p-4 md:p-0 rounded-lg md:rounded-none border border-outline-variant md:border-none w-full">
+<p class="font-data-mono text-data-mono text-on-surface-variant mb-1">STEP 02</p>
+<p class="font-body-lg text-body-lg text-on-surface leading-snug">Build a working AI-supported experience</p>
+</div>
+</div>
+<div class="relative z-10 flex flex-row md:flex-col items-center gap-4 w-full md:w-1/3 text-left md:text-center group opacity-70 hover:opacity-100 transition-opacity">
+<div class="w-16 h-16 rounded-full bg-surface border-2 border-outline-variant flex items-center justify-center group-hover:border-primary transition-colors shrink-0">
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary text-[32px]" data-icon="route">route</span>
+</div>
+<div class="bg-surface-container md:bg-transparent p-4 md:p-0 rounded-lg md:rounded-none border border-outline-variant md:border-none w-full">
+<p class="font-data-mono text-data-mono text-on-surface-variant mb-1">STEP 03</p>
+<p class="font-body-lg text-body-lg text-on-surface leading-snug">Map a scalable path forward</p>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-lg">
+<p class="inline-flex items-center gap-2 px-4 py-2 bg-surface-container-highest border border-outline-variant rounded-DEFAULT font-data-mono text-data-mono text-on-surface">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                        90-day pilot approach
+                    </p>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-4 flex flex-col justify-center mt-12 lg:mt-0">
+<div class="bg-[#141414] border border-[#222222] rounded-xl p-md relative overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.6)] transform lg:-translate-x-4">
+<div class="absolute top-4 right-4 opacity-10">
+<span class="material-symbols-outlined text-[48px] text-on-surface" data-icon="memory">memory</span>
+</div>
+<div class="flex items-center gap-3 mb-6">
+<span class="w-2 h-8 bg-primary rounded-sm"></span>
+<h3 class="font-manrope text-sm font-bold tracking-widest text-zinc-500 uppercase">Companion App Moment</h3>
+</div>
+<h4 class="font-h3 text-h3 text-on-surface mb-8 leading-tight">Interested in applying this to your training?</h4>
+<div class="flex flex-col gap-4">
+<button class="w-full flex justify-between items-center bg-[#70BF44] hover:bg-[#8adc5d] text-black font-label text-label px-6 py-4 rounded-DEFAULT transition-all shadow-[0_0_15px_rgba(112,191,68,0.2)] hover:shadow-[0_0_25px_rgba(112,191,68,0.4)]">
+<span class="font-bold text-base tracking-wide uppercase">Yes</span>
+<span class="material-symbols-outlined text-black" data-icon="check_circle">check_circle</span>
+</button>
+<button class="w-full flex justify-between items-center bg-transparent border border-outline hover:border-primary text-on-surface hover:text-primary font-label text-label px-6 py-4 rounded-DEFAULT transition-all group">
+<span class="font-bold text-base tracking-wide uppercase">Let's talk</span>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors" data-icon="chat_bubble">chat_bubble</span>
+</button>
+</div>
+<div class="mt-6 pt-4 border-t border-[#222222] flex items-center gap-2">
+<span class="relative flex h-3 w-3">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+</span>
+<span class="font-body-sm text-body-sm text-zinc-500">Live poll active on connected devices</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-8 px-8 py-3 bg-[#10150c]/92 backdrop-blur-md rounded-full border border-[#8a9481]/24 shadow-[0_0_20px_rgba(138,220,93,0.08)] font-[Inter] text-[11px] tracking-[0.22em] uppercase">
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/10-the-outcome.html">
+    <span class="material-symbols-outlined text-sm">chevron_left</span>
+    <span>Back</span>
+  </a>
+  <div class="flex items-center gap-4 px-5 py-2 rounded-full border border-[#8a9481]/18 bg-[#181d14] text-[#8adc5d] font-semibold tracking-[0.28em]">
+    <span class="material-symbols-outlined text-sm">play_arrow</span>
+    <span>11 / 11</span>
+  </div>
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/index.html">
+    <span>Forward</span>
+    <span class="material-symbols-outlined text-sm">chevron_right</span>
+  </a>
+</footer>
+</body></html>

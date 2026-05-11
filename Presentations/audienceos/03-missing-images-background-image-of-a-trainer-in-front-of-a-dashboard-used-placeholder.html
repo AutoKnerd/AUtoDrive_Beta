@@ -1,0 +1,177 @@
+<!-- MISSING_IMAGES:
+- Background image of a trainer in front of a dashboard (used placeholder)
+-->
+
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Slide 03 - Modern Presentation Engine</title>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Font: Montserrat -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="typography">
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: #0d0d0d;
+      color: #ffffff;
+      overflow: hidden;
+    }
+    .text-orange-primary {
+      color: #f37021;
+    }
+    .border-orange-primary {
+      border-color: #f37021;
+    }
+  </style>
+<style data-purpose="layout-details">
+    .slide-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 3rem;
+      position: relative;
+    }
+    
+    /* Background subtle gradient to match image style */
+    .slide-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 75% 40%, rgba(243, 112, 33, 0.08) 0%, rgba(13, 13, 13, 1) 60%);
+      z-index: -1;
+    }
+
+    /* Diagram lines */
+    .diagram-line {
+      position: absolute;
+      background-color: rgba(255, 255, 255, 0.2);
+      height: 1px;
+      z-index: 0;
+    }
+  </style>
+<link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="h-full">
+<!-- BEGIN: Main Slide Canvas -->
+<main class="slide-container" data-purpose="presentation-slide">
+<div class="slide-bg"></div>
+<!-- BEGIN: Top Section -->
+<section class="grid grid-cols-12 gap-8">
+<!-- Left Column: Title and Description -->
+<div class="col-span-5" data-purpose="content-left">
+<p class="text-xs font-semibold tracking-widest text-orange-primary mb-4 uppercase">What this platform is</p>
+<h1 class="text-4xl lg:text-5xl font-extrabold leading-tight mb-8">
+          A MODERN <span class="text-orange-primary">PRESENTATION</span><br/>
+          &amp; <span class="text-orange-primary">LEARNING</span> ENGINE
+        </h1>
+<p class="text-gray-400 text-lg leading-relaxed max-w-md">
+          Instead of using traditional presentation software, this platform treats each presentation as a modular, web-based experience.
+        </p>
+</div>
+<!-- Right Column: Interactive Diagram -->
+<div class="col-span-7 relative flex items-center justify-center h-[500px]" data-purpose="diagram-container">
+<!-- Central Logo Node -->
+<div class="relative z-10 w-24 h-24 bg-black border-2 border-orange-primary rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(243,112,33,0.3)]">
+<svg fill="none" height="40" viewbox="0 0 100 100" width="40" xmlns="http://www.w3.org/2000/svg">
+<path d="M20 80L50 20L80 80H65L50 50L35 80H20Z" fill="#f37021"></path>
+</svg>
+</div>
+<!-- Satellite Nodes -->
+<!-- Adaptive -->
+<div class="absolute top-0 flex flex-col items-center">
+<p class="text-[10px] uppercase tracking-widest mb-2 font-bold text-gray-400">Adaptive</p>
+<div class="w-12 h-12 rounded-full border border-gray-600 flex items-center justify-center bg-zinc-900">
+<svg class="w-6 h-6 text-white opacity-80" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+</div>
+<!-- Interactive -->
+<div class="absolute right-0 flex flex-row items-center gap-4">
+<div class="w-12 h-12 rounded-full border border-gray-600 flex items-center justify-center bg-zinc-900">
+<svg class="w-6 h-6 text-white opacity-80" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<p class="text-[10px] uppercase tracking-widest font-bold text-gray-400">Interactive</p>
+</div>
+<!-- Intelligent -->
+<div class="absolute bottom-0 flex flex-col-reverse items-center">
+<p class="text-[10px] uppercase tracking-widest mt-2 font-bold text-gray-400">Intelligent</p>
+<div class="w-12 h-12 rounded-full border border-gray-600 flex items-center justify-center bg-zinc-900">
+<svg class="w-6 h-6 text-white opacity-80" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+</div>
+<!-- AI-Enhanced -->
+<div class="absolute left-0 flex flex-row-reverse items-center gap-4">
+<div class="w-12 h-12 rounded-full border border-gray-600 flex items-center justify-center bg-zinc-900">
+<svg class="w-6 h-6 text-white opacity-80" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<p class="text-[10px] uppercase tracking-widest font-bold text-gray-400">AI-Enhanced</p>
+</div>
+<!-- Connecting Lines (SVG for better control) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none opacity-20" data-purpose="diagram-lines">
+<line stroke="white" stroke-dasharray="4 4" stroke-width="1" x1="50%" x2="50%" y1="50%" y2="15%"></line>
+<line stroke="white" stroke-dasharray="4 4" stroke-width="1" x1="50%" x2="85%" y1="50%" y2="50%"></line>
+<line stroke="white" stroke-dasharray="4 4" stroke-width="1" x1="50%" x2="50%" y1="50%" y2="85%"></line>
+<line stroke="white" stroke-dasharray="4 4" stroke-width="1" x1="50%" x2="15%" y1="50%" y2="50%"></line>
+</svg>
+</div>
+</section>
+<!-- END: Top Section -->
+<!-- BEGIN: Bottom Section (Built For) -->
+<section class="border-t border-zinc-800 pt-8" data-purpose="footer-info">
+<p class="text-[10px] font-bold tracking-widest text-orange-primary mb-8 uppercase">Built For:</p>
+<div class="grid grid-cols-5 gap-4">
+<!-- Item 1 -->
+<div class="flex flex-col items-center text-center space-y-3">
+<div class="text-zinc-500">
+<svg class="w-8 h-8" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"></path></svg>
+</div>
+<span class="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">Live<br/>Training</span>
+</div>
+<!-- Item 2 -->
+<div class="flex flex-col items-center text-center space-y-3">
+<div class="text-zinc-500">
+<svg class="w-8 h-8" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"></path></svg>
+</div>
+<span class="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">Remote<br/>Facilitation</span>
+</div>
+<!-- Item 3 -->
+<div class="flex flex-col items-center text-center space-y-3">
+<div class="text-zinc-500">
+<svg class="w-8 h-8" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"></path></svg>
+</div>
+<span class="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">Interactive<br/>Workshops</span>
+</div>
+<!-- Item 4 -->
+<div class="flex flex-col items-center text-center space-y-3">
+<div class="text-zinc-500">
+<svg class="w-8 h-8" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"></path></svg>
+</div>
+<span class="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">Reinforcement<br/>Learning</span>
+</div>
+<!-- Item 5 -->
+<div class="flex flex-col items-center text-center space-y-3">
+<div class="text-zinc-500">
+<svg class="w-8 h-8" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"></path></svg>
+</div>
+<span class="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">AI-Enhanced<br/>Coaching</span>
+</div>
+</div>
+</section>
+<!-- END: Bottom Section -->
+<!-- BEGIN: Slide Number -->
+<div class="absolute bottom-6 right-6 bg-orange-primary text-black px-4 py-1 font-bold text-sm">
+      03
+    </div>
+<!-- END: Slide Number -->
+</main>
+<!-- END: Main Slide Canvas -->
+<script src="/Presentations/_shared/deck-controls.js"></script>
+</body></html>

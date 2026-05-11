@@ -7,7 +7,7 @@ import {
   type LiveSessionPayload,
   type LiveSessionState,
 } from '@/lib/live-session';
-import { getAudienceContentForDeck, readPresentationDeckManifest } from '@/lib/presentation-engine';
+import { getAudienceContentForDeck, readPresentationDeckManifest, resolveCompanionEntryForStep } from '@/lib/presentation-engine';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +22,15 @@ async function readInitialPayload(): Promise<LiveSessionPayload> {
       snapshot.exists ? (snapshot.data() as Partial<LiveSessionState>) : LIVE_SESSION_DEFAULT_STATE,
     );
     const manifest = await readPresentationDeckManifest(state.deckId);
+    const companionEntry = manifest
+      ? await resolveCompanionEntryForStep(state.deckId, manifest, state.currentStep)
+      : null;
+    const companionUrl = companionEntry
+      ? `/Presentations/${encodeURIComponent(state.deckId)}/${companionEntry
+        .split('/')
+        .map((segment) => encodeURIComponent(segment))
+        .join('/')}?audience=1&embedded=1&deckId=${encodeURIComponent(state.deckId)}&currentStep=${encodeURIComponent(state.currentStep)}&currentSlide=${encodeURIComponent(state.currentSlide)}${state.sessionToken ? `&sessionToken=${encodeURIComponent(state.sessionToken)}` : ''}`
+      : undefined;
 
     if (!manifest) {
       return {
@@ -29,6 +38,7 @@ async function readInitialPayload(): Promise<LiveSessionPayload> {
         deckTitle: state.deckId,
         audienceEnabled: true,
         qrOverlayEnabled: true,
+        companionUrl,
         content: {
           eyebrow: 'Live Session',
           title: state.currentStep,
@@ -42,6 +52,7 @@ async function readInitialPayload(): Promise<LiveSessionPayload> {
       deckTitle: manifest.title,
       audienceEnabled: manifest.audience?.enabled !== false,
       qrOverlayEnabled: manifest.audience?.qrOverlayEnabled !== false,
+      companionUrl,
       content: getAudienceContentForDeck(manifest, state.currentStep),
     };
   } catch (error) {

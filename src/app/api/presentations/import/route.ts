@@ -29,6 +29,9 @@ export async function POST(request: Request) {
       description?: string;
       html?: string;
       overwrite?: boolean;
+      mode?: 'slides' | 'companion';
+      step?: string;
+      responseKey?: string;
     };
 
     const html = typeof body.html === 'string' ? body.html.trim() : '';
@@ -36,6 +39,9 @@ export async function POST(request: Request) {
     const title = typeof body.title === 'string' ? body.title.trim() : '';
     const description = typeof body.description === 'string' ? body.description.trim() : '';
     const overwrite = body.overwrite === true;
+    const mode = body.mode === 'companion' ? 'companion' : 'slides';
+    const step = typeof body.step === 'string' ? body.step.trim() : '';
+    const responseKey = typeof body.responseKey === 'string' ? body.responseKey.trim() : '';
 
     if (!html) {
       return NextResponse.json({ error: 'Presentation HTML is required.' }, { status: 400 });
@@ -56,6 +62,8 @@ export async function POST(request: Request) {
       inputPath,
       '--deck-id',
       deckId,
+      '--mode',
+      mode,
     ];
 
     if (title) {
@@ -66,8 +74,16 @@ export async function POST(request: Request) {
       args.push('--description', description);
     }
 
-    if (overwrite) {
+    if (overwrite && mode !== 'companion') {
       args.push('--overwrite');
+    }
+
+    if (step) {
+      args.push('--step', step);
+    }
+
+    if (responseKey) {
+      args.push('--response-key', responseKey);
     }
 
     await execFileAsync(process.execPath, args, {

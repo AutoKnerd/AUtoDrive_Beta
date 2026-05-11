@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { BeehiivSubscriberDialog } from '@/components/autoknerd/beehiiv-subscriber-dialog';
 import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
@@ -76,6 +77,7 @@ export default function AutoknerdPodcastPage() {
   const [error, setError] = useState(false);
   const [activePlayerTarget, setActivePlayerTarget] = useState<{ section: 'hero' | 'featured' | 'archive'; index: number } | null>(null);
   const [visibleArchiveCount, setVisibleArchiveCount] = useState(INITIAL_ARCHIVE_COUNT);
+  const [isScheduleCallModalOpen, setIsScheduleCallModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -449,9 +451,13 @@ export default function AutoknerdPodcastPage() {
             <Link href="/signup" className="bg-[#bdfc00] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#445d00] transition-transform hover:scale-[1.02] active:scale-[0.98]">
               Ready to Level Up?
             </Link>
-            <Link href="/autoforge" className="border border-[#464848] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-transform hover:scale-[1.02] hover:bg-[#1d2020] active:scale-[0.98]">
+            <button
+              type="button"
+              onClick={() => setIsScheduleCallModalOpen(true)}
+              className="border border-[#464848] py-6 text-center text-sm font-black uppercase tracking-tighter text-[#f4f3f3] transition-transform hover:scale-[1.02] hover:bg-[#1d2020] active:scale-[0.98]"
+            >
               Book AutoForge Diagnostic
-            </Link>
+            </button>
           </div>
         </div>
         <div className="pointer-events-none absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap opacity-5">
@@ -459,6 +465,12 @@ export default function AutoknerdPodcastPage() {
         </div>
       </section>
 
+      <BeehiivSubscriberDialog
+        open={isScheduleCallModalOpen}
+        onOpenChange={setIsScheduleCallModalOpen}
+        title="Schedule a Call"
+        description="Built for dealerships that want clearer communication, stronger customer trust, and more consistent experiences."
+      />
       <AutoknerdFooter />
     </AutoknerdShell>
   );

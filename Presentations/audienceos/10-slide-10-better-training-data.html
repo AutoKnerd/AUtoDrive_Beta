@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Slide 10 - Better Training Data</title>
+<!-- Tailwind CSS CDN with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Montserrat for the technical aesthetic -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="typography">
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: #000;
+      color: #ffffff;
+      overflow: hidden;
+    }
+    .text-orange-primary { color: #f97316; }
+    .bg-orange-primary { background-color: #f97316; }
+    .border-orange-primary { border-color: #f97316; }
+  </style>
+<style data-purpose="layout">
+    /* Ensure the slide maintains a 16:9 or similar aspect ratio feel while being edge-to-edge */
+    .slide-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 4rem;
+      box-sizing: border-box;
+      background: linear-gradient(to right, rgba(0,0,0,0.95) 40%, rgba(0,0,0,0.4) 100%),
+                  url('https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop');
+      background-size: cover;
+      background-position: center;
+    }
+    .slide-number {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background-color: #f97316;
+      color: white;
+      padding: 0.25rem 0.75rem;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+  </style>
+<link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
+</head>
+<body>
+<!-- BEGIN: Main Slide Content -->
+<main class="slide-container" data-purpose="slide-10-content">
+<!-- BEGIN: Header Section -->
+<header class="mb-12">
+<h2 class="text-orange-primary text-xl font-bold tracking-wider mb-2 uppercase">Why Clients Care</h2>
+<h1 class="text-5xl font-extrabold leading-tight tracking-tight max-w-2xl">
+        BETTER TRAINING DATA =<br/>
+<span class="text-white">BETTER BUSINESS DECISIONS</span>
+</h1>
+</header>
+<!-- END: Header Section -->
+<!-- BEGIN: Main Body Content -->
+<section class="flex flex-col h-full justify-between pb-12">
+<!-- List of Benefits -->
+<div class="space-y-6 max-w-xl" data-purpose="benefit-list">
+<div class="flex items-start gap-4">
+<div class="mt-1 text-orange-primary">
+<svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="3" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<p class="text-xl font-medium text-gray-200">See which topics confuse learners</p>
+</div>
+<div class="flex items-start gap-4">
+<div class="mt-1 text-orange-primary">
+<svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="3" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<p class="text-xl font-medium text-gray-200">Track skills improvement over time</p>
+</div>
+<div class="flex items-start gap-4">
+<div class="mt-1 text-orange-primary">
+<svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="3" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<p class="text-xl font-medium text-gray-200">Identify where teams struggle most</p>
+</div>
+<div class="flex items-start gap-4">
+<div class="mt-1 text-orange-primary">
+<svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="3" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<p class="text-xl font-medium text-gray-200">Understand what drives engagement</p>
+</div>
+</div>
+<!-- Result/Outcomes Section -->
+<div class="mt-auto" data-purpose="outcomes-footer">
+<h3 class="text-orange-primary font-bold text-sm uppercase tracking-[0.2em] mb-6">This Creates</h3>
+<div class="grid grid-cols-4 gap-8 max-w-4xl">
+<!-- Outcome 1 -->
+<div class="text-center group" data-purpose="outcome-item">
+<div class="mb-3 flex justify-center">
+<svg class="h-12 w-12 text-orange-primary" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<p class="text-xs font-bold leading-tight uppercase">Better<br/>Coaching</p>
+</div>
+<!-- Outcome 2 -->
+<div class="text-center group" data-purpose="outcome-item">
+<div class="mb-3 flex justify-center">
+<svg class="h-12 w-12 text-orange-primary" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<p class="text-xs font-bold leading-tight uppercase">Better<br/>Consistency</p>
+</div>
+<!-- Outcome 3 -->
+<div class="text-center group" data-purpose="outcome-item">
+<div class="mb-3 flex justify-center">
+<svg class="h-12 w-12 text-orange-primary" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<p class="text-xs font-bold leading-tight uppercase">Better Customer<br/>Experience</p>
+</div>
+<!-- Outcome 4 -->
+<div class="text-center group" data-purpose="outcome-item">
+<div class="mb-3 flex justify-center">
+<svg class="h-12 w-12 text-orange-primary" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<p class="text-xs font-bold leading-tight uppercase">Better Operational<br/>Performance</p>
+</div>
+</div>
+</div>
+</section>
+<!-- END: Main Body Content -->
+<!-- Slide Number Indicator -->
+<div class="slide-number">10</div>
+</main>
+<!-- END: Main Slide Content -->
+<script src="/Presentations/_shared/deck-controls.js"></script>
+</body></html>

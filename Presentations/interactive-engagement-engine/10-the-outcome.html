@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Outcome - Enablement Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-surface-variant": "#c0cab5",
+                        "surface-dim": "#10150c",
+                        "primary-fixed": "#a4f875",
+                        "surface-tint": "#8adb5c",
+                        "on-primary-fixed": "#082100",
+                        "surface-container-lowest": "#0b1008",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed-variant": "#474746",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface": "#10150c",
+                        "on-tertiary-container": "#3e4041",
+                        "surface-container": "#1c2118",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-secondary": "#313030",
+                        "surface-container-high": "#262c22",
+                        "tertiary": "#c7c7c7",
+                        "surface-container-highest": "#31362d",
+                        "surface-container-low": "#181d14",
+                        "on-error": "#690005",
+                        "on-background": "#dfe4d6",
+                        "on-secondary-container": "#b7b5b4",
+                        "on-tertiary": "#2f3131",
+                        "tertiary-container": "#abacac",
+                        "secondary-fixed": "#e5e2e1",
+                        "outline-variant": "#41493a",
+                        "on-surface": "#dfe4d6",
+                        "inverse-primary": "#2c6c00",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-error-container": "#ffdad6",
+                        "error": "#ffb4ab",
+                        "on-primary": "#133800",
+                        "inverse-surface": "#dfe4d6",
+                        "primary-fixed-dim": "#8adb5c",
+                        "on-primary-fixed-variant": "#1f5100",
+                        "inverse-on-surface": "#2d3228",
+                        "background": "#10150c",
+                        "secondary-container": "#474746",
+                        "surface-variant": "#31362d",
+                        "on-primary-container": "#1b4a00",
+                        "primary-container": "#70bf44",
+                        "primary": "#8adc5d",
+                        "surface-bright": "#363b31",
+                        "secondary": "#c8c6c5",
+                        "outline": "#8a9481"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "xs": "4px",
+                        "sm": "12px",
+                        "container-max": "1440px",
+                        "base": "8px",
+                        "lg": "48px",
+                        "xl": "80px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label": ["Inter"],
+                        "h1": ["Manrope"],
+                        "h2": ["Manrope"],
+                        "body-sm": ["Inter"],
+                        "data-mono": ["Inter"],
+                        "h3": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label": ["12px", {"lineHeight": "1", "fontWeight": "500"}],
+                        "h1": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "h2": ["32px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "300"}],
+                        "data-mono": ["16px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "h3": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-lg min-h-screen flex flex-col antialiased selection:bg-primary selection:text-on-primary">
+<header class="flex justify-between items-center w-full px-12 h-20 bg-[#0A0A0A] border-b border-[#222222] docked full-width top-0 flat no shadows z-50 fixed">
+<div class="flex items-center gap-sm">
+<span class="text-xl font-black text-[#70BF44] tracking-tighter uppercase">ENABLEMENT ENGINE</span>
+</div>
+<div class="flex items-center gap-sm text-[#70BF44]">
+<button aria-label="settings" class="p-base hover:text-[#70BF44] transition-colors duration-300 opacity-80">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+<button aria-label="sync_alt" class="p-base hover:text-[#70BF44] transition-colors duration-300 opacity-80">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">sync_alt</span>
+</button>
+<button aria-label="account_circle" class="p-base hover:text-[#70BF44] transition-colors duration-300 opacity-80">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+</button>
+</div>
+</header>
+<div class="flex flex-1 pt-20">
+<main class="flex-1 p-lg lg:p-xl flex flex-col justify-center items-center relative overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface-container-high via-background to-background">
+<div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#dfe4d6 1px, transparent 1px); background-size: 32px 32px;"></div>
+<div class="max-w-6xl w-full flex flex-col gap-xl relative z-10">
+<div class="text-center flex flex-col gap-sm max-w-4xl mx-auto">
+<h1 class="font-h1 text-h1 text-on-surface">You don't just deliver training</h1>
+<h2 class="font-h2 text-h2 text-primary">You measure, guide, and improve it</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md h-full min-h-[400px]">
+<div class="bg-[#141414] border border-[#222222] rounded-xl p-md flex flex-col justify-between group hover:bg-surface-container transition-colors duration-300 relative overflow-hidden">
+<div class="absolute -inset-1 bg-primary/0 group-hover:bg-primary/5 blur-xl transition-all duration-500 rounded-xl"></div>
+<div class="relative z-10 flex flex-col gap-sm">
+<div class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center text-on-surface mb-sm">
+<span class="material-symbols-outlined text-[24px]">straighten</span>
+</div>
+<h3 class="font-h3 text-h3 text-on-surface">Measure</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Baseline diagnostics establish current operational thresholds with zero ambiguity.</p>
+</div>
+<div class="relative z-10 mt-xl">
+<div class="h-1 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-fixed-dim w-1/3"></div>
+</div>
+<div class="flex justify-between mt-base font-data-mono text-[10px] text-on-surface-variant">
+<span>T-MINUS 0</span>
+<span>INITIAL STATE</span>
+</div>
+</div>
+</div>
+<div class="bg-[#141414] border border-[#222222] rounded-xl p-md flex flex-col justify-between group hover:bg-surface-container transition-colors duration-300 relative overflow-hidden mt-md md:mt-0">
+<div class="absolute -inset-1 bg-primary/0 group-hover:bg-primary/5 blur-xl transition-all duration-500 rounded-xl"></div>
+<div class="relative z-10 flex flex-col gap-sm">
+<div class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center text-primary mb-sm">
+<span class="material-symbols-outlined text-[24px]">explore</span>
+</div>
+<h3 class="font-h3 text-h3 text-on-surface">Guide</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Targeted interventions route performance vectors toward optimal operational targets.</p>
+</div>
+<div class="relative z-10 mt-xl flex items-end h-24 gap-xs">
+<div class="w-1/4 bg-surface-container rounded-t-sm h-[30%]"></div>
+<div class="w-1/4 bg-surface-container rounded-t-sm h-[50%]"></div>
+<div class="w-1/4 bg-surface-container-highest border border-outline-variant rounded-t-sm h-[80%] relative">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 font-data-mono text-[10px] text-primary">VECTORING</div>
+</div>
+<div class="w-1/4 bg-surface-container rounded-t-sm h-[60%]"></div>
+</div>
+</div>
+<div class="bg-[#1C1C1C] border border-primary/30 rounded-xl p-md flex flex-col justify-between relative overflow-hidden shadow-[0_0_30px_rgba(112,191,68,0.05)] md:-mt-md z-20">
+<div class="absolute -inset-1 bg-primary/5 blur-2xl rounded-xl"></div>
+<div class="absolute top-md right-md opacity-10">
+<span class="material-symbols-outlined text-[64px] text-primary">psychology</span>
+</div>
+<div class="relative z-10 flex flex-col gap-sm">
+<div class="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center mb-sm shadow-[0_0_15px_rgba(112,191,68,0.5)]">
+<span class="material-symbols-outlined text-[24px]">rocket_launch</span>
+</div>
+<h3 class="font-h3 text-h3 text-primary">Improve</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Sustained operational excellence achieved. Metrics consistently exceed target parameters.</p>
+</div>
+<div class="relative z-10 mt-xl">
+<div class="flex items-center gap-sm">
+<div class="flex-1 h-32 relative">
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 100 50">
+<path class="text-primary" d="M0,45 Q20,40 30,30 T60,20 T100,5" fill="none" stroke="currentColor" stroke-width="2"></path>
+<circle class="fill-primary" cx="100" cy="5" r="3"></circle>
+<circle class="fill-primary/30 animate-pulse" cx="100" cy="5" r="8"></circle>
+<line stroke="#222" stroke-width="0.5" x1="0" x2="100" y1="10" y2="10"></line>
+<line stroke="#222" stroke-width="0.5" x1="0" x2="100" y1="30" y2="30"></line>
+</svg>
+</div>
+</div>
+<div class="flex justify-between mt-sm font-data-mono text-data-mono text-primary">
+<span>OPTIMAL STATE</span>
+<span>+42.7%</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-8 px-8 py-3 bg-[#10150c]/92 backdrop-blur-md rounded-full border border-[#8a9481]/24 shadow-[0_0_20px_rgba(138,220,93,0.08)] font-[Inter] text-[11px] tracking-[0.22em] uppercase">
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/09-why-this-doesnt-exist-yet.html">
+    <span class="material-symbols-outlined text-sm">chevron_left</span>
+    <span>Back</span>
+  </a>
+  <div class="flex items-center gap-4 px-5 py-2 rounded-full border border-[#8a9481]/18 bg-[#181d14] text-[#8adc5d] font-semibold tracking-[0.28em]">
+    <span class="material-symbols-outlined text-sm">play_arrow</span>
+    <span>10 / 11</span>
+  </div>
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/11-let-s-build-this-together.html">
+    <span>Forward</span>
+    <span class="material-symbols-outlined text-sm">chevron_right</span>
+  </a>
+</footer>
+</body></html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Opportunity - Enablement Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-surface-variant": "#c0cab5",
+                        "surface-dim": "#10150c",
+                        "primary-fixed": "#a4f875",
+                        "surface-tint": "#8adb5c",
+                        "on-primary-fixed": "#082100",
+                        "surface-container-lowest": "#0b1008",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed-variant": "#474746",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface": "#10150c",
+                        "on-tertiary-container": "#3e4041",
+                        "surface-container": "#1c2118",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-secondary": "#313030",
+                        "surface-container-high": "#262c22",
+                        "tertiary": "#c7c7c7",
+                        "surface-container-highest": "#31362d",
+                        "surface-container-low": "#181d14",
+                        "on-error": "#690005",
+                        "on-background": "#dfe4d6",
+                        "on-secondary-container": "#b7b5b4",
+                        "on-tertiary": "#2f3131",
+                        "tertiary-container": "#abacac",
+                        "secondary-fixed": "#e5e2e1",
+                        "outline-variant": "#41493a",
+                        "on-surface": "#dfe4d6",
+                        "inverse-primary": "#2c6c00",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-error-container": "#ffdad6",
+                        "error": "#ffb4ab",
+                        "on-primary": "#133800",
+                        "inverse-surface": "#dfe4d6",
+                        "primary-fixed-dim": "#8adb5c",
+                        "on-primary-fixed-variant": "#1f5100",
+                        "inverse-on-surface": "#2d3228",
+                        "background": "#10150c",
+                        "secondary-container": "#474746",
+                        "surface-variant": "#31362d",
+                        "on-primary-container": "#1b4a00",
+                        "primary-container": "#70bf44",
+                        "primary": "#8adc5d",
+                        "surface-bright": "#363b31",
+                        "secondary": "#c8c6c5",
+                        "outline": "#8a9481"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "xs": "4px",
+                        "sm": "12px",
+                        "container-max": "1440px",
+                        "base": "8px",
+                        "lg": "48px",
+                        "xl": "80px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "data-mono": ["Inter"],
+                        "h2": ["Manrope"],
+                        "body-sm": ["Inter"],
+                        "label": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "h3": ["Manrope"],
+                        "h1": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "data-mono": ["16px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h2": ["32px", { "lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-sm": ["14px", { "lineHeight": "1.5", "fontWeight": "300" }],
+                        "label": ["12px", { "lineHeight": "1", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h3": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "h1": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .neon-glow {
+            box-shadow: 0 0 40px rgba(138, 219, 92, 0.15);
+        }
+        .neon-text-glow {
+            text-shadow: 0 0 10px rgba(138, 219, 92, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-lg selection:bg-primary-container selection:text-on-primary-container">
+<header class="bg-[#0A0A0A] flex justify-between items-center w-full px-12 h-20 docked full-width top-0 border-b border-[#222222] flat no shadows z-50">
+<div class="flex items-center gap-4">
+<span class="text-xl font-black text-[#70BF44] tracking-tighter">ENABLEMENT ENGINE</span>
+</div>
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined text-gray-500 hover:text-[#70BF44] transition-colors duration-300 cursor-pointer">settings</span>
+<span class="material-symbols-outlined text-gray-500 hover:text-[#70BF44] transition-colors duration-300 cursor-pointer">sync_alt</span>
+<span class="material-symbols-outlined text-gray-500 hover:text-[#70BF44] transition-colors duration-300 cursor-pointer">account_circle</span>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<main class="flex-1 flex flex-col relative h-[calc(100vh-80px)] overflow-y-auto">
+<div class="flex-1 flex flex-col lg:flex-row items-center justify-center p-lg gap-xl max-w-container-max mx-auto w-full">
+<div class="flex-1 flex flex-col gap-sm z-10 max-w-2xl">
+<div class="flex items-center gap-3 mb-4">
+<div class="h-[1px] w-12 bg-primary-container"></div>
+<span class="font-data-mono text-data-mono text-primary-container uppercase">The Opportunity</span>
+</div>
+<h1 class="font-h1 text-h1 text-on-background leading-tight">
+                        What if training could respond in <span class="text-primary-container neon-text-glow">real time?</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-4 max-w-xl opacity-80 border-l-2 border-[#222222] pl-6 py-2">
+                        Based on what your people actually do. Moving away from static curriculum to dynamic, context-aware operational guidance.
+                    </p>
+</div>
+<div class="flex-1 flex justify-center items-center relative min-h-[400px]">
+<div class="absolute w-80 h-80 rounded-full border border-dashed border-[#333] animate-[spin_40s_linear_infinite]"></div>
+<div class="absolute w-64 h-64 rounded-full border border-primary-container/30 neon-glow"></div>
+<div class="absolute w-32 h-32 bg-[#141414] rounded-full border border-[#222222] flex items-center justify-center z-10 shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+<span class="material-symbols-outlined text-4xl text-primary-container" style="font-variation-settings: 'FILL' 1;">
+                            model_training
+                        </span>
+</div>
+<div class="absolute w-64 h-64 rounded-full animate-[spin_15s_linear_infinite]">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow-[0_0_15px_#8adc5d]"></div>
+<div class="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-tertiary-fixed-dim rounded-full"></div>
+<div class="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-on-surface-variant rounded-full"></div>
+</div>
+<svg class="absolute inset-0 w-full h-full" viewbox="0 0 400 400">
+<defs>
+<lineargradient id="lineGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#141414"></stop>
+<stop offset="50%" stop-color="#70BF44" stop-opacity="0.5"></stop>
+<stop offset="100%" stop-color="#141414"></stop>
+</lineargradient>
+</defs>
+<circle cx="200" cy="200" fill="none" opacity="0.6" r="140" stroke="url(#lineGrad)" stroke-dasharray="4 8" stroke-width="1"></circle>
+</svg>
+<div class="absolute top-10 right-10 bg-[#1C1C1C] border border-[#222222] p-4 rounded-lg flex items-center gap-3 backdrop-blur-sm z-20">
+<span class="material-symbols-outlined text-primary text-sm">sensors</span>
+<div class="flex flex-col">
+<span class="font-data-mono text-[10px] text-on-surface-variant">INPUT DETECTED</span>
+<span class="font-data-mono text-label text-on-background">Live Telemetry</span>
+</div>
+</div>
+<div class="absolute bottom-10 left-10 bg-[#1C1C1C] border border-[#222222] p-4 rounded-lg flex items-center gap-3 backdrop-blur-sm z-20">
+<span class="material-symbols-outlined text-primary text-sm">auto_fix_high</span>
+<div class="flex flex-col">
+<span class="font-data-mono text-[10px] text-on-surface-variant">ADAPTATION</span>
+<span class="font-data-mono text-label text-on-background">Module Re-routing</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<footer class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-8 px-8 py-3 bg-[#10150c]/92 backdrop-blur-md rounded-full border border-[#8a9481]/24 shadow-[0_0_20px_rgba(138,220,93,0.08)] font-[Inter] text-[11px] tracking-[0.22em] uppercase">
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/04-the-gap.html">
+    <span class="material-symbols-outlined text-sm">chevron_left</span>
+    <span>Back</span>
+  </a>
+  <div class="flex items-center gap-4 px-5 py-2 rounded-full border border-[#8a9481]/18 bg-[#181d14] text-[#8adc5d] font-semibold tracking-[0.28em]">
+    <span class="material-symbols-outlined text-sm">play_arrow</span>
+    <span>5 / 6</span>
+  </div>
+  <a class="flex items-center gap-2 text-[#dfe4d6]/72 hover:text-[#dfe4d6] transition-colors" href="/Presentations/interactive-engagement-engine/06-the-model.html">
+    <span>Forward</span>
+    <span class="material-symbols-outlined text-sm">chevron_right</span>
+  </a>
+</footer>
+</body></html>

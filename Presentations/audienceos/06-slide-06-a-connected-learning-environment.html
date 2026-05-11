@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Slide 06 - A Connected Learning Environment</title>
+<!-- Tailwind CSS v3 CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Montserrat for the technical aesthetic -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Montserrat', 'sans-serif'],
+          },
+          colors: {
+            'slide-dark': '#0a0a0a',
+            'slide-green': '#4ade80',
+            'slide-orange': '#f97316',
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-styling">
+    body {
+      background-color: #0a0a0a;
+      color: white;
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slide-container {
+      width: 100vw;
+      height: 100vh;
+      max-aspect-ratio: 3/2;
+      position: relative;
+      background-color: #0a0a0a;
+      padding: 3rem;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    .checklist-icon {
+      color: #4ade80;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .accent-border {
+      border-left: 2px solid #4ade80;
+    }
+    .slide-number {
+      position: absolute;
+      bottom: 2rem;
+      right: 2rem;
+      font-weight: 800;
+      color: #f97316;
+      font-size: 1.5rem;
+    }
+  </style>
+<link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
+</head>
+<body class="antialiased">
+<!-- BEGIN: MainSlideContent -->
+<main class="slide-container" data-purpose="slide-06">
+<!-- Header Labels -->
+<div class="mb-2" data-purpose="section-labels">
+<span class="text-slide-green text-xs font-bold tracking-widest uppercase">Audience Experience</span>
+</div>
+<!-- Main Heading -->
+<div class="mb-12" data-purpose="slide-title">
+<h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">
+        A CONNECTED<br/>
+        LEARNING ENVIRONMENT
+      </h1>
+</div>
+<!-- Content Layout Grid -->
+<div class="grid grid-cols-12 gap-8 flex-grow">
+<!-- Left Column: Checklist and Why It Matters -->
+<div class="col-span-7 flex flex-col justify-between h-full pb-16">
+<!-- Checklist -->
+<ul class="space-y-6" data-purpose="feature-list">
+<li class="flex items-start gap-4">
+<svg class="w-6 h-6 checklist-icon" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+<span class="text-lg font-medium text-gray-200">Join instantly via QR code</span>
+</li>
+<li class="flex items-start gap-4">
+<svg class="w-6 h-6 checklist-icon" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+<span class="text-lg font-medium text-gray-200">Follow slides live on any device</span>
+</li>
+<li class="flex items-start gap-4">
+<svg class="w-6 h-6 checklist-icon" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+<span class="text-lg font-medium text-gray-200">Participate in polls &amp; quizzes</span>
+</li>
+<li class="flex items-start gap-4">
+<svg class="w-6 h-6 checklist-icon" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+<span class="text-lg font-medium text-gray-200">Submit questions</span>
+</li>
+<li class="flex items-start gap-4">
+<svg class="w-6 h-6 checklist-icon" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+<span class="text-lg font-medium text-gray-200">Interact in real time</span>
+</li>
+</ul>
+<!-- Why It Matters Box -->
+<div class="bg-[#111111] p-6 accent-border max-w-md" data-purpose="why-it-matters">
+<h3 class="text-slide-green font-bold text-xs uppercase tracking-widest mb-2">Why It Matters</h3>
+<p class="text-gray-300 leading-relaxed font-light">
+            Engagement becomes measurable<br/>
+            instead of assumed.
+          </p>
+</div>
+</div>
+<!-- Right Column: Visual of phone -->
+<div class="col-span-5 relative flex items-end justify-center" data-purpose="phone-visual">
+<!-- Mask/Container for the phone image to ensure it cuts off at bottom correctly -->
+<div class="relative w-full h-full flex items-center justify-center">
+<!-- Note: Using the requested placeholder image -->
+<img alt="Hand holding a smartphone displaying live slide engagement" class="object-contain max-h-full w-auto drop-shadow-2xl" src="https://lh3.googleusercontent.com/aida/ADBb0ugMNCoGWAFWUZq35HUebJSjpDtYuu1nGGfdn3CnBE_JaYJbUYTR5mDC-viTypL_2mCjmS-aRBDmAYzwn27fUh6lkZMg0B8MelzRxn5vO_eZVgblWqx5QD3PwtjoRGJXXsrdhBu6L4oXxKF9yg5-tDxADIqAVJqksYtMZtRWeACgaS1iO5vIdalBmhrq0EMn_fj1BhsAcTFsnz7g0_U5_M1AVyihJOjI8vzoAVyXoo4fX2q-Ll1IGWzpBp6IrBN27h5GKY0-NUZLVhA"/>
+</div>
+</div>
+</div>
+<!-- Slide Index -->
+<div class="slide-number">06</div>
+</main>
+<!-- END: MainSlideContent -->
+<script src="/Presentations/_shared/deck-controls.js"></script>
+</body></html>

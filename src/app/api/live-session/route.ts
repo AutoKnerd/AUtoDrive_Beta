@@ -8,7 +8,12 @@ import {
   type LiveSessionPayload,
   type LiveSessionState,
 } from '@/lib/live-session';
-import { getAudienceContentForDeck, readPresentationDeckManifest } from '@/lib/presentation-engine';
+import {
+  getAudienceContentForDeck,
+  readPresentationDeckManifest,
+  resolveCompanionEntryForStep,
+  type PresentationDeckManifest,
+} from '@/lib/presentation-engine';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -60,13 +65,13 @@ function findPreferredLanHost() {
   return ranked || null;
 }
 
-function buildAudienceUrl(request: Request) {
+function buildBaseAudienceUrl(request: Request) {
   const configuredOrigin =
     normalizeConfiguredOrigin(process.env.NEXT_PUBLIC_APP_URL)
     || normalizeConfiguredOrigin(process.env.APP_URL);
 
   if (configuredOrigin && !isLocalOnlyHostname(configuredOrigin.hostname)) {
-    return new URL('/live-session?audience=1', configuredOrigin).toString();
+    return new URL('/live-session?audience=1', configuredOrigin);
   }
 
   const requestUrl = new URL(request.url);
@@ -79,7 +84,36 @@ function buildAudienceUrl(request: Request) {
 
   audienceUrl.port = requestUrl.port === '3001' || requestUrl.port === '' ? '3000' : requestUrl.port;
 
-  return audienceUrl.toString();
+  return audienceUrl;
+}
+
+function buildAudienceUrl(
+  request: Request,
+  _state: LiveSessionState,
+  _manifest: PresentationDeckManifest | null,
+) {
+  return buildBaseAudienceUrl(request).toString();
+}
+
+function buildCompanionUrl(state: LiveSessionState, companionEntry: string | null) {
+  if (!companionEntry) {
+    return undefined;
+  }
+
+  const companionUrl = new URL(`http://placeholder/Presentations/${encodeURIComponent(state.deckId)}/${companionEntry
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')}`);
+  companionUrl.searchParams.set('audience', '1');
+  companionUrl.searchParams.set('embedded', '1');
+  companionUrl.searchParams.set('deckId', state.deckId);
+  companionUrl.searchParams.set('currentStep', state.currentStep);
+  companionUrl.searchParams.set('currentSlide', state.currentSlide);
+  if (state.sessionToken) {
+    companionUrl.searchParams.set('sessionToken', state.sessionToken);
+  }
+
+  return `${companionUrl.pathname}${companionUrl.search}`;
 }
 
 function makeLiveSessionToken() {
@@ -99,7 +133,20 @@ function inferStepFromSlide(currentSlide: string) {
 async function buildPayload(input: Partial<LiveSessionState>, request: Request): Promise<LiveSessionPayload> {
   const state = normalizeLiveSessionState(input);
   const manifest = await readPresentationDeckManifest(state.deckId);
-  const audienceUrl = buildAudienceUrl(request);
+  const companionEntry = manifest
+    ? await resolveCompanionEntryForStep(state.deckId, manifest, state.currentStep)
+    : null;
+  const resolvedManifest = companionEntry && manifest?.companion
+    ? {
+        ...manifest,
+        companion: {
+          ...manifest.companion,
+          entry: companionEntry,
+        },
+      }
+    : manifest;
+  const audienceUrl = buildAudienceUrl(request, state, resolvedManifest ?? manifest);
+  const companionUrl = buildCompanionUrl(state, companionEntry);
 
   if (!manifest) {
     return {
@@ -108,6 +155,7 @@ async function buildPayload(input: Partial<LiveSessionState>, request: Request):
       audienceEnabled: true,
       qrOverlayEnabled: true,
       audienceUrl,
+      companionUrl,
       content: {
         eyebrow: 'Live Session',
         title: state.currentStep,
@@ -122,6 +170,7 @@ async function buildPayload(input: Partial<LiveSessionState>, request: Request):
     audienceEnabled: manifest.audience?.enabled !== false,
     qrOverlayEnabled: manifest.audience?.qrOverlayEnabled !== false,
     audienceUrl,
+    companionUrl,
     content: getAudienceContentForDeck(manifest, state.currentStep),
   };
 }

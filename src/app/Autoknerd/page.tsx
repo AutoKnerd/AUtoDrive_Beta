@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { AutoforgeLeadDialog } from '@/components/autoforge/autoforge-lead-dialog';
 import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
 import { BeehiivSubscriberDialog } from '@/components/autoknerd/beehiiv-subscriber-dialog';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
@@ -128,7 +127,6 @@ export default function AutoknerdPage() {
   const [hoveredFrictionCard, setHoveredFrictionCard] = useState<(typeof frictionCards)[number]['key'] | null>(null);
   const [activeProcessCard, setActiveProcessCard] = useState<(typeof processCards)[number]['key']>('processing');
   const [hoveredProcessCard, setHoveredProcessCard] = useState<(typeof processCards)[number]['key'] | null>(null);
-  const [isAutoforgeLeadModalOpen, setIsAutoforgeLeadModalOpen] = useState(false);
   const [isScheduleCallModalOpen, setIsScheduleCallModalOpen] = useState(false);
   const productRefs = useRef<Record<(typeof ecosystemProducts)[number]['key'], HTMLAnchorElement | null>>({
     autoshop: null,
@@ -670,16 +668,13 @@ export default function AutoknerdPage() {
                   >
                     Schedule a Call
                   </button>
-                  <Link
-                    href="/autoforge"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      setIsAutoforgeLeadModalOpen(true);
-                    }}
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleCallModalOpen(true)}
                     className="inline-flex items-center justify-center border border-[#eaffb8]/30 px-8 py-4 text-sm font-bold uppercase tracking-[0.16em] text-[#f4f3f3] transition-all duration-300 hover:border-[#bdfc00]/50 hover:bg-[#1d2020] hover:text-[#eaffb8] active:scale-95"
                   >
                     Book AutoForge Diagnostic
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>
@@ -767,30 +762,16 @@ export default function AutoknerdPage() {
             >
               Schedule a Call
             </button>
-            <Link
-              href="/autoforge"
-              onClick={(event) => {
-                event.preventDefault();
-                setIsAutoforgeLeadModalOpen(true);
-              }}
+            <button
+              type="button"
+              onClick={() => setIsScheduleCallModalOpen(true)}
               className="inline-flex min-h-[112px] items-center justify-center border border-[#6e7652] bg-transparent px-8 py-6 text-center text-2xl font-black uppercase tracking-[0.18em] text-[#f4f3f3] transition-all duration-300 hover:border-[#bdfc00]/50 hover:bg-[#171919] hover:text-[#eaffb8] active:scale-[0.99]"
             >
               Book AutoForge Diagnostic
-            </Link>
+            </button>
           </div>
         </section>
       </main>
-      <AutoforgeLeadDialog
-        open={isAutoforgeLeadModalOpen}
-        onOpenChange={setIsAutoforgeLeadModalOpen}
-        titleContent={
-          <>
-            Deploy The <span className="text-[#bdfc00]">AutoKnerd CX System</span> in your Dealership
-          </>
-        }
-        description="Tell us a bit about your store and we&apos;ll show you exactly how this works for you."
-        submitButtonClassName="bg-[#bdfc00] text-[#445d00] hover:bg-[#bdfc00]/90"
-      />
       <BeehiivSubscriberDialog
         open={isScheduleCallModalOpen}
         onOpenChange={setIsScheduleCallModalOpen}

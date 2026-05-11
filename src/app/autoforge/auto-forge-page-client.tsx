@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { AutoforgeLeadDialog } from '@/components/autoforge/autoforge-lead-dialog';
+import { BeehiivSubscriberDialog } from '@/components/autoknerd/beehiiv-subscriber-dialog';
 import { ProductHeader } from '@/components/marketing/product-header';
 
 type PainCard = {
@@ -101,11 +101,7 @@ function Kicker({ children }: { children: ReactNode }) {
 }
 
 export default function AutoForgePageClient() {
-  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
-
-  const openLeadModal = () => {
-    setIsLeadModalOpen(true);
-  };
+  const [isScheduleCallModalOpen, setIsScheduleCallModalOpen] = useState(false);
 
   return (
     <>
@@ -153,7 +149,7 @@ export default function AutoForgePageClient() {
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <button
                   type="button"
-                  onClick={openLeadModal}
+                  onClick={() => setIsScheduleCallModalOpen(true)}
                   className="inline-flex min-h-[60px] items-center justify-center bg-[#00ff66] px-6 py-4 font-[family-name:var(--font-heading)] text-sm font-black uppercase tracking-[0.14em] text-black shadow-[0_0_34px_rgba(0,255,102,0.16)]"
                 >
                   Deploy the System
@@ -472,16 +468,11 @@ export default function AutoForgePageClient() {
         </Section>
       </main>
 
-      <AutoforgeLeadDialog
-        open={isLeadModalOpen}
-        onOpenChange={setIsLeadModalOpen}
-        titleContent={
-          <>
-            Deploy The <span className="text-[#00ff66]">AutoKnerd CX System</span> in your Dealership
-          </>
-        }
-        description="Tell us a bit about your store and we&apos;ll show you exactly how this works for you."
-        submitButtonClassName="bg-[#00ff66] text-black hover:bg-[#00ff66]/90"
+      <BeehiivSubscriberDialog
+        open={isScheduleCallModalOpen}
+        onOpenChange={setIsScheduleCallModalOpen}
+        title="Schedule a Call"
+        description="Built for dealerships that want clearer communication, stronger customer trust, and more consistent experiences."
       />
     </>
   );
