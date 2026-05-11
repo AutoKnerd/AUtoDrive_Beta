@@ -71,9 +71,7 @@ function buildAudienceUrl(request: Request, _state: LiveSessionState, _companion
     audienceUrl.hostname = preferredLanHost;
   }
 
-  if (requestUrl.port === '3001' || requestUrl.port === '') {
-    audienceUrl.port = '3000';
-  }
+  audienceUrl.port = requestUrl.port;
 
   return audienceUrl.toString();
 }
@@ -140,19 +138,39 @@ export async function GET(request: Request) {
       let lastPayload = '';
       let closed = false;
 
+      const clearTimers = (pollId?: ReturnType<typeof setInterval>, heartbeatId?: ReturnType<typeof setInterval>) => {
+        if (pollId) clearInterval(pollId);
+        if (heartbeatId) clearInterval(heartbeatId);
+      };
+
       const safeClose = () => {
         if (closed) return;
         closed = true;
         controller.close();
       };
 
+      const safeEnqueue = (value: Uint8Array) => {
+        if (closed) return false;
+
+        try {
+          controller.enqueue(value);
+          return true;
+        } catch (error) {
+          closed = true;
+          console.warn('Live session stream closed before enqueue completed.', error);
+          return false;
+        }
+      };
+
       const sendState = async () => {
+        if (closed) return;
+
         try {
           const state = await readCurrentState(request);
           const payload = encodeEvent(state);
           if (payload === lastPayload) return;
           lastPayload = payload;
-          controller.enqueue(encoder.encode(payload));
+          safeEnqueue(encoder.encode(payload));
         } catch (error) {
           console.error('Unable to stream live session state.', error);
         }
@@ -161,7 +179,10 @@ export async function GET(request: Request) {
       await sendState();
 
       const heartbeatId = setInterval(() => {
-        controller.enqueue(encoder.encode(': keep-alive\n\n'));
+        if (!safeEnqueue(encoder.encode(': keep-alive\n\n'))) {
+          clearTimers(pollId, heartbeatId);
+          safeClose();
+        }
       }, 15000);
 
       const pollId = setInterval(() => {
@@ -169,8 +190,7 @@ export async function GET(request: Request) {
       }, POLL_INTERVAL_MS);
 
       request.signal.addEventListener('abort', () => {
-        clearInterval(pollId);
-        clearInterval(heartbeatId);
+        clearTimers(pollId, heartbeatId);
         safeClose();
       });
     },

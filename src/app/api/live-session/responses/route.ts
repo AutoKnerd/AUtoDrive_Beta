@@ -38,6 +38,21 @@ function normalizeSlideNumber(value: string | null) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function getRecordTimestampValue(record: Partial<LiveSessionAudienceResponseInput> & { createdAt?: unknown }) {
+  const explicitTimestamp = Date.parse(normalizeText(record.timestamp));
+  if (Number.isFinite(explicitTimestamp)) {
+    return explicitTimestamp;
+  }
+
+  const createdAt = record.createdAt;
+  if (createdAt && typeof createdAt === 'object' && 'toDate' in createdAt) {
+    const date = (createdAt as { toDate: () => Date }).toDate();
+    return date.getTime();
+  }
+
+  return 0;
+}
+
 function encodeKeyPart(value: string) {
   return encodeURIComponent(value.trim() || 'none');
 }
@@ -177,7 +192,8 @@ export async function GET(request: Request) {
         if (!slideStep && currentSlide && normalizeText(record.currentSlide) !== currentSlide) return false;
         if (responseKey && normalizeText(record.responseKey) !== responseKey) return false;
         return true;
-      });
+      })
+      .sort((a, b) => getRecordTimestampValue(b) - getRecordTimestampValue(a));
 
     const respondentIds = new Set(
       matchingRecords

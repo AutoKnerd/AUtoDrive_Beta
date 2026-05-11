@@ -57,6 +57,16 @@
   background: linear-gradient(180deg, rgba(142, 255, 113, 0.2), rgba(142, 255, 113, 0.08));
 }
 
+.deck-controls__button--danger {
+  border-color: rgba(249, 115, 22, 0.42);
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.08));
+}
+
+.deck-controls__button--danger:hover {
+  border-color: rgba(249, 115, 22, 0.8);
+  background: rgba(40, 18, 10, 0.95);
+}
+
 .deck-controls__toggle {
   width: 56px;
   height: 56px;

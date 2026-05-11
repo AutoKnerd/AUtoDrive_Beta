@@ -35,6 +35,17 @@
       animation: pulse-glow 4s ease-in-out infinite;
       filter: blur(40px);
     }
+
+    .ai-live-card {
+      background: linear-gradient(135deg, rgba(18, 19, 28, 0.96), rgba(10, 11, 16, 0.96));
+      border: 1px solid rgba(139, 92, 246, 0.22);
+      box-shadow: 0 0 32px rgba(139, 92, 246, 0.12);
+    }
+
+    .ai-live-card--active {
+      border-color: rgba(139, 92, 246, 0.5);
+      box-shadow: 0 0 42px rgba(139, 92, 246, 0.22);
+    }
   </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
@@ -103,52 +114,57 @@
 </ul>
 </div>
 <!-- END: Left Column -->
-<!-- Right Column: AI Brain Graphic -->
+<!-- Right Column: Live AI Coach -->
 <div class="col-span-6 relative flex items-center justify-center">
-<!-- Background Glow behind the brain -->
+<!-- Background Glow behind the panel -->
 <div class="glow-effect absolute w-96 h-96 bg-accent-purple/30 rounded-full"></div>
-<!-- BEGIN: AI Brain SVG -->
-<div class="relative z-10 w-full max-w-md">
-<svg class="filter drop-shadow-[0_0_15px_rgba(139,92,246,0.6)]" viewbox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-<!-- Central "AI" Text -->
-<text dominant-baseline="middle" fill="white" font-family="Montserrat" font-size="28" font-weight="bold" text-anchor="middle" x="50%" y="50%">AI</text>
-<!-- Neural Path Lines (Stylized Brain) -->
-<g fill="none" opacity="0.8" stroke="#8b5cf6" stroke-linecap="round" stroke-width="1.5">
-<!-- Right side nodes -->
-<path d="M125 100 Q 140 100, 160 80"></path>
-<path d="M125 100 Q 140 100, 160 120"></path>
-<path d="M115 85 Q 120 70, 150 60"></path>
-<path d="M115 115 Q 120 130, 150 140"></path>
-<path d="M100 80 Q 100 60, 120 40"></path>
-<path d="M100 120 Q 100 140, 120 160"></path>
-<!-- Left side nodes -->
-<path d="M75 100 Q 60 100, 40 80"></path>
-<path d="M75 100 Q 60 100, 40 120"></path>
-<path d="M85 85 Q 80 70, 50 60"></path>
-<path d="M85 115 Q 80 130, 50 140"></path>
-<path d="M100 80 Q 100 60, 80 40"></path>
-<path d="M100 120 Q 100 140, 80 160"></path>
-</g>
-<!-- Circuit Points / Nodes -->
-<g fill="#8b5cf6">
-<circle cx="160" cy="80" r="3"></circle>
-<circle cx="160" cy="120" r="3"></circle>
-<circle cx="150" cy="60" r="3"></circle>
-<circle cx="150" cy="140" r="3"></circle>
-<circle cx="120" cy="40" r="3"></circle>
-<circle cx="120" cy="160" r="3"></circle>
-<circle cx="40" cy="80" r="3"></circle>
-<circle cx="40" cy="120" r="3"></circle>
-<circle cx="50" cy="60" r="3"></circle>
-<circle cx="50" cy="140" r="3"></circle>
-<circle cx="80" cy="40" r="3"></circle>
-<circle cx="80" cy="160" r="3"></circle>
-</g>
-<!-- Connecting inner ring -->
-<circle cx="100" cy="100" fill="none" opacity="0.5" r="35" stroke="#3b82f6" stroke-dasharray="4 2" stroke-width="1"></circle>
-</svg>
+<div class="relative z-10 w-full max-w-[560px]">
+<div class="ai-live-card rounded-[28px] p-8 backdrop-blur-xl transition-all duration-300" data-ai-live-card="">
+<div class="mb-5 flex items-start justify-between gap-4">
+<div>
+<p class="text-[11px] uppercase tracking-[0.26em] text-accent-purple font-bold">Sprocket Roleplay Coach</p>
+<p class="mt-3 text-sm text-gray-400 max-w-md" data-ai-state="">
+Run the companion AI prompt to generate a live coaching move for the trainer.
+</p>
 </div>
-<!-- END: AI Brain SVG -->
+<div class="rounded-full border border-accent-purple/35 bg-accent-purple/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-accent-purple">
+<span data-ai-live-indicator="">Waiting</span>
+</div>
+</div>
+<div class="h-px bg-gradient-to-r from-transparent via-accent-purple/50 to-transparent mb-6"></div>
+
+<div class="rounded-[24px] border border-border-gray/60 bg-black/45 p-6">
+<div class="mb-5 flex items-center justify-between gap-3">
+<div>
+<p class="text-[10px] uppercase tracking-[0.22em] text-accent-blue/80 font-semibold">Latest Scenario</p>
+<p class="mt-2 text-2xl font-bold text-white leading-tight" data-ai-scenario="">Waiting for room input</p>
+</div>
+<div class="h-12 w-12 rounded-full border border-accent-purple/30 bg-accent-purple/10 flex items-center justify-center text-accent-purple font-bold">
+AI
+</div>
+</div>
+
+<div class="grid gap-5">
+<div class="rounded-2xl border border-accent-purple/18 bg-accent-purple/5 p-5">
+<p class="text-[10px] uppercase tracking-[0.2em] text-accent-purple font-semibold">What the trainer could say next</p>
+<p class="mt-3 text-lg leading-8 text-gray-100" data-ai-response="">
+The latest Sprocket coaching response will appear here for the room.
+</p>
+</div>
+
+<div class="rounded-2xl border border-cyan-400/18 bg-slate-900/70 p-5">
+<p class="text-[10px] uppercase tracking-[0.2em] text-cyan-300 font-semibold">Coaching note</p>
+<p class="mt-3 text-base leading-7 text-gray-300" data-ai-note="">
+One tactical note will appear here to show how AI is supporting the trainer in real time.
+</p>
+</div>
+<div class="flex items-center justify-between text-[10px] uppercase tracking-[0.22em] text-gray-500">
+<span>Latest live AI output only</span>
+<span data-ai-updated="">No live result yet</span>
+</div>
+</div>
+</div>
+</div>
 </div>
 </div>
 <!-- END: Content Grid -->
@@ -168,5 +184,109 @@
     </div>
 </main>
 <!-- END: Main Slide Container -->
+<script>
+  (function () {
+    const cardNode = document.querySelector('[data-ai-live-card]');
+    const stateNode = document.querySelector('[data-ai-state]');
+    const liveIndicatorNode = document.querySelector('[data-ai-live-indicator]');
+    const scenarioNode = document.querySelector('[data-ai-scenario]');
+    const responseNode = document.querySelector('[data-ai-response]');
+    const noteNode = document.querySelector('[data-ai-note]');
+    const updatedNode = document.querySelector('[data-ai-updated]');
+
+    function formatUpdatedAt(value) {
+      const parsed = Date.parse(value || '');
+      if (!Number.isFinite(parsed)) {
+        return 'No live result yet';
+      }
+
+      const deltaSeconds = Math.max(0, Math.round((Date.now() - parsed) / 1000));
+      if (deltaSeconds < 5) return 'Updated just now';
+      if (deltaSeconds < 60) return 'Updated ' + deltaSeconds + 's ago';
+      const deltaMinutes = Math.round(deltaSeconds / 60);
+      if (deltaMinutes < 60) return 'Updated ' + deltaMinutes + 'm ago';
+      return 'Updated recently';
+    }
+
+    async function getLiveState() {
+      try {
+        const response = await fetch('/api/live-session', { cache: 'no-store' });
+        if (!response.ok) {
+          return { deckId: 'audienceos', sessionToken: '' };
+        }
+        const payload = await response.json();
+        return {
+          deckId: payload && payload.state && payload.state.deckId ? payload.state.deckId : 'audienceos',
+          sessionToken: payload && payload.state && payload.state.sessionToken ? payload.state.sessionToken : '',
+        };
+      } catch {
+        return { deckId: 'audienceos', sessionToken: '' };
+      }
+    }
+
+    function renderWaitingState() {
+      if (cardNode) cardNode.classList.remove('ai-live-card--active');
+      if (liveIndicatorNode) liveIndicatorNode.textContent = 'Waiting';
+      if (stateNode) stateNode.textContent = 'Run the companion AI prompt to generate a live coaching move for the trainer.';
+      if (scenarioNode) scenarioNode.textContent = 'Waiting for room input';
+      if (responseNode) responseNode.textContent = 'The latest Sprocket coaching response will appear here for the room.';
+      if (noteNode) noteNode.textContent = 'One tactical note will appear here to show how AI is supporting the trainer in real time.';
+      if (updatedNode) updatedNode.textContent = 'No live result yet';
+    }
+
+    function renderLatestOutput(record) {
+      if (cardNode) cardNode.classList.add('ai-live-card--active');
+      if (liveIndicatorNode) liveIndicatorNode.textContent = 'Live';
+      if (stateNode) stateNode.textContent = 'This is the newest coaching suggestion generated from the slide 7 companion app.';
+      if (scenarioNode) scenarioNode.textContent = record.scenarioTitle;
+      if (responseNode) responseNode.textContent = record.trainerResponse;
+      if (noteNode) noteNode.textContent = record.coachingNote;
+      if (updatedNode) updatedNode.textContent = formatUpdatedAt(record.timestamp);
+    }
+
+    async function refreshAiPanel() {
+      try {
+        const liveState = await getLiveState();
+        const query = '/api/live-session/responses?includeDetails=1&deckId='
+          + encodeURIComponent(liveState.deckId)
+          + '&slideStep=' + encodeURIComponent('slide7')
+          + '&responseKey=' + encodeURIComponent('audienceos-slide7')
+          + '&sessionToken=' + encodeURIComponent(liveState.sessionToken);
+
+        const response = await fetch(query, { cache: 'no-store' });
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const records = (payload.records || [])
+          .map(function (record) {
+            const selectedValue = record && typeof record.selectedValue === 'object' ? record.selectedValue : null;
+            if (!selectedValue) return null;
+            return {
+              scenarioTitle: typeof selectedValue.scenarioTitle === 'string' ? selectedValue.scenarioTitle.trim() : '',
+              trainerResponse: typeof selectedValue.trainerResponse === 'string' ? selectedValue.trainerResponse.trim() : '',
+              coachingNote: typeof selectedValue.coachingNote === 'string' ? selectedValue.coachingNote.trim() : '',
+              timestamp: record.timestamp || record.createdAt || '',
+            };
+          })
+          .filter(function (record) {
+            return record && record.scenarioTitle && record.trainerResponse && record.coachingNote;
+          });
+
+        if (!records.length) {
+          renderWaitingState();
+          return;
+        }
+
+        renderLatestOutput(records[0]);
+      } catch {
+        // Leave the last rendered values in place if polling fails.
+      }
+    }
+
+    renderWaitingState();
+    refreshAiPanel();
+    window.setInterval(refreshAiPanel, 4000);
+  })();
+</script>
 <script src="/Presentations/_shared/deck-controls.js"></script>
 </body></html>

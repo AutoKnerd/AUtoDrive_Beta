@@ -50,7 +50,7 @@
       <button type="button" class="deck-controls__button" data-action="back">Back to Deck</button>
       <button type="button" class="deck-controls__button" data-action="audience-qr">Audience QR</button>
       <button type="button" class="deck-controls__button" data-action="contract-qr">Contract</button>
-      <button type="button" class="deck-controls__button" data-action="reset-session">New Session</button>
+      <button type="button" class="deck-controls__button deck-controls__button--danger" data-action="reset-session">Reset Live Data</button>
       <button type="button" class="deck-controls__button" data-action="view-snapshot">View Snapshot</button>
       <button type="button" class="deck-controls__button" data-action="app-demo">App Demo</button>
       <button type="button" class="deck-controls__button" data-action="notes-screen">Open Notes Screen</button>
@@ -537,11 +537,16 @@
   resetSessionButton?.addEventListener('click', async () => {
     setMenuOpen(false);
     const shouldReset = window.confirm(
-      'Start a fresh audience session? This keeps the history, but resets the live snapshot counts.',
+      'Reset this presentation run? Existing live questions, feedback, and response counts will clear from the room view and a fresh audience session will start on this slide.',
     );
     if (!shouldReset) return;
 
     try {
+      if (resetSessionButton instanceof HTMLButtonElement) {
+        resetSessionButton.disabled = true;
+        resetSessionButton.textContent = 'Resetting...';
+      }
+
       const response = await fetch('/api/live-session', {
         method: 'POST',
         headers: {
@@ -565,11 +570,16 @@
           currentAudienceUrl = payload.audienceUrl;
           syncAudienceQrFrame();
         }
-        lastRespondentCount = -1;
+        resetVisibleLiveState();
         await syncResponseRail();
       }
     } catch (error) {
       console.error('Unable to reset live session.', error);
+    } finally {
+      if (resetSessionButton instanceof HTMLButtonElement) {
+        resetSessionButton.disabled = false;
+        resetSessionButton.textContent = 'Reset Live Data';
+      }
     }
   });
 
@@ -842,6 +852,31 @@
     } catch (error) {
       console.error('Unable to refresh response summary.', error);
     }
+  };
+
+  const resetVisibleLiveState = () => {
+    if (responseCountEl instanceof HTMLElement) {
+      responseCountEl.textContent = '0';
+    }
+
+    if (responseFillEl instanceof HTMLElement) {
+      responseFillEl.style.height = '0%';
+    }
+
+    if (responseStatusEl instanceof HTMLElement) {
+      responseStatusEl.textContent = 'WAITING';
+    }
+
+    responseRail.dataset.state = 'idle';
+    lastRespondentCount = -1;
+
+    const currentStep = inferStepFromFile(activeSlideFile, currentIndex + 1);
+    applyCompanionBindingState(currentStep, {
+      responseCount: 0,
+      respondentCount: 0,
+      fillPercent: 0,
+      latestAt: null,
+    });
   };
 
   presentationFrame?.addEventListener('load', () => {

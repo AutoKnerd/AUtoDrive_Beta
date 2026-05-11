@@ -82,7 +82,7 @@ function buildBaseAudienceUrl(request: Request) {
     audienceUrl.hostname = preferredLanHost;
   }
 
-  audienceUrl.port = requestUrl.port === '3001' || requestUrl.port === '' ? '3000' : requestUrl.port;
+  audienceUrl.port = requestUrl.port;
 
   return audienceUrl;
 }

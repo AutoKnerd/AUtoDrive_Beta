@@ -76,7 +76,7 @@
       background: #1a1a1a;
       border: 8px solid #333;
       border-radius: 12px 12px 0 0;
-      aspect-ratio: 16 / 10;
+      aspect-ratio: 16 / 13.2;
       position: relative;
       overflow: hidden;
     }
@@ -98,6 +98,83 @@
       height: 6px;
       background: #222;
       border-radius: 0 0 6px 6px;
+    }
+
+    .question-card {
+      border: 1px solid rgba(249, 115, 22, 0.18);
+      background: linear-gradient(135deg, rgba(20, 20, 20, 0.94), rgba(10, 10, 10, 0.94));
+    }
+
+    .question-card--active {
+      border-color: rgba(249, 115, 22, 0.45);
+      box-shadow: 0 0 24px rgba(249, 115, 22, 0.12);
+    }
+
+    .question-card--empty {
+      border-style: dashed;
+      border-color: rgba(113, 113, 122, 0.32);
+    }
+
+    .answer-card {
+      border: 1px solid rgba(94, 234, 212, 0.18);
+      background: linear-gradient(135deg, rgba(8, 19, 18, 0.94), rgba(5, 10, 10, 0.94));
+    }
+
+    .question-button {
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .question-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(249, 115, 22, 0.36);
+    }
+
+    .question-button--selected {
+      border-color: rgba(249, 115, 22, 0.48);
+      box-shadow: 0 0 24px rgba(249, 115, 22, 0.12);
+    }
+
+    .focus-card {
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .focus-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(249, 115, 22, 0.56);
+    }
+
+    .queue-scroll {
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .screen-scroll {
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .queue-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .queue-scroll::-webkit-scrollbar-thumb {
+      background: rgba(249, 115, 22, 0.24);
+      border-radius: 999px;
+    }
+
+    .screen-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .screen-scroll::-webkit-scrollbar-thumb {
+      background: rgba(94, 234, 212, 0.18);
+      border-radius: 999px;
     }
   </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
@@ -158,25 +235,49 @@
 <!-- END: Content Column -->
 <!-- BEGIN: Visual Column -->
 <section class="flex justify-center" data-purpose="laptop-visual">
-<div class="laptop-frame">
+<div class="laptop-frame max-w-[690px]">
 <!-- Laptop Screen with content -->
-<div class="laptop-screen flex items-center justify-center p-4">
-<!-- Simplified recreation of the slide content shown on laptop -->
-<div class="w-full h-full bg-black rounded p-6 flex flex-col justify-center items-center text-center border border-zinc-800 shadow-2xl">
-<p class="text-[8px] text-zinc-500 uppercase tracking-[0.2em] mb-2 font-bold italic">AutoKnerd Presentation Engine</p>
-<div class="w-2/3 h-px bg-gradient-to-r from-transparent via-ak-orange to-transparent mb-4 opacity-50"></div>
-<h2 class="text-xs md:text-sm font-bold text-white mb-2">BUILD TRUST.<br/>DELIVER VALUE.</h2>
-<h2 class="text-xs md:text-sm font-extrabold text-ak-orange">EARN LOYALTY.</h2>
-<!-- Bottom controls mock -->
-<div class="absolute bottom-6 left-6 flex gap-2">
-<div class="w-6 h-4 bg-zinc-800 rounded flex items-center justify-center">
-<div class="w-0 h-0 border-y-[3px] border-y-transparent border-r-[4px] border-r-zinc-400"></div>
+<div class="laptop-screen p-4">
+<div class="relative flex h-full w-full flex-col overflow-hidden rounded border border-zinc-800 bg-black p-5 shadow-2xl">
+<div class="mb-4 flex items-center justify-between gap-4">
+<div>
+<p class="text-[9px] font-bold uppercase tracking-[0.32em] text-ak-orange/90">Live Room Questions</p>
+<p class="mt-1 text-[11px] text-zinc-500" data-question-summary="">Questions will stack here for the trainer to review and answer.</p>
 </div>
-<div class="w-6 h-4 bg-zinc-800 rounded flex items-center justify-center">
-<div class="w-0 h-0 border-y-[3px] border-y-transparent border-l-[4px] border-l-zinc-400"></div>
+<div class="rounded-full border border-ak-orange/30 bg-ak-orange/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-ak-orange">
+<span data-question-total="">0</span> Live
 </div>
 </div>
-<div class="absolute bottom-6 right-6 text-[8px] text-zinc-600 font-mono">01 / 15</div>
+<div class="mb-4 h-px bg-gradient-to-r from-transparent via-ak-orange/40 to-transparent"></div>
+<div class="screen-scroll grid flex-1 grid-rows-[auto_auto_1fr] gap-3 min-h-0">
+<button class="question-card question-card--empty focus-card rounded-xl p-4 min-h-[128px]" data-question-focus="" type="button">
+<div class="mb-2 flex items-center justify-between gap-3">
+<span class="text-[10px] font-bold uppercase tracking-[0.24em] text-ak-orange" data-focus-name="">Select a queued question</span>
+<span class="text-[9px] uppercase tracking-[0.24em] text-zinc-600">Focus</span>
+</div>
+<p class="text-base font-medium leading-7 text-zinc-400" data-focus-question="">Questions from the room will appear here.</p>
+</button>
+<article class="answer-card rounded-xl p-4" data-ai-answer-card="">
+<div class="mb-2 flex items-center justify-between gap-3">
+<span class="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-300">Sprocket Learning Response</span>
+<span class="text-[9px] uppercase tracking-[0.24em] text-zinc-600" data-ai-status="">Standby</span>
+</div>
+<p class="text-sm font-medium leading-6 text-zinc-200" data-ai-answer="">Sprocket will add a short trainer-ready answer here once a live question arrives.</p>
+<div class="mt-4 border-t border-cyan-500/10 pt-4">
+<p class="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Facilitation note</p>
+<p class="mt-2 text-xs leading-6 text-zinc-400" data-ai-note="">A quick learning note will appear here to help the trainer keep the answer useful and grounded.</p>
+</div>
+</article>
+<div class="queue-scroll grid grid-cols-1 gap-2" data-question-queue="">
+<article class="question-card question-card--empty flex min-h-[180px] items-center justify-center rounded-xl p-4 text-center text-sm text-zinc-500">
+Questions will stack here once the room starts submitting them.
+</article>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between border-t border-zinc-800 pt-4 text-[10px] uppercase tracking-[0.24em] text-zinc-600">
+<span>Audience Q&amp;A Feed</span>
+<span data-question-updated="">Waiting for first question</span>
+</div>
 </div>
 </div>
 <!-- Laptop Keyboard/Base -->
@@ -195,5 +296,288 @@
 <!-- END: Slide Number -->
 </main>
 <!-- END: Main Slide Layout -->
+<script>
+  (function () {
+    const queueNode = document.querySelector('[data-question-queue]');
+    const summaryNode = document.querySelector('[data-question-summary]');
+    const totalNode = document.querySelector('[data-question-total]');
+    const updatedNode = document.querySelector('[data-question-updated]');
+    const focusCardNode = document.querySelector('[data-question-focus]');
+    const focusNameNode = document.querySelector('[data-focus-name]');
+    const focusQuestionNode = document.querySelector('[data-focus-question]');
+    const aiAnswerNode = document.querySelector('[data-ai-answer]');
+    const aiNoteNode = document.querySelector('[data-ai-note]');
+    const aiStatusNode = document.querySelector('[data-ai-status]');
+    const answerCache = new Map();
+    const QUESTION_CACHE_PREFIX = 'autoknerd-slide5-answer-cache';
+    let currentRecords = [];
+    let selectedQuestionId = '';
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function formatUpdatedAt(value) {
+      const parsed = Date.parse(value || '');
+      if (!Number.isFinite(parsed)) {
+        return 'Waiting for first question';
+      }
+
+      const deltaSeconds = Math.max(0, Math.round((Date.now() - parsed) / 1000));
+      if (deltaSeconds < 5) return 'Updated just now';
+      if (deltaSeconds < 60) return 'Updated ' + deltaSeconds + 's ago';
+      const deltaMinutes = Math.round(deltaSeconds / 60);
+      if (deltaMinutes < 60) return 'Updated ' + deltaMinutes + 'm ago';
+      return 'Updated recently';
+    }
+
+    function getAnswerCacheKey(questionId, sessionToken) {
+      return QUESTION_CACHE_PREFIX + ':' + sessionToken + ':' + questionId;
+    }
+
+    function readCachedAnswer(questionId, sessionToken) {
+      const memoryValue = answerCache.get(questionId);
+      if (memoryValue) return memoryValue;
+
+      try {
+        const raw = window.localStorage.getItem(getAnswerCacheKey(questionId, sessionToken));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        answerCache.set(questionId, parsed);
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+
+    function writeCachedAnswer(questionId, sessionToken, value) {
+      answerCache.set(questionId, value);
+      try {
+        window.localStorage.setItem(getAnswerCacheKey(questionId, sessionToken), JSON.stringify(value));
+      } catch {
+        // Ignore storage failures.
+      }
+    }
+
+    async function getLiveState() {
+      try {
+        const response = await fetch('/api/live-session', { cache: 'no-store' });
+        if (!response.ok) {
+          return { deckId: 'audienceos', sessionToken: '' };
+        }
+        const payload = await response.json();
+        return {
+          deckId: payload && payload.state && payload.state.deckId ? payload.state.deckId : 'audienceos',
+          sessionToken: payload && payload.state && payload.state.sessionToken ? payload.state.sessionToken : ''
+        };
+      } catch {
+        return { deckId: 'audienceos', sessionToken: '' };
+      }
+    }
+
+    function renderIdleAnswerState() {
+      if (aiStatusNode) aiStatusNode.textContent = 'Standby';
+      if (aiAnswerNode) aiAnswerNode.textContent = 'Select a queued question and Sprocket will draft a short trainer-ready answer here.';
+      if (aiNoteNode) aiNoteNode.textContent = 'A quick learning note will appear here to help the trainer keep the answer useful and grounded.';
+    }
+
+    function renderSelectedQuestion(record) {
+      if (focusCardNode) {
+        focusCardNode.className = 'question-card question-card--active focus-card rounded-xl p-4 min-h-[128px]';
+        focusCardNode.setAttribute('data-question-id', record.questionId);
+      }
+      if (focusNameNode) {
+        focusNameNode.textContent = (record.name || 'Anonymous').toUpperCase();
+      }
+      if (focusQuestionNode) {
+        focusQuestionNode.textContent = record.question;
+      }
+    }
+
+    async function generateAnswerForQuestion(record, sessionToken) {
+      if (aiStatusNode) aiStatusNode.textContent = 'Thinking';
+      if (aiAnswerNode) aiAnswerNode.textContent = 'Sprocket is drafting a live answer for this question...';
+      if (aiNoteNode) aiNoteNode.textContent = 'This support answer is being generated for the trainer now.';
+
+      const response = await fetch('/api/live-session/slide5-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participantName: record.name,
+          question: record.question,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to generate answer');
+      }
+
+      const payload = await response.json();
+      writeCachedAnswer(record.questionId, sessionToken, payload.output);
+      return payload.output;
+    }
+
+    async function selectQuestion(questionId, sessionToken) {
+      const record = currentRecords.find(function (entry) {
+        return entry.questionId === questionId;
+      });
+      if (!record) return;
+
+      selectedQuestionId = questionId;
+      renderQuestions(currentRecords, sessionToken);
+      renderSelectedQuestion(record);
+
+      const cached = readCachedAnswer(questionId, sessionToken);
+      if (cached) {
+        if (aiStatusNode) aiStatusNode.textContent = 'Live';
+        if (aiAnswerNode) aiAnswerNode.textContent = cached.aiAnswer || 'Sprocket has no answer yet.';
+        if (aiNoteNode) aiNoteNode.textContent = cached.aiNote || 'No facilitation note available yet.';
+        return;
+      }
+
+      try {
+        const output = await generateAnswerForQuestion(record, sessionToken);
+        if (selectedQuestionId !== questionId) return;
+        if (aiStatusNode) aiStatusNode.textContent = 'Live';
+        if (aiAnswerNode) aiAnswerNode.textContent = output.aiAnswer || 'Sprocket has no answer yet.';
+        if (aiNoteNode) aiNoteNode.textContent = output.aiNote || 'No facilitation note available yet.';
+      } catch {
+        if (selectedQuestionId !== questionId) return;
+        if (aiStatusNode) aiStatusNode.textContent = 'Retry';
+        if (aiAnswerNode) aiAnswerNode.textContent = 'Sprocket could not generate an answer right now. Click the question again to retry.';
+        if (aiNoteNode) aiNoteNode.textContent = 'Keep the trainer in control and use the room conversation while the retry is available.';
+      }
+    }
+
+    function renderQuestions(records, sessionToken) {
+      if (!queueNode) return;
+      currentRecords = records;
+
+      if (!records.length) {
+        queueNode.innerHTML = '<article class="question-card question-card--empty flex min-h-[180px] items-center justify-center rounded-xl p-4 text-center text-sm text-zinc-500">Questions will stack here once the room starts submitting them.</article>';
+        if (summaryNode) summaryNode.textContent = 'Questions will stack here for the trainer to review and answer.';
+        if (totalNode) totalNode.textContent = '0';
+        if (updatedNode) updatedNode.textContent = 'Waiting for first question';
+        if (focusCardNode) focusCardNode.className = 'question-card question-card--empty rounded-xl p-4 min-h-[128px]';
+        if (focusCardNode) focusCardNode.removeAttribute('data-question-id');
+        if (focusNameNode) focusNameNode.textContent = 'Select a queued question';
+        if (focusQuestionNode) focusQuestionNode.textContent = 'Questions from the room will appear here.';
+        renderIdleAnswerState();
+        selectedQuestionId = '';
+        return;
+      }
+
+      if (selectedQuestionId && !records.some(function (record) { return record.questionId === selectedQuestionId; })) {
+        selectedQuestionId = '';
+      }
+
+      const latest = records[0];
+      if (summaryNode) {
+        summaryNode.textContent = records.length + ' question' + (records.length === 1 ? '' : 's') + ' queued. Click one to have Sprocket draft a live answer.';
+      }
+      if (totalNode) {
+        totalNode.textContent = String(records.length);
+      }
+      if (updatedNode) {
+        updatedNode.textContent = formatUpdatedAt(latest.timestamp);
+      }
+
+      if (!selectedQuestionId) {
+        selectedQuestionId = latest.questionId;
+        renderSelectedQuestion(latest);
+        renderIdleAnswerState();
+        if (aiStatusNode) aiStatusNode.textContent = 'Ready';
+        if (aiAnswerNode) aiAnswerNode.textContent = 'Click this question again or choose another queued question to have Sprocket draft a live answer.';
+        if (aiNoteNode) aiNoteNode.textContent = 'Questions now auto-land in focus so the trainer can see what just came in before generating a response.';
+      } else {
+        const selectedRecord = records.find(function (record) {
+          return record.questionId === selectedQuestionId;
+        });
+        if (selectedRecord) {
+          renderSelectedQuestion(selectedRecord);
+        }
+      }
+
+      queueNode.innerHTML = records.map((record, index) => {
+        const selectedClass = record.questionId === selectedQuestionId ? ' question-button--selected' : '';
+        return (
+          '<button class="question-card question-button rounded-xl p-4' + selectedClass + '" data-question-id="' + escapeHtml(record.questionId) + '" type="button">' +
+            '<div class="mb-2 flex items-center justify-between gap-3">' +
+              '<span class="text-[10px] font-bold uppercase tracking-[0.24em] text-ak-orange">' + escapeHtml(record.name) + '</span>' +
+              '<span class="text-[9px] uppercase tracking-[0.24em] text-zinc-600">' + (index === 0 ? 'Latest' : 'Queued') + '</span>' +
+            '</div>' +
+            '<p class="text-sm font-medium leading-6 text-zinc-100">' + escapeHtml(record.question) + '</p>' +
+          '</button>'
+        );
+      }).join('');
+
+      queueNode.querySelectorAll('[data-question-id]').forEach(function (node) {
+        node.addEventListener('click', function () {
+          const questionId = node.getAttribute('data-question-id') || '';
+          if (!questionId) return;
+          void selectQuestion(questionId, sessionToken);
+        });
+      });
+
+      if (focusCardNode) {
+        focusCardNode.onclick = function () {
+          const questionId = focusCardNode.getAttribute('data-question-id') || selectedQuestionId || '';
+          if (!questionId) return;
+          void selectQuestion(questionId, sessionToken);
+        };
+      }
+    }
+
+    async function refreshQuestionQueue() {
+      try {
+        const liveState = await getLiveState();
+        const query = '/api/live-session/responses?includeDetails=1&deckId='
+          + encodeURIComponent(liveState.deckId)
+          + '&slideStep=' + encodeURIComponent('slide5')
+          + '&responseKey=' + encodeURIComponent('audienceos-slide5')
+          + '&sessionToken=' + encodeURIComponent(liveState.sessionToken);
+
+        const response = await fetch(query, { cache: 'no-store' });
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const records = (payload.records || [])
+          .map(function (record) {
+            const selectedValue = record && typeof record.selectedValue === 'object' ? record.selectedValue : null;
+            const questionId = selectedValue && typeof selectedValue.questionId === 'string'
+              ? selectedValue.questionId.trim()
+              : '';
+            const name = selectedValue && typeof selectedValue.name === 'string'
+              ? selectedValue.name.trim()
+              : '';
+            const question = selectedValue && typeof selectedValue.question === 'string'
+              ? selectedValue.question.trim()
+              : (typeof record.answer === 'string' ? record.answer.trim() : '');
+            return {
+              questionId: questionId || (record.sessionId || record.userId || 'question') + '-' + (record.timestamp || ''),
+              name: name || 'Anonymous',
+              question: question,
+              timestamp: record.timestamp || record.createdAt || ''
+            };
+          })
+          .filter(function (record) {
+            return record.question.length > 0;
+          });
+
+        renderQuestions(records, liveState.sessionToken);
+      } catch {
+        // Preserve last rendered state during transient failures.
+      }
+    }
+
+    refreshQuestionQueue();
+    window.setInterval(refreshQuestionQueue, 4000);
+  })();
+</script>
 <script src="/Presentations/_shared/deck-controls.js"></script>
 </body></html>
