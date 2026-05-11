@@ -1,3 +1,4 @@
+import os from 'node:os';
 import { getAdminDb } from '@/firebase/admin';
 import { LIVE_SESSION_DEFAULT_STATE, LIVE_SESSION_ID, normalizeLiveSessionState, type LiveSessionPayload, type LiveSessionState } from '@/lib/live-session';
 import { getAudienceContentForDeck, readPresentationDeckManifest, resolveCompanionEntryForStep } from '@/lib/presentation-engine';
@@ -9,9 +10,66 @@ export const revalidate = 0;
 const COLLECTION_NAME = 'presentation_live_sessions';
 const POLL_INTERVAL_MS = 1000;
 
+function normalizeConfiguredOrigin(raw?: string | null) {
+  if (!raw) return null;
+
+  try {
+    const parsed = new URL(raw);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function isLinkLocalHostname(hostname: string) {
+  return /^169\.254\./.test(hostname);
+}
+
+function isLocalOnlyHostname(hostname: string) {
+  return (
+    hostname === 'localhost'
+    || hostname === '127.0.0.1'
+    || hostname === '0.0.0.0'
+    || hostname === '::1'
+    || isLinkLocalHostname(hostname)
+  );
+}
+
+function findPreferredLanHost() {
+  const interfaces = os.networkInterfaces();
+
+  const candidates = Object.values(interfaces)
+    .flat()
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .filter((entry) => entry.family === 'IPv4' && !entry.internal)
+    .map((entry) => entry.address)
+    .filter((address) => !isLinkLocalHostname(address));
+
+  const ranked =
+    candidates.find((address) => /^192\.168\./.test(address))
+    || candidates.find((address) => /^10\./.test(address))
+    || candidates.find((address) => /^172\.(1[6-9]|2\d|3[0-1])\./.test(address))
+    || candidates[0];
+
+  return ranked || null;
+}
+
 function buildAudienceUrl(request: Request, _state: LiveSessionState, _companionEntry?: string | null) {
+  const configuredOrigin =
+    normalizeConfiguredOrigin(process.env.NEXT_PUBLIC_APP_URL)
+    || normalizeConfiguredOrigin(process.env.APP_URL);
+
+  if (configuredOrigin && !isLocalOnlyHostname(configuredOrigin.hostname)) {
+    return new URL('/live-session?audience=1', configuredOrigin).toString();
+  }
+
   const requestUrl = new URL(request.url);
   const audienceUrl = new URL('/live-session?audience=1', requestUrl);
+  const preferredLanHost = findPreferredLanHost();
+
+  if (preferredLanHost) {
+    audienceUrl.hostname = preferredLanHost;
+  }
 
   if (requestUrl.port === '3001' || requestUrl.port === '') {
     audienceUrl.port = '3000';
