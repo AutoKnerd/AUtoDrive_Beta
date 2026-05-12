@@ -157,6 +157,17 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
     roleSecondary.splice(0, roleSecondary.length, ...uniqueRoles([...MANAGER_ROLES, ...PARTS_ROLES]));
   }
 
+  if (id.includes('five-minute-drill-builder')) {
+    category = 'Manager Tools';
+    skillTags = ['coaching', 'clarity', 'feedback'];
+    intentTags = ['Coach the team', 'Improve consistency', 'Recover a stalled deal'];
+    recommendedWhen = ['Need a fast five-minute coaching drill for a rep or advisor'];
+    notRecommendedWhen = ['The coaching gap is already fully documented and ready for a longer plan'];
+    estimatedTime = 5;
+    rolePrimary.splice(0, rolePrimary.length, ...uniqueRoles([...MANAGER_ROLES, 'Service Manager', 'Parts Manager']));
+    roleSecondary.splice(0, roleSecondary.length, ...uniqueRoles([...SALES_ROLES, ...SERVICE_ROLES]));
+  }
+
   if (id.includes('clarity-check')) {
     skillTags = ['clarity', 'pacing', 'listening'];
     intentTags = ['Improve consistency', 'Move a deal forward'];
@@ -232,6 +243,14 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
 }
 
 const TOOL_SEED: ToolSeed[] = [
+  {
+    id: 'five-minute-drill-builder',
+    name: 'Five-Minute Drill Builder',
+    description: 'Build a fast five-minute coaching drill for a sales associate or service advisor.',
+    access: 'free',
+    hasFullVersion: true,
+    createdAt: '2026-05-12T09:00:00.000Z',
+  },
   {
     id: 'fee-transparency-coach',
     name: 'Fee Transparency Coach',
