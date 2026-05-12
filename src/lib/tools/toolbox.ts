@@ -168,6 +168,17 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
     roleSecondary.splice(0, roleSecondary.length, ...uniqueRoles([...SALES_ROLES, ...SERVICE_ROLES]));
   }
 
+  if (id.includes('live-observation-coach-card')) {
+    category = 'Manager Tools';
+    skillTags = ['coaching', 'observation', 'clarity'];
+    intentTags = ['Coach the team', 'Improve consistency', 'Recover a stalled deal'];
+    recommendedWhen = ['Need to turn one live observation into quick coaching'];
+    notRecommendedWhen = ['The observation has already been captured into a longer coaching plan'];
+    estimatedTime = 5;
+    rolePrimary.splice(0, rolePrimary.length, ...uniqueRoles([...MANAGER_ROLES]));
+    roleSecondary.splice(0, roleSecondary.length, ...uniqueRoles([...SALES_ROLES, ...SERVICE_ROLES]));
+  }
+
   if (id.includes('clarity-check')) {
     skillTags = ['clarity', 'pacing', 'listening'];
     intentTags = ['Improve consistency', 'Move a deal forward'];
@@ -243,6 +254,14 @@ function buildMetadataForTool(seed: ToolSeed, allSeeds: ToolSeed[]): ToolRecomme
 }
 
 const TOOL_SEED: ToolSeed[] = [
+  {
+    id: 'live-observation-coach-card',
+    name: 'Live Observation Coach Card',
+    description: 'Turn one live observation into a quick coaching moment with manager language, practice, and CX insights.',
+    access: 'free',
+    hasFullVersion: true,
+    createdAt: '2026-05-12T11:00:00.000Z',
+  },
   {
     id: 'five-minute-drill-builder',
     name: 'Five-Minute Drill Builder',
