@@ -14,7 +14,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 
-export type AutoknerdNavKey = 'home' | 'about' | 'podcast' | 'fit';
+export type AutoknerdNavKey = 'home' | 'about' | 'contact' | 'podcast' | 'fit';
 export type ProductSurfaceKey = 'autoknerd' | 'autodrive' | 'autoforge' | 'tools';
 
 type AutoknerdHeaderMenuProps = {
@@ -30,6 +30,7 @@ const navItems = [
   { href: '/Autoknerd', label: 'Home', key: 'home' },
   { href: '/Autoknerd/podcast', label: 'Podcast', key: 'podcast' },
   { href: '/Autoknerd/about', label: 'About', key: 'about' },
+  { href: '/Autoknerd/contact', label: 'Contact', key: 'contact' },
 ] as const;
 
 const systemItems = [

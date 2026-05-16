@@ -199,7 +199,7 @@ function FieldChip({
       type="button"
       onClick={onClick}
       className={cn(
-        'min-h-[48px] rounded-xl border px-4 py-3 text-left transition-all active:scale-[0.98]',
+        'min-h-[48px] rounded-xl border px-3 py-3 text-left transition-all active:scale-[0.98] sm:px-4',
         active
           ? 'border-[#9DEE75] bg-[#101b11] text-[#efffe7] shadow-[0_0_0_1px_rgba(157,238,117,0.55),0_0_24px_rgba(157,238,117,0.45),0_0_64px_rgba(157,238,117,0.22)]'
           : 'border-[#4a4456] bg-[#1c2024] text-[#e0e2e9] hover:border-[#d1bcff] hover:bg-[#272a2f]',
@@ -637,7 +637,7 @@ export default function FiveMinuteDrillBuilderPage() {
 
         <section className="space-y-3">
           <h2 className="font-headline text-sm font-semibold uppercase tracking-[0.05em] text-[#d1bcff]">Coaching Focus</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             {FIVE_MINUTE_DRILL_FOCUSES.map((item) => (
               <FieldChip
                 key={item}
@@ -652,7 +652,7 @@ export default function FiveMinuteDrillBuilderPage() {
 
         <section className="space-y-3">
           <h2 className="font-headline text-sm font-semibold uppercase tracking-[0.05em] text-[#d1bcff]">Current Issue</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             {FIVE_MINUTE_DRILL_ISSUES.map((item) => (
               <FieldChip
                 key={item}

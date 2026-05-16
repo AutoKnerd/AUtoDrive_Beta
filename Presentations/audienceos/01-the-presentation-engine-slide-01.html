@@ -52,6 +52,12 @@
     .glow-orange {
       box-shadow: 0 0 40px rgba(244, 115, 33, 0.2);
     }
+
+    .attendance-console {
+      border: 1px solid rgba(244, 115, 33, 0.18);
+      background: linear-gradient(135deg, rgba(18, 18, 18, 0.84), rgba(10, 10, 10, 0.92));
+      box-shadow: inset 0 0 0 1px rgba(244, 115, 33, 0.04);
+    }
   </style>
 <link href="/Presentations/_shared/deck-controls.css" rel="stylesheet"/>
 </head>
@@ -76,9 +82,9 @@
 </header>
 <!-- END: HeaderSection -->
 <!-- BEGIN: HeroGrid -->
-<div class="grid grid-cols-12 gap-8 mt-16 z-10 flex-grow content-center">
+<div class="grid grid-cols-12 gap-8 mt-10 z-10 flex-grow content-center">
 <!-- Left Column: Text Content -->
-<div class="col-span-5 flex flex-col justify-center">
+<div class="col-span-5 flex flex-col justify-center -mt-4">
 <h1 class="text-6xl font-extrabold leading-tight tracking-tight">
           THE<br/>
 <span class="text-brand-orange">PRESENTATION</span><br/>
@@ -92,6 +98,15 @@
 <p class="mt-8 text-gray-400 text-lg leading-relaxed max-w-md">
           A standalone platform that transforms traditional slide decks into live, AI-enhanced learning experiences that drive <span class="text-brand-orange">engagement</span> and <span class="text-brand-orange">results</span>.
         </p>
+<div class="attendance-console mt-5 max-w-md rounded-lg px-4 py-3">
+<div class="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.28em] text-brand-orange/90">
+<span class="h-1.5 w-1.5 rounded-full bg-brand-orange"></span>
+<span>Attendance Feed</span>
+</div>
+<div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] leading-6 text-brand-orange/80 font-mono" data-attendance-names="">
+          // Waiting for first check-in...
+</div>
+</div>
 </div>
 <!-- Right Column: Visual Device Mockup -->
 <div class="col-span-7 relative flex justify-center items-center laptop-mockup">
@@ -179,17 +194,96 @@
 <script>
   (function () {
     const countNode = document.querySelector('[data-device-viewer-count]');
-    if (!countNode) return;
+    const attendanceNode = document.querySelector('[data-attendance-names]');
+    if (!countNode && !attendanceNode) return;
 
     let intervalId = null;
 
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    async function getLiveState() {
+      try {
+        const response = await fetch('/api/live-session', { cache: 'no-store' });
+        if (!response.ok) {
+          return { deckId: 'audienceos', sessionToken: '' };
+        }
+        const payload = await response.json();
+        return {
+          deckId: payload && payload.state && payload.state.deckId ? payload.state.deckId : 'audienceos',
+          sessionToken: payload && payload.state && payload.state.sessionToken ? payload.state.sessionToken : '',
+        };
+      } catch {
+        return { deckId: 'audienceos', sessionToken: '' };
+      }
+    }
+
+    function renderAttendance(records) {
+      if (!attendanceNode) return;
+
+      if (!records.length) {
+        attendanceNode.innerHTML = '// Waiting for first check-in...';
+        return;
+      }
+
+      const names = records.slice(0, 5).map(function (record) {
+        return escapeHtml(record.firstName);
+      });
+      const overflowCount = Math.max(0, records.length - names.length);
+      const renderedNames = names.map(function (name, index) {
+        return '<span class="whitespace-nowrap">' + (index === 0 ? '&gt; ' : '') + name + '</span>';
+      });
+      if (overflowCount > 0) {
+        renderedNames.push('<span class="whitespace-nowrap text-brand-orange/50">+ ' + overflowCount + ' more</span>');
+      }
+      attendanceNode.innerHTML = renderedNames.join('');
+    }
+
     async function updatePresence() {
       try {
-        const response = await fetch('/api/live-session/presence', { cache: 'no-store' });
-        if (!response.ok) return;
-        const payload = await response.json();
-        const nextValue = typeof payload.activeAudienceCount === 'number' ? payload.activeAudienceCount : 0;
-        countNode.textContent = String(nextValue);
+        if (countNode) {
+          const response = await fetch('/api/live-session/presence', { cache: 'no-store' });
+          if (response.ok) {
+            const payload = await response.json();
+            const nextValue = typeof payload.activeAudienceCount === 'number' ? payload.activeAudienceCount : 0;
+            countNode.textContent = String(nextValue);
+          }
+        }
+
+        if (attendanceNode) {
+          const liveState = await getLiveState();
+          const query = '/api/live-session/responses?includeDetails=1&deckId='
+            + encodeURIComponent(liveState.deckId)
+            + '&slideStep=' + encodeURIComponent('slide1')
+            + '&responseKey=' + encodeURIComponent('audienceos-slide1-attendance')
+            + '&sessionToken=' + encodeURIComponent(liveState.sessionToken);
+
+          const attendanceResponse = await fetch(query, { cache: 'no-store' });
+          if (!attendanceResponse.ok) return;
+
+          const attendancePayload = await attendanceResponse.json();
+          const records = (attendancePayload.records || [])
+            .map(function (record) {
+              const selectedValue = record && typeof record.selectedValue === 'object' ? record.selectedValue : null;
+              const firstName = selectedValue && typeof selectedValue.firstName === 'string'
+                ? selectedValue.firstName.trim()
+                : (typeof record.answer === 'string' ? record.answer.trim() : '');
+              return {
+                firstName: firstName,
+              };
+            })
+            .filter(function (record) {
+              return record.firstName.length > 0;
+            });
+
+          renderAttendance(records);
+        }
       } catch {
         // Preserve the previous count when presence polling temporarily fails.
       }

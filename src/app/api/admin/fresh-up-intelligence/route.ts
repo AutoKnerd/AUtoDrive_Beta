@@ -53,6 +53,27 @@ type SiteTrafficEventRecord = {
   createdAt: Date;
 };
 
+type ContactFormSubmissionRecord = {
+  submissionId: string;
+  email: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  company: string;
+  role: string;
+  dealership: string;
+  interest: string;
+  message: string;
+  source: string;
+  beehiivStatus: string | null;
+  beehiivTags: string[];
+  isTended: boolean;
+  tendedAt: Date | null;
+  isSpam: boolean;
+  spamAt: Date | null;
+  createdAt: Date;
+};
+
 type DealerAggregate = {
   dealerId: string;
   dealerName: string;
@@ -315,6 +336,7 @@ export async function GET(req: Request) {
       toolUsageSnap,
       autoforgeLeadsSnap,
       sprocketSessionsSnap,
+      contactFormSnap,
     ] = await Promise.all([
       adminDb.collection('users').limit(5000).get(),
       adminDb.collection('siteTrafficEvents').where('createdAtTs', '>=', Timestamp.fromDate(start180)).get(),
@@ -322,6 +344,7 @@ export async function GET(req: Request) {
       adminDb.collection('toolboxToolUsageEvents').where('createdAt', '>=', start180.toISOString()).get(),
       adminDb.collection('autoforge_leads').limit(5000).get(),
       adminDb.collection('sprocket_sessions').limit(5000).get(),
+      adminDb.collection('contactFormSubmissions').where('createdAt', '>=', Timestamp.fromDate(start90)).get(),
     ]);
 
     const dealerAssignedConsultants = new Map<string, Set<string>>();
@@ -376,6 +399,36 @@ export async function GET(req: Request) {
         } as SiteTrafficEventRecord;
       })
       .filter((row): row is SiteTrafficEventRecord => row !== null);
+
+    const contactFormSubmissions: ContactFormSubmissionRecord[] = contactFormSnap.docs
+      .map((docSnap) => {
+        const data = docSnap.data() as Record<string, unknown>;
+        const createdAt = toDate(data.createdAt) ?? toDate(data.submittedAt);
+        if (!createdAt) return null;
+
+        return {
+          submissionId: String(data.submissionId || docSnap.id),
+          email: String(data.email || ''),
+          name: String(data.name || ''),
+          firstName: String(data.firstName || ''),
+          lastName: String(data.lastName || ''),
+          company: String(data.company || ''),
+          role: String(data.role || ''),
+          dealership: String(data.dealership || ''),
+          interest: String(data.interest || ''),
+          message: String(data.message || ''),
+          source: String(data.source || 'contact'),
+          beehiivStatus: typeof data.beehiivStatus === 'string' ? data.beehiivStatus : null,
+          beehiivTags: Array.isArray(data.beehiivTags) ? data.beehiivTags.map((entry) => String(entry)).filter(Boolean) : [],
+          isTended: data.isTended === true,
+          tendedAt: toDate(data.tendedAt),
+          isSpam: data.isSpam === true,
+          spamAt: toDate(data.spamAt),
+          createdAt,
+        } as ContactFormSubmissionRecord;
+      })
+      .filter((row): row is ContactFormSubmissionRecord => row !== null)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     const traffic7 = inWindow(
       siteTrafficEvents.map((row) => ({ ...row, timestamp: row.createdAt })),
@@ -538,7 +591,7 @@ export async function GET(req: Request) {
       });
     const referralCodeMap = new Map<string, ReferralCodeAggregate>();
     marketingEvents30.forEach((row) => {
-      const label = normalizeReferralCode(row.referral_code || row.consultant_id || '');
+      const label = normalizeReferralCode(String(row.referral_code || row.consultant_id || ''));
       if (!label) return;
       if (!referralCodeMap.has(label)) {
         referralCodeMap.set(label, {
@@ -785,6 +838,31 @@ export async function GET(req: Request) {
           marketingEvents: marketingEvents30.length,
           referralCodes: topReferralCodes30,
         },
+      },
+      contactForm: {
+        totalSubmissions90Days: contactFormSubmissions.length,
+        pendingCount: contactFormSubmissions.filter((row) => !row.isSpam && !row.isTended).length,
+        latestSubmissionAt: contactFormSubmissions[0]?.createdAt.toISOString() ?? null,
+        submissions: contactFormSubmissions.slice(0, 25).map((row) => ({
+          submissionId: row.submissionId,
+          email: row.email,
+          name: row.name,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          company: row.company,
+          role: row.role,
+          dealership: row.dealership,
+          interest: row.interest,
+          message: row.message,
+          source: row.source,
+          beehiivStatus: row.beehiivStatus,
+          beehiivTags: row.beehiivTags,
+          isTended: row.isTended,
+          tendedAt: row.tendedAt?.toISOString() ?? null,
+          isSpam: row.isSpam,
+          spamAt: row.spamAt?.toISOString() ?? null,
+          createdAt: row.createdAt.toISOString(),
+        })),
       },
       sessionActivity: {
         totalFreshUpSessions30Days: sessions30.length,

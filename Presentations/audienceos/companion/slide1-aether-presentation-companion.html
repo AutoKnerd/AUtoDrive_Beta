@@ -142,6 +142,24 @@
 <p class="font-body-lg text-body-lg text-on-surface-variant max-w-[90%] leading-relaxed">
                 Not just slides. A <span class="text-on-surface font-semibold">connected learning experience.</span>
 </p>
+<section class="mt-6 rounded-2xl border border-outline-variant/20 bg-surface-container/60 p-4">
+<div class="flex items-center gap-2 mb-3">
+<span class="w-2 h-2 rounded-full bg-performance-orange"></span>
+<span class="font-label-caps text-[10px] text-performance-orange uppercase tracking-[0.18em]">Attendance Check-In</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-6 mb-4">
+                Add your first name so the trainer can capture attendance for this session.
+            </p>
+<form class="flex flex-col gap-3" data-attendance-form="">
+<input class="w-full rounded-xl border border-outline-variant/30 bg-surface px-4 py-3 text-sm text-on-surface outline-none focus:border-performance-orange focus:ring-0" data-attendance-name-input="" maxlength="48" placeholder="First name" required="" type="text"/>
+<div class="flex items-center justify-between gap-3">
+<p class="text-[11px] text-on-surface-variant" data-attendance-status="">Not checked in yet.</p>
+<button class="rounded-xl bg-performance-orange px-4 py-3 font-label-caps text-[10px] uppercase tracking-[0.18em] text-black transition hover:brightness-110 disabled:opacity-50" data-attendance-submit="" type="submit">
+                    Check In
+                </button>
+</div>
+</form>
+</section>
 </header>
 <section class="grid grid-cols-3 gap-2 border-y border-outline-variant/10 py-6">
 <div class="flex flex-col">
@@ -237,12 +255,101 @@
 </main>
 <div class="fixed top-0 left-0 w-[1px] h-full bg-gradient-to-b from-transparent via-performance-orange/20 to-transparent"></div>
 <div class="fixed top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-performance-orange/20 to-transparent"></div>
-<script>
+  <script>
     (function () {
       const countNode = document.querySelector('[data-active-viewer-count]');
+      const attendanceForm = document.querySelector('[data-attendance-form]');
+      const attendanceNameInput = document.querySelector('[data-attendance-name-input]');
+      const attendanceStatusNode = document.querySelector('[data-attendance-status]');
+      const attendanceSubmitButton = document.querySelector('[data-attendance-submit]');
+      const STORAGE_KEY = 'autoknerd-live-session-user-id';
+      const ATTENDANCE_STORAGE_PREFIX = 'autoknerd-audienceos-slide1-attendance';
       if (!countNode) return;
 
       let intervalId = null;
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const deckId = searchParams.get('deckId') || 'audienceos';
+      const slideStep = searchParams.get('currentStep') || 'slide1';
+      const currentSlide = searchParams.get('currentSlide') || '01-the-presentation-engine-slide-01.html';
+      const sessionToken = searchParams.get('sessionToken') || 'session-0';
+
+      function getOrCreateUserId() {
+        try {
+          const existing = window.localStorage.getItem(STORAGE_KEY);
+          if (existing) return existing;
+          const next = 'aud-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+          window.localStorage.setItem(STORAGE_KEY, next);
+          return next;
+        } catch {
+          return 'aud-' + Math.random().toString(36).slice(2, 10);
+        }
+      }
+
+      function getAttendanceStorageKey() {
+        return ATTENDANCE_STORAGE_PREFIX + ':' + sessionToken;
+      }
+
+      function setAttendanceStatus(message) {
+        if (attendanceStatusNode) {
+          attendanceStatusNode.textContent = message;
+        }
+      }
+
+      function setAttendanceSubmitting(isSubmitting) {
+        if (!attendanceSubmitButton) return;
+        attendanceSubmitButton.disabled = isSubmitting;
+        attendanceSubmitButton.textContent = isSubmitting ? 'Checking In...' : 'Check In';
+      }
+
+      function hydrateAttendanceDraft() {
+        try {
+          const raw = window.localStorage.getItem(getAttendanceStorageKey());
+          if (!raw) return;
+          const parsed = JSON.parse(raw);
+          if (attendanceNameInput && parsed && typeof parsed.firstName === 'string') {
+            attendanceNameInput.value = parsed.firstName;
+          }
+          if (parsed && typeof parsed.firstName === 'string' && parsed.firstName.trim()) {
+            setAttendanceStatus('Checked in as ' + parsed.firstName.trim() + '.');
+          }
+        } catch {
+          // Ignore local storage parsing issues.
+        }
+      }
+
+      async function submitAttendance(firstName) {
+        const userId = getOrCreateUserId();
+        const response = await fetch('/api/live-session/responses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userId,
+            sessionId: userId,
+            slideId: 'slide_01',
+            slideNumber: 1,
+            answer: firstName,
+            answerLabel: firstName,
+            selectedValue: {
+              firstName: firstName,
+              attendance: true,
+            },
+            deckId: deckId,
+            slideStep: slideStep,
+            currentSlide: currentSlide,
+            responseKey: 'audienceos-slide1-attendance',
+            sessionToken: sessionToken,
+            timestamp: new Date().toISOString(),
+          }),
+          keepalive: true,
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to save attendance.');
+        }
+      }
 
       async function updatePresence() {
         try {
@@ -257,12 +364,40 @@
       }
 
       updatePresence();
+      hydrateAttendanceDraft();
       intervalId = window.setInterval(updatePresence, 5000);
       window.addEventListener('beforeunload', function () {
         if (intervalId !== null) {
           window.clearInterval(intervalId);
         }
       });
+
+      if (attendanceForm) {
+        attendanceForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          if (!attendanceNameInput) return;
+
+          const firstName = attendanceNameInput.value.trim();
+          if (!firstName) return;
+
+          setAttendanceSubmitting(true);
+          setAttendanceStatus('Saving attendance...');
+
+          try {
+            await submitAttendance(firstName);
+            try {
+              window.localStorage.setItem(getAttendanceStorageKey(), JSON.stringify({ firstName: firstName }));
+            } catch {
+              // Ignore storage failures after a successful submission.
+            }
+            setAttendanceStatus('Checked in as ' + firstName + '.');
+          } catch {
+            setAttendanceStatus('Unable to save attendance right now. Please try again.');
+          } finally {
+            setAttendanceSubmitting(false);
+          }
+        });
+      }
     })();
   </script>
 </body></html>

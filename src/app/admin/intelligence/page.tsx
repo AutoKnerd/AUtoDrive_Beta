@@ -129,7 +129,32 @@ type IntelligenceResponse = {
         demoVisits: number;
         demoConversions: number;
       }>;
+      };
     };
+  contactForm: {
+    totalSubmissions90Days: number;
+    pendingCount: number;
+    latestSubmissionAt: string | null;
+    submissions: Array<{
+      submissionId: string;
+      email: string;
+      name: string;
+      firstName: string;
+      lastName: string;
+      company: string;
+      role: string;
+      dealership: string;
+      interest: string;
+      message: string;
+      source: string;
+      beehiivStatus: string | null;
+      beehiivTags: string[];
+      isTended: boolean;
+      tendedAt: string | null;
+      isSpam: boolean;
+      spamAt: string | null;
+      createdAt: string;
+    }>;
   };
   sessionActivity: {
     totalFreshUpSessions30Days: number;
@@ -448,6 +473,15 @@ function formatCompactNumber(value: number): string {
   }).format(value);
 }
 
+function getLeadSourceLabel(source: string): string {
+  if (source === 'contact') return 'Contact';
+  if (source === 'schedule-call') return 'Schedule Call';
+  return source
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function buildSeriesPath(values: number[], width: number, height: number, maxValueOverride?: number) {
   const safeValues = values.length > 0 ? values : [0];
   const maxValue = Math.max(1, maxValueOverride || 0, ...safeValues);
@@ -658,6 +692,14 @@ export default function AdminIntelligencePage() {
   const [riskDateTo, setRiskDateTo] = useState('');
   const [riskActiveFilter, setRiskActiveFilter] = useState<string>('active');
   const [isSiteTrafficOpen, setIsSiteTrafficOpen] = useState(true);
+  const [isContactFormOpen, setIsContactFormOpen] = useState(false);
+  const [isContactExportPanelOpen, setIsContactExportPanelOpen] = useState(false);
+  const [expandedContactSubmissionIds, setExpandedContactSubmissionIds] = useState<string[]>([]);
+  const [contactFormSearch, setContactFormSearch] = useState('');
+  const [contactFormStatusFilter, setContactFormStatusFilter] = useState<'all' | 'new' | 'tended' | 'spam'>('all');
+  const [contactFormBeehiivFilter, setContactFormBeehiivFilter] = useState<'all' | 'active' | 'invalid' | 'validating' | 'unknown'>('all');
+  const [contactFormSourceFilter, setContactFormSourceFilter] = useState<'all' | 'contact' | 'schedule-call'>('all');
+  const [contactFormTimeframeFilter, setContactFormTimeframeFilter] = useState<'all' | '24h' | '7d' | '30d' | '90d'>('all');
   const [isFreshUpStatsOpen, setIsFreshUpStatsOpen] = useState(false);
   const [isFreshUpAdvancedOpen, setIsFreshUpAdvancedOpen] = useState(false);
   const [exportResult, setExportResult] = useState<FreshUpExportResponse | null>(null);
@@ -745,6 +787,62 @@ export default function AdminIntelligencePage() {
   }, [data]);
 
   const surfaceTopRows = useMemo(() => (data?.siteTraffic.surfaceBreakdown || []).slice(0, 4), [data]);
+  const contactFormSubmissions = useMemo(() => data?.contactForm.submissions || [], [data]);
+  const pendingContactSubmissions = useMemo(
+    () => contactFormSubmissions.filter((submission) => !submission.isSpam && !submission.isTended),
+    [contactFormSubmissions]
+  );
+  const filteredContactFormSubmissions = useMemo(() => {
+    const query = contactFormSearch.trim().toLowerCase();
+    const now = Date.now();
+    const timeframeMs = contactFormTimeframeFilter === '24h'
+      ? 24 * 60 * 60 * 1000
+      : contactFormTimeframeFilter === '7d'
+        ? 7 * 24 * 60 * 60 * 1000
+        : contactFormTimeframeFilter === '30d'
+          ? 30 * 24 * 60 * 60 * 1000
+          : contactFormTimeframeFilter === '90d'
+            ? 90 * 24 * 60 * 60 * 1000
+            : null;
+
+    return contactFormSubmissions.filter((submission) => {
+      const matchesSearch = !query || [
+        submission.name,
+        submission.firstName,
+        submission.lastName,
+        submission.email,
+        submission.company,
+        submission.dealership,
+        submission.role,
+        submission.interest,
+        submission.message,
+      ].some((value) => value.toLowerCase().includes(query));
+
+      const matchesStatus = contactFormStatusFilter === 'all'
+        ? !submission.isSpam
+        : contactFormStatusFilter === 'new'
+          ? !submission.isSpam && !submission.isTended
+          : contactFormStatusFilter === 'tended'
+            ? !submission.isSpam && submission.isTended
+            : submission.isSpam;
+
+      const normalizedBeehiivStatus = (submission.beehiivStatus || 'unknown').toLowerCase();
+      const matchesBeehiiv = contactFormBeehiivFilter === 'all'
+        ? true
+        : normalizedBeehiivStatus === contactFormBeehiivFilter;
+
+      const matchesSource = contactFormSourceFilter === 'all'
+        ? true
+        : submission.source === contactFormSourceFilter;
+
+      const createdAtMs = new Date(submission.createdAt).getTime();
+      const matchesTimeframe = timeframeMs == null
+        ? true
+        : Number.isFinite(createdAtMs) && (now - createdAtMs) <= timeframeMs;
+
+      return matchesSearch && matchesStatus && matchesBeehiiv && matchesSource && matchesTimeframe;
+    });
+  }, [contactFormBeehiivFilter, contactFormSearch, contactFormSourceFilter, contactFormStatusFilter, contactFormSubmissions, contactFormTimeframeFilter]);
 
   async function loadIntelligence() {
     if (!user || (user.role !== 'Admin' && user.role !== 'Developer')) {
@@ -778,6 +876,203 @@ export default function AdminIntelligencePage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function markContactSubmissionAsTended(submissionId: string) {
+    if (!user || (user.role !== 'Admin' && user.role !== 'Developer')) return;
+
+    try {
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required. Please sign in again.');
+      }
+
+      const token = await fbUser.getIdToken(true);
+      const response = await fetch('/api/admin/contact-form-submissions', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          submissionId,
+          isTended: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message || 'Failed to mark contact submission as tended.');
+      }
+
+      const tendedAt = new Date().toISOString();
+      setData((current) => {
+        if (!current) return current;
+        const nextSubmissions = current.contactForm.submissions.map((submission) => (
+          submission.submissionId === submissionId
+            ? { ...submission, isTended: true, tendedAt }
+            : submission
+        ));
+        const nextPendingCount = nextSubmissions.filter((submission) => !submission.isSpam && !submission.isTended).length;
+
+        return {
+          ...current,
+          contactForm: {
+            ...current.contactForm,
+            pendingCount: nextPendingCount,
+            submissions: nextSubmissions,
+          },
+        };
+      });
+    } catch (markError) {
+      const message = markError instanceof Error ? markError.message : 'Failed to mark contact submission as tended.';
+      setError(message);
+    }
+  }
+
+  async function markContactSubmissionAsSpam(submissionId: string) {
+    if (!user || (user.role !== 'Admin' && user.role !== 'Developer')) return;
+
+    try {
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required. Please sign in again.');
+      }
+
+      const token = await fbUser.getIdToken(true);
+      const response = await fetch('/api/admin/contact-form-submissions', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          submissionId,
+          isSpam: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message || 'Failed to remove contact submission.');
+      }
+
+      const spamAt = new Date().toISOString();
+      setExpandedContactSubmissionIds((current) => current.filter((id) => id !== submissionId));
+      setData((current) => {
+        if (!current) return current;
+        const nextSubmissions = current.contactForm.submissions.map((submission) => (
+          submission.submissionId === submissionId
+            ? { ...submission, isSpam: true, spamAt }
+            : submission
+        ));
+        const nextPendingCount = nextSubmissions.filter((submission) => !submission.isSpam && !submission.isTended).length;
+
+        return {
+          ...current,
+          contactForm: {
+            ...current.contactForm,
+            pendingCount: nextPendingCount,
+            submissions: nextSubmissions,
+          },
+        };
+      });
+    } catch (markError) {
+      const message = markError instanceof Error ? markError.message : 'Failed to remove contact submission.';
+      setError(message);
+    }
+  }
+
+  function buildContactReplyHref(submission: IntelligenceResponse['contactForm']['submissions'][number]) {
+    const displayName = submission.name || [submission.firstName, submission.lastName].filter(Boolean).join(' ').trim() || 'there';
+    const subject = `Re: AutoKnerd contact inquiry`;
+    const body = [
+      `Hi ${displayName},`,
+      '',
+      'Thanks for reaching out to AutoKnerd.',
+      '',
+      `I saw your note about ${submission.interest || 'your question'} and wanted to follow up directly.`,
+      '',
+      'Best,',
+      '',
+      'AutoKnerd',
+    ].join('\n');
+
+    return `mailto:${encodeURIComponent(submission.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  function escapeCsvValue(value: string | number | null | undefined) {
+    const stringValue = value == null ? '' : String(value);
+    if (/[",\n]/.test(stringValue)) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  }
+
+  function exportContactSubmissionsCsv() {
+    if (filteredContactFormSubmissions.length === 0) return;
+
+    const header = [
+      'Submitted At',
+      'Tended',
+      'Tended At',
+      'Spam',
+      'Spam At',
+      'Beehiiv Status',
+      'Name',
+      'First Name',
+      'Last Name',
+      'Email',
+      'Company',
+      'Dealership',
+      'Role',
+      'Interest',
+      'Message',
+      'Source',
+      'Beehiiv Tags',
+    ];
+
+    const rows = filteredContactFormSubmissions.map((submission) => [
+      submission.createdAt,
+      submission.isTended ? 'Yes' : 'No',
+      submission.tendedAt || '',
+      submission.isSpam ? 'Yes' : 'No',
+      submission.spamAt || '',
+      submission.beehiivStatus || '',
+      submission.name,
+      submission.firstName,
+      submission.lastName,
+      submission.email,
+      submission.company,
+      submission.dealership,
+      submission.role,
+      submission.interest,
+      submission.message,
+      submission.source,
+      submission.beehiivTags.join('; '),
+    ]);
+
+    const csv = [header, ...rows]
+      .map((row) => row.map((value) => escapeCsvValue(value)).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `inbound-leads-${contactFormSourceFilter}-${contactFormStatusFilter}-${contactFormTimeframeFilter}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function toggleExpandedContactSubmission(submissionId: string) {
+    setExpandedContactSubmissionIds((current) => (
+      current.includes(submissionId)
+        ? current.filter((id) => id !== submissionId)
+        : [...current, submissionId]
+    ));
   }
 
   async function generateExport() {
@@ -1229,6 +1524,11 @@ export default function AdminIntelligencePage() {
   }, [user?.userId, user?.role]);
 
   useEffect(() => {
+    if (!data) return;
+    setIsContactFormOpen(data.contactForm.pendingCount > 0);
+  }, [data?.contactForm.pendingCount]);
+
+  useEffect(() => {
     void loadAlerts();
   }, [
     user?.userId,
@@ -1322,6 +1622,326 @@ export default function AdminIntelligencePage() {
           </Card>
         ) : data ? (
           <>
+            <Collapsible open={isContactFormOpen} onOpenChange={setIsContactFormOpen}>
+              <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <span>Inbound Leads</span>
+                      {pendingContactSubmissions.length > 0 ? (
+                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9)]" aria-label="New contact submission" />
+                      ) : null}
+                    </CardTitle>
+                    <CardDescription>
+                      AutoKnerd contact and schedule-call submissions mirrored from the live site so the team can review them in one place.
+                    </CardDescription>
+                  </div>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" size="sm">
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isContactFormOpen ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <Card className="border-red-500/20 bg-red-500/5">
+                        <CardHeader className="pb-2">
+                          <CardDescription>Needs Attention</CardDescription>
+                          <CardTitle className="text-3xl">{pendingContactSubmissions.length}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm text-muted-foreground">Submissions still waiting to be tended.</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardDescription>Last 90 Days</CardDescription>
+                          <CardTitle className="text-3xl">{data.contactForm.totalSubmissions90Days}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm text-muted-foreground">Total inbound submissions logged in the dashboard.</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardDescription>Latest Submission</CardDescription>
+                          <CardTitle className="text-lg">
+                            {data.contactForm.latestSubmissionAt
+                              ? new Date(data.contactForm.latestSubmissionAt).toLocaleString()
+                              : 'No submissions yet'}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm text-muted-foreground">Most recent inbound submission from the AutoKnerd site.</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <Card className="overflow-hidden border-cyan-400/15">
+                      <CardHeader>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <CardTitle>Messages</CardTitle>
+                            <CardDescription>
+                              Recent contact and schedule-call submissions, with Beehiiv status and a tended toggle so the red-dot state stays actionable.
+                            </CardDescription>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {isContactExportPanelOpen ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setIsContactExportPanelOpen(false)}
+                              >
+                                Cancel
+                              </Button>
+                            ) : null}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                if (!isContactExportPanelOpen) {
+                                  setIsContactExportPanelOpen(true);
+                                  return;
+                                }
+                                exportContactSubmissionsCsv();
+                              }}
+                            >
+                              {isContactExportPanelOpen ? 'Download CSV' : 'Export CSV'}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="mb-4 space-y-3">
+                          <Input
+                            value={contactFormSearch}
+                            onChange={(event) => setContactFormSearch(event.target.value)}
+                            placeholder="Search name, email, dealership, interest, or message"
+                          />
+
+                          {isContactExportPanelOpen ? (
+                            <div className="grid gap-3 2xl:grid-cols-[220px_220px_220px_220px]">
+                              <Select
+                                value={contactFormStatusFilter}
+                                onValueChange={(value: 'all' | 'new' | 'tended' | 'spam') => setContactFormStatusFilter(value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Submission status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">Inbox</SelectItem>
+                                  <SelectItem value="new">Needs attention</SelectItem>
+                                  <SelectItem value="tended">Tended</SelectItem>
+                                  <SelectItem value="spam">Spam</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={contactFormBeehiivFilter}
+                                onValueChange={(value: 'all' | 'active' | 'invalid' | 'validating' | 'unknown') => setContactFormBeehiivFilter(value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Beehiiv status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Beehiiv statuses</SelectItem>
+                                  <SelectItem value="active">Active</SelectItem>
+                                  <SelectItem value="invalid">Invalid</SelectItem>
+                                  <SelectItem value="validating">Validating</SelectItem>
+                                  <SelectItem value="unknown">Unknown</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={contactFormSourceFilter}
+                                onValueChange={(value: 'all' | 'contact' | 'schedule-call') => setContactFormSourceFilter(value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Lead source" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All sources</SelectItem>
+                                  <SelectItem value="contact">Contact</SelectItem>
+                                  <SelectItem value="schedule-call">Schedule Call</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={contactFormTimeframeFilter}
+                                onValueChange={(value: 'all' | '24h' | '7d' | '30d' | '90d') => setContactFormTimeframeFilter(value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Timeframe" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All time</SelectItem>
+                                  <SelectItem value="24h">Last 24 hours</SelectItem>
+                                  <SelectItem value="7d">Last 7 days</SelectItem>
+                                  <SelectItem value="30d">Last 30 days</SelectItem>
+                                  <SelectItem value="90d">Last 90 days</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                          <span>
+                            Showing {filteredContactFormSubmissions.length} of {contactFormSubmissions.length} submissions
+                          </span>
+                          {(contactFormSearch || contactFormStatusFilter !== 'all' || contactFormBeehiivFilter !== 'all' || contactFormSourceFilter !== 'all' || contactFormTimeframeFilter !== 'all') ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setContactFormSearch('');
+                                setContactFormStatusFilter('all');
+                                setContactFormBeehiivFilter('all');
+                                setContactFormSourceFilter('all');
+                                setContactFormTimeframeFilter('all');
+                              }}
+                            >
+                              Clear filters
+                            </Button>
+                          ) : null}
+                        </div>
+
+                        {isContactExportPanelOpen ? (
+                          <p className="mb-4 text-xs uppercase tracking-[0.14em] text-slate-500">
+                            CSV export uses the current filters. Remove marks a submission as spam and hides it from the inbox.
+                          </p>
+                        ) : null}
+
+                        {contactFormSubmissions.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No inbound submissions have been logged yet.</p>
+                        ) : filteredContactFormSubmissions.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No submissions match the current filters.</p>
+                        ) : (
+                          <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-1">
+                            {filteredContactFormSubmissions.map((submission) => {
+                              const displayName = submission.name || [submission.firstName, submission.lastName].filter(Boolean).join(' ') || 'Unnamed contact';
+                              const isExpanded = expandedContactSubmissionIds.includes(submission.submissionId);
+                              const detailLines = [
+                                submission.company ? `Company: ${submission.company}` : '',
+                                submission.dealership ? `Dealership: ${submission.dealership}` : '',
+                                submission.role ? `Role: ${submission.role}` : '',
+                                submission.interest ? `Interest: ${submission.interest}` : '',
+                              ].filter(Boolean);
+                              const previewText = submission.message || detailLines.join(' • ') || `${getLeadSourceLabel(submission.source)} inquiry`;
+
+                              return (
+                                <div key={submission.submissionId} className="rounded-xl border border-slate-800/80 bg-slate-950/50 p-4">
+                                  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex min-w-0 items-center gap-3">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 px-2"
+                                          onClick={() => toggleExpandedContactSubmission(submission.submissionId)}
+                                        >
+                                          <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </Button>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                            <p className="truncate text-sm font-semibold text-slate-50">{displayName}</p>
+                                            <Badge variant={submission.isTended ? 'secondary' : 'destructive'}>
+                                              {submission.isSpam ? 'Spam' : submission.isTended ? 'Tended' : 'New'}
+                                            </Badge>
+                                            <Badge variant="outline" className="capitalize">
+                                              {getLeadSourceLabel(submission.source)}
+                                            </Badge>
+                                            {submission.beehiivStatus ? (
+                                              <Badge variant="outline" className="capitalize">
+                                                Beehiiv: {submission.beehiivStatus}
+                                              </Badge>
+                                            ) : null}
+                                            <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                                              {new Date(submission.createdAt).toLocaleString()}
+                                            </span>
+                                          </div>
+                                          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                                            <span className="truncate">{submission.email}</span>
+                                            <span className="truncate text-slate-400">{previewText}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 xl:ml-4">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          window.location.href = buildContactReplyHref(submission);
+                                        }}
+                                      >
+                                        Email
+                                      </Button>
+                                      {!submission.isSpam ? (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => void markContactSubmissionAsSpam(submission.submissionId)}
+                                        >
+                                          Remove
+                                        </Button>
+                                      ) : null}
+                                      {!submission.isSpam && !submission.isTended ? (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => void markContactSubmissionAsTended(submission.submissionId)}
+                                        >
+                                          Mark Tended
+                                        </Button>
+                                      ) : !submission.isSpam && submission.tendedAt ? (
+                                        <p className="self-center text-xs uppercase tracking-[0.16em] text-emerald-400">
+                                          Tended {new Date(submission.tendedAt).toLocaleString()}
+                                        </p>
+                                      ) : submission.isSpam && submission.spamAt ? (
+                                        <p className="self-center text-xs uppercase tracking-[0.16em] text-red-400">
+                                          Spam {new Date(submission.spamAt).toLocaleString()}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  {isExpanded ? (
+                                    <>
+                                      {detailLines.length > 0 ? (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                          {detailLines.map((detail) => (
+                                            <span key={detail} className="rounded-full border border-slate-700/80 bg-slate-900/80 px-3 py-1 text-xs text-slate-300">
+                                              {detail}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : null}
+
+                                      <div className="mt-4 rounded-lg border border-slate-800/70 bg-slate-950/70 p-3">
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Message</p>
+                                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+                                          {submission.message || 'No message included.'}
+                                        </p>
+                                      </div>
+                                    </>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+
             <Collapsible open={isSiteTrafficOpen} onOpenChange={setIsSiteTrafficOpen}>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-4">

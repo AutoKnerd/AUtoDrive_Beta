@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { AutoknerdFooter } from '@/components/autoknerd/autoknerd-footer';
 import { BeehiivSubscriberDialog } from '@/components/autoknerd/beehiiv-subscriber-dialog';
+import { AutoknerdNewsletterForm } from '@/components/autoknerd/autoknerd-newsletter-form';
 import { AutoknerdShell } from '@/components/autoknerd/autoknerd-shell';
 
 const ecosystemProducts = [
@@ -380,6 +381,12 @@ export default function AutoknerdPage() {
                 Explore the System
               </a>
             </div>
+            <a
+              href="#dispatch"
+              className="inline-flex max-w-full items-center justify-center text-xs font-medium italic text-zinc-500 transition-colors hover:text-[#eaffb8]"
+            >
+              Not ready for a demo? Get weekly CX insights instead.
+            </a>
             <p className="mx-auto max-w-md border-t border-[#eaffb8]/10 pt-6 text-xs uppercase tracking-widest text-[#f4f3f3]/60">
               One system. Built to diagnose, train, and deploy better behavior across your dealership.
             </p>
@@ -771,12 +778,30 @@ export default function AutoknerdPage() {
             </button>
           </div>
         </section>
+
+        <section className="fade-in-section border-t border-[#464848]/15 bg-[#0d0f0f] px-8 py-24 scroll-mt-28" id="dispatch">
+          <div className="mx-auto grid max-w-6xl gap-10 rounded-sm border border-[#1b1f1f] bg-[#111414] px-6 py-8 md:grid-cols-[1fr_1.1fr] md:px-10 md:py-10">
+            <div>
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.28em] text-[#bdfc00]">The AutoKnerd Dispatch</p>
+              <h2 className="mb-4 text-3xl tracking-tighter text-[#f4f3f3] md:text-5xl">
+                Stay close to the signal.
+              </h2>
+              <p className="max-w-xl text-base leading-relaxed text-[#aaabab] md:text-lg">
+                Weekly insights on trust, transparency, CSI, and dealership behavior consistency.
+              </p>
+            </div>
+            <div className="rounded-sm border border-[#464848]/20 bg-[#0d0f0f] p-6">
+              <AutoknerdNewsletterForm source="newsletter" fieldIdSuffix="homepage-dispatch" />
+            </div>
+          </div>
+        </section>
       </main>
       <BeehiivSubscriberDialog
         open={isScheduleCallModalOpen}
         onOpenChange={setIsScheduleCallModalOpen}
         title="Schedule a Call"
         description="Built for dealerships that want clearer communication, stronger customer trust, and more consistent experiences."
+        source="schedule-call"
       />
       <AutoknerdFooter />
     </AutoknerdShell>

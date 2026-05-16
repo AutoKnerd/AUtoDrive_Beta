@@ -470,6 +470,7 @@ export default function AutoknerdPodcastPage() {
         onOpenChange={setIsScheduleCallModalOpen}
         title="Schedule a Call"
         description="Built for dealerships that want clearer communication, stronger customer trust, and more consistent experiences."
+        source="schedule-call"
       />
       <AutoknerdFooter />
     </AutoknerdShell>
