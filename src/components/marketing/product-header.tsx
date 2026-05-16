@@ -80,6 +80,7 @@ export function ProductHeader({
             mobileMenuTitle={mobileMenuTitle}
             mobileMenuDescription={mobileMenuDescription}
             tone={tone}
+            loginHref={loginHref}
           />
         </div>
 
@@ -125,7 +126,7 @@ export function ProductHeader({
 
           {trialCta ? (
             <Link
-              href={trialCta.href}
+              href={trialCta.href ?? '#'}
               className={cn(
                 'hidden min-h-[46px] items-center justify-center px-5 py-3 font-[family-name:var(--font-heading)] text-xs font-black uppercase tracking-[0.16em] transition md:inline-flex',
                 trialClassName

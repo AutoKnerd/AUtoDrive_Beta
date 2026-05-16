@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { type AutoknerdNavKey } from '@/components/autoknerd/autoknerd-header-menu';
 import { ProductHeader, type ProductHeaderCta } from '@/components/marketing/product-header';
+import { AUTOKNERD_APP_LOGIN_URL } from '@/lib/autoknerd-app';
 
 type AutoknerdShellProps = {
   active?: AutoknerdNavKey;
@@ -38,7 +39,7 @@ export function AutoknerdShell({ active = 'home', children, primaryCta }: Autokn
         menuActive={active}
         currentSystem="autoknerd"
         className="nav-glass border-zinc-900/50 shadow-[0_4px_20px_rgba(191,255,0,0.05)]"
-        loginHref="/login"
+        loginHref={AUTOKNERD_APP_LOGIN_URL}
         loginClassName="border border-zinc-800 bg-transparent text-zinc-400 hover:border-zinc-600 hover:text-zinc-100 md:border md:border-zinc-800 md:bg-transparent md:text-zinc-400 md:hover:border-zinc-600 md:hover:text-zinc-100 max-md:glow-primary-hover max-md:border-0 max-md:bg-[#bdfc00] max-md:text-[#445d00] max-md:hover:brightness-110"
         primaryCta={resolvedPrimaryCta}
         primaryClassName="glow-primary-hover bg-[#bdfc00] text-[#445d00] hover:brightness-110"

@@ -3,6 +3,7 @@
 
 import { Suspense, type CSSProperties } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { SignupForm } from '@/components/auth/signup-form';
 
 const signupThemeStyle = {
@@ -48,14 +49,16 @@ export default function SignupPage() {
             <div className="w-fit rounded-full border border-[hsl(var(--border))] bg-[rgba(117,191,36,0.12)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--foreground))]">
               AutoDriveCX Individual
             </div>
-            <Image
-              src="/AutoKnerd Logo.png"
-              alt="Autoknerd"
-              width={1078}
-              height={461}
-              className="h-auto w-auto max-w-[300px]"
-              priority
-            />
+            <Link href="/Autoknerd" aria-label="Go to AutoKnerd homepage">
+              <Image
+                src="/AutoKnerd Logo.png"
+                alt="Autoknerd"
+                width={1078}
+                height={461}
+                className="h-auto w-auto max-w-[300px]"
+                priority
+              />
+            </Link>
             <h1 className="text-balance text-2xl font-semibold leading-tight text-[hsl(var(--foreground))] sm:text-3xl">
               Start your Individual plan free for 30 days.
             </h1>

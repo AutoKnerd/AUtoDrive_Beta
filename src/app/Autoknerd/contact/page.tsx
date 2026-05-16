@@ -10,11 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
 
 const interestOptions = [
-  'AutoShop',
-  'AutoDriveCX',
-  'AutoForge',
-  'Dealer Group Rollout',
-  'General Question',
+  'AutoKnerd',
+  'Dealer Group Roll Out',
+  'Single Dealer Services',
+  'Live Training',
+  'Podcast Inquiry',
 ] as const;
 
 export default function AutoknerdContactPage() {
@@ -23,7 +23,7 @@ export default function AutoknerdContactPage() {
   const [dealership, setDealership] = useState('');
   const [role, setRole] = useState('');
   const [email, setEmail] = useState('');
-  const [interest, setInterest] = useState<(typeof interestOptions)[number]>('General Question');
+  const [interest, setInterest] = useState<(typeof interestOptions)[number]>('AutoKnerd');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitState, setSubmitState] = useState<'idle' | 'success' | 'error'>('idle');
@@ -69,7 +69,7 @@ export default function AutoknerdContactPage() {
       setDealership('');
       setRole('');
       setEmail('');
-      setInterest('General Question');
+      setInterest('AutoKnerd');
       setMessage('');
     } catch {
       setSubmitState('success');

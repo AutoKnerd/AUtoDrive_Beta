@@ -24,6 +24,7 @@ type AutoknerdHeaderMenuProps = {
   mobileMenuTitle?: string;
   mobileMenuDescription?: string;
   tone?: 'dark' | 'light';
+  loginHref?: string;
 };
 
 const navItems = [
@@ -47,13 +48,14 @@ export function AutoknerdHeaderMenu({
   mobileMenuTitle = 'AutoKnerd',
   mobileMenuDescription = 'Performance intelligence navigation',
   tone = 'dark',
+  loginHref = '/login',
 }: AutoknerdHeaderMenuProps) {
   const { user } = useAuth();
   const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
   const mobileMenuCta = user
     ? { href: '/Autoknerd/find-your-fit', label: 'Find Your Fit' }
-    : { href: '/login', label: 'Login' };
+    : { href: loginHref, label: 'Log In' };
   const isLightTone = tone === 'light';
   const visibleSystemItems = systemItems.filter((item) => item.key !== currentSystem);
   const systemDropdownClassName = (() => {
