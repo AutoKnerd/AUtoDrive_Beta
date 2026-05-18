@@ -31,16 +31,22 @@ const Footer: React.FC = () => {
 
     const copyrightStyle: React.CSSProperties = {
         display: 'flex',
-        flexWrap: 'wrap',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '0.75rem',
+        gap: '0.5rem',
         textAlign: 'center',
         fontFamily: "'Press Start 2P', monospace",
         fontSize: '8px',
         letterSpacing: '0.18em',
         color: 'rgba(255,255,255,0.28)',
         textTransform: 'uppercase',
+    };
+
+    const footerLinkStyle: React.CSSProperties = {
+        color: 'rgba(255,255,255,0.52)',
+        textDecoration: 'none',
+        transition: 'color 0.2s ease',
     };
 
     return (
@@ -58,12 +64,20 @@ const Footer: React.FC = () => {
                 </div>
                 <div style={{ ...copyrightStyle, flex: '0 0 auto' }}>
                     <span>© 2024 AutoKnerd LLC Dealership CX Development.</span>
-                    <span style={{ color: 'rgba(255,255,255,0.12)' }} aria-hidden="true">
-                        |
-                    </span>
-                    <a href="/legal" style={{ color: 'rgba(255,255,255,0.38)', textDecoration: 'none' }}>
-                        Legal
-                    </a>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <a href="/legal" style={footerLinkStyle}>
+                            Legal
+                        </a>
+                        <span style={{ color: 'rgba(255,255,255,0.12)' }} aria-hidden="true">
+                            |
+                        </span>
+                        <a
+                            href="https://app.autodrivecx.com/login?next=/developer"
+                            style={{ ...footerLinkStyle, color: 'var(--logo-green)' }}
+                        >
+                            Admin Login
+                        </a>
+                    </div>
                 </div>
             </div>
         </footer>

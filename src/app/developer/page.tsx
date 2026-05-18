@@ -75,6 +75,7 @@ import { buildConsultantOutreachLink } from '@/lib/consultant-share-links';
 
 type DashboardMode = 'role_based' | 'single_user';
 type LeadsView = 'presentation' | 'autoforge' | 'sprocket';
+type PptxImportMode = 'background' | 'html';
 type SectionId =
   | 'dashboard'
   | 'people_access'
@@ -691,6 +692,10 @@ export default function DeveloperPage() {
   const [presentationZipFile, setPresentationZipFile] = useState<File | null>(null);
   const [presentationZipImportBusy, setPresentationZipImportBusy] = useState(false);
   const [presentationZipInputKey, setPresentationZipInputKey] = useState(0);
+  const [presentationPptxFile, setPresentationPptxFile] = useState<File | null>(null);
+  const [presentationPptxImportMode, setPresentationPptxImportMode] = useState<PptxImportMode>('background');
+  const [presentationPptxImportBusy, setPresentationPptxImportBusy] = useState(false);
+  const [presentationPptxInputKey, setPresentationPptxInputKey] = useState(0);
   const [presentationLoadBusy, setPresentationLoadBusy] = useState(false);
   const [lastImportedPresentationHref, setLastImportedPresentationHref] = useState<string | null>(null);
   const [presentationCompanionStep, setPresentationCompanionStep] = useState('slide1');
@@ -1051,6 +1056,9 @@ export default function DeveloperPage() {
       setLastImportedPresentationHref(null);
       setPresentationZipFile(null);
       setPresentationZipInputKey((current) => current + 1);
+      setPresentationPptxFile(null);
+      setPresentationPptxImportMode('background');
+      setPresentationPptxInputKey((current) => current + 1);
       setPresentationCompanionStep('slide1');
     setPresentationCompanionResponseKey('');
     setPresentationCompanionTitle('');
@@ -1417,6 +1425,7 @@ export default function DeveloperPage() {
       const importedDeckId = typeof payload?.deckId === 'string' ? payload.deckId.trim() : presentationImportDeckId.trim();
       const importedTitle = typeof payload?.manifest?.title === 'string' ? payload.manifest.title : presentationImportTitle.trim();
       const importedDescription = typeof payload?.manifest?.description === 'string' ? payload.manifest.description : presentationImportDescription.trim();
+      const importWarning = typeof payload?.warning === 'string' ? payload.warning.trim() : '';
 
       setPresentationImportDeckId(importedDeckId);
       setPresentationImportTitle(importedTitle);
@@ -1454,6 +1463,98 @@ export default function DeveloperPage() {
     presentationImportOverwrite,
     presentationImportTitle,
     presentationZipFile,
+    refreshPresentationDeckOptions,
+    toast,
+  ]);
+
+  const handleImportPresentationPptx = useCallback(async () => {
+    if (!presentationPptxFile) {
+      toast({
+        title: 'PowerPoint file required',
+        description: 'Choose a .pptx file before importing.',
+      });
+      return;
+    }
+
+    if (!presentationImportTitle.trim() && !presentationImportDeckId.trim()) {
+      toast({
+        title: 'Deck name required',
+        description: 'Add a title or deck id so the engine can name the imported deck.',
+      });
+      return;
+    }
+
+    setPresentationPptxImportBusy(true);
+
+    try {
+      const formData = new FormData();
+      formData.set('pptx', presentationPptxFile);
+      formData.set('mode', presentationPptxImportMode);
+      formData.set('title', presentationImportTitle.trim());
+      formData.set('deckId', presentationImportDeckId.trim());
+      formData.set('description', presentationImportDescription.trim());
+      formData.set('overwrite', String(presentationImportOverwrite));
+
+      const response = await fetch('/api/presentations/import-pptx', {
+        method: 'POST',
+        body: formData,
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Unable to import PowerPoint.');
+      }
+
+      const href = typeof payload?.href === 'string' ? payload.href : '/Presentations';
+      const savedSlideCount = typeof payload?.manifest?.slideCount === 'number'
+        ? payload.manifest.slideCount
+        : Array.isArray(payload?.manifest?.slides)
+          ? payload.manifest.slides.length
+          : 0;
+      const importedDeckId = typeof payload?.deckId === 'string' ? payload.deckId.trim() : presentationImportDeckId.trim();
+      const importedTitle = typeof payload?.manifest?.title === 'string' ? payload.manifest.title : presentationImportTitle.trim();
+      const importedDescription = typeof payload?.manifest?.description === 'string' ? payload.manifest.description : presentationImportDescription.trim();
+      const importWarning = typeof payload?.warning === 'string' ? payload.warning.trim() : '';
+
+      setPresentationImportDeckId(importedDeckId);
+      setPresentationImportTitle(importedTitle);
+      setPresentationImportDescription(importedDescription);
+      setPresentationImportHtml('');
+      setPresentationCompanionDeckId(importedDeckId);
+      setLastImportedPresentationHref(href);
+      setPresentationPptxFile(null);
+      setPresentationPptxInputKey((current) => current + 1);
+      setPresentationActiveSlideBuildStep('');
+      setPresentationActiveSlideBuildLabel('');
+      setPresentationSaveConfirmation({
+        href,
+        savedAt: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        slideCount: savedSlideCount,
+      });
+      void refreshPresentationDeckOptions();
+
+      toast({
+        title: importWarning ? 'PowerPoint imported with fallback' : 'PowerPoint imported',
+        description: importWarning
+          ? `${savedSlideCount} slide${savedSlideCount === 1 ? '' : 's'} saved to ${href}. ${importWarning}`
+          : `${savedSlideCount} slide${savedSlideCount === 1 ? '' : 's'} saved to ${href}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'PowerPoint import failed',
+        description: error instanceof Error ? error.message : 'Unable to import PowerPoint.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresentationPptxImportBusy(false);
+    }
+  }, [
+    presentationImportDeckId,
+    presentationImportDescription,
+    presentationImportOverwrite,
+    presentationImportTitle,
+    presentationPptxFile,
+    presentationPptxImportMode,
     refreshPresentationDeckOptions,
     toast,
   ]);
@@ -3859,6 +3960,47 @@ export default function DeveloperPage() {
               >
                 <Upload className="mr-2 h-4 w-4" />
                 {presentationZipImportBusy ? 'Importing...' : 'Import Zip'}
+              </Button>
+            </div>
+            <div className="grid gap-3 rounded-md border bg-muted/20 p-3 lg:grid-cols-[1fr_220px_auto] lg:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="presentation-pptx-import">Import PowerPoint</Label>
+                <Input
+                  key={presentationPptxInputKey}
+                  id="presentation-pptx-import"
+                  type="file"
+                  accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                  onChange={(event) => setPresentationPptxFile(event.target.files?.[0] ?? null)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {presentationPptxFile
+                    ? `Ready: ${presentationPptxFile.name}`
+                    : 'Upload a .pptx and choose whether slides become image backgrounds or editable HTML.'}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="presentation-pptx-mode">PowerPoint Mode</Label>
+                <Select
+                  value={presentationPptxImportMode}
+                  onValueChange={(value) => setPresentationPptxImportMode(value === 'html' ? 'html' : 'background')}
+                >
+                  <SelectTrigger id="presentation-pptx-mode" className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="background">Background</SelectItem>
+                    <SelectItem value="html">HTML</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleImportPresentationPptx()}
+                disabled={presentationPptxImportBusy || !presentationPptxFile}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {presentationPptxImportBusy ? 'Importing...' : 'Import PPTX'}
               </Button>
             </div>
             <div className="space-y-2">
