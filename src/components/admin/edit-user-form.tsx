@@ -37,6 +37,7 @@ const editUserSchema = z.object({
   isPrivate: z.boolean().optional(),
   isPrivateFromOwner: z.boolean().optional(),
   showDealerCriticalOnly: z.boolean().optional(),
+  hasAdminIntelligenceAccess: z.boolean().optional(),
 });
 
 type EditUserFormValues = z.infer<typeof editUserSchema>;
@@ -76,6 +77,7 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
     isPrivate: !!u.isPrivate,
     isPrivateFromOwner: !!u.isPrivateFromOwner,
     showDealerCriticalOnly: !!u.showDealerCriticalOnly,
+    hasAdminIntelligenceAccess: !!u.hasAdminIntelligenceAccess,
   });
 
   const form = useForm<EditUserFormValues>({
@@ -180,6 +182,7 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
         isPrivate: data.isPrivate,
         isPrivateFromOwner: data.isPrivateFromOwner,
         showDealerCriticalOnly: data.showDealerCriticalOnly,
+        hasAdminIntelligenceAccess: data.hasAdminIntelligenceAccess,
       }));
 
       const oldIds = (selectedUser.dealershipIds || []).sort();
@@ -317,6 +320,7 @@ export function EditUserForm({ manageableUsers, dealerships, onUserUpdated }: Ed
             <div className="grid gap-2 border rounded-md p-3">
                 <FormField control={form.control} name="isPrivate" render={({ field }) => <FormItem className="flex items-center justify-between"><FormLabel>Hide from Managers</FormLabel><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>} />
                 <FormField control={form.control} name="showDealerCriticalOnly" render={({ field }) => <FormItem className="flex items-center justify-between"><FormLabel>Critical Data Only</FormLabel><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>} />
+                <FormField control={form.control} name="hasAdminIntelligenceAccess" render={({ field }) => <FormItem className="flex items-center justify-between"><FormLabel>Admin Intelligence Access</FormLabel><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>} />
             </div>
             <div className="rounded-md border p-3 space-y-2">
               <p className="text-sm font-medium">AutoKnerd Consultant Access</p>
