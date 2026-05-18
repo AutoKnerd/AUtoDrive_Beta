@@ -692,6 +692,9 @@ export default function DeveloperPage() {
   const [presentationZipFile, setPresentationZipFile] = useState<File | null>(null);
   const [presentationZipImportBusy, setPresentationZipImportBusy] = useState(false);
   const [presentationZipInputKey, setPresentationZipInputKey] = useState(0);
+  const [presentationHtmlFolderFiles, setPresentationHtmlFolderFiles] = useState<File[] | null>(null);
+  const [presentationHtmlFolderImportBusy, setPresentationHtmlFolderImportBusy] = useState(false);
+  const [presentationHtmlFolderInputKey, setPresentationHtmlFolderInputKey] = useState(0);
   const [presentationPptxFile, setPresentationPptxFile] = useState<File | null>(null);
   const [presentationPptxImportMode, setPresentationPptxImportMode] = useState<PptxImportMode>('background');
   const [presentationPptxImportBusy, setPresentationPptxImportBusy] = useState(false);
@@ -1056,6 +1059,8 @@ export default function DeveloperPage() {
       setLastImportedPresentationHref(null);
       setPresentationZipFile(null);
       setPresentationZipInputKey((current) => current + 1);
+      setPresentationHtmlFolderFiles(null);
+      setPresentationHtmlFolderInputKey((current) => current + 1);
       setPresentationPptxFile(null);
       setPresentationPptxImportMode('background');
       setPresentationPptxInputKey((current) => current + 1);
@@ -1463,6 +1468,97 @@ export default function DeveloperPage() {
     presentationImportOverwrite,
     presentationImportTitle,
     presentationZipFile,
+    refreshPresentationDeckOptions,
+    toast,
+  ]);
+
+  const handleImportPresentationHtmlFolder = useCallback(async () => {
+    if (!presentationHtmlFolderFiles || presentationHtmlFolderFiles.length === 0) {
+      toast({
+        title: 'HTML folder required',
+        description: 'Choose a folder containing index.html before importing.',
+      });
+      return;
+    }
+
+    if (!presentationImportTitle.trim() && !presentationImportDeckId.trim()) {
+      toast({
+        title: 'Deck name required',
+        description: 'Add a title or deck id so the engine can name the imported deck.',
+      });
+      return;
+    }
+
+    setPresentationHtmlFolderImportBusy(true);
+
+    try {
+      const formData = new FormData();
+      presentationHtmlFolderFiles.forEach((file) => {
+        const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+        formData.append('files', file, file.name);
+        formData.append('relativePaths', relativePath);
+      });
+      formData.set('title', presentationImportTitle.trim());
+      formData.set('deckId', presentationImportDeckId.trim());
+      formData.set('description', presentationImportDescription.trim());
+      formData.set('overwrite', String(presentationImportOverwrite));
+
+      const response = await fetch('/api/presentations/import-html', {
+        method: 'POST',
+        body: formData,
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Unable to import HTML folder.');
+      }
+
+      const href = typeof payload?.href === 'string' ? payload.href : '/Presentations';
+      const savedSlideCount = typeof payload?.manifest?.slideCount === 'number'
+        ? payload.manifest.slideCount
+        : Array.isArray(payload?.manifest?.slides)
+          ? payload.manifest.slides.length
+          : 0;
+      const importedDeckId = typeof payload?.deckId === 'string' ? payload.deckId.trim() : presentationImportDeckId.trim();
+      const importedTitle = typeof payload?.manifest?.title === 'string' ? payload.manifest.title : presentationImportTitle.trim();
+      const importedDescription = typeof payload?.manifest?.description === 'string' ? payload.manifest.description : presentationImportDescription.trim();
+
+      setPresentationImportDeckId(importedDeckId);
+      setPresentationImportTitle(importedTitle);
+      setPresentationImportDescription(importedDescription);
+      setPresentationImportHtml('');
+      setPresentationCompanionDeckId(importedDeckId);
+      setLastImportedPresentationHref(href);
+      setPresentationHtmlFolderFiles(null);
+      setPresentationHtmlFolderInputKey((current) => current + 1);
+      setPresentationActiveSlideBuildStep('');
+      setPresentationActiveSlideBuildLabel('');
+      setPresentationSaveConfirmation({
+        href,
+        savedAt: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        slideCount: savedSlideCount,
+      });
+      void refreshPresentationDeckOptions();
+
+      toast({
+        title: 'HTML folder imported',
+        description: `${savedSlideCount} slide${savedSlideCount === 1 ? '' : 's'} saved to ${href}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'HTML folder import failed',
+        description: error instanceof Error ? error.message : 'Unable to import HTML folder.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresentationHtmlFolderImportBusy(false);
+    }
+  }, [
+    presentationHtmlFolderFiles,
+    presentationImportDeckId,
+    presentationImportDescription,
+    presentationImportOverwrite,
+    presentationImportTitle,
     refreshPresentationDeckOptions,
     toast,
   ]);
@@ -3960,6 +4056,33 @@ export default function DeveloperPage() {
               >
                 <Upload className="mr-2 h-4 w-4" />
                 {presentationZipImportBusy ? 'Importing...' : 'Import Zip'}
+              </Button>
+            </div>
+            <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-[1fr_auto] md:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="presentation-html-folder-import">Import HTML Folder</Label>
+                <Input
+                  key={presentationHtmlFolderInputKey}
+                  id="presentation-html-folder-import"
+                  type="file"
+                  multiple
+                  {...({ webkitdirectory: '' } as any)}
+                  onChange={(event) => setPresentationHtmlFolderFiles(event.target.files ? Array.from(event.target.files) : null)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {presentationHtmlFolderFiles && presentationHtmlFolderFiles.length > 0
+                    ? `Ready: ${presentationHtmlFolderFiles.length} file${presentationHtmlFolderFiles.length === 1 ? '' : 's'}`
+                    : 'Choose the folder that contains index.html and its assets/ directory.'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleImportPresentationHtmlFolder()}
+                disabled={presentationHtmlFolderImportBusy || !presentationHtmlFolderFiles || presentationHtmlFolderFiles.length === 0}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {presentationHtmlFolderImportBusy ? 'Importing...' : 'Import Folder'}
               </Button>
             </div>
             <div className="grid gap-3 rounded-md border bg-muted/20 p-3 lg:grid-cols-[1fr_220px_auto] lg:items-end">
