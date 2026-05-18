@@ -259,7 +259,7 @@ export function UserNav({ user, avatarClassName, withBlur = false }: UserNavProp
                 <span>Developer</span>
               </DropdownMenuItem>
             )}
-            {(user.role === 'Admin' || user.role === 'Developer') && (
+            {(user.role === 'Admin' || user.role === 'Developer' || user.hasAdminIntelligenceAccess) && (
               <DropdownMenuItem onSelect={() => router.push('/admin/intelligence')}>
                 <BarChart3 className="mr-2 h-4 w-4" />
                 <span>Admin Intelligence</span>

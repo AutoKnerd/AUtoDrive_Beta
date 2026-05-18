@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User } from '@/lib/definitions';
+import { hasAdminIntelligenceAccess } from '@/lib/admin/access';
 import { buildAutoforgeTriggerRows, buildConsultantTrendRows, buildDealerSummaryRows, buildManagerCoachingReport, buildMarketingInsightReport, buildRawSessionRows } from '@/lib/fresh-up-export/builders';
 import { buildExportBundle } from '@/lib/fresh-up-export/formatters';
 import { loadFreshUpSessionsForExport, loadNamesById } from '@/lib/fresh-up-export/query';
@@ -57,7 +58,7 @@ async function requireAdminOrDeveloper(req: Request): Promise<{ ok: true } | { o
   }
 
   const user = userDoc.data() as User;
-  if (user.role !== 'Admin' && user.role !== 'Developer') {
+  if (!hasAdminIntelligenceAccess(user)) {
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: Admin access required.' }, { status: 403 }) };
   }
 

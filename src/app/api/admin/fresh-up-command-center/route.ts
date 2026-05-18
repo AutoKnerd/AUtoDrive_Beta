@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User } from '@/lib/definitions';
+import { hasAdminIntelligenceAccess } from '@/lib/admin/access';
 import { buildFreshUpCommandCenter } from '@/lib/fresh-up-command-center/engine';
 import type { FreshUpCommandCenterRequest } from '@/lib/fresh-up-command-center/types';
 
@@ -35,7 +36,7 @@ async function requireAuthorized(req: Request): Promise<{ ok: true; user: User }
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: User profile not found.' }, { status: 403 }) };
   }
   const user = userDoc.data() as User;
-  if (!ALLOWED_ROLES.has(user.role)) {
+  if (!ALLOWED_ROLES.has(user.role) && !hasAdminIntelligenceAccess(user)) {
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: Manager/admin access required.' }, { status: 403 }) };
   }
   return { ok: true, user };
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Missing entityMode.' }, { status: 400 });
     }
 
-    const isAdminScope = auth.user.role === 'Admin' || auth.user.role === 'Developer';
+    const isAdminScope = auth.user.role === 'Admin' || auth.user.role === 'Developer' || auth.user.hasAdminIntelligenceAccess === true;
     const managerDealerIds = new Set([
       ...(auth.user.dealershipIds || []),
       ...(auth.user.selfDeclaredDealershipId ? [auth.user.selfDeclaredDealershipId] : []),
@@ -75,4 +76,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ message }, { status: 500 });
   }
 }
-

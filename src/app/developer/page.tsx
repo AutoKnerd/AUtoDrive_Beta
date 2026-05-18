@@ -600,6 +600,9 @@ export default function DeveloperPage() {
   const [siteTrafficTargetUserId, setSiteTrafficTargetUserId] = useState<string>('');
   const [isGrantingSiteTraffic, setIsGrantingSiteTraffic] = useState(false);
   const [isRevokingSiteTraffic, setIsRevokingSiteTraffic] = useState(false);
+  const [adminIntelligenceTargetUserId, setAdminIntelligenceTargetUserId] = useState<string>('');
+  const [isGrantingAdminIntelligence, setIsGrantingAdminIntelligence] = useState(false);
+  const [isRevokingAdminIntelligence, setIsRevokingAdminIntelligence] = useState(false);
   const [toolboxDealershipId, setToolboxDealershipId] = useState<string>('');
   const [toolboxDealershipAccessEnabled, setToolboxDealershipAccessEnabled] = useState(true);
   const [isSavingToolboxDealershipAccess, setIsSavingToolboxDealershipAccess] = useState(false);
@@ -2208,6 +2211,102 @@ export default function DeveloperPage() {
       setIsRevokingSiteTraffic(false);
     }
   }, [firebaseAuth, refreshData, siteTrafficTargetUserId, toast]);
+
+  const grantAdminIntelligenceAccess = useCallback(async () => {
+    if (!adminIntelligenceTargetUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a user first',
+        description: 'Choose a user to grant Admin Intelligence access.',
+      });
+      return;
+    }
+
+    try {
+      setIsGrantingAdminIntelligence(true);
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required to grant Admin Intelligence access.');
+      }
+      const token = await fbUser.getIdToken(true);
+
+      const response = await fetch('/api/admin/admin-intelligence-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targetUserId: adminIntelligenceTargetUserId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to grant Admin Intelligence access.');
+      }
+
+      toast({
+        title: 'Admin Intelligence access granted',
+        description: `${payload?.user?.name || 'User'} can now open Admin Intelligence from the avatar menu.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Grant failed',
+        description: error instanceof Error ? error.message : 'Failed to grant Admin Intelligence access.',
+      });
+    } finally {
+      setIsGrantingAdminIntelligence(false);
+    }
+  }, [adminIntelligenceTargetUserId, firebaseAuth, refreshData, toast]);
+
+  const revokeAdminIntelligenceAccess = useCallback(async () => {
+    if (!adminIntelligenceTargetUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Select a user first',
+        description: 'Choose a user to revoke Admin Intelligence access.',
+      });
+      return;
+    }
+
+    try {
+      setIsRevokingAdminIntelligence(true);
+      const fbUser = firebaseAuth.currentUser;
+      if (!fbUser) {
+        throw new Error('Authentication required to revoke Admin Intelligence access.');
+      }
+      const token = await fbUser.getIdToken(true);
+
+      const response = await fetch('/api/admin/admin-intelligence-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'revoke', targetUserId: adminIntelligenceTargetUserId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to revoke Admin Intelligence access.');
+      }
+
+      toast({
+        title: 'Admin Intelligence access revoked',
+        description: `${payload?.user?.name || 'User'} no longer has Admin Intelligence access.`,
+      });
+      await refreshData();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Revoke failed',
+        description: error instanceof Error ? error.message : 'Failed to revoke Admin Intelligence access.',
+      });
+    } finally {
+      setIsRevokingAdminIntelligence(false);
+    }
+  }, [adminIntelligenceTargetUserId, firebaseAuth, refreshData, toast]);
 
   const saveDealershipToolboxAccess = useCallback(async () => {
     if (!toolboxDealershipId) {
@@ -4486,9 +4585,46 @@ export default function DeveloperPage() {
             <CardTitle>{SECTION_LABELS[activeSection]} Tools</CardTitle>
             <CardDescription>Select a workflow to open the corresponding management panel.</CardDescription>
           </CardHeader>
-          <CardContent>
+            <CardContent>
             {activeSection === 'people_access' && (
               <div className="mb-6 space-y-3">
+                  <div className="rounded-md border p-3">
+                    <p className="text-sm font-medium">Grant Admin Intelligence Access</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Unlocks the full Admin Intelligence dashboard and its supporting intelligence tools for the selected user.
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <Select value={adminIntelligenceTargetUserId} onValueChange={setAdminIntelligenceTargetUserId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select user for Admin Intelligence" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {giftableUsers.map((candidate) => (
+                            <SelectItem key={candidate.userId} value={candidate.userId}>
+                              {candidate.name} ({candidate.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => void grantAdminIntelligenceAccess()}
+                          disabled={isGrantingAdminIntelligence || isRevokingAdminIntelligence || !adminIntelligenceTargetUserId}
+                        >
+                          {isGrantingAdminIntelligence ? <Spinner size="sm" /> : 'Grant Admin Intelligence'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void revokeAdminIntelligenceAccess()}
+                          disabled={isGrantingAdminIntelligence || isRevokingAdminIntelligence || !adminIntelligenceTargetUserId}
+                        >
+                          {isRevokingAdminIntelligence ? <Spinner size="sm" /> : 'Revoke Access'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                   <div className="rounded-md border p-3">
                     <p className="text-sm font-medium">Grant Site Traffic Access</p>
                     <p className="mt-1 text-xs text-muted-foreground">

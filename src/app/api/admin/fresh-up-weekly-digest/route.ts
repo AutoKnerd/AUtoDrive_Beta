@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User } from '@/lib/definitions';
+import { hasAdminIntelligenceAccess } from '@/lib/admin/access';
 import { loadFreshUpSessionsForExport, loadNamesById } from '@/lib/fresh-up-export/query';
 import type { FreshUpWeeklyDigestRequest } from '@/lib/fresh-up-digest/types';
 import { generateWeeklyDigest } from '@/lib/fresh-up-digest/engine';
@@ -38,7 +39,7 @@ async function requireAuthorized(req: Request): Promise<{ ok: true; user: User }
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: User profile not found.' }, { status: 403 }) };
   }
   const user = userDoc.data() as User;
-  if (!MANAGER_ROLES.has(user.role)) {
+  if (!MANAGER_ROLES.has(user.role) && !hasAdminIntelligenceAccess(user)) {
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: Manager/admin access required.' }, { status: 403 }) };
   }
   return { ok: true, user };
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Missing digestType or lengthMode.' }, { status: 400 });
     }
     const db = getAdminDb();
-    const isAdminScope = auth.user.role === 'Admin' || auth.user.role === 'Developer';
+    const isAdminScope = auth.user.role === 'Admin' || auth.user.role === 'Developer' || auth.user.hasAdminIntelligenceAccess === true;
     const requestedDealer = body.filters?.dealerId || body.entityId;
     const managerDealerIds = new Set([
       ...(auth.user.dealershipIds || []),

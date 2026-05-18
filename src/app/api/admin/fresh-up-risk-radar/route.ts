@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Timestamp } from 'firebase-admin/firestore';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User } from '@/lib/definitions';
+import { hasAdminIntelligenceAccess } from '@/lib/admin/access';
 import type { FreshUpRiskRadarFilterInput, FreshUpRiskRadarGenerationInput } from '@/lib/fresh-up-risk-radar/types';
 import { generateFreshUpRiskRadar } from '@/lib/fresh-up-risk-radar/engine';
 
@@ -36,7 +37,7 @@ async function requireAuthorized(req: Request): Promise<{ ok: true; user: User }
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: User profile not found.' }, { status: 403 }) };
   }
   const user = userDoc.data() as User;
-  if (!MANAGERIAL_ROLES.has(user.role)) {
+  if (!MANAGERIAL_ROLES.has(user.role) && !hasAdminIntelligenceAccess(user)) {
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: Manager/admin access required.' }, { status: 403 }) };
   }
   return { ok: true, user };
@@ -69,7 +70,7 @@ export async function GET(req: Request) {
       environment: (url.searchParams.get('environment') || 'production') as 'sandbox' | 'production',
     };
 
-    const isAdminScope = auth.user.role === 'Admin' || auth.user.role === 'Developer';
+    const isAdminScope = auth.user.role === 'Admin' || auth.user.role === 'Developer' || auth.user.hasAdminIntelligenceAccess === true;
     const managerDealerIds = new Set([
       ...(auth.user.dealershipIds || []),
       ...(auth.user.selfDeclaredDealershipId ? [auth.user.selfDeclaredDealershipId] : []),

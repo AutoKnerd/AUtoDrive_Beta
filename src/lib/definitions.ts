@@ -82,6 +82,7 @@ export type User = {
   toolAccessLevel?: number;
   hasAutoDriveCX?: boolean;
   hasSiteTrafficAccess?: boolean;
+  hasAdminIntelligenceAccess?: boolean;
   toolboxGiftedFullAccess?: boolean;
   toolboxAccountEmail?: string;
   toolboxAccountRole?: UserRole;

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowDown, ArrowUp, ChevronDown, Minus, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth as useFirebaseAuth } from '@/firebase';
+import { hasAdminIntelligenceAccess } from '@/lib/admin/access';
 import { Header } from '@/components/layout/header';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -725,7 +726,7 @@ export default function AdminIntelligencePage() {
       router.push('/login');
       return;
     }
-    if (!loading && user && user.role !== 'Admin' && user.role !== 'Developer') {
+    if (!loading && user && !hasAdminIntelligenceAccess(user)) {
       router.push('/');
     }
   }, [loading, user, router]);
@@ -843,7 +844,7 @@ export default function AdminIntelligencePage() {
   }, [contactFormBeehiivFilter, contactFormSearch, contactFormSourceFilter, contactFormStatusFilter, contactFormSubmissions, contactFormTimeframeFilter]);
 
   async function loadIntelligence() {
-    if (!user || (user.role !== 'Admin' && user.role !== 'Developer')) {
+    if (!user || !hasAdminIntelligenceAccess(user)) {
       setIsLoading(false);
       return;
     }
@@ -877,7 +878,7 @@ export default function AdminIntelligencePage() {
   }
 
   async function markContactSubmissionAsTended(submissionId: string) {
-    if (!user || (user.role !== 'Admin' && user.role !== 'Developer')) return;
+    if (!user || !hasAdminIntelligenceAccess(user)) return;
 
     try {
       const fbUser = firebaseAuth.currentUser;

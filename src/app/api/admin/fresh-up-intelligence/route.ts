@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Timestamp } from 'firebase-admin/firestore';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User } from '@/lib/definitions';
+import { hasAdminIntelligenceAccess } from '@/lib/admin/access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -241,7 +242,7 @@ async function requireAdminOrDeveloper(req: Request): Promise<{ ok: true } | { o
   }
 
   const user = userDoc.data() as User;
-  if (user.role !== 'Admin' && user.role !== 'Developer') {
+  if (!hasAdminIntelligenceAccess(user)) {
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: Admin access required.' }, { status: 403 }) };
   }
 

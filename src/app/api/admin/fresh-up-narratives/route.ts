@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 import type { User } from '@/lib/definitions';
+import { hasAdminIntelligenceAccess } from '@/lib/admin/access';
 import { loadFreshUpSessionsForExport, loadNamesById } from '@/lib/fresh-up-export/query';
 import type { FreshUpNarrativeRequest } from '@/lib/fresh-up-narrative/types';
 import { generateFreshUpNarrative } from '@/lib/fresh-up-narrative/engine';
@@ -26,7 +27,7 @@ async function requireAdminOrDeveloper(req: Request): Promise<{ ok: true } | { o
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: User profile not found.' }, { status: 403 }) };
   }
   const user = userDoc.data() as User;
-  if (user.role !== 'Admin' && user.role !== 'Developer') {
+  if (!hasAdminIntelligenceAccess(user)) {
     return { ok: false, response: NextResponse.json({ message: 'Forbidden: Admin access required.' }, { status: 403 }) };
   }
   return { ok: true };
