@@ -1,0 +1,492 @@
+{
+  "deckId": "adas-ppt-test",
+  "title": "ADAS PPT TEST",
+  "description": "Imported from a PowerPoint presentation.",
+  "entry": "index.html",
+  "slideCount": 31,
+  "slides": [
+    "01-slide-1.html",
+    "02-slide-2.html",
+    "03-slide-3.html",
+    "04-slide-4.html",
+    "05-slide-5.html",
+    "06-slide-6.html",
+    "07-slide-7.html",
+    "08-slide-8.html",
+    "09-slide-9.html",
+    "10-slide-10.html",
+    "11-slide-11.html",
+    "12-slide-12.html",
+    "13-slide-13.html",
+    "14-slide-14.html",
+    "15-slide-15.html",
+    "16-slide-16.html",
+    "17-slide-17.html",
+    "18-slide-18.html",
+    "19-slide-19.html",
+    "20-slide-20.html",
+    "21-slide-21.html",
+    "22-slide-22.html",
+    "23-slide-23.html",
+    "24-slide-24.html",
+    "25-slide-25.html",
+    "26-slide-26.html",
+    "27-slide-27.html",
+    "28-slide-28.html",
+    "29-slide-29.html",
+    "30-slide-30.html",
+    "31-slide-31.html"
+  ],
+  "audience": {
+    "enabled": true,
+    "liveSessionId": "adas-ppt-test-main",
+    "qrOverlayEnabled": true,
+    "contentByStep": {
+      "slide1": {
+        "eyebrow": "Live Session",
+        "title": "Slide 1",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide2": {
+        "eyebrow": "Live Session",
+        "title": "Slide 2",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide3": {
+        "eyebrow": "Live Session",
+        "title": "Slide 3",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide4": {
+        "eyebrow": "Live Session",
+        "title": "Slide 4",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide5": {
+        "eyebrow": "Live Session",
+        "title": "Slide 5",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide6": {
+        "eyebrow": "Live Session",
+        "title": "Slide 6",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide7": {
+        "eyebrow": "Live Session",
+        "title": "Slide 7",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide8": {
+        "eyebrow": "Live Session",
+        "title": "Slide 8",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide9": {
+        "eyebrow": "Live Session",
+        "title": "Slide 9",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide10": {
+        "eyebrow": "Live Session",
+        "title": "Slide 10",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide11": {
+        "eyebrow": "Live Session",
+        "title": "Slide 11",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide12": {
+        "eyebrow": "Live Session",
+        "title": "Slide 12",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide13": {
+        "eyebrow": "Live Session",
+        "title": "Slide 13",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide14": {
+        "eyebrow": "Live Session",
+        "title": "Slide 14",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide15": {
+        "eyebrow": "Live Session",
+        "title": "Slide 15",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide16": {
+        "eyebrow": "Live Session",
+        "title": "Slide 16",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide17": {
+        "eyebrow": "Live Session",
+        "title": "Slide 17",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide18": {
+        "eyebrow": "Live Session",
+        "title": "Slide 18",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide19": {
+        "eyebrow": "Live Session",
+        "title": "Slide 19",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide20": {
+        "eyebrow": "Live Session",
+        "title": "Slide 20",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide21": {
+        "eyebrow": "Live Session",
+        "title": "Slide 21",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide22": {
+        "eyebrow": "Live Session",
+        "title": "Slide 22",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide23": {
+        "eyebrow": "Live Session",
+        "title": "Slide 23",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide24": {
+        "eyebrow": "Live Session",
+        "title": "Slide 24",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide25": {
+        "eyebrow": "Live Session",
+        "title": "Slide 25",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide26": {
+        "eyebrow": "Live Session",
+        "title": "Slide 26",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide27": {
+        "eyebrow": "Live Session",
+        "title": "Slide 27",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide28": {
+        "eyebrow": "Live Session",
+        "title": "Slide 28",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide29": {
+        "eyebrow": "Live Session",
+        "title": "Slide 29",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide30": {
+        "eyebrow": "Live Session",
+        "title": "Slide 30",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      },
+      "slide31": {
+        "eyebrow": "Live Session",
+        "title": "Slide 31",
+        "body": "This slide is ready for live overlay content.",
+        "prompt": "Keep this page open. It updates as the presentation moves.",
+        "speakerNotes": []
+      }
+    }
+  },
+  "companion": {
+    "enabled": true,
+    "entry": "companion/slide6-adas-workshop-agenda.html",
+    "files": [
+      "companion/slide8-adas-workshop-slide-9.html",
+      "companion/slide9-adas-workshop-sensor-suite.html",
+      "companion/slide6-adas-workshop-agenda.html"
+    ],
+    "contentByStep": {
+      "slide8": {
+        "eyebrow": "Companion App",
+        "title": "ADAS Workshop - Slide 9",
+        "body": "Companion content for ADAS Workshop - Slide 9.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide8"
+        ]
+      },
+      "slide9": {
+        "eyebrow": "Companion App",
+        "title": "ADAS Workshop - Sensor Suite",
+        "body": "Companion content for ADAS Workshop - Sensor Suite.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide9"
+        ]
+      },
+      "slide6": {
+        "eyebrow": "Companion App",
+        "title": "ADAS Workshop Agenda",
+        "body": "Companion content for ADAS Workshop Agenda.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide6"
+        ]
+      }
+    },
+    "bindingsByStep": {
+      "slide1": {
+        "slideStep": "slide1",
+        "responseKey": "adas-ppt-test-slide1",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide2": {
+        "slideStep": "slide2",
+        "responseKey": "adas-ppt-test-slide2",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide3": {
+        "slideStep": "slide3",
+        "responseKey": "adas-ppt-test-slide3",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide4": {
+        "slideStep": "slide4",
+        "responseKey": "adas-ppt-test-slide4",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide5": {
+        "slideStep": "slide5",
+        "responseKey": "adas-ppt-test-slide5",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide6": {
+        "slideStep": "slide6",
+        "responseKey": "adas-ppt-test-slide6",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide7": {
+        "slideStep": "slide7",
+        "responseKey": "adas-ppt-test-slide7",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide8": {
+        "slideStep": "slide8",
+        "responseKey": "adas-ppt-test-slide8",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide9": {
+        "slideStep": "slide9",
+        "responseKey": "adas-ppt-test-slide9",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide10": {
+        "slideStep": "slide10",
+        "responseKey": "adas-ppt-test-slide10",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide11": {
+        "slideStep": "slide11",
+        "responseKey": "adas-ppt-test-slide11",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide12": {
+        "slideStep": "slide12",
+        "responseKey": "adas-ppt-test-slide12",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide13": {
+        "slideStep": "slide13",
+        "responseKey": "adas-ppt-test-slide13",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide14": {
+        "slideStep": "slide14",
+        "responseKey": "adas-ppt-test-slide14",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide15": {
+        "slideStep": "slide15",
+        "responseKey": "adas-ppt-test-slide15",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide16": {
+        "slideStep": "slide16",
+        "responseKey": "adas-ppt-test-slide16",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide17": {
+        "slideStep": "slide17",
+        "responseKey": "adas-ppt-test-slide17",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide18": {
+        "slideStep": "slide18",
+        "responseKey": "adas-ppt-test-slide18",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide19": {
+        "slideStep": "slide19",
+        "responseKey": "adas-ppt-test-slide19",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide20": {
+        "slideStep": "slide20",
+        "responseKey": "adas-ppt-test-slide20",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide21": {
+        "slideStep": "slide21",
+        "responseKey": "adas-ppt-test-slide21",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide22": {
+        "slideStep": "slide22",
+        "responseKey": "adas-ppt-test-slide22",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide23": {
+        "slideStep": "slide23",
+        "responseKey": "adas-ppt-test-slide23",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide24": {
+        "slideStep": "slide24",
+        "responseKey": "adas-ppt-test-slide24",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide25": {
+        "slideStep": "slide25",
+        "responseKey": "adas-ppt-test-slide25",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide26": {
+        "slideStep": "slide26",
+        "responseKey": "adas-ppt-test-slide26",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide27": {
+        "slideStep": "slide27",
+        "responseKey": "adas-ppt-test-slide27",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide28": {
+        "slideStep": "slide28",
+        "responseKey": "adas-ppt-test-slide28",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide29": {
+        "slideStep": "slide29",
+        "responseKey": "adas-ppt-test-slide29",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide30": {
+        "slideStep": "slide30",
+        "responseKey": "adas-ppt-test-slide30",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide31": {
+        "slideStep": "slide31",
+        "responseKey": "adas-ppt-test-slide31",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      }
+    }
+  },
+  "createdAt": "2026-06-07T19:40:41.462Z",
+  "updatedAt": "2026-06-07T20:39:55.769Z"
+}
