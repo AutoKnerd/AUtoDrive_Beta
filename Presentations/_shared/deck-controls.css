@@ -139,6 +139,104 @@ body > aside:not(.deck-response-rail) {
   }
 }
 
+/* Slide thumbnail filmstrip (multi-file decks). */
+.deck-filmstrip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 950;
+  padding: 8px 12px;
+  background: rgba(10, 12, 16, 0.92);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.deck-filmstrip__track {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+}
+
+.deck-filmstrip__thumb {
+  position: relative;
+  flex: 0 0 auto;
+  height: 64px;
+  aspect-ratio: 16 / 9;
+  margin: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #000;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.deck-filmstrip__thumb:hover { opacity: 0.92; }
+.deck-filmstrip__thumb.is-active { opacity: 1; border-color: #8eff71; }
+
+.deck-filmstrip__frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+  background: #000;
+}
+
+.deck-filmstrip__num {
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: 700 9px/1 Inter, Arial, sans-serif;
+  pointer-events: none;
+}
+
+.deck-filmstrip__toggle {
+  position: fixed;
+  left: 14px;
+  bottom: 92px;
+  z-index: 1100;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(26, 29, 36, 0.82);
+  border: 1px solid #2f343d;
+  color: #9aa0a9;
+  font-size: 13px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  opacity: 0.6;
+  transition: opacity 0.15s ease, bottom 0.2s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.deck-filmstrip__toggle:hover { opacity: 1; border-color: #8eff71; color: #fff; }
+
+body.deck-filmstrip-hidden .deck-filmstrip { display: none; }
+body.deck-filmstrip-hidden .deck-filmstrip__toggle { bottom: 14px; }
+
+/* Lift the Prev/Next bar above the filmstrip, and clear it of the toggle. */
+body.has-deck-filmstrip .deck-nav { bottom: 96px; transition: bottom 0.2s ease; }
+body.has-deck-filmstrip.deck-filmstrip-hidden .deck-nav { bottom: 24px; }
+body.has-deck-filmstrip .deck-nav__button[data-action="prev"] { margin-left: 52px; }
+
+/* Hide the strip during fullscreen present mode. */
+:fullscreen .deck-filmstrip,
+:fullscreen .deck-filmstrip__toggle { display: none; }
+body.deck-presenting .deck-filmstrip,
+body.deck-presenting .deck-filmstrip__toggle { display: none; }
+
 .deck-nav {
   position: fixed;
   left: 24px;
@@ -390,6 +488,21 @@ body > aside:not(.deck-response-rail) {
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
 }
+
+.deck-response-rail__replies {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: rgba(142, 255, 113, 0.92);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-response-rail__replies[hidden] { display: none; }
 
 .deck-response-rail__status {
   color: rgba(255, 255, 255, 0.55);

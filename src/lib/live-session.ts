@@ -7,6 +7,9 @@ export type LiveSessionState = {
   audienceStep: number | null;
   sessionToken: string;
   updatedAt: string | null;
+  // When true, the presentation screen shows the audience-join QR overlay.
+  // Drivable from the presenter remote so new participants can scan in.
+  audienceQrVisible: boolean;
 };
 
 export type LiveSessionAudienceContent = {
@@ -84,6 +87,7 @@ export const LIVE_SESSION_DEFAULT_STATE: LiveSessionState = {
   audienceStep: null,
   sessionToken: 'session-0',
   updatedAt: null,
+  audienceQrVisible: false,
 };
 
 export const LIVE_SESSION_AUDIENCE_RESPONSE_COLLECTION = 'presentation_live_session_responses';
@@ -100,6 +104,7 @@ export function normalizeLiveSessionState(input?: Partial<LiveSessionState> | nu
       : LIVE_SESSION_DEFAULT_STATE.audienceStep,
     sessionToken: input?.sessionToken ?? LIVE_SESSION_DEFAULT_STATE.sessionToken,
     updatedAt: input?.updatedAt ?? LIVE_SESSION_DEFAULT_STATE.updatedAt,
+    audienceQrVisible: input?.audienceQrVisible === true,
   };
 }
 

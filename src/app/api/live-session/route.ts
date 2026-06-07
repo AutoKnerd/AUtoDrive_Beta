@@ -209,6 +209,7 @@ export async function POST(request: Request) {
       deckId?: string;
       audienceStep?: number | null;
       resetSession?: boolean;
+      audienceQrVisible?: boolean;
     };
     const deckId = typeof body.deckId === 'string' && body.deckId.trim().length > 0
       ? body.deckId.trim()
@@ -237,6 +238,11 @@ export async function POST(request: Request) {
             ? body.sessionToken.trim()
             : existingState.sessionToken),
       updatedAt: new Date().toISOString(),
+      // Only changes when explicitly set, so slide navigation never clears the QR.
+      // Reset always clears it.
+      audienceQrVisible: resetSession
+        ? false
+        : (typeof body.audienceQrVisible === 'boolean' ? body.audienceQrVisible : existingState.audienceQrVisible),
     };
 
     await getAdminDb()

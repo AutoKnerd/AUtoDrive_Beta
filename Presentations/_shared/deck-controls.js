@@ -49,10 +49,9 @@
     <div class="deck-controls__menu">
       <button type="button" class="deck-controls__button" data-action="back">Back to Deck</button>
       <button type="button" class="deck-controls__button" data-action="audience-qr">Audience QR</button>
-      <button type="button" class="deck-controls__button" data-action="contract-qr">Contract</button>
+      <button type="button" class="deck-controls__button deck-controls__button--primary" data-action="remote-qr">Presenter Remote QR</button>
       <button type="button" class="deck-controls__button deck-controls__button--danger" data-action="reset-session">Reset Live Data</button>
       <button type="button" class="deck-controls__button" data-action="view-snapshot">View Snapshot</button>
-      <button type="button" class="deck-controls__button" data-action="app-demo">App Demo</button>
       <button type="button" class="deck-controls__button" data-action="notes-screen">Open Notes Screen</button>
       <button type="button" class="deck-controls__button" data-action="copy-notes-link">Copy Notes Link</button>
       <button type="button" class="deck-controls__button" data-action="notes">Hide Notes</button>
@@ -105,11 +104,12 @@
   responseRail.className = 'deck-response-rail';
   responseRail.setAttribute('aria-hidden', 'true');
   responseRail.innerHTML = `
-    <div class="deck-response-rail__label">RESPONSES</div>
+    <div class="deck-response-rail__label">AUDIENCE</div>
     <div class="deck-response-rail__meter">
       <div class="deck-response-rail__fill" data-role="response-fill"></div>
     </div>
-    <div class="deck-response-rail__count" data-role="response-count">0</div>
+    <div class="deck-response-rail__count" data-role="audience-count">0</div>
+    <div class="deck-response-rail__replies" data-role="response-count" hidden>0</div>
     <div class="deck-response-rail__status" data-role="response-status">WAITING</div>
   `;
   document.body.appendChild(responseRail);
@@ -124,10 +124,9 @@
   const menuToggle = controls.querySelector('[data-action="toggle-menu"]');
   const backButton = controls.querySelector('[data-action="back"]');
   const audienceQrButton = controls.querySelector('[data-action="audience-qr"]');
-  const contractQrButton = controls.querySelector('[data-action="contract-qr"]');
+  const remoteQrButton = controls.querySelector('[data-action="remote-qr"]');
   const resetSessionButton = controls.querySelector('[data-action="reset-session"]');
   const viewSnapshotButton = controls.querySelector('[data-action="view-snapshot"]');
-  const appDemoButton = controls.querySelector('[data-action="app-demo"]');
   const notesScreenButton = controls.querySelector('[data-action="notes-screen"]');
   const copyNotesLinkButton = controls.querySelector('[data-action="copy-notes-link"]');
   const notesButton = controls.querySelector('[data-action="notes"]');
@@ -141,9 +140,12 @@
   const pendingSlideUntilStorageKey = `deck-pending-slide-until:${deckBasePath}`;
   const audienceQrCloseButton = audienceQrOverlay.querySelector('.deck-audience-qr__close');
   const audienceQrFrame = audienceQrOverlay.querySelector('.deck-audience-qr__frame');
+  const audienceCountEl = responseRail.querySelector('[data-role="audience-count"]');
   const responseCountEl = responseRail.querySelector('[data-role="response-count"]');
   const responseFillEl = responseRail.querySelector('[data-role="response-fill"]');
   const responseStatusEl = responseRail.querySelector('[data-role="response-status"]');
+  let lastAudienceViewers = 0;
+  let lastResponseCount = 0;
   const presentationFrame = presentationShell.querySelector('.deck-present-shell__frame');
   let currentSessionToken = null;
   let currentAudienceUrl = null;
@@ -234,8 +236,6 @@
     nextUrl.searchParams.set('url', targetUrl);
     return nextUrl.toString();
   };
-
-  const CONTRACT_QR_TARGET = 'https://drive.google.com/file/d/1IdNGovu30VolsmpX4mGHJ7eRhsQDUM4D/view?usp=share_link';
 
   const syncAudienceQrFrame = (options = {}) => {
     if (!(audienceQrFrame instanceof HTMLIFrameElement)) return;
@@ -438,8 +438,10 @@
 
     if (typeof payload?.audienceUrl === 'string' && payload.audienceUrl.length > 0) {
       currentAudienceUrl = payload.audienceUrl;
-      syncAudienceQrFrame();
+      if (qrMode !== 'remote') syncAudienceQrFrame();
     }
+
+    applyAudienceQrFromState(payload?.state?.audienceQrVisible === true);
 
     return true;
   };
@@ -512,9 +514,62 @@
     }
   };
 
-  const openContractQr = () => {
+  // Audience-join QR shown on the presentation screen, driven by live-session
+  // state so the presenter remote can raise it for new participants. qrMode keeps
+  // the separate "Presenter Remote QR" display from being dismissed by updates.
+  let qrMode = null; // 'audience' | 'remote' | null
+  let lastAudienceQrState = false;
+
+  const showAudienceJoinQr = (visible) => {
+    if (visible) {
+      qrMode = 'audience';
+      syncAudienceQrFrame({ title: 'Live QR' });
+      audienceQrOverlay.classList.add('deck-audience-qr--visible');
+    } else if (qrMode === 'audience') {
+      qrMode = null;
+      audienceQrOverlay.classList.remove('deck-audience-qr--visible');
+    }
+    if (audienceQrButton instanceof HTMLButtonElement) {
+      audienceQrButton.textContent = qrMode === 'audience' ? 'Hide Audience QR' : 'Audience QR';
+    }
+  };
+
+  const applyAudienceQrFromState = (visible) => {
+    if (visible === lastAudienceQrState) return;
+    lastAudienceQrState = visible;
+    showAudienceJoinQr(visible);
+  };
+
+  const postAudienceQrState = async (visible) => {
+    try {
+      await fetch('/api/live-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deckId,
+          currentStep: inferStepFromFile(activeSlideFile, currentIndex + 1),
+          currentSlide: activeSlideFile,
+          audienceQrVisible: visible,
+        }),
+        keepalive: true,
+      });
+    } catch (error) {
+      console.error('Unable to update audience QR state.', error);
+    }
+  };
+
+  // Presenter remote — reuses the LAN-aware host so the QR resolves on a phone.
+  const resolveRemoteUrl = () => {
+    const base = new URL(resolveAudienceUrl());
+    base.pathname = '/presenter-remote.html';
+    base.search = '';
+    return base.toString();
+  };
+
+  const openRemoteQr = () => {
     setMenuOpen(false);
-    syncAudienceQrFrame({ title: 'Contract', url: CONTRACT_QR_TARGET });
+    qrMode = 'remote';
+    syncAudienceQrFrame({ title: 'Presenter Remote', url: resolveRemoteUrl() });
     audienceQrOverlay.classList.add('deck-audience-qr--visible');
     if (audienceQrButton instanceof HTMLButtonElement) {
       audienceQrButton.textContent = 'Audience QR';
@@ -523,15 +578,14 @@
 
   audienceQrButton?.addEventListener('click', async () => {
     setMenuOpen(false);
-    try {
-      await setAudienceQrVisible(!audienceQrOverlay.classList.contains('deck-audience-qr--visible'));
-    } catch (error) {
-      console.error('Unable to toggle audience QR.', error);
-    }
+    const desired = qrMode !== 'audience';
+    showAudienceJoinQr(desired);
+    lastAudienceQrState = desired;
+    await postAudienceQrState(desired);
   });
 
-  contractQrButton?.addEventListener('click', () => {
-    openContractQr();
+  remoteQrButton?.addEventListener('click', () => {
+    openRemoteQr();
   });
 
   resetSessionButton?.addEventListener('click', async () => {
@@ -601,11 +655,6 @@
     }
   });
 
-  appDemoButton?.addEventListener('click', () => {
-    setMenuOpen(false);
-    window.open('/tour/lee', '_blank', 'noopener,noreferrer');
-  });
-
   copyNotesLinkButton?.addEventListener('click', async () => {
     setMenuOpen(false);
     try {
@@ -616,7 +665,14 @@
   });
 
   audienceQrCloseButton?.addEventListener('click', async () => {
-    await setAudienceQrVisible(false);
+    const wasAudience = qrMode === 'audience';
+    qrMode = null;
+    audienceQrOverlay.classList.remove('deck-audience-qr--visible');
+    if (audienceQrButton instanceof HTMLButtonElement) audienceQrButton.textContent = 'Audience QR';
+    if (wasAudience) {
+      lastAudienceQrState = false;
+      await postAudienceQrState(false);
+    }
   });
 
   const syncNotesState = () => {
@@ -743,6 +799,114 @@
 
     prevZone.disabled = currentIndex <= 0;
     nextZone.disabled = currentIndex === -1 || currentIndex >= slideOrder.length - 1;
+
+    updateFilmstripActive();
+  };
+
+  // --- Slide thumbnail filmstrip (multi-file decks) ---
+  let filmstripEl = null;
+  let filmstripToggleEl = null;
+  const filmstripHiddenKey = `deck-filmstrip-hidden:${deckBasePath}`;
+
+  const navigateToIndex = (index) => {
+    if (currentIndex === -1) return;
+    navigateByOffset(index - currentIndex);
+  };
+
+  const loadThumbFrame = (thumb) => {
+    const frame = thumb && thumb.querySelector ? thumb.querySelector('iframe') : null;
+    if (frame instanceof HTMLIFrameElement && frame.dataset.src && !frame.src) {
+      frame.src = frame.dataset.src;
+    }
+  };
+
+  const updateFilmstripActive = () => {
+    if (!filmstripEl) return;
+    filmstripEl.querySelectorAll('.deck-filmstrip__thumb').forEach((thumb) => {
+      const idx = Number.parseInt(thumb.getAttribute('data-index') || '-1', 10);
+      const active = idx === currentIndex;
+      thumb.classList.toggle('is-active', active);
+      if (Math.abs(idx - currentIndex) <= 4) loadThumbFrame(thumb);
+      if (active) {
+        thumb.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+      }
+    });
+  };
+
+  const buildFilmstrip = () => {
+    if (filmstripEl || slideOrder.length < 2) return;
+
+    filmstripEl = document.createElement('div');
+    filmstripEl.className = 'deck-filmstrip';
+    const track = document.createElement('div');
+    track.className = 'deck-filmstrip__track';
+
+    slideOrder.forEach((file, idx) => {
+      const thumb = document.createElement('button');
+      thumb.type = 'button';
+      thumb.className = 'deck-filmstrip__thumb';
+      thumb.setAttribute('data-index', String(idx));
+      thumb.setAttribute('aria-label', `Go to slide ${idx + 1}`);
+
+      const frame = document.createElement('iframe');
+      frame.className = 'deck-filmstrip__frame';
+      frame.setAttribute('tabindex', '-1');
+      frame.setAttribute('aria-hidden', 'true');
+      frame.setAttribute('scrolling', 'no');
+      // ?embedded=1 keeps deck-controls from re-running inside the thumbnail.
+      frame.dataset.src = resolveEmbeddedSlideUrl(file);
+      thumb.appendChild(frame);
+
+      const num = document.createElement('span');
+      num.className = 'deck-filmstrip__num';
+      num.textContent = String(idx + 1);
+      thumb.appendChild(num);
+
+      thumb.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        navigateToIndex(idx);
+      });
+      track.appendChild(thumb);
+    });
+
+    filmstripEl.appendChild(track);
+    document.body.appendChild(filmstripEl);
+    document.body.classList.add('has-deck-filmstrip');
+
+    filmstripToggleEl = document.createElement('button');
+    filmstripToggleEl.type = 'button';
+    filmstripToggleEl.className = 'deck-filmstrip__toggle';
+    document.body.appendChild(filmstripToggleEl);
+
+    const setHidden = (hidden) => {
+      document.body.classList.toggle('deck-filmstrip-hidden', hidden);
+      filmstripToggleEl.textContent = hidden ? '▲' : '▼';
+      filmstripToggleEl.title = hidden ? 'Show slide strip' : 'Hide slide strip';
+      filmstripToggleEl.setAttribute('aria-label', filmstripToggleEl.title);
+      try { window.localStorage.setItem(filmstripHiddenKey, String(hidden)); } catch {}
+    };
+    filmstripToggleEl.addEventListener('click', (event) => {
+      event.stopPropagation();
+      setHidden(!document.body.classList.contains('deck-filmstrip-hidden'));
+    });
+    setHidden(window.localStorage.getItem(filmstripHiddenKey) === 'true');
+
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            loadThumbFrame(entry.target);
+            io.unobserve(entry.target);
+          }
+        });
+      }, { root: track, rootMargin: '300px' });
+      track.querySelectorAll('.deck-filmstrip__thumb').forEach((thumb) => io.observe(thumb));
+    } else {
+      track.querySelectorAll('.deck-filmstrip__thumb').forEach(loadThumbFrame);
+    }
+
+    updateFilmstripActive();
   };
 
   const syncScrollCue = () => {
@@ -798,6 +962,42 @@
     window.location.href = `${deckBasePath}/${nextSlideFile}`;
   };
 
+  const updateRailStatus = () => {
+    const live = lastAudienceViewers > 0 || lastResponseCount > 0;
+    if (responseStatusEl instanceof HTMLElement) {
+      responseStatusEl.textContent = live ? 'LIVE' : 'WAITING';
+    }
+    responseRail.dataset.state = live ? 'active' : 'idle';
+  };
+
+  // Live audience presence (connected viewers) — climbs as people scan the join QR.
+  const syncPresenceRail = async () => {
+    if (!currentSessionToken) return;
+    try {
+      const url = new URL('/api/live-session/presence', window.location.origin);
+      url.searchParams.set('deckId', deckId);
+      url.searchParams.set('sessionToken', currentSessionToken);
+      const response = await fetch(url.toString(), { cache: 'no-store' });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const viewers = Number.isFinite(payload?.activeAudienceCount) ? payload.activeAudienceCount : 0;
+      const changed = viewers !== lastAudienceViewers;
+      lastAudienceViewers = viewers;
+      if (audienceCountEl instanceof HTMLElement) {
+        audienceCountEl.textContent = String(viewers);
+      }
+      updateRailStatus();
+      if (changed) {
+        responseRail.classList.remove('deck-response-rail--pulse');
+        void responseRail.offsetWidth;
+        responseRail.classList.add('deck-response-rail--pulse');
+        window.setTimeout(() => responseRail.classList.remove('deck-response-rail--pulse'), 650);
+      }
+    } catch (error) {
+      // Keep the rail usable even if presence polling blips.
+    }
+  };
+
   const syncResponseRail = async () => {
     if (!currentSessionToken) return;
     const currentStep = inferStepFromFile(activeSlideFile, currentIndex + 1);
@@ -824,19 +1024,17 @@
         ? payload.fillPercent
         : Math.min(100, responseCount * 20);
 
+      lastResponseCount = responseCount;
       if (responseCountEl instanceof HTMLElement) {
-        responseCountEl.textContent = String(responseCount);
+        responseCountEl.textContent = `${responseCount} ${responseCount === 1 ? 'reply' : 'replies'}`;
+        responseCountEl.hidden = responseCount === 0;
       }
 
       if (responseFillEl instanceof HTMLElement) {
         responseFillEl.style.height = `${fillPercent}%`;
       }
 
-      if (responseStatusEl instanceof HTMLElement) {
-        responseStatusEl.textContent = responseCount > 0 ? 'LIVE' : 'WAITING';
-      }
-
-      responseRail.dataset.state = responseCount > 0 ? 'active' : 'idle';
+      updateRailStatus();
 
       if (responseCount !== lastRespondentCount) {
         responseRail.classList.remove('deck-response-rail--pulse');
@@ -944,12 +1142,14 @@
         setAudienceQrVisible(false);
       }
       activeSlideFile = currentFile;
+      buildFilmstrip();
       syncNavigationState();
       syncScrollCue();
       await pushToAudience(inferStepFromFile(currentFile, currentIndex + 1), currentFile);
       await syncLiveSessionState();
       syncAudienceQrFrame();
       syncResponseRail();
+      syncPresenceRail();
 
       if (!liveSessionEventSource) {
         liveSessionEventSource = new EventSource('/api/live-session/stream');
@@ -974,7 +1174,7 @@
     });
 
   syncScrollCue();
-  responseRefreshTimer = window.setInterval(syncResponseRail, 1800);
+  responseRefreshTimer = window.setInterval(() => { void syncResponseRail(); void syncPresenceRail(); }, 1800);
 
   window.addEventListener('beforeunload', () => {
     if (responseRefreshTimer !== null) {

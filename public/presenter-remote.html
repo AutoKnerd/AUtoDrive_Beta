@@ -1,0 +1,481 @@
+<!-- Presenter Pro - Remote (wired to the live-session engine) -->
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Presenter Pro - Remote</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: { extend: {
+      colors: {
+        "on-secondary-container": "#00311f", "surface-tint": "#adc6ff", "error-container": "#93000a",
+        "surface-container-highest": "#2d3449", "on-error": "#690005", "surface-container-lowest": "#060e20",
+        "tertiary-container": "#ff5451", "surface-bright": "#31394d", "surface-container-high": "#222a3d",
+        "error": "#ffb4ab", "on-primary": "#002e6a", "primary": "#adc6ff", "secondary": "#4edea3",
+        "on-background": "#dae2fd", "surface-variant": "#2d3449", "inverse-primary": "#005ac2",
+        "outline-variant": "#424754", "surface-container-low": "#131b2e", "inverse-surface": "#dae2fd",
+        "secondary-container": "#00a572", "surface": "#0b1326", "background": "#0b1326",
+        "on-error-container": "#ffdad6", "surface-dim": "#0b1326", "primary-container": "#4d8eff",
+        "on-primary-container": "#00285d", "surface-container": "#171f33", "on-secondary": "#003824",
+        "outline": "#8c909f", "on-tertiary-container": "#5c0008", "on-surface": "#dae2fd",
+        "tertiary": "#ffb3ad", "on-surface-variant": "#c2c6d6", "on-secondary-fixed-variant": "#005236"
+      },
+      borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+      spacing: { "safe-margin": "1.25rem", "gutter-lg": "1.5rem" },
+      fontFamily: { "headline-md": ["Inter"], "label-caps": ["JetBrains Mono"], "headline-lg": ["Inter"],
+        "body-lg": ["Inter"], "headline-lg-mobile": ["Inter"], "timer-display": ["Inter"], "body-md": ["Inter"] },
+      fontSize: {
+        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "600"}],
+        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+        "headline-lg-mobile": ["28px", {"lineHeight": "34px", "fontWeight": "700"}],
+        "timer-display": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+      }
+    } }
+  }
+</script>
+<style>
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .tactile-press:active { transform: scale(0.98); box-shadow: inset 0 4px 12px rgba(0,0,0,0.4); }
+  .glow-live { box-shadow: 0 0 15px rgba(78, 222, 163, 0.4); }
+  .slide-aspect { aspect-ratio: 16 / 9; }
+  body::-webkit-scrollbar { display: none; }
+  body { -ms-overflow-style: none; scrollbar-width: none; }
+  .view { display: none; }
+  .view.is-active { display: flex; }
+  .navlink.is-active { color: #00311f; }
+  .custom-scroll::-webkit-scrollbar { width: 4px; }
+  .custom-scroll::-webkit-scrollbar-thumb { background: #424754; border-radius: 10px; }
+</style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col overflow-hidden select-none">
+
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full bg-surface-container-high border-b border-outline-variant shadow-sm flex justify-between items-center px-safe-margin h-16 z-50">
+  <div class="flex items-center gap-3">
+    <span class="material-symbols-outlined text-primary">sensors</span>
+    <h1 class="font-label-caps text-label-caps text-primary tracking-widest">Presenter Pro</h1>
+  </div>
+  <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 px-3 py-1 bg-surface-container-highest rounded-full border border-outline-variant glow-live" id="liveBadge">
+      <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+      <span class="font-label-caps text-[10px] text-secondary" id="liveLabel">LIVE</span>
+    </div>
+    <span class="material-symbols-outlined text-on-surface-variant text-[18px]" id="deckTitle" title="Deck"></span>
+  </div>
+</header>
+
+<main class="flex-1 mt-16 pb-28 px-safe-margin overflow-y-auto custom-scroll">
+
+  <!-- ===================== CONTROL VIEW ===================== -->
+  <section class="view is-active flex-col gap-5 pt-4" id="view-control">
+    <div class="flex justify-between items-end">
+      <div class="flex flex-col">
+        <span class="font-label-caps text-label-caps text-on-surface-variant">ELAPSED TIME</span>
+        <span class="font-timer-display text-headline-lg-mobile text-primary tracking-tighter" id="elapsed">00:00</span>
+      </div>
+      <div class="flex flex-col items-end">
+        <span class="font-label-caps text-label-caps text-on-surface-variant">SLIDE</span>
+        <span class="font-headline-md text-headline-md text-on-surface"><span id="slideNum">–</span> <span class="text-outline">/ <span id="slideTotal">–</span></span></span>
+      </div>
+    </div>
+    <div class="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden border border-outline-variant">
+      <div class="h-full bg-primary relative transition-all duration-300" id="progressBar" style="width:0%">
+        <div class="absolute right-0 top-0 h-full w-1 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"></div>
+      </div>
+    </div>
+
+    <section class="grid grid-cols-2 gap-4">
+      <div class="flex flex-col gap-2">
+        <span class="font-label-caps text-[10px] text-on-surface-variant">CURRENT</span>
+        <div class="slide-aspect rounded-xl overflow-hidden border-2 border-primary shadow-lg bg-black relative">
+          <iframe id="currentFrame" class="w-full h-full border-0" scrolling="no" title="Current slide"></iframe>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2 opacity-70">
+        <span class="font-label-caps text-[10px] text-on-surface-variant">UP NEXT</span>
+        <div class="slide-aspect rounded-xl overflow-hidden border border-outline-variant bg-black">
+          <iframe id="nextFrame" class="w-full h-full border-0" scrolling="no" title="Next slide"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <section class="flex gap-3 h-20">
+      <button class="flex-1 bg-surface-container-high rounded-xl border border-outline-variant flex flex-col items-center justify-center gap-1 active:bg-surface-bright transition-colors group" id="blackoutBtn">
+        <span class="material-symbols-outlined text-on-surface-variant group-active:text-primary">videocam_off</span>
+        <span class="font-label-caps text-[10px] text-on-surface-variant group-active:text-primary" id="blackoutLabel">BLACK OUT</span>
+      </button>
+      <button class="flex-1 bg-surface-container-high rounded-xl border border-outline-variant flex flex-col items-center justify-center gap-1 active:bg-surface-bright transition-colors group" id="qrBtn">
+        <span class="material-symbols-outlined text-on-surface-variant group-active:text-primary" id="qrIcon">qr_code_2</span>
+        <span class="font-label-caps text-[10px] text-on-surface-variant group-active:text-primary" id="qrLabel">AUDIENCE QR</span>
+      </button>
+      <button class="flex-1 bg-surface-container-high rounded-xl border border-outline-variant flex flex-col items-center justify-center gap-1 active:bg-surface-bright transition-colors group" id="resetBtn">
+        <span class="material-symbols-outlined text-on-surface-variant group-active:text-primary">restart_alt</span>
+        <span class="font-label-caps text-[10px] text-on-surface-variant group-active:text-primary">RESET</span>
+      </button>
+    </section>
+
+    <section class="flex flex-col gap-4 mt-2">
+      <button class="h-20 w-full bg-surface-container rounded-2xl border-2 border-outline flex items-center justify-center gap-4 active:bg-surface-container-high transition-all tactile-press disabled:opacity-40" id="prevBtn">
+        <span class="material-symbols-outlined text-on-surface-variant text-4xl">arrow_back</span>
+        <span class="font-headline-md text-headline-md text-on-surface">PREVIOUS</span>
+      </button>
+      <button class="h-40 w-full bg-primary-container text-on-primary-container rounded-3xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-all tactile-press border-t border-white/20 shadow-xl relative disabled:opacity-40" id="nextBtn">
+        <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none rounded-3xl"></div>
+        <span class="material-symbols-outlined text-5xl">arrow_forward</span>
+        <span class="font-headline-lg text-headline-lg-mobile tracking-tight">NEXT SLIDE</span>
+      </button>
+    </section>
+  </section>
+
+  <!-- ===================== NOTES VIEW ===================== -->
+  <section class="view flex-col gap-5 pt-4" id="view-notes">
+    <div class="flex bg-surface-container-high p-2 gap-2 rounded-xl">
+      <button class="flex-1 py-3 px-4 rounded-xl font-label-caps text-label-caps flex items-center justify-center gap-2 bg-secondary-container text-on-secondary-container shadow-md" id="subtab-notes">
+        <span class="material-symbols-outlined text-[20px]">description</span> Notes
+      </button>
+      <button class="flex-1 py-3 px-4 rounded-xl font-label-caps text-label-caps flex items-center justify-center gap-2 text-on-surface-variant" id="subtab-deck">
+        <span class="material-symbols-outlined text-[20px]">layers</span> Full Deck
+      </button>
+    </div>
+
+    <div id="subview-notes" class="space-y-6">
+      <div class="border-l-4 border-primary pl-5 py-1">
+        <h2 class="font-headline-lg text-headline-lg text-on-surface mb-1" id="notesTitle">–</h2>
+        <span class="font-label-caps text-label-caps text-primary px-2 py-1 bg-primary/10 rounded" id="notesEyebrow">SLIDE</span>
+      </div>
+      <ul class="space-y-3 list-none p-0" id="notesList"></ul>
+      <p class="text-on-surface-variant italic" id="notesEmpty">No speaker notes for this slide yet.</p>
+    </div>
+
+    <div id="subview-deck" class="hidden grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+  </section>
+
+  <!-- ===================== FEEDBACK VIEW ===================== -->
+  <section class="view flex-col gap-5 pt-4" id="view-feedback">
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-surface-container-high p-5 rounded-xl border-l-4 border-secondary">
+        <div class="flex items-center justify-between mb-1">
+          <span class="font-label-caps text-[10px] text-outline">RESPONSES (SLIDE)</span>
+          <span class="material-symbols-outlined text-secondary text-[20px]">forum</span>
+        </div>
+        <p class="font-timer-display text-4xl text-on-surface" id="fbResponses">0</p>
+      </div>
+      <div class="bg-surface-container-high p-5 rounded-xl border-l-4 border-primary">
+        <div class="flex items-center justify-between mb-1">
+          <span class="font-label-caps text-[10px] text-outline">PARTICIPANTS</span>
+          <span class="material-symbols-outlined text-primary text-[20px]">groups</span>
+        </div>
+        <p class="font-timer-display text-4xl text-on-surface" id="fbParticipants">0</p>
+      </div>
+    </div>
+    <div>
+      <span class="font-label-caps text-label-caps text-on-surface-variant">ENGAGEMENT</span>
+      <div class="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden border border-outline-variant mt-2">
+        <div class="h-full bg-secondary transition-all duration-500" id="fbFill" style="width:0%"></div>
+      </div>
+    </div>
+    <p class="text-on-surface-variant text-sm" id="fbStatus">Waiting for audience responses on this slide…</p>
+  </section>
+
+</main>
+
+<!-- Primary thumb-zone Prev/Next is in Control. Bottom nav switches views. -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 bg-surface-container-lowest rounded-t-xl shadow-lg border-t border-outline-variant">
+  <button class="navlink is-active flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl p-2 px-4 active:scale-95 transition-all" data-view="control">
+    <span class="material-symbols-outlined">play_arrow</span>
+    <span class="font-label-caps text-label-caps">Control</span>
+  </button>
+  <button class="navlink flex flex-col items-center justify-center text-on-surface-variant p-2 px-4 active:scale-95 transition-all" data-view="notes">
+    <span class="material-symbols-outlined">description</span>
+    <span class="font-label-caps text-label-caps">Notes</span>
+  </button>
+  <button class="navlink flex flex-col items-center justify-center text-on-surface-variant p-2 px-4 active:scale-95 transition-all" data-view="feedback">
+    <span class="material-symbols-outlined">analytics</span>
+    <span class="font-label-caps text-label-caps">Feedback</span>
+  </button>
+</nav>
+
+<script>
+(function () {
+  const API = '/api/live-session';
+  const state = {
+    deckId: '', slides: [], contentByStep: {}, currentSlide: '', currentStep: 'slide1',
+    sessionToken: '', currentIndex: -1, deckTitle: '', audienceQrVisible: false,
+  };
+
+  function reflectQr() {
+    const on = state.audienceQrVisible;
+    $('qrIcon').textContent = on ? 'qr_code_scanner' : 'qr_code_2';
+    $('qrLabel').textContent = on ? 'QR ON SCREEN' : 'AUDIENCE QR';
+    $('qrBtn').classList.toggle('bg-secondary-container', on);
+    $('qrBtn').classList.toggle('!text-on-secondary-container', on);
+  }
+  let lastUpdatedAt = 0;
+  let pendingSlide = null;
+  let pendingUntil = 0;
+
+  const $ = (id) => document.getElementById(id);
+
+  const slideUrl = (file) => file ? `/Presentations/${encodeURIComponent(state.deckId)}/${file.split('/').map(encodeURIComponent).join('/')}?embedded=1` : 'about:blank';
+  const stepOf = (index) => `slide${index + 1}`;
+  const indexOfSlide = (file) => {
+    const direct = state.slides.indexOf(file);
+    if (direct >= 0) return direct;
+    const n = Number.parseInt(String(state.currentStep).replace(/^slide/, ''), 10);
+    return Number.isFinite(n) && n >= 1 && n <= state.slides.length ? n - 1 : 0;
+  };
+
+  function render() {
+    const idx = state.currentIndex;
+    const total = state.slides.length;
+    $('slideNum').textContent = total ? String(idx + 1) : '–';
+    $('slideTotal').textContent = total || '–';
+    $('progressBar').style.width = total ? `${Math.round(((idx + 1) / total) * 100)}%` : '0%';
+
+    const curUrl = slideUrl(state.slides[idx]);
+    const nextUrl = idx + 1 < total ? slideUrl(state.slides[idx + 1]) : 'about:blank';
+    if ($('currentFrame').src !== location.origin + curUrl && $('currentFrame').getAttribute('data-url') !== curUrl) {
+      $('currentFrame').src = curUrl; $('currentFrame').setAttribute('data-url', curUrl);
+    }
+    if ($('nextFrame').getAttribute('data-url') !== nextUrl) {
+      $('nextFrame').src = nextUrl; $('nextFrame').setAttribute('data-url', nextUrl);
+    }
+
+    $('prevBtn').disabled = idx <= 0;
+    $('nextBtn').disabled = idx < 0 || idx >= total - 1;
+
+    renderNotes();
+  }
+
+  function renderNotes() {
+    const content = state.contentByStep[state.currentStep] || {};
+    $('notesTitle').textContent = content.title || `Slide ${state.currentIndex + 1}`;
+    $('notesEyebrow').textContent = (content.eyebrow || state.currentStep || 'SLIDE').toUpperCase();
+    const notes = Array.isArray(content.speakerNotes) ? content.speakerNotes.filter((n) => String(n).trim() && String(n).trim() !== '---') : [];
+    const list = $('notesList');
+    list.innerHTML = '';
+    if (notes.length === 0 && content.body) notes.push(content.body);
+    notes.forEach((note) => {
+      const li = document.createElement('li');
+      const warn = /don'?t forget|warning|pause/i.test(note);
+      li.className = `flex items-start gap-3 p-3 bg-surface-container rounded-xl border border-outline-variant`;
+      li.innerHTML = `<span class="material-symbols-outlined ${warn ? 'text-tertiary' : 'text-secondary'} mt-0.5">${warn ? 'warning' : 'check_circle'}</span><span class="font-body-lg text-[18px] ${warn ? 'text-tertiary font-bold' : 'text-on-surface'}"></span>`;
+      li.querySelector('span:last-child').textContent = note;
+      list.appendChild(li);
+    });
+    $('notesEmpty').style.display = notes.length ? 'none' : 'block';
+  }
+
+  function buildDeckGrid() {
+    const grid = $('subview-deck');
+    grid.innerHTML = '';
+    state.slides.forEach((file, idx) => {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'group relative slide-aspect bg-black rounded-lg border-2 border-outline-variant hover:border-primary transition-all overflow-hidden';
+      cell.dataset.index = idx;
+      const frame = document.createElement('iframe');
+      frame.className = 'w-full h-full border-0 pointer-events-none';
+      frame.setAttribute('scrolling', 'no');
+      frame.loading = 'lazy';
+      frame.dataset.url = slideUrl(file);
+      cell.appendChild(frame);
+      const tag = document.createElement('div');
+      tag.className = 'absolute bottom-1 left-1 bg-surface/80 px-2 py-0.5 rounded text-[10px] font-label-caps';
+      tag.textContent = String(idx + 1).padStart(2, '0');
+      cell.appendChild(tag);
+      cell.addEventListener('click', () => jumpTo(idx));
+      grid.appendChild(cell);
+    });
+    // lazy-load thumbnails
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+        if (e.isIntersecting) { const f = e.target.querySelector('iframe'); if (f && !f.src) f.src = f.dataset.url; io.unobserve(e.target); }
+      }), { rootMargin: '200px' });
+      grid.querySelectorAll('button').forEach((b) => io.observe(b));
+    } else {
+      grid.querySelectorAll('iframe').forEach((f) => f.src = f.dataset.url);
+    }
+    updateDeckActive();
+  }
+
+  function updateDeckActive() {
+    $('subview-deck').querySelectorAll('button').forEach((b) => {
+      const active = Number(b.dataset.index) === state.currentIndex;
+      b.classList.toggle('border-primary', active);
+      b.classList.toggle('ring-4', active);
+      b.classList.toggle('ring-primary/20', active);
+    });
+  }
+
+  async function post(body) {
+    try {
+      const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true });
+      if (res.ok) applyPayload(await res.json());
+    } catch (e) { /* keep remote usable */ }
+  }
+
+  function jumpTo(index) {
+    const target = Math.max(0, Math.min(state.slides.length - 1, index));
+    if (target === state.currentIndex) return;
+    const file = state.slides[target];
+    pendingSlide = file; pendingUntil = Date.now() + 2500;
+    state.currentIndex = target; state.currentSlide = file; state.currentStep = stepOf(target);
+    render(); updateDeckActive();
+    post({ deckId: state.deckId, currentSlide: file, currentStep: stepOf(target) });
+  }
+
+  const navigate = (offset) => jumpTo(state.currentIndex + offset);
+
+  function applyPayload(payload) {
+    const s = payload && payload.state;
+    if (!s) return;
+    const updated = s.updatedAt ? Date.parse(s.updatedAt) : 0;
+    if (updated && updated < lastUpdatedAt) return;
+    if (updated) lastUpdatedAt = updated;
+
+    if (s.deckId && s.deckId !== state.deckId) { loadDeck(s.deckId).then(() => applyState(s)); return; }
+    if (typeof payload.deckTitle === 'string') { state.deckTitle = payload.deckTitle; $('deckTitle').textContent = ''; $('deckTitle').title = payload.deckTitle; }
+    if (s.sessionToken) state.sessionToken = s.sessionToken;
+    applyState(s);
+  }
+
+  function applyState(s) {
+    const incoming = (s.currentSlide || '').trim();
+    // Ignore stale echoes right after a local move.
+    if (Date.now() < pendingUntil && incoming && incoming !== pendingSlide) return;
+    if (incoming === pendingSlide) { pendingSlide = null; pendingUntil = 0; }
+    if (s.currentStep) state.currentStep = s.currentStep;
+    if (incoming) { state.currentSlide = incoming; state.currentIndex = indexOfSlide(incoming); }
+    if (typeof s.audienceQrVisible === 'boolean') { state.audienceQrVisible = s.audienceQrVisible; reflectQr(); }
+    render(); updateDeckActive();
+  }
+
+  async function loadDeck(deckId) {
+    state.deckId = deckId;
+    try {
+      const res = await fetch(`/Presentations/${encodeURIComponent(deckId)}/manifest.json`, { cache: 'no-store' });
+      const m = res.ok ? await res.json() : null;
+      state.slides = (m && Array.isArray(m.slides)) ? m.slides.filter((x) => typeof x === 'string') : [];
+      state.contentByStep = (m && m.audience && m.audience.contentByStep) || {};
+      state.deckTitle = (m && m.title) || deckId;
+      $('deckTitle').title = state.deckTitle;
+    } catch (e) { state.slides = []; }
+    buildDeckGrid();
+  }
+
+  // --- Feedback polling ---
+  async function pollFeedback() {
+    if (!state.deckId || !state.sessionToken) return;
+    try {
+      const url = new URL(`${API}/responses`, location.origin);
+      url.searchParams.set('deckId', state.deckId);
+      url.searchParams.set('slideStep', state.currentStep);
+      url.searchParams.set('currentSlide', state.currentSlide);
+      url.searchParams.set('slideNumber', String(state.currentIndex + 1));
+      url.searchParams.set('sessionToken', state.sessionToken);
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      if (!res.ok) return;
+      const p = await res.json();
+      const responses = Number.isFinite(p.responseCount) ? p.responseCount : 0;
+      const respondents = Number.isFinite(p.respondentCount) ? p.respondentCount : responses;
+      const fill = Number.isFinite(p.fillPercent) ? p.fillPercent : Math.min(100, responses * 20);
+      $('fbResponses').textContent = responses;
+      $('fbParticipants').textContent = respondents;
+      $('fbFill').style.width = `${fill}%`;
+      $('fbStatus').textContent = responses > 0 ? `${responses} response${responses === 1 ? '' : 's'} on this slide.` : 'Waiting for audience responses on this slide…';
+    } catch (e) { /* ignore */ }
+  }
+
+  // --- View + sub-tab switching ---
+  function setView(view) {
+    document.querySelectorAll('.view').forEach((v) => v.classList.toggle('is-active', v.id === `view-${view}`));
+    document.querySelectorAll('.navlink').forEach((n) => {
+      const active = n.dataset.view === view;
+      n.classList.toggle('is-active', active);
+      n.classList.toggle('bg-secondary-container', active);
+      n.classList.toggle('text-on-secondary-container', active);
+      n.classList.toggle('text-on-surface-variant', !active);
+    });
+  }
+  document.querySelectorAll('.navlink').forEach((n) => n.addEventListener('click', () => setView(n.dataset.view)));
+
+  function setSubtab(which) {
+    const notes = which === 'notes';
+    $('subview-notes').classList.toggle('hidden', !notes);
+    $('subview-deck').classList.toggle('hidden', notes);
+    [['subtab-notes', notes], ['subtab-deck', !notes]].forEach(([id, on]) => {
+      const el = $(id);
+      el.classList.toggle('bg-secondary-container', on);
+      el.classList.toggle('text-on-secondary-container', on);
+      el.classList.toggle('text-on-surface-variant', !on);
+    });
+  }
+  $('subtab-notes').addEventListener('click', () => setSubtab('notes'));
+  $('subtab-deck').addEventListener('click', () => setSubtab('deck'));
+
+  // --- Buttons ---
+  $('prevBtn').addEventListener('click', () => navigate(-1));
+  $('nextBtn').addEventListener('click', () => navigate(1));
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); navigate(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); navigate(-1); }
+  });
+  $('resetBtn').addEventListener('click', async () => {
+    if (!confirm('Reset live data for this run? Audience responses and counts will clear.')) return;
+    await post({ deckId: state.deckId, currentSlide: state.currentSlide, currentStep: state.currentStep, resetSession: true });
+  });
+  let blackedOut = false;
+  $('blackoutBtn').addEventListener('click', () => {
+    blackedOut = !blackedOut;
+    $('blackoutLabel').textContent = blackedOut ? 'RESTORE' : 'BLACK OUT';
+    $('currentFrame').style.opacity = blackedOut ? '0.15' : '1';
+    // (A full audience blackout needs an engine signal; this dims the presenter view for now.)
+  });
+  $('qrBtn').addEventListener('click', () => {
+    // Raise (or hide) the audience-join QR on the PRESENTATION screen so new
+    // participants can scan in — the deck shows it via the live-session stream.
+    const desired = !state.audienceQrVisible;
+    state.audienceQrVisible = desired; reflectQr();
+    post({ deckId: state.deckId, currentSlide: state.currentSlide, currentStep: state.currentStep, audienceQrVisible: desired });
+  });
+
+  // --- Timer (elapsed since remote opened) ---
+  let elapsed = 0;
+  setInterval(() => {
+    elapsed++;
+    const m = Math.floor(elapsed / 60), s = elapsed % 60;
+    $('elapsed').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }, 1000);
+
+  // --- Boot ---
+  async function init() {
+    try {
+      const res = await fetch(API, { cache: 'no-store' });
+      if (res.ok) {
+        const payload = await res.json();
+        if (payload.state && payload.state.deckId) await loadDeck(payload.state.deckId);
+        applyPayload(payload);
+      }
+    } catch (e) { $('liveLabel').textContent = 'OFFLINE'; }
+
+    const es = new EventSource(`${API}/stream`);
+    es.onmessage = (ev) => { try { applyPayload(JSON.parse(ev.data)); } catch (e) {} };
+    es.onerror = () => {};
+
+    setInterval(pollFeedback, 2000);
+  }
+  init();
+})();
+</script>
+</body>
+</html>
