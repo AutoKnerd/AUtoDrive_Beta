@@ -206,6 +206,9 @@
 <script>
 (function () {
   const API = '/api/live-session';
+  // Which room this remote controls — comes from the QR (?room=...), default otherwise.
+  const ROOM = (new URLSearchParams(window.location.search).get('room') || 'autoknerd-main').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 48) || 'autoknerd-main';
+  const withRoom = (path) => { const u = new URL(path, location.origin); u.searchParams.set('room', ROOM); return u.toString(); };
   const state = {
     deckId: '', slides: [], contentByStep: {}, currentSlide: '', currentStep: 'slide1',
     sessionToken: '', currentIndex: -1, deckTitle: '', audienceQrVisible: false,
@@ -318,7 +321,7 @@
 
   async function post(body) {
     try {
-      const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true });
+      const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, room: ROOM }), keepalive: true });
       if (res.ok) applyPayload(await res.json());
     } catch (e) { /* keep remote usable */ }
   }
@@ -460,7 +463,7 @@
   // --- Boot ---
   async function init() {
     try {
-      const res = await fetch(API, { cache: 'no-store' });
+      const res = await fetch(withRoom(API), { cache: 'no-store' });
       if (res.ok) {
         const payload = await res.json();
         if (payload.state && payload.state.deckId) await loadDeck(payload.state.deckId);
@@ -468,7 +471,7 @@
       }
     } catch (e) { $('liveLabel').textContent = 'OFFLINE'; }
 
-    const es = new EventSource(`${API}/stream`);
+    const es = new EventSource(withRoom(`${API}/stream`));
     es.onmessage = (ev) => { try { applyPayload(JSON.parse(ev.data)); } catch (e) {} };
     es.onerror = () => {};
 

@@ -36,6 +36,36 @@
 
   if (!currentFile.endsWith('.html') || currentFile === 'index.html') return;
 
+  // --- Room isolation ------------------------------------------------------
+  // Each presentation run is its own "room" so simultaneous presenters never
+  // share slide state. The room comes from ?room=, else a per-deck code kept in
+  // sessionStorage (survives slide-to-slide page reloads), else a fresh code.
+  const DEFAULT_ROOM = 'autoknerd-main';
+  const roomStorageKey = `deck-room:${deckBasePath}`;
+  const generateRoomCode = () => {
+    const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let code = '';
+    for (let i = 0; i < 6; i += 1) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return code;
+  };
+  const resolveRoom = () => {
+    try {
+      const param = new URLSearchParams(window.location.search).get('room');
+      if (param) { window.sessionStorage.setItem(roomStorageKey, param); return param; }
+      let stored = window.sessionStorage.getItem(roomStorageKey);
+      if (!stored) { stored = generateRoomCode(); window.sessionStorage.setItem(roomStorageKey, stored); }
+      return stored;
+    } catch {
+      return generateRoomCode();
+    }
+  };
+  const liveRoom = resolveRoom();
+  const withRoom = (path) => {
+    const url = new URL(path, window.location.origin);
+    url.searchParams.set('room', liveRoom);
+    return url.toString();
+  };
+
   const controls = document.createElement('div');
   controls.className = 'deck-controls';
   controls.innerHTML = `
@@ -207,6 +237,7 @@
     }
 
     audienceUrl.searchParams.set('audience', '1');
+    if (liveRoom && liveRoom !== DEFAULT_ROOM) audienceUrl.searchParams.set('room', liveRoom);
     return audienceUrl.toString();
   };
   const resolveEmbeddedSlideUrl = (fileName) => {
@@ -226,6 +257,7 @@
     if (currentSessionToken) {
       baseUrl.searchParams.set('sessionToken', currentSessionToken);
     }
+    if (liveRoom && liveRoom !== DEFAULT_ROOM) baseUrl.searchParams.set('room', liveRoom);
     return baseUrl.toString();
   };
 
@@ -459,6 +491,7 @@
           deckId,
           currentStep,
           currentSlide: slideFile,
+          room: liveRoom,
         }),
         keepalive: true,
       });
@@ -550,6 +583,7 @@
           currentStep: inferStepFromFile(activeSlideFile, currentIndex + 1),
           currentSlide: activeSlideFile,
           audienceQrVisible: visible,
+          room: liveRoom,
         }),
         keepalive: true,
       });
@@ -563,6 +597,7 @@
     const base = new URL(resolveAudienceUrl());
     base.pathname = '/presenter-remote.html';
     base.search = '';
+    if (liveRoom && liveRoom !== DEFAULT_ROOM) base.searchParams.set('room', liveRoom);
     return base.toString();
   };
 
@@ -611,6 +646,7 @@
           currentStep: inferStepFromFile(activeSlideFile, currentIndex + 1),
           currentSlide: activeSlideFile,
           resetSession: true,
+          room: liveRoom,
         }),
         keepalive: true,
       });
@@ -917,7 +953,7 @@
 
   const syncLiveSessionState = async () => {
     try {
-      const response = await fetch('/api/live-session', { cache: 'no-store' });
+      const response = await fetch(withRoom('/api/live-session'), { cache: 'no-store' });
       if (!response.ok) return;
       const payload = await response.json();
       commitLiveSessionPayload(payload);
@@ -1152,7 +1188,7 @@
       syncPresenceRail();
 
       if (!liveSessionEventSource) {
-        liveSessionEventSource = new EventSource('/api/live-session/stream');
+        liveSessionEventSource = new EventSource(withRoom('/api/live-session/stream'));
         liveSessionEventSource.onmessage = (event) => {
           try {
             const payload = JSON.parse(event.data);

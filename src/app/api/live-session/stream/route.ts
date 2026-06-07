@@ -1,6 +1,6 @@
 import os from 'node:os';
 import { getAdminDb } from '@/firebase/admin';
-import { LIVE_SESSION_DEFAULT_STATE, LIVE_SESSION_ID, normalizeLiveSessionState, type LiveSessionPayload, type LiveSessionState } from '@/lib/live-session';
+import { LIVE_SESSION_ID, normalizeLiveSessionState, sanitizeRoomId, type LiveSessionPayload, type LiveSessionState } from '@/lib/live-session';
 import { getAudienceContentForDeck, readPresentationDeckManifest, resolveCompanionEntryForStep } from '@/lib/presentation-engine';
 
 export const runtime = 'nodejs';
@@ -54,24 +54,27 @@ function findPreferredLanHost() {
   return ranked || null;
 }
 
-function buildAudienceUrl(request: Request, _state: LiveSessionState, _companionEntry?: string | null) {
+function buildAudienceUrl(request: Request, room: string) {
   const configuredOrigin =
     normalizeConfiguredOrigin(process.env.NEXT_PUBLIC_APP_URL)
     || normalizeConfiguredOrigin(process.env.APP_URL);
 
+  let audienceUrl: URL;
   if (configuredOrigin && !isLocalOnlyHostname(configuredOrigin.hostname)) {
-    return new URL('/live-session?audience=1', configuredOrigin).toString();
+    audienceUrl = new URL('/live-session?audience=1', configuredOrigin);
+  } else {
+    const requestUrl = new URL(request.url);
+    audienceUrl = new URL('/live-session?audience=1', requestUrl);
+    const preferredLanHost = findPreferredLanHost();
+    if (preferredLanHost) {
+      audienceUrl.hostname = preferredLanHost;
+    }
+    audienceUrl.port = requestUrl.port;
   }
 
-  const requestUrl = new URL(request.url);
-  const audienceUrl = new URL('/live-session?audience=1', requestUrl);
-  const preferredLanHost = findPreferredLanHost();
-
-  if (preferredLanHost) {
-    audienceUrl.hostname = preferredLanHost;
+  if (room && room !== LIVE_SESSION_ID) {
+    audienceUrl.searchParams.set('room', room);
   }
-
-  audienceUrl.port = requestUrl.port;
 
   return audienceUrl.toString();
 }
@@ -101,8 +104,8 @@ function encodeEvent(data: LiveSessionPayload) {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-async function readCurrentState(request: Request): Promise<LiveSessionPayload> {
-  const snapshot = await getAdminDb().collection(COLLECTION_NAME).doc(LIVE_SESSION_ID).get();
+async function readCurrentState(request: Request, room: string): Promise<LiveSessionPayload> {
+  const snapshot = await getAdminDb().collection(COLLECTION_NAME).doc(room).get();
   const state = normalizeLiveSessionState(snapshot.exists ? (snapshot.data() as Partial<LiveSessionState>) : null);
   const manifest = await readPresentationDeckManifest(state.deckId);
   const companionEntry = manifest
@@ -114,11 +117,7 @@ async function readCurrentState(request: Request): Promise<LiveSessionPayload> {
     deckTitle: manifest?.title ?? state.deckId,
     audienceEnabled: manifest?.audience?.enabled !== false,
     qrOverlayEnabled: manifest?.audience?.qrOverlayEnabled !== false,
-    audienceUrl: buildAudienceUrl(
-      request,
-      state,
-      companionEntry,
-    ),
+    audienceUrl: buildAudienceUrl(request, room),
     companionUrl: buildCompanionUrl(state, companionEntry),
     content: manifest
       ? getAudienceContentForDeck(manifest, state.currentStep)
@@ -131,6 +130,7 @@ async function readCurrentState(request: Request): Promise<LiveSessionPayload> {
 }
 
 export async function GET(request: Request) {
+  const room = sanitizeRoomId(new URL(request.url).searchParams.get('room'));
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -166,7 +166,7 @@ export async function GET(request: Request) {
         if (closed) return;
 
         try {
-          const state = await readCurrentState(request);
+          const state = await readCurrentState(request, room);
           const payload = encodeEvent(state);
           if (payload === lastPayload) return;
           lastPayload = payload;

@@ -121,7 +121,15 @@ export function PresenterNotesClient({ initialPayload, slideFiles = [] }: Presen
   useEffect(() => {
     let mounted = true;
 
-    fetch('/api/live-session', { cache: 'no-store' })
+    const room = (new URLSearchParams(window.location.search).get('room') || 'autoknerd-main')
+      .toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 48) || 'autoknerd-main';
+    const withRoom = (path: string) => {
+      const url = new URL(path, window.location.origin);
+      url.searchParams.set('room', room);
+      return url.toString();
+    };
+
+    fetch(withRoom('/api/live-session'), { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (!mounted || !data) return;
@@ -131,7 +139,7 @@ export function PresenterNotesClient({ initialPayload, slideFiles = [] }: Presen
         console.error('Unable to fetch initial live session state for notes.', error);
       });
 
-    const eventSource = new EventSource('/api/live-session/stream');
+    const eventSource = new EventSource(withRoom('/api/live-session/stream'));
     eventSource.onopen = () => {
       if (!mounted) return;
       setStatus('live');
@@ -279,6 +287,8 @@ export function PresenterNotesClient({ initialPayload, slideFiles = [] }: Presen
           currentSlide: currentSlideFile,
           audienceStep: null,
           sessionToken: payload.state.sessionToken,
+          room: (new URLSearchParams(window.location.search).get('room') || 'autoknerd-main')
+            .toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 48) || 'autoknerd-main',
         }),
         keepalive: true,
       });

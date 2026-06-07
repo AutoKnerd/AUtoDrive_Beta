@@ -94,6 +94,20 @@ export const LIVE_SESSION_AUDIENCE_RESPONSE_COLLECTION = 'presentation_live_sess
 export const LIVE_SESSION_PRESENTATION_LEADS_COLLECTION = 'presentation_live_presentation_leads';
 export const LIVE_SESSION_AUDIENCE_PRESENCE_COLLECTION = 'presentation_live_session_presence';
 
+// Each presentation run is a "room". The session/state is stored per room so
+// simultaneous presenters never share slide state. Absent/blank room falls back
+// to the legacy global id, preserving single-session behavior.
+export function sanitizeRoomId(raw?: string | null): string {
+  const cleaned = String(raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+  return cleaned || LIVE_SESSION_ID;
+}
+
 export function normalizeLiveSessionState(input?: Partial<LiveSessionState> | null): LiveSessionState {
   return {
     deckId: input?.deckId ?? LIVE_SESSION_DEFAULT_STATE.deckId,

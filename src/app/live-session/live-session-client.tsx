@@ -876,7 +876,17 @@ export function LiveSessionClient({ initialPayload }: { initialPayload?: LiveSes
   useEffect(() => {
     let mounted = true;
 
-    fetch('/api/live-session', { cache: 'no-store' })
+    // Scope this audience view to the presenter's room (?room= from the join QR),
+    // so it only follows that presentation — not another running at the same time.
+    const room = (new URLSearchParams(window.location.search).get('room') || 'autoknerd-main')
+      .toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 48) || 'autoknerd-main';
+    const withRoom = (path: string) => {
+      const url = new URL(path, window.location.origin);
+      url.searchParams.set('room', room);
+      return url.toString();
+    };
+
+    fetch(withRoom('/api/live-session'), { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (!mounted || !data) return;
@@ -886,7 +896,7 @@ export function LiveSessionClient({ initialPayload }: { initialPayload?: LiveSes
         console.error('Unable to fetch initial live session state.', error);
       });
 
-    const eventSource = new EventSource('/api/live-session/stream');
+    const eventSource = new EventSource(withRoom('/api/live-session/stream'));
 
     eventSource.onopen = () => {
       if (!mounted) return;

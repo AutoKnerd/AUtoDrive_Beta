@@ -5,6 +5,7 @@ import {
   LIVE_SESSION_DEFAULT_STATE,
   LIVE_SESSION_ID,
   normalizeLiveSessionState,
+  sanitizeRoomId,
   type LiveSessionPayload,
   type LiveSessionState,
 } from '@/lib/live-session';
@@ -65,24 +66,27 @@ function findPreferredLanHost() {
   return ranked || null;
 }
 
-function buildBaseAudienceUrl(request: Request) {
+function buildBaseAudienceUrl(request: Request, room: string) {
   const configuredOrigin =
     normalizeConfiguredOrigin(process.env.NEXT_PUBLIC_APP_URL)
     || normalizeConfiguredOrigin(process.env.APP_URL);
 
+  let audienceUrl: URL;
   if (configuredOrigin && !isLocalOnlyHostname(configuredOrigin.hostname)) {
-    return new URL('/live-session?audience=1', configuredOrigin);
+    audienceUrl = new URL('/live-session?audience=1', configuredOrigin);
+  } else {
+    const requestUrl = new URL(request.url);
+    audienceUrl = new URL('/live-session?audience=1', requestUrl);
+    const preferredLanHost = findPreferredLanHost();
+    if (preferredLanHost) {
+      audienceUrl.hostname = preferredLanHost;
+    }
+    audienceUrl.port = requestUrl.port;
   }
 
-  const requestUrl = new URL(request.url);
-  const audienceUrl = new URL('/live-session?audience=1', requestUrl);
-  const preferredLanHost = findPreferredLanHost();
-
-  if (preferredLanHost) {
-    audienceUrl.hostname = preferredLanHost;
+  if (room && room !== LIVE_SESSION_ID) {
+    audienceUrl.searchParams.set('room', room);
   }
-
-  audienceUrl.port = requestUrl.port;
 
   return audienceUrl;
 }
@@ -91,8 +95,9 @@ function buildAudienceUrl(
   request: Request,
   _state: LiveSessionState,
   _manifest: PresentationDeckManifest | null,
+  room: string,
 ) {
-  return buildBaseAudienceUrl(request).toString();
+  return buildBaseAudienceUrl(request, room).toString();
 }
 
 function buildCompanionUrl(state: LiveSessionState, companionEntry: string | null) {
@@ -130,7 +135,7 @@ function inferStepFromSlide(currentSlide: string) {
   return `slide${number}`;
 }
 
-async function buildPayload(input: Partial<LiveSessionState>, request: Request): Promise<LiveSessionPayload> {
+async function buildPayload(input: Partial<LiveSessionState>, request: Request, room: string): Promise<LiveSessionPayload> {
   const state = normalizeLiveSessionState(input);
   const manifest = await readPresentationDeckManifest(state.deckId);
   const companionEntry = manifest
@@ -145,7 +150,7 @@ async function buildPayload(input: Partial<LiveSessionState>, request: Request):
         },
       }
     : manifest;
-  const audienceUrl = buildAudienceUrl(request, state, resolvedManifest ?? manifest);
+  const audienceUrl = buildAudienceUrl(request, state, resolvedManifest ?? manifest, room);
   const companionUrl = buildCompanionUrl(state, companionEntry);
 
   if (!manifest) {
@@ -177,9 +182,10 @@ async function buildPayload(input: Partial<LiveSessionState>, request: Request):
 
 export async function GET(request: Request) {
   try {
-    const snapshot = await getAdminDb().collection(COLLECTION_NAME).doc(LIVE_SESSION_ID).get();
+    const room = sanitizeRoomId(new URL(request.url).searchParams.get('room'));
+    const snapshot = await getAdminDb().collection(COLLECTION_NAME).doc(room).get();
     if (!snapshot.exists) {
-      return NextResponse.json(await buildPayload(LIVE_SESSION_DEFAULT_STATE, request), {
+      return NextResponse.json(await buildPayload(LIVE_SESSION_DEFAULT_STATE, request, room), {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
         },
@@ -187,7 +193,7 @@ export async function GET(request: Request) {
     }
 
     const data = snapshot.data() as Partial<LiveSessionState> | undefined;
-    return NextResponse.json(await buildPayload(data ?? LIVE_SESSION_DEFAULT_STATE, request), {
+    return NextResponse.json(await buildPayload(data ?? LIVE_SESSION_DEFAULT_STATE, request, room), {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       },
@@ -210,7 +216,9 @@ export async function POST(request: Request) {
       audienceStep?: number | null;
       resetSession?: boolean;
       audienceQrVisible?: boolean;
+      room?: string;
     };
+    const room = sanitizeRoomId(body.room);
     const deckId = typeof body.deckId === 'string' && body.deckId.trim().length > 0
       ? body.deckId.trim()
       : LIVE_SESSION_DEFAULT_STATE.deckId;
@@ -218,7 +226,7 @@ export async function POST(request: Request) {
       ? body.currentSlide.trim()
       : LIVE_SESSION_DEFAULT_STATE.currentSlide;
     const resetSession = body.resetSession === true;
-    const snapshot = await getAdminDb().collection(COLLECTION_NAME).doc(LIVE_SESSION_ID).get();
+    const snapshot = await getAdminDb().collection(COLLECTION_NAME).doc(room).get();
     const existingState = snapshot.exists
       ? normalizeLiveSessionState(snapshot.data() as Partial<LiveSessionState>)
       : LIVE_SESSION_DEFAULT_STATE;
@@ -232,7 +240,9 @@ export async function POST(request: Request) {
       currentStep: inferredStep,
       currentSlide,
       audienceStep: typeof body.audienceStep === 'number' && Number.isFinite(body.audienceStep) ? body.audienceStep : null,
-      sessionToken: resetSession
+      // A brand-new room gets a unique token so its audience responses/presence
+      // never mingle with another room that happens to share the default token.
+      sessionToken: resetSession || !snapshot.exists
         ? makeLiveSessionToken()
         : (typeof body.sessionToken === 'string' && body.sessionToken.trim().length > 0
             ? body.sessionToken.trim()
@@ -247,10 +257,10 @@ export async function POST(request: Request) {
 
     await getAdminDb()
       .collection(COLLECTION_NAME)
-      .doc(LIVE_SESSION_ID)
+      .doc(room)
       .set(nextState, { merge: true });
 
-    return NextResponse.json(await buildPayload(nextState, request));
+    return NextResponse.json(await buildPayload(nextState, request, room));
   } catch (error) {
     console.error('Unable to update live session state.', error);
     return NextResponse.json(
