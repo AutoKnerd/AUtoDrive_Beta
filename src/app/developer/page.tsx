@@ -133,6 +133,7 @@ type PresentationDeckOption = {
   href?: string;
   slideCount?: number;
   slides: string[];
+  inPageSteps?: number;
   companion?: {
     enabled?: boolean;
     entry?: string;
@@ -571,6 +572,7 @@ export default function DeveloperPage() {
   const [activeTool, setActiveTool] = useState<ToolId>('create_user');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [leadsView, setLeadsView] = useState<LeadsView>('presentation');
+  const [pendingEditDeckId, setPendingEditDeckId] = useState<string>('');
 
   const [dashboardMode, setDashboardMode] = useState<DashboardMode>('role_based');
   const [sandboxDealershipId, setSandboxDealershipId] = useState<string>('all');
@@ -700,6 +702,7 @@ export default function DeveloperPage() {
   const [presentationPptxImportBusy, setPresentationPptxImportBusy] = useState(false);
   const [presentationPptxInputKey, setPresentationPptxInputKey] = useState(0);
   const [presentationLoadBusy, setPresentationLoadBusy] = useState(false);
+  const [presentationDeckSearch, setPresentationDeckSearch] = useState('');
   const [lastImportedPresentationHref, setLastImportedPresentationHref] = useState<string | null>(null);
   const [presentationCompanionStep, setPresentationCompanionStep] = useState('slide1');
   const [presentationCompanionResponseKey, setPresentationCompanionResponseKey] = useState('');
@@ -714,6 +717,8 @@ export default function DeveloperPage() {
   const [presentationActiveSlideBuildStep, setPresentationActiveSlideBuildStep] = useState('');
   const [presentationActiveSlideBuildLabel, setPresentationActiveSlideBuildLabel] = useState('');
   const [presentationSaveConfirmation, setPresentationSaveConfirmation] = useState<PresentationSaveConfirmation | null>(null);
+  const [presentationInPageStepsInput, setPresentationInPageStepsInput] = useState('');
+  const [presentationInPageStepsSaving, setPresentationInPageStepsSaving] = useState(false);
   const manualCompanionResponseKeyRef = useRef('');
   const presentationImportHtmlRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -793,6 +798,21 @@ export default function DeveloperPage() {
     void refreshPresentationDeckOptions();
   }, [refreshPresentationDeckOptions]);
 
+  // Read ?section=presentations&deck=<deckId> on mount — lets the Deck Library
+  // "Edit" button deep-link straight into the builder with a deck pre-loaded.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const sectionParam = params.get('section');
+    const deckParam = params.get('deck');
+    if (sectionParam === 'presentations') {
+      setActiveSection('presentations');
+    }
+    if (deckParam) {
+      setPendingEditDeckId(deckParam);
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -858,8 +878,40 @@ export default function DeveloperPage() {
     return presentationDeckOptions.some((deck) => deck.deckId === trimmedDeckId) ? trimmedDeckId : '';
   }, [presentationDeckOptions, presentationImportDeckId]);
 
+  const filteredPresentationDeckOptions = useMemo(() => {
+    const query = presentationDeckSearch.trim().toLowerCase();
+    if (!query) return presentationDeckOptions;
+
+    return presentationDeckOptions.filter((deck) => {
+      return [deck.title, deck.deckId, deck.description || ''].some((value) =>
+        value.toLowerCase().includes(query),
+      );
+    });
+  }, [presentationDeckOptions, presentationDeckSearch]);
+
   const presentationCompanionStepOptions = useMemo(() => {
     if (!selectedPresentationDeck) return [];
+
+    // Single-file decks that hold multiple slides internally (e.g. a self-contained
+    // carousel) declare inPageSteps. Expose slide1..slideN, all pointing at the one
+    // slide file but with a 0-based in-page index used for preview (?slide=N).
+    const inPageSteps = selectedPresentationDeck.inPageSteps;
+    if (
+      typeof inPageSteps === 'number'
+      && inPageSteps > selectedPresentationDeck.slides.length
+      && selectedPresentationDeck.slides.length >= 1
+    ) {
+      const file = selectedPresentationDeck.slides[0];
+      return Array.from({ length: inPageSteps }, (_, index) => {
+        const step = `slide${index + 1}`;
+        return {
+          step,
+          slide: file,
+          slideIndex: index,
+          label: `${step} · Slide ${index + 1}`,
+        };
+      });
+    }
 
     return selectedPresentationDeck.slides.map((slide, index) => {
       const step = inferStepFromSlideFile(slide, index + 1);
@@ -872,10 +924,62 @@ export default function DeveloperPage() {
       return {
         step,
         slide,
+        slideIndex: undefined as number | undefined,
         label: `${step} · ${label}`,
       };
     });
   }, [selectedPresentationDeck]);
+
+  // Keep the in-page-slides field in sync with whichever deck is selected.
+  useEffect(() => {
+    setPresentationInPageStepsInput(
+      selectedPresentationDeck?.inPageSteps ? String(selectedPresentationDeck.inPageSteps) : '',
+    );
+  }, [selectedPresentationDeck?.deckId, selectedPresentationDeck?.inPageSteps]);
+
+  const handleSaveInPageSteps = useCallback(async () => {
+    const deckId = presentationCompanionDeckId.trim() || presentationImportDeckId.trim();
+    if (!deckId) {
+      toast({ title: 'Choose a deck first', description: 'Load or select a deck before setting its in-page slides.' });
+      return;
+    }
+
+    const raw = presentationInPageStepsInput.trim();
+    const numeric = raw ? Number(raw) : 0;
+    if (raw && (!Number.isFinite(numeric) || numeric < 2)) {
+      toast({ title: 'Enter a slide count', description: 'In-page slides must be a whole number greater than 1 (or blank to clear).' });
+      return;
+    }
+
+    setPresentationInPageStepsSaving(true);
+    try {
+      const response = await fetch(`/api/presentations/${encodeURIComponent(deckId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inPageSteps: raw ? Math.floor(numeric) : 0 }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Unable to save in-page slides.');
+      }
+
+      await refreshPresentationDeckOptions();
+      toast({
+        title: 'In-page slides saved',
+        description: payload.inPageSteps
+          ? `${deckId} now has ${payload.inPageSteps} navigable steps.`
+          : `Cleared in-page slides for ${deckId}.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Unable to save in-page slides.',
+      });
+    } finally {
+      setPresentationInPageStepsSaving(false);
+    }
+  }, [presentationCompanionDeckId, presentationImportDeckId, presentationInPageStepsInput, refreshPresentationDeckOptions, toast]);
 
   const presentationPreviewSlideOption = useMemo(() => {
     if (!selectedPresentationDeck || presentationCompanionStepOptions.length === 0) return null;
@@ -888,12 +992,18 @@ export default function DeveloperPage() {
 
   const presentationPreviewSlideSrc = useMemo(() => {
     if (!presentationCompanionDeckId.trim() || !presentationPreviewSlideOption) return '';
-    return buildPresentationAssetHref(presentationCompanionDeckId, presentationPreviewSlideOption.slide, '?embedded=1');
+    const slideIndex = presentationPreviewSlideOption.slideIndex;
+    const search = typeof slideIndex === 'number'
+      ? `?embedded=1&slide=${slideIndex + 1}`
+      : '?embedded=1';
+    return buildPresentationAssetHref(presentationCompanionDeckId, presentationPreviewSlideOption.slide, search);
   }, [presentationCompanionDeckId, presentationPreviewSlideOption]);
 
   const presentationLaunchSlideSrc = useMemo(() => {
     if (!presentationCompanionDeckId.trim() || !presentationPreviewSlideOption) return '';
-    return buildPresentationAssetHref(presentationCompanionDeckId, presentationPreviewSlideOption.slide);
+    const slideIndex = presentationPreviewSlideOption.slideIndex;
+    const search = typeof slideIndex === 'number' ? `?slide=${slideIndex + 1}` : '';
+    return buildPresentationAssetHref(presentationCompanionDeckId, presentationPreviewSlideOption.slide, search);
   }, [presentationCompanionDeckId, presentationPreviewSlideOption]);
 
   const presentationCompanionPreviewSrcDoc = useMemo(() => {
@@ -958,10 +1068,37 @@ export default function DeveloperPage() {
   }, [presentationCompanionHtml]);
 
   const presentationSavedCompanionSrc = useMemo(() => {
-    const entry = selectedPresentationDeck?.companion?.entry?.trim() || '';
-    if (!presentationCompanionDeckId.trim() || !entry) return '';
-    return buildPresentationAssetHref(presentationCompanionDeckId, entry);
-  }, [presentationCompanionDeckId, selectedPresentationDeck]);
+    const deckId = presentationCompanionDeckId.trim();
+    const companion = selectedPresentationDeck?.companion;
+    if (!deckId || companion?.enabled !== true) return '';
+
+    const step = presentationCompanionStep.trim().toLowerCase();
+    const files = Array.isArray(companion.files)
+      ? companion.files.filter((file): file is string => typeof file === 'string' && file.trim().length > 0)
+      : [];
+
+    // Match the companion file bound to the selected step (e.g. "slide4-*.html").
+    const stepMatch = step
+      ? files.find((file) => (file.split('/').pop() || '').toLowerCase().startsWith(`${step}-`))
+      : null;
+
+    // Per-step model: an unbound step shows no companion. Only legacy decks with
+    // no per-step files fall back to the single deck-wide entry.
+    const entry = stepMatch || (files.length === 0 ? (companion.entry?.trim() || '') : '');
+    if (!entry) return '';
+
+    return buildPresentationAssetHref(deckId, entry);
+  }, [presentationCompanionDeckId, presentationCompanionStep, selectedPresentationDeck]);
+
+  // As you navigate slides (Previous/Next or the step picker), show that slide's
+  // saved companion so you can verify each binding at a glance. Slides with no
+  // companion yet show a clear "No content" state in the Saved view.
+  const lastPreviewStepRef = useRef(presentationCompanionStep);
+  useEffect(() => {
+    if (lastPreviewStepRef.current === presentationCompanionStep) return;
+    lastPreviewStepRef.current = presentationCompanionStep;
+    setPresentationCompanionPreviewMode('saved');
+  }, [presentationCompanionStep]);
 
   const presentationImportSlideCount = useMemo(() => {
     return (presentationImportHtml.match(/<!DOCTYPE html>/gi) || []).length;
@@ -1188,6 +1325,14 @@ export default function DeveloperPage() {
       setPresentationLoadBusy(false);
     }
   }, [presentationDeckOptions, toast]);
+
+  // Once deck options have loaded, fire the pending load triggered by the
+  // Deck Library "Edit" button (?deck=<deckId>).
+  useEffect(() => {
+    if (!pendingEditDeckId || presentationDeckOptionsLoading || presentationDeckOptions.length === 0) return;
+    void handleLoadPresentationDeck(pendingEditDeckId);
+    setPendingEditDeckId('');
+  }, [pendingEditDeckId, presentationDeckOptions, presentationDeckOptionsLoading, handleLoadPresentationDeck]);
 
   const handlePreviousPresentationSlide = useCallback(() => {
     const currentIndex = presentationCompanionStepOptions.findIndex((option) => option.step === presentationCompanionStep.trim());
@@ -3919,10 +4064,16 @@ export default function DeveloperPage() {
                 <Save className="mr-2 h-4 w-4" />
                 Save Draft
               </Button>
-              <div className="min-w-[260px] space-y-2">
+              <div className="min-w-[320px] space-y-2">
                 <Label htmlFor="presentation-load-existing" className="text-[10px] uppercase tracking-[0.26em] text-muted-foreground">
                   Load Existing
                 </Label>
+                <Input
+                  value={presentationDeckSearch}
+                  onChange={(event) => setPresentationDeckSearch(event.target.value)}
+                  placeholder="Filter presentations"
+                  className="h-10"
+                />
                 <Select
                   value={presentationSelectedExistingDeckId}
                   onValueChange={(value) => void handleLoadPresentationDeck(value)}
@@ -3940,11 +4091,17 @@ export default function DeveloperPage() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {presentationDeckOptions.map((deck) => (
-                      <SelectItem key={deck.deckId} value={deck.deckId}>
-                        {deck.title} ({deck.deckId})
-                      </SelectItem>
-                    ))}
+                    {filteredPresentationDeckOptions.length > 0 ? (
+                      filteredPresentationDeckOptions.map((deck) => (
+                        <SelectItem key={deck.deckId} value={deck.deckId}>
+                          {deck.title} ({deck.deckId})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        No presentations match that filter.
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -4031,6 +4188,31 @@ export default function DeveloperPage() {
                 onChange={(event) => setPresentationImportDescription(event.target.value)}
                 placeholder="Executive narrative deck for dealership performance transformation."
               />
+            </div>
+            <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-[1fr_auto] md:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="presentation-in-page-steps">In-page slides (single-file decks)</Label>
+                <Input
+                  id="presentation-in-page-steps"
+                  type="number"
+                  min={2}
+                  value={presentationInPageStepsInput}
+                  onChange={(event) => setPresentationInPageStepsInput(event.target.value)}
+                  placeholder="e.g. 31"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Set how many slides live inside this deck&apos;s single HTML file so the preview Previous/Next,
+                  step picker, and per-slide companions work. Leave blank for normal one-file-per-slide decks.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleSaveInPageSteps()}
+                disabled={presentationInPageStepsSaving}
+              >
+                {presentationInPageStepsSaving ? 'Saving...' : 'Save Steps'}
+              </Button>
             </div>
             <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-[1fr_auto] md:items-end">
               <div className="space-y-2">
@@ -4273,7 +4455,7 @@ export default function DeveloperPage() {
                 <Tabs value={presentationCompanionPreviewMode} onValueChange={(value) => setPresentationCompanionPreviewMode(value === 'saved' ? 'saved' : 'draft')}>
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="draft">Draft</TabsTrigger>
-                    <TabsTrigger value="saved" disabled={!presentationSavedCompanionSrc}>
+                    <TabsTrigger value="saved">
                       Saved
                     </TabsTrigger>
                   </TabsList>
@@ -4289,7 +4471,7 @@ export default function DeveloperPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-white/10 bg-black/60">
+                      <div className="relative mx-auto aspect-[9/19.5] w-full max-w-[300px] overflow-hidden rounded-[2.25rem] border-4 border-white/15 bg-black/60 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
                         <iframe
                           title="Companion draft preview"
                           srcDoc={presentationCompanionPreviewSrcDoc}
@@ -4310,7 +4492,7 @@ export default function DeveloperPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-white/10 bg-black/60">
+                      <div className="relative mx-auto aspect-[9/19.5] w-full max-w-[300px] overflow-hidden rounded-[2.25rem] border-4 border-white/15 bg-black/60 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
                         {presentationSavedCompanionSrc ? (
                           <iframe
                             key={presentationSavedCompanionSrc}
@@ -4319,8 +4501,8 @@ export default function DeveloperPage() {
                             className="absolute inset-0 h-full w-full border-0 bg-black"
                           />
                         ) : (
-                          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                            Import a companion file to preview the saved version here.
+                          <div className="flex h-full items-center justify-center px-6 text-center">
+                            <span className="text-2xl font-black uppercase tracking-wide text-red-500">No content</span>
                           </div>
                         )}
                       </div>

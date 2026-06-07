@@ -35,6 +35,11 @@ export type PresentationDeckManifest = {
   updatedAt?: string;
   audience?: PresentationAudienceConfig;
   companion?: PresentationCompanionConfig;
+  // Number of navigable steps inside a single-file deck (e.g. a self-contained
+  // carousel whose slides live in an in-page array rather than as separate
+  // files). When set and greater than slides.length, the deck is treated as
+  // having steps slide1..slideN for companion binding and live-step sync.
+  inPageSteps?: number;
 };
 
 export type PresentationDeckSummary = PresentationDeckManifest & {
@@ -164,6 +169,9 @@ export async function readPresentationDeckManifest(deckId: string): Promise<Pres
         parsed.slides.filter((slide): slide is string => typeof slide === 'string' && slide.trim().length > 0),
         parsed.companion && typeof parsed.companion === 'object' ? parsed.companion : undefined,
       ),
+      inPageSteps: typeof parsed.inPageSteps === 'number' && Number.isFinite(parsed.inPageSteps) && parsed.inPageSteps > 0
+        ? Math.floor(parsed.inPageSteps)
+        : undefined,
     };
   } catch {
     return null;
@@ -239,19 +247,29 @@ export async function resolveCompanionEntryForStep(
   }
 
   const companionDir = path.join(PRESENTATIONS_ROOT, deckId, 'companion');
+  let diskCandidateFiles: string[] = [];
 
   try {
     const diskFiles = await readdir(companionDir, { withFileTypes: true });
-    const candidateFiles = diskFiles
+    diskCandidateFiles = diskFiles
       .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.html'))
       .map((entry) => path.posix.join('companion', entry.name));
 
-    const diskMatch = findCompanionEntryInFileList(candidateFiles, currentStep);
+    const diskMatch = findCompanionEntryInFileList(diskCandidateFiles, currentStep);
     if (diskMatch) {
       return diskMatch;
     }
   } catch {
-    // Ignore missing companion directories and fall back to the manifest entry.
+    // Ignore missing companion directories; fall back handling is below.
+  }
+
+  // Per-step model: if the deck has companion files keyed by slide step, then a
+  // step with no matching file simply has no companion — do NOT fall back to a
+  // deck-wide entry (which would leak the previous slide's companion onto every
+  // unbound slide). Only legacy decks with no per-step files use the single entry.
+  const hasPerStepFiles = manifestFiles.length > 0 || diskCandidateFiles.length > 0;
+  if (hasPerStepFiles) {
+    return null;
   }
 
   if (typeof manifest.companion.entry === 'string' && manifest.companion.entry.trim().length > 0) {

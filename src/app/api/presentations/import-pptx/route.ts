@@ -300,8 +300,13 @@ async function importAsBackground({
   deckId: string;
   deckTitle: string;
 }) {
-  const officeCommand = await findCommand(['soffice', 'libreoffice']);
-  const pdfToPpmCommand = await findCommand(['pdftoppm']);
+  const officeCommand = await findCommand([
+    'soffice',
+    'libreoffice',
+    // macOS Homebrew cask installs the binary inside the app bundle, not on PATH.
+    '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+  ]);
+  const pdfToPpmCommand = await findCommand(['pdftoppm', '/opt/homebrew/bin/pdftoppm', '/usr/local/bin/pdftoppm']);
   const imageMagickCommand = await findCommand(['magick', 'convert']);
 
   if (!officeCommand) {
@@ -423,7 +428,11 @@ export async function POST(request: Request) {
     let importWarning: string | null = null;
 
     if (mode === 'background') {
-      const officeCommand = await findCommand(['soffice', 'libreoffice']);
+      const officeCommand = await findCommand([
+        'soffice',
+        'libreoffice',
+        '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+      ]);
       if (!officeCommand) {
         effectiveMode = 'html';
         importWarning = 'Background PPTX import requires LibreOffice or soffice on the server, so this deck was imported as editable HTML instead.';

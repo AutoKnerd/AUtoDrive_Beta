@@ -84,7 +84,46 @@ function ensureSharedControls(source: string) {
     );
   }
 
+  if (!html.includes('/Presentations/_shared/in-page-deck.css')) {
+    html = html.replace(
+      /<\/head>/i,
+      '<link href="/Presentations/_shared/in-page-deck.css" rel="stylesheet"/>\n</head>',
+    );
+  }
+
+  if (!html.includes('/Presentations/_shared/in-page-deck.js')) {
+    html = html.replace(
+      /<\/body>/i,
+      '<script src="/Presentations/_shared/in-page-deck.js"></script>\n</body>',
+    );
+  }
+
   return html;
+}
+
+// Count slides held internally in a single-file carousel deck (in-page array).
+function countInPageSlides(source: string) {
+  const byThumb = source.match(/data-i\s*=\s*["']\d+["']/g);
+  if (byThumb && byThumb.length > 1) return byThumb.length;
+  const byFigure = source.match(/class\s*=\s*["'][^"']*\bslide\b[^"']*["']/g);
+  if (byFigure && byFigure.length > 1) return byFigure.length;
+  const byAlt = source.match(/alt\s*=\s*["']\s*slide\s*\d+\s*["']/gi);
+  if (byAlt && byAlt.length > 1) return byAlt.length;
+  return 0;
+}
+
+// Apple Keynote HTML exports keep a master header.json listing every slide.
+async function detectKeynoteSlideCount(packageRoot: string, files: string[]) {
+  const headerRel = files.find((file) => path.basename(file).toLowerCase() === 'header.json');
+  if (!headerRel) return 0;
+  try {
+    const data = JSON.parse(await readFile(path.join(packageRoot, headerRel), 'utf8'));
+    if (Array.isArray(data?.slideList) && data.slideList.length > 1) return data.slideList.length;
+    if (typeof data?.slideCount === 'number' && data.slideCount > 1) return Math.floor(data.slideCount);
+  } catch {
+    // Ignore malformed header files.
+  }
+  return 0;
 }
 
 async function listFiles(root: string, current = root): Promise<string[]> {
@@ -272,8 +311,12 @@ export async function POST(request: Request) {
     await copyPackageFiles(packageRoot, deckRoot, files);
 
     const finalSlides: string[] = [];
+    let detectedInPageSteps = 0;
     for (const [index, slide] of slides.entries()) {
       const source = await readFile(path.join(packageRoot, slide), 'utf8');
+      if (slides.length === 1) {
+        detectedInPageSteps = countInPageSlides(source);
+      }
       const outputSlide = slide.toLowerCase() === 'index.html'
         ? '01-index.html'
         : slide;
@@ -281,6 +324,12 @@ export async function POST(request: Request) {
       await mkdir(path.dirname(outputPath), { recursive: true });
       await writeFile(outputPath, ensureSharedControls(source), 'utf8');
       finalSlides.push(toPosixPath(outputSlide || `slide-${index + 1}.html`));
+    }
+
+    // Single-file deck with no in-page markers? It may be a Keynote export — read
+    // its header.json for the real slide count.
+    if (slides.length === 1 && detectedInPageSteps < 2) {
+      detectedInPageSteps = await detectKeynoteSlideCount(packageRoot, files);
     }
 
     const deckTitle = title || existingZipManifest?.title || titleCaseDeckId(deckId);
@@ -291,6 +340,7 @@ export async function POST(request: Request) {
       description: deckDescription,
       entry: 'index.html',
       slideCount: finalSlides.length,
+      ...(detectedInPageSteps > 1 ? { inPageSteps: detectedInPageSteps } : {}),
       slides: finalSlides,
       audience: {
         enabled: existingDeckManifest?.audience?.enabled !== false,

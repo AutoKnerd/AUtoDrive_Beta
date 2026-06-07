@@ -1,0 +1,57 @@
+/*
+ * Shared enhancements for single-file "carousel" decks whose slides live in an
+ * in-page array (thumbnail filmstrip + counter). All rules are gated to
+ * `body.has-inpage-deck`, which in-page-deck.js adds only when it detects a
+ * thumbnail strip — so this stylesheet is inert for normal page-per-slide decks.
+ */
+
+/* Hide/show slide-strip toggle, pinned lower-left, above the carousel. */
+.strip-toggle {
+  position: fixed;
+  left: 14px;
+  bottom: 86px;
+  z-index: 1100;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(26, 29, 36, 0.78);
+  border: 1px solid #2f343d;
+  color: #9aa0a9;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  opacity: 0.55;
+  transition: opacity 0.15s, bottom 0.2s, color 0.15s, border-color 0.15s;
+}
+
+.strip-toggle:hover {
+  opacity: 1;
+  border-color: #4f86f7;
+  color: #e8eaed;
+}
+
+/* When the strip is hidden, collapse the filmstrip and let the slide fill the window. */
+body.has-inpage-deck.strip-hidden .filmstrip { display: none; }
+body.strip-hidden .strip-toggle { bottom: 14px; }
+body.has-inpage-deck.strip-hidden .stage { padding: 0; }
+body.has-inpage-deck.strip-hidden .stage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Keep the shared deck-controls PREV/NEXT above the carousel, and clear of the toggle. */
+body.has-inpage-deck .deck-nav { bottom: 88px; transition: bottom 0.2s; }
+body.has-inpage-deck.strip-hidden .deck-nav { bottom: 24px; }
+body.has-inpage-deck .deck-nav [data-action="prev"] { margin-left: 52px; }
+
+/* In native fullscreen the strip is already gone, so tuck things back. */
+:fullscreen .strip-toggle { display: none; }
+:fullscreen .deck-nav { bottom: 24px; }

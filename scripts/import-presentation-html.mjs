@@ -87,7 +87,32 @@ function ensureSharedControls(chunk) {
     );
   }
 
+  if (!html.includes('/Presentations/_shared/in-page-deck.css')) {
+    html = html.replace(
+      /<\/head>/i,
+      '<link href="/Presentations/_shared/in-page-deck.css" rel="stylesheet"/>\n</head>',
+    );
+  }
+
+  if (!html.includes('/Presentations/_shared/in-page-deck.js')) {
+    html = html.replace(
+      /<\/body>/i,
+      '<script src="/Presentations/_shared/in-page-deck.js"></script>\n</body>',
+    );
+  }
+
   return html;
+}
+
+// Count slides held internally in a single-file carousel deck (in-page array).
+function countInPageSlides(source) {
+  const byThumb = source.match(/data-i\s*=\s*["']\d+["']/g);
+  if (byThumb && byThumb.length > 1) return byThumb.length;
+  const byFigure = source.match(/class\s*=\s*["'][^"']*\bslide\b[^"']*["']/g);
+  if (byFigure && byFigure.length > 1) return byFigure.length;
+  const byAlt = source.match(/alt\s*=\s*["']\s*slide\s*\d+\s*["']/gi);
+  if (byAlt && byAlt.length > 1) return byAlt.length;
+  return 0;
 }
 
 function createDeckIndex({ deckId, deckTitle, description, slides }) {
@@ -250,6 +275,7 @@ function buildManifest({
   slides,
   existingManifest,
   companion,
+  inPageSteps,
 }) {
   const existingAudience = existingManifest?.audience && typeof existingManifest.audience === 'object'
     ? existingManifest.audience
@@ -289,6 +315,14 @@ function buildManifest({
         ...(companion?.bindingsByStep ?? {}),
       },
     },
+    // In-page step count for single-file multi-slide decks. Prefer a freshly
+    // detected value; otherwise preserve the existing one across re-writes such
+    // as companion imports, which rebuild the manifest from scratch.
+    ...((typeof inPageSteps === 'number' && inPageSteps > 1)
+      ? { inPageSteps: Math.floor(inPageSteps) }
+      : (typeof existingManifest?.inPageSteps === 'number' && existingManifest.inPageSteps > 0
+        ? { inPageSteps: Math.floor(existingManifest.inPageSteps) }
+        : {})),
     createdAt: existingManifest?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -444,6 +478,7 @@ async function main() {
     description,
     slides,
     existingManifest,
+    inPageSteps: documents.length === 1 ? countInPageSlides(documents[0]) : 0,
   });
 
   if (preservedCompanionDir) {
