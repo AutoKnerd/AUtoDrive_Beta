@@ -58,10 +58,17 @@ function encodeKeyPart(value: string) {
 }
 
 function buildAudienceResponseDocId(record: LiveSessionAudienceResponseRecord) {
-  const identity =
+  // Identity must include the audience member's userId so each person stores a
+  // distinct response. Keying on sessionToken alone collapsed every audience
+  // member's answer for a question into one doc (last write wins), which broke
+  // per-person tallies/polls. We keep the session token as a prefix so the same
+  // person re-voting on the same question updates their single vote.
+  const sessionScope =
     normalizeText(record.sessionToken)
     || normalizeText(record.sessionId)
     || normalizeText(record.userId);
+  const userScope = normalizeText(record.userId);
+  const identity = userScope ? `${sessionScope || 'session'}::${userScope}` : sessionScope;
   const deckId = normalizeText(record.deckId) || 'deck';
   const slideStep = normalizeText(record.slideStep) || normalizeText(record.slideId) || 'slide';
   const responseKey = normalizeText(record.responseKey) || 'default';
@@ -211,12 +218,45 @@ export async function GET(request: Request) {
     const responseCount = matchingRecords.length;
     const fillPercent = Math.min(100, responseCount * 20);
 
+    const groupByAnswer =
+      url.searchParams.get('groupByAnswer') === '1' || url.searchParams.get('groupByAnswer') === 'true';
+    let tally: Record<string, { value: string; label: string; count: number }> | undefined;
+    let tallyTotal = 0;
+    if (groupByAnswer) {
+      // matchingRecords is newest-first. Keep one vote per respondent (their most
+      // recent), then count by answer value so re-votes don't double-count.
+      const seenRespondents = new Set<string>();
+      const counts: Record<string, { value: string; label: string; count: number }> = {};
+      for (const record of matchingRecords) {
+        const respondent =
+          normalizeText(record.userId) || normalizeText(record.sessionId);
+        if (respondent) {
+          if (seenRespondents.has(respondent)) continue;
+          seenRespondents.add(respondent);
+        }
+        const value = normalizeAnswer(record as Partial<LiveSessionAudienceResponseInput>);
+        if (!value) continue;
+        const key = value.toLowerCase();
+        if (!counts[key]) {
+          counts[key] = {
+            value,
+            label: normalizeText(record.answerLabel) || value,
+            count: 0,
+          };
+        }
+        counts[key].count += 1;
+        tallyTotal += 1;
+      }
+      tally = counts;
+    }
+
     return NextResponse.json({
       ok: true,
       respondentCount,
       responseCount,
       fillPercent,
       latestAt,
+      ...(groupByAnswer ? { tally, tallyTotal } : {}),
       ...(includeDetails
         ? {
             records: matchingRecords.map((record) => ({

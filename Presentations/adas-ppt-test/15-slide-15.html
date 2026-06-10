@@ -12,6 +12,23 @@
     .slide { position: relative; width: 100vw; height: 56.25vw; max-height: 100vh; max-width: 177.78vh; overflow: hidden; background: #000; }
     .slide-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
     .overlay-layer { position: absolute; inset: 0; pointer-events: none; }
+    /* Slide 15 only: place the leaderboard just under the "Exploring ADAS"
+       headline, left-aligned with the text (overrides the shared bottom-left). */
+    .deck-leaderboard,
+    body.has-deck-filmstrip .deck-leaderboard,
+    body.has-deck-filmstrip.deck-filmstrip-hidden .deck-leaderboard {
+      top: 55vh !important;
+      bottom: auto !important;
+      left: 9.5vw !important;
+    }
+    /* Slide 15 only: tint the live poll leaderboard neon sky blue to match the
+       slide artwork (overrides the shared deck-controls neon-green). */
+    .deck-leaderboard__dot { background: #38bdf8 !important; box-shadow: 0 0 8px rgba(56, 189, 248, 0.7) !important; }
+    .deck-leaderboard__fill { background: linear-gradient(90deg, #0284c7, #38bdf8) !important; }
+    .deck-leaderboard__card--leading {
+      border-color: rgba(56, 189, 248, 0.85) !important;
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.28) !important;
+    }
   </style>
 </head>
 <body>

@@ -44,8 +44,25 @@ function titleCaseDeckId(deckId) {
 }
 
 function extractSlideDocuments(source) {
-  const pattern = /(?:<!--[\s\S]*?-->\s*)?<!DOCTYPE html>[\s\S]*?<\/html>/gi;
-  return Array.from(source.matchAll(pattern), (match) => match[0].trim()).filter(Boolean);
+  // Be forgiving about real-world pastes: strip markdown code fences that tools
+  // (Stitch, chat assistants) wrap HTML in, e.g. ```html ... ``` or ~~~ ... ~~~.
+  const cleaned = String(source || '')
+    .replace(/^[ \t]*(?:```|~~~)[a-zA-Z0-9-]*[ \t]*$/gm, '')
+    .replace(/(?:```|~~~)+/g, '')
+    .trim();
+
+  // Full documents — DOCTYPE is optional, and an optional leading <!-- label -->
+  // is kept so slide naming still works.
+  const docPattern = /(?:<!--[\s\S]*?-->\s*)?(?:<!DOCTYPE\s+html[^>]*>\s*)?<html[\s\S]*?<\/html>/gi;
+  const documents = Array.from(cleaned.matchAll(docPattern), (match) => match[0].trim()).filter(Boolean);
+  if (documents.length > 0) return documents;
+
+  // Fallback: a fragment that is clearly HTML but missing the <html> wrapper.
+  if (/<(?:body|main|section|article|div|form|h1|h2|button|img|ul|table)\b/i.test(cleaned)) {
+    return [cleaned];
+  }
+
+  return [];
 }
 
 function readCommentLabel(chunk) {
@@ -332,6 +349,16 @@ function writeManifestFile(deckDir, manifest) {
   return writeFile(path.join(deckDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 }
 
+// Inject the shared audience kit into companion pages so roster forms and
+// answer choices auto-wire to a stable per-person identity. Survives re-imports.
+function ensureCompanionKit(html) {
+  if (html.includes('/Presentations/_shared/companion-kit.js')) return html;
+  if (/<\/body>/i.test(html)) {
+    return html.replace(/<\/body>/i, '<script src="/Presentations/_shared/companion-kit.js"></script>\n</body>');
+  }
+  return `${html}\n<script src="/Presentations/_shared/companion-kit.js"></script>`;
+}
+
 function buildCompanionFileName(step, chunk) {
   const commentLabel = readCommentLabel(chunk);
   const htmlTitle = readHtmlTitle(chunk);
@@ -409,11 +436,24 @@ async function main() {
     const existingCompanionFiles = Array.isArray(existingManifest.companion?.files)
       ? existingManifest.companion.files.filter((file) => typeof file === 'string' && file.trim().length > 0)
       : [];
-    const mergedCompanionFiles = Array.from(new Set([...existingCompanionFiles, companionPath]));
+
+    // One companion per step: drop (and delete) any prior file bound to this
+    // step so a re-save replaces it instead of piling up stale duplicates that
+    // shadow the new one in the Saved view.
+    const stepPrefix = `${targetStep.toLowerCase()}-`;
+    const staleStepFiles = existingCompanionFiles.filter((file) =>
+      path.basename(file).toLowerCase().startsWith(stepPrefix)
+      && path.basename(file) !== companionFileName);
+    for (const stale of staleStepFiles) {
+      try { await rm(path.join(deckDir, stale), { force: true }); } catch { /* ignore */ }
+    }
+    const keptCompanionFiles = existingCompanionFiles.filter((file) =>
+      !path.basename(file).toLowerCase().startsWith(stepPrefix));
+    const mergedCompanionFiles = Array.from(new Set([...keptCompanionFiles, companionPath]));
 
     await writeFile(
       path.join(companionDir, companionFileName),
-      companionDocs[0],
+      ensureCompanionKit(companionDocs[0]),
       'utf8',
     );
 
@@ -434,12 +474,22 @@ async function main() {
           }),
         },
         bindingsByStep: {
-          [targetStep]: {
-            slideStep: targetStep,
-            responseKey: responseKey || `${deckId}-${targetStep}`,
-            interactionMode: 'question',
-            mainSlideEffect: 'counter',
-          },
+          // Preserve an existing slide's roster setup (mainSlideEffect / side /
+          // label) across re-imports, so re-saving a companion doesn't turn a
+          // roster slide back into a plain counter.
+          [targetStep]: (() => {
+            const prev = (existingManifest.companion?.bindingsByStep || {})[targetStep] || {};
+            const binding = {
+              slideStep: targetStep,
+              responseKey: responseKey || prev.responseKey || `${deckId}-${targetStep}`,
+              interactionMode: prev.interactionMode || 'question',
+              mainSlideEffect: prev.mainSlideEffect || 'counter',
+            };
+            if (prev.rosterLabel) binding.rosterLabel = prev.rosterLabel;
+            if (prev.rosterSide) binding.rosterSide = prev.rosterSide;
+            if (Array.isArray(prev.leaderboardCategories)) binding.leaderboardCategories = prev.leaderboardCategories;
+            return binding;
+          })(),
         },
       },
     });

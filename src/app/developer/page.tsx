@@ -26,6 +26,8 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Menu,
   Pause,
   Plus,
@@ -702,6 +704,9 @@ export default function DeveloperPage() {
   const [presentationPptxImportBusy, setPresentationPptxImportBusy] = useState(false);
   const [presentationPptxInputKey, setPresentationPptxInputKey] = useState(0);
   const [presentationLoadBusy, setPresentationLoadBusy] = useState(false);
+  const [presentationInsertingBlank, setPresentationInsertingBlank] = useState(false);
+  const [presentationSlideHtmlInput, setPresentationSlideHtmlInput] = useState('');
+  const [presentationSavingSlideHtml, setPresentationSavingSlideHtml] = useState(false);
   const [presentationDeckSearch, setPresentationDeckSearch] = useState('');
   const [lastImportedPresentationHref, setLastImportedPresentationHref] = useState<string | null>(null);
   const [presentationCompanionStep, setPresentationCompanionStep] = useState('slide1');
@@ -719,6 +724,7 @@ export default function DeveloperPage() {
   const [presentationSaveConfirmation, setPresentationSaveConfirmation] = useState<PresentationSaveConfirmation | null>(null);
   const [presentationInPageStepsInput, setPresentationInPageStepsInput] = useState('');
   const [presentationInPageStepsSaving, setPresentationInPageStepsSaving] = useState(false);
+  const [slideImportOpen, setSlideImportOpen] = useState(false);
   const manualCompanionResponseKeyRef = useRef('');
   const presentationImportHtmlRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -1346,6 +1352,129 @@ export default function DeveloperPage() {
     setPresentationCompanionStep(presentationCompanionStepOptions[currentIndex + 1].step);
   }, [presentationCompanionStep, presentationCompanionStepOptions]);
 
+  // Single-file decks that hold all their slides internally (inPageSteps) can't
+  // take a separate blank file, so the insert control is only for multi-file decks.
+  const presentationDeckIsMultiFile = useMemo(() => {
+    if (!selectedPresentationDeck) return false;
+    const { inPageSteps, slides } = selectedPresentationDeck;
+    return !(typeof inPageSteps === 'number' && inPageSteps > slides.length);
+  }, [selectedPresentationDeck]);
+
+  const handleInsertBlankSlide = useCallback(async () => {
+    const deckId = presentationCompanionDeckId.trim();
+    if (!deckId || !selectedPresentationDeck) {
+      toast({ title: 'Choose a deck first', description: 'Load a deck before inserting a blank slide.' });
+      return;
+    }
+    if (!presentationDeckIsMultiFile) {
+      toast({
+        title: 'Not supported for this deck',
+        description: 'This deck holds its slides in a single file. Add slides from the import editor instead.',
+      });
+      return;
+    }
+
+    // Insert AFTER the slide currently selected in the step picker.
+    const afterIndex = presentationCompanionStepOptions.findIndex(
+      (option) => option.step === presentationCompanionStep.trim(),
+    );
+
+    setPresentationInsertingBlank(true);
+    try {
+      const response = await fetch(`/api/presentations/${encodeURIComponent(deckId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'insert-blank', afterIndex }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Unable to insert blank slide.');
+      }
+
+      const insertedFile = typeof payload?.inserted === 'string' ? payload.inserted : '';
+      const insertedStep = insertedFile ? `slide${(insertedFile.match(/^(\d+)/)?.[1] ?? '')}` : '';
+
+      await refreshPresentationDeckOptions();
+      if (insertedStep) setPresentationCompanionStep(insertedStep);
+
+      const positionLabel = Number.isFinite(payload?.position) ? `position ${Number(payload.position) + 1}` : 'the deck';
+      toast({
+        title: 'Blank slide inserted',
+        description: `Added a blank slide at ${positionLabel}. It's empty and ready to edit.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Could not insert slide',
+        description: error instanceof Error ? error.message : 'Unable to insert blank slide.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresentationInsertingBlank(false);
+    }
+  }, [
+    presentationCompanionDeckId,
+    selectedPresentationDeck,
+    presentationDeckIsMultiFile,
+    presentationCompanionStepOptions,
+    presentationCompanionStep,
+    refreshPresentationDeckOptions,
+  ]);
+
+  const handleSaveSlideHtml = useCallback(async () => {
+    const deckId = presentationCompanionDeckId.trim();
+    const slideFile = presentationPreviewSlideOption?.slide;
+    if (!deckId || !slideFile) {
+      toast({ title: 'Pick a slide first', description: 'Load a deck and select the target slide step.' });
+      return;
+    }
+    if (!presentationDeckIsMultiFile) {
+      toast({
+        title: 'Not supported for this deck',
+        description: 'This deck holds its slides in one file. Use the import editor for single-file decks.',
+      });
+      return;
+    }
+    if (!presentationSlideHtmlInput.trim()) {
+      toast({ title: 'Add some HTML', description: 'Paste the slide HTML you want to inject first.' });
+      return;
+    }
+
+    setPresentationSavingSlideHtml(true);
+    try {
+      const response = await fetch(`/api/presentations/${encodeURIComponent(deckId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set-slide-html', slideFile, html: presentationSlideHtmlInput }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Unable to save slide HTML.');
+      }
+
+      await refreshPresentationDeckOptions();
+      // Nudge the live preview to reload the freshly written slide.
+      setPresentationPreviewPlaying(false);
+      toast({
+        title: 'Slide HTML saved',
+        description: `Injected into ${slideFile}. The deck engine was wired in automatically.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Could not save slide HTML',
+        description: error instanceof Error ? error.message : 'Unable to save slide HTML.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPresentationSavingSlideHtml(false);
+    }
+  }, [
+    presentationCompanionDeckId,
+    presentationPreviewSlideOption,
+    presentationDeckIsMultiFile,
+    presentationSlideHtmlInput,
+    refreshPresentationDeckOptions,
+  ]);
+
   const handleTogglePresentationPlayback = useCallback(() => {
     if (presentationPreviewPlaying) {
       setPresentationPreviewPlaying(false);
@@ -1855,6 +1984,8 @@ export default function DeveloperPage() {
       const href = typeof payload?.href === 'string' ? payload.href : '/Presentations';
       setPresentationCompanionDeckId(targetDeckId);
       manualCompanionResponseKeyRef.current = presentationCompanionResponseKey.trim();
+      // Show the freshly saved companion so the draft -> saved move is visible.
+      setPresentationCompanionPreviewMode('saved');
       void refreshPresentationDeckOptions();
 
       toast({
@@ -4124,6 +4255,7 @@ export default function DeveloperPage() {
       </Card>
 
       <div className="space-y-6">
+        <Collapsible open={slideImportOpen} onOpenChange={setSlideImportOpen}>
         <Card>
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -4153,12 +4285,30 @@ export default function DeveloperPage() {
                   </span>
                 </p>
               </div>
-              <Button type="button" variant="outline" onClick={handleAddNewSlide}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Slide
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={handleAddNewSlide}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add New Slide
+                </Button>
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm">
+                    {slideImportOpen ? (
+                      <>
+                        <ChevronUp className="mr-1 h-4 w-4" />
+                        Collapse
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="mr-1 h-4 w-4" />
+                        Expand
+                      </>
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
             </div>
           </CardHeader>
+          <CollapsibleContent>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -4362,7 +4512,9 @@ export default function DeveloperPage() {
               </Button>
             </div>
           </CardContent>
+          </CollapsibleContent>
         </Card>
+        </Collapsible>
 
         <Card className="overflow-hidden">
           <CardHeader className="space-y-2">
@@ -4470,6 +4622,14 @@ export default function DeveloperPage() {
                               : 'Paste companion HTML to preview it live here.'}
                           </p>
                         </div>
+                        <Button
+                          size="sm"
+                          onClick={() => void handleImportCompanion()}
+                          disabled={presentationCompanionBusy || presentationCompanionHtml.trim().length === 0}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          {presentationCompanionBusy ? 'Saving…' : 'Save Companion'}
+                        </Button>
                       </div>
                       <div className="relative mx-auto aspect-[9/19.5] w-full max-w-[300px] overflow-hidden rounded-[2.25rem] border-4 border-white/15 bg-black/60 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
                         <iframe
@@ -4560,8 +4720,67 @@ export default function DeveloperPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {presentationDeckIsMultiFile ? (
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleInsertBlankSlide}
+                      disabled={!selectedPresentationDeck || presentationInsertingBlank || presentationLoadBusy}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      {presentationInsertingBlank ? 'Inserting…' : 'Insert blank slide after this one'}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Adds an empty slide right after the selected step.
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
+            {presentationDeckIsMultiFile ? (
+              <div className="space-y-2 rounded-lg border border-border/60 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="presentation-slide-html">
+                    Slide HTML (main slide content)
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    Targets: {presentationPreviewSlideOption?.slide ?? '—'}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Paste HTML (full document or a fragment) to fill the selected slide. The deck engine is
+                  injected automatically so navigation and live controls keep working — great for blank slides.
+                </p>
+                <Textarea
+                  id="presentation-slide-html"
+                  value={presentationSlideHtmlInput}
+                  onChange={(event) => setPresentationSlideHtmlInput(event.target.value)}
+                  placeholder="<!DOCTYPE html> … or just <section>…</section>"
+                  className="min-h-[140px] font-mono text-xs"
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveSlideHtml}
+                    disabled={
+                      !selectedPresentationDeck
+                      || presentationSavingSlideHtml
+                      || presentationLoadBusy
+                      || !presentationSlideHtmlInput.trim()
+                    }
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    {presentationSavingSlideHtml ? 'Saving…' : 'Save slide HTML'}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Overwrites the selected slide&apos;s file. Order and companion bindings stay intact.
+                  </span>
+                </div>
+              </div>
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="presentation-companion-response-key">Response Key</Label>

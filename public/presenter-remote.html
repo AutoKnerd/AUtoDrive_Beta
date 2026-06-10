@@ -185,6 +185,38 @@
     <p class="text-on-surface-variant text-sm" id="fbStatus">Waiting for audience responses on this slide…</p>
   </section>
 
+  <!-- ===================== ROSTER VIEW ===================== -->
+  <section class="view flex-col gap-4 pt-4" id="view-roster">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="font-headline-md text-headline-md text-on-surface">Session Roster</h2>
+        <p class="text-on-surface-variant text-sm">Everyone enrolled this session.</p>
+      </div>
+      <div class="flex flex-col items-end">
+        <span class="font-label-caps text-[10px] text-outline">ENROLLED</span>
+        <span class="font-timer-display text-4xl text-secondary" id="rosterCount">0</span>
+      </div>
+    </div>
+    <ul class="flex flex-col gap-3" id="rosterList"></ul>
+    <p class="text-on-surface-variant text-sm" id="rosterEmpty">No one has enrolled yet. Show the Audience QR and have the room scan in.</p>
+
+    <!-- Person detail: their answers across the session -->
+    <div id="rosterDetail" class="hidden flex-col gap-4">
+      <button id="rosterBack" type="button" class="flex items-center gap-1 text-primary font-label-caps text-label-caps self-start">
+        <span class="material-symbols-outlined text-[18px]">arrow_back</span> Roster
+      </button>
+      <div class="bg-surface-container-high rounded-2xl p-5">
+        <h3 class="font-headline-md text-headline-md text-on-surface" id="rdName">—</h3>
+        <p class="text-on-surface-variant text-sm" id="rdMeta"></p>
+      </div>
+      <div>
+        <span class="font-label-caps text-label-caps text-on-surface-variant">Answers this session</span>
+        <ul class="flex flex-col gap-3 mt-3" id="rdAnswers"></ul>
+        <p class="text-on-surface-variant text-sm" id="rdEmpty">No answers recorded yet.</p>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <!-- Primary thumb-zone Prev/Next is in Control. Bottom nav switches views. -->
@@ -193,9 +225,9 @@
     <span class="material-symbols-outlined">play_arrow</span>
     <span class="font-label-caps text-label-caps">Control</span>
   </button>
-  <button class="navlink flex flex-col items-center justify-center text-on-surface-variant p-2 px-4 active:scale-95 transition-all" data-view="notes">
-    <span class="material-symbols-outlined">description</span>
-    <span class="font-label-caps text-label-caps">Notes</span>
+  <button class="navlink flex flex-col items-center justify-center text-on-surface-variant p-2 px-4 active:scale-95 transition-all" data-view="roster">
+    <span class="material-symbols-outlined">groups</span>
+    <span class="font-label-caps text-label-caps">Roster</span>
   </button>
   <button class="navlink flex flex-col items-center justify-center text-on-surface-variant p-2 px-4 active:scale-95 transition-all" data-view="feedback">
     <span class="material-symbols-outlined">analytics</span>
@@ -398,6 +430,77 @@
     } catch (e) { /* ignore */ }
   }
 
+  // Session roster — enrolled audience members (scoped by the room's token).
+  async function pollRoster() {
+    if (!state.sessionToken) return;
+    try {
+      const url = new URL(`${API}/roster`, location.origin);
+      url.searchParams.set('sessionToken', state.sessionToken);
+      url.searchParams.set('room', ROOM);
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      if (!res.ok) return;
+      const p = await res.json();
+      const entries = Array.isArray(p.entries) ? p.entries : [];
+      $('rosterCount').textContent = entries.length;
+      $('rosterEmpty').style.display = entries.length ? 'none' : 'block';
+      const list = $('rosterList');
+      list.innerHTML = '';
+      entries.forEach((e) => {
+        const li = document.createElement('li');
+        li.className = 'bg-surface-container-high rounded-xl p-4 flex items-center justify-between gap-3 active:scale-[0.99] transition-transform cursor-pointer';
+        const meta = [e.dealerCode ? `Dealer ${e.dealerCode}` : '', e.kuid || ''].filter(Boolean).join(' · ');
+        li.innerHTML = `<div class="min-w-0"><p class="text-on-surface font-body-md truncate"></p><p class="text-on-surface-variant text-xs truncate"></p></div><span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>`;
+        li.querySelector('p:first-child').textContent = e.name || 'Guest';
+        li.querySelector('p:last-child').textContent = meta;
+        if (e.userId) li.addEventListener('click', () => showPerson(e.userId, e.name, meta));
+        list.appendChild(li);
+      });
+      // Keep an open person's answers live while new ones arrive.
+      if (activeRosterUserId) loadPersonAnswers(activeRosterUserId);
+    } catch (e) { /* ignore */ }
+  }
+
+  // Click a roster name -> that person's answers across the whole session.
+  let activeRosterUserId = null;
+  function backToRoster() {
+    activeRosterUserId = null;
+    $('rosterDetail').classList.add('hidden');
+    $('rosterList').classList.remove('hidden');
+    $('rosterEmpty').classList.remove('hidden');
+  }
+  async function showPerson(userId, name, meta) {
+    activeRosterUserId = userId;
+    $('rosterList').classList.add('hidden');
+    $('rosterEmpty').classList.add('hidden');
+    $('rosterDetail').classList.remove('hidden');
+    $('rosterDetail').classList.add('flex');
+    $('rdName').textContent = name || 'Guest';
+    $('rdMeta').textContent = meta || '';
+    await loadPersonAnswers(userId);
+  }
+  async function loadPersonAnswers(userId) {
+    try {
+      const url = new URL(`${API}/session-data`, location.origin);
+      url.searchParams.set('sessionToken', state.sessionToken);
+      url.searchParams.set('userId', userId);
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      const p = res.ok ? await res.json() : {};
+      const answers = (p.person && Array.isArray(p.person.answers)) ? p.person.answers : [];
+      const ul = $('rdAnswers');
+      ul.innerHTML = '';
+      $('rdEmpty').style.display = answers.length ? 'none' : 'block';
+      answers.forEach((a) => {
+        const slideNum = (a.slideStep || '').replace(/^slide/, '');
+        const li = document.createElement('li');
+        li.className = 'bg-surface-container rounded-xl p-4';
+        li.innerHTML = `<div class="flex items-center justify-between gap-2 mb-1"><span class="font-label-caps text-[10px] text-outline"></span></div><p class="text-on-surface font-body-md"></p>`;
+        li.querySelector('span').textContent = slideNum ? `SLIDE ${slideNum}` : (a.responseKey || '').toUpperCase();
+        li.querySelector('p').textContent = a.answerLabel || a.answer || '—';
+        ul.appendChild(li);
+      });
+    } catch (e) { /* ignore */ }
+  }
+
   // --- View + sub-tab switching ---
   function setView(view) {
     document.querySelectorAll('.view').forEach((v) => v.classList.toggle('is-active', v.id === `view-${view}`));
@@ -426,6 +529,7 @@
   $('subtab-deck').addEventListener('click', () => setSubtab('deck'));
 
   // --- Buttons ---
+  $('rosterBack').addEventListener('click', backToRoster);
   $('prevBtn').addEventListener('click', () => navigate(-1));
   $('nextBtn').addEventListener('click', () => navigate(1));
   document.addEventListener('keydown', (e) => {
@@ -476,6 +580,8 @@
     es.onerror = () => {};
 
     setInterval(pollFeedback, 2000);
+    setInterval(pollRoster, 2500);
+    pollRoster();
   }
   init();
 })();

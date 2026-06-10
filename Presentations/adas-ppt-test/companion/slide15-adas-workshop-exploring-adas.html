@@ -1,0 +1,252 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>ADAS Workshop - Exploring ADAS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#0ea5e9",
+                        "tertiary-fixed": "#e1e2e9",
+                        "on-primary-fixed": "#052433",
+                        "surface-container-highest": "#353436",
+                        "on-surface-variant": "#aebccb",
+                        "outline-variant": "#36454e",
+                        "tertiary": "#ffffff",
+                        "surface-tint": "#0ea5e9",
+                        "secondary-fixed-dim": "#c6c6c9",
+                        "on-primary-fixed-variant": "#0c4a6e",
+                        "error": "#ffb4ab",
+                        "on-tertiary": "#2d3135",
+                        "secondary-container": "#454749",
+                        "on-tertiary-fixed": "#191c20",
+                        "primary": "#ffffff",
+                        "on-background": "#e5e2e3",
+                        "on-secondary-fixed-variant": "#454749",
+                        "on-tertiary-fixed-variant": "#44474c",
+                        "tertiary-fixed-dim": "#c4c6cc",
+                        "surface-bright": "#3a393a",
+                        "surface-dim": "#131314",
+                        "surface-container-lowest": "#0e0e0f",
+                        "secondary-fixed": "#e2e2e5",
+                        "on-error": "#690005",
+                        "surface-container-low": "#1c1b1c",
+                        "on-primary": "#06283a",
+                        "inverse-on-surface": "#313031",
+                        "inverse-primary": "#0369a1",
+                        "inverse-surface": "#e5e2e3",
+                        "surface": "#131314",
+                        "on-secondary-fixed": "#1a1c1e",
+                        "on-secondary-container": "#b4b5b7",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary": "#2f3133",
+                        "on-primary-container": "#075985",
+                        "tertiary-container": "#e1e2e9",
+                        "surface-container-high": "#2a2a2b",
+                        "primary-container": "#38bdf8",
+                        "outline": "#8a947b",
+                        "error-container": "#93000a",
+                        "primary-fixed": "#38bdf8",
+                        "background": "#131314",
+                        "on-surface": "#e5e2e3",
+                        "surface-variant": "#353436",
+                        "surface-container": "#201f20",
+                        "on-tertiary-container": "#62646a",
+                        "secondary": "#c6c6c9",
+                        "neon-green": "#38bdf8"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin-desktop": "48px",
+                        "unit": "4px",
+                        "container-max": "1440px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "touch-target-min": "48px",
+                        "spacing-stack-gap": "16px",
+                        "container-margin": "20px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Sora"],
+                        "headline-lg-mobile": ["Sora"],
+                        "label-md": ["Sora"],
+                        "headline-xl": ["Sora"],
+                        "body-md": ["Sora"],
+                        "label-sm": ["Sora"],
+                        "headline-lg": ["Sora"],
+                        "body-lg": ["Sora"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "label-caps": ["10px", {"lineHeight": "12px", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                        "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0B;
+            font-family: 'Sora', sans-serif;
+            color: #e5e2e3;
+            -webkit-font-smoothing: antialiased;
+        }
+        .neon-glow {
+            box-shadow: 0px 0px 12px rgba(56, 189, 248, 0.4);
+        }
+        .glass-panel {
+            background: rgba(26, 28, 30, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid #3A3D42;
+        }
+        .segmented-bar {
+            background: linear-gradient(90deg, #38bdf8 70%, transparent 70%);
+            background-size: 8px 100%;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+<!-- TopAppBar -->
+
+<main class="flex-grow pb-24">
+<!-- Hero Section with Background Image -->
+<section class="relative w-full aspect-[16/9] md:aspect-[21/9] overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent z-10"></div>
+<img alt="" class="w-full h-full object-cover grayscale-[0.2] brightness-75" src="https://lh3.googleusercontent.com/aida/AP1WRLtv7iWDtUnEwYXR09EdV6nNfcQ8nMoSzOR3wnme2Ahpu6Uynz7PdP4STgiHain2GS4Yb8Et9MSzmUZ_9kLFBD_MwChBgSBjjaOEQr6_boPYAIrcSGSh9szHOA1tdv9mwqpV3NpJxSfdicQzd5WhaQzug6g6KXRlTr6asoX4zxSvkzNy1_IBaxzlTw6R_29N7Hkrp88M8kVG7pt4LujquXfG_LO5JZhFqmQsHwmfeLS0TAHIS355htTDQw">
+<div class="absolute bottom-0 left-0 p-container-margin z-20 w-full">
+<p class="text-neon-green font-label-md tracking-widest uppercase mb-1">Module 03</p>
+<h2 class="font-headline-xl text-headline-xl text-primary leading-tight">EXPLORING ADAS</h2>
+</div>
+</section>
+<div class="px-container-margin space-y-8 mt-6">
+<!-- Intro Text -->
+<section class="space-y-4">
+<div class="flex items-center gap-2">
+<div class="w-1 h-6 bg-neon-green rounded-full"></div>
+<h3 class="font-headline-md text-headline-md text-primary">03 Exploring ADAS</h3>
+</div>
+<p class="font-body-md text-on-surface-variant leading-relaxed">
+                    Welcome to the deep-dive phase of the ADAS Workshop. In this module, we analyze the core functional pillars of Advanced Driver Assistance Systems. Our objective is to review primary features, understand their technical purposes, and evaluate the safety value they provide in real-world driving scenarios.
+                </p>
+</section>
+<!-- Grid of Categories -->
+<section class="grid grid-cols-1 gap-gutter" data-ak-group data-ak-key="adas-ppt-test-slide15">
+<!-- Driving Card -->
+<div class="glass-panel rounded-xl p-spacing-stack-gap group active:scale-[0.98] transition-transform duration-200 cursor-pointer" style="border-color: rgb(58, 61, 66);" data-ak-answer="driving" data-ak-label="Driving">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-neon-green/10 rounded-lg">
+<span class="material-symbols-outlined text-neon-green text-3xl">radar</span>
+</div>
+
+<div class="w-6 h-6 border border-outline-variant rounded flex items-center justify-center group-hover:border-neon-green transition-colors">
+  <div class="w-2 h-2 bg-neon-green rounded-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div></div>
+<h4 class="font-headline-md text-primary mb-2">Driving</h4>
+<p class="font-label-sm text-on-surface-variant">Active assistance for highway cruising, lane centering, and adaptive speed control.</p>
+<div class="mt-4 pt-4 border-t border-outline-variant flex gap-2">
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">SCC</span>
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">LFA</span>
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">HDA II</span>
+</div>
+</div>
+<!-- Parking Card -->
+<div class="glass-panel rounded-xl p-spacing-stack-gap group active:scale-[0.98] transition-transform duration-200 cursor-pointer" style="border-color: rgb(58, 61, 66);" data-ak-answer="parking" data-ak-label="Parking">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-neon-green/10 rounded-lg">
+<span class="material-symbols-outlined text-neon-green text-3xl">precision_manufacturing</span>
+</div>
+
+<div class="w-6 h-6 border border-outline-variant rounded flex items-center justify-center group-hover:border-neon-green transition-colors">
+  <div class="w-2 h-2 bg-neon-green rounded-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div></div>
+<h4 class="font-headline-md text-primary mb-2">Parking</h4>
+<p class="font-label-sm text-on-surface-variant">Automated maneuvers, 360° surround views, and collision avoidance in tight spaces.</p>
+<div class="mt-4 pt-4 border-t border-outline-variant flex gap-2">
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">SVM</span>
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">RSPA 2</span>
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">PCA</span>
+</div>
+</div>
+<!-- Visibility Card -->
+<div class="glass-panel rounded-xl p-spacing-stack-gap group active:scale-[0.98] transition-transform duration-200 cursor-pointer" style="border-color: rgb(58, 61, 66);" data-ak-answer="visibility" data-ak-label="Visibility">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-neon-green/10 rounded-lg">
+<span class="material-symbols-outlined text-neon-green text-3xl">visibility</span>
+</div>
+
+<div class="w-6 h-6 border border-outline-variant rounded flex items-center justify-center group-hover:border-neon-green transition-colors">
+  <div class="w-2 h-2 bg-neon-green rounded-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div></div>
+<h4 class="font-headline-md text-primary mb-2">Visibility</h4>
+<p class="font-label-sm text-on-surface-variant">Blind-spot monitoring, night vision enhancements, and intelligent high-beam control.</p>
+<div class="mt-4 pt-4 border-t border-outline-variant flex gap-2">
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">BVM</span>
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">HBA</span>
+<span class="text-[10px] font-bold px-2 py-1 bg-surface-container-highest rounded text-on-surface">RCCA</span>
+</div>
+</div>
+</section>
+<!-- Technology Explained Section -->
+<p id="voteStatus" class="text-center font-label-sm mt-6" style="min-height:20px;color:#38bdf8;"></p>
+</div>
+</main>
+<style>
+  [data-ak-answer].ak-selected {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 16px rgba(56,189,248,0.35);
+  }
+  [data-ak-answer].ak-selected .w-2.h-2 { opacity: 1 !important; }
+</style>
+<script>
+  // Show a short confirmation when a category is chosen.
+  (function () {
+    var status = document.getElementById('voteStatus');
+    document.querySelectorAll('[data-ak-answer]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var label = el.getAttribute('data-ak-label') || el.getAttribute('data-ak-answer');
+        if (status) status.textContent = 'Locked in: ' + label + ' — thanks for voting!';
+      });
+    });
+  })();
+</script>
+<!-- BottomNavBar -->
+
+<script>
+        // Micro-interactions for tactile feedback
+        document.querySelectorAll('.glass-panel').forEach(card => {
+            card.addEventListener('mousedown', () => {
+                card.style.borderColor = '#38bdf8';
+            });
+            card.addEventListener('mouseup', () => {
+                card.style.borderColor = '#3A3D42';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.borderColor = '#3A3D42';
+            });
+        });
+    </script>
+
+
+<script src="/Presentations/_shared/companion-kit.js"></script>
+</body></html>

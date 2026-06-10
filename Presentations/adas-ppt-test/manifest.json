@@ -3,7 +3,7 @@
   "title": "ADAS PPT TEST",
   "description": "Imported from a PowerPoint presentation.",
   "entry": "index.html",
-  "slideCount": 31,
+  "slideCount": 35,
   "slides": [
     "01-slide-1.html",
     "02-slide-2.html",
@@ -19,15 +19,18 @@
     "12-slide-12.html",
     "13-slide-13.html",
     "14-slide-14.html",
+    "34-baseline.html",
     "15-slide-15.html",
     "16-slide-16.html",
     "17-slide-17.html",
     "18-slide-18.html",
+    "32-blank.html",
     "19-slide-19.html",
     "20-slide-20.html",
     "21-slide-21.html",
     "22-slide-22.html",
     "23-slide-23.html",
+    "33-consulting.html",
     "24-slide-24.html",
     "25-slide-25.html",
     "26-slide-26.html",
@@ -35,6 +38,7 @@
     "28-slide-28.html",
     "29-slide-29.html",
     "30-slide-30.html",
+    "35-impact.html",
     "31-slide-31.html"
   ],
   "audience": {
@@ -258,16 +262,45 @@
         "body": "This slide is ready for live overlay content.",
         "prompt": "Keep this page open. It updates as the presentation moves.",
         "speakerNotes": []
+      },
+      "slide32": {
+        "eyebrow": "Live Session",
+        "title": "Slide 31",
+        "body": "You are viewing synced audience content for Slide 31.",
+        "prompt": "Keep this page open. It updates as the presentation advances."
       }
     }
   },
   "companion": {
     "enabled": true,
-    "entry": "companion/slide6-adas-workshop-agenda.html",
+    "entry": "companion/slide32-drive-os-ai-driver-confidence-profile.html",
     "files": [
-      "companion/slide8-adas-workshop-slide-9.html",
-      "companion/slide9-adas-workshop-sensor-suite.html",
-      "companion/slide6-adas-workshop-agenda.html"
+      "companion/slide4-adas-workshop-enrollment.html",
+      "companion/slide4-adas-workshop-slide-9.html",
+      "companion/slide6-slide7.html",
+      "companion/slide7-adas-workshop-slide-9.html",
+      "companion/slide8-sensor-diagnostics.html",
+      "companion/slide14-adas-workshop-enrollment.html",
+      "companion/slide15-adas-workshop-exploring-adas.html",
+      "companion/slide16-driving-confidence-profile.html",
+      "companion/slide17-slide17.html",
+      "companion/slide18-visibility-confidence-profile.html",
+      "companion/slide32-drive-os-ai-driver-confidence-profile.html",
+      "companion/slide19-telluride-sensors.html",
+      "companion/slide20-forward-attention-warning.html",
+      "companion/slide21-consulting-primer.html",
+      "companion/slide22-consulting-jamie.html",
+      "companion/slide23-consulting-ryan.html",
+      "companion/slide33-consulting-scorecard.html",
+      "companion/slide28-optin.html",
+      "companion/slide34-baseline.html",
+      "companion/slide30-posttest.html",
+      "companion/slide35-impact.html",
+      "companion/slide24-wrapup.html",
+      "companion/slide25-takeaways.html",
+      "companion/slide26-resources.html",
+      "companion/slide27-nextsteps.html",
+      "companion/slide29-evaluation.html"
     ],
     "contentByStep": {
       "slide8": {
@@ -281,8 +314,8 @@
       },
       "slide9": {
         "eyebrow": "Companion App",
-        "title": "ADAS Workshop - Sensor Suite",
-        "body": "Companion content for ADAS Workshop - Sensor Suite.",
+        "title": "ADAS Workshop - Sensor Diagnostics",
+        "body": "Companion content for ADAS Workshop - Sensor Diagnostics.",
         "prompt": "This companion page can now be wired to the main presentation.",
         "speakerNotes": [
           "Binds to slide9"
@@ -295,6 +328,159 @@
         "prompt": "This companion page can now be wired to the main presentation.",
         "speakerNotes": [
           "Binds to slide6"
+        ]
+      },
+      "slide5": {
+        "eyebrow": "Companion App",
+        "title": "ADAS Workshop Enrollment",
+        "body": "Companion content for ADAS Workshop Enrollment.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide5"
+        ]
+      },
+      "slide7": {
+        "eyebrow": "Companion App",
+        "title": "Adas Ppt Test",
+        "body": "Companion content for Adas Ppt Test.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide7"
+        ]
+      },
+      "slide30": {
+        "eyebrow": "Companion App",
+        "title": "Adas Ppt Test",
+        "body": "Companion content for Adas Ppt Test.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide30"
+        ]
+      },
+      "slide15": {
+        "eyebrow": "Companion App",
+        "title": "ADAS Workshop - Exploring ADAS",
+        "body": "Companion content for ADAS Workshop - Exploring ADAS.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide15"
+        ]
+      },
+      "slide14": {
+        "eyebrow": "Companion App",
+        "title": "ADAS Workshop Enrollment",
+        "body": "Companion content for ADAS Workshop Enrollment.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide14"
+        ]
+      },
+      "slide16": {
+        "eyebrow": "Companion App",
+        "title": "Driving Confidence Profile",
+        "body": "Companion content for Driving Confidence Profile.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide16"
+        ]
+      },
+      "slide17": {
+        "eyebrow": "Companion App",
+        "title": "Adas Ppt Test",
+        "body": "Companion content for Adas Ppt Test.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide17"
+        ]
+      },
+      "slide18": {
+        "eyebrow": "Companion App",
+        "title": "Visibility Confidence Profile",
+        "body": "Companion content for Visibility Confidence Profile.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide18"
+        ]
+      },
+      "slide32": {
+        "eyebrow": "Companion App",
+        "title": "DRIVE_OS | AI Driver Confidence Profile",
+        "body": "Companion content for DRIVE_OS | AI Driver Confidence Profile.",
+        "prompt": "This companion page can now be wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide32"
+        ]
+      },
+      "slide19": {
+        "eyebrow": "Companion App",
+        "title": "Telluride Driver Attention Tech",
+        "body": "Companion content for Telluride Driver Attention Tech.",
+        "prompt": "Wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide19"
+        ]
+      },
+      "slide20": {
+        "eyebrow": "Companion App",
+        "title": "Forward Attention Warning",
+        "body": "Companion content for Forward Attention Warning.",
+        "prompt": "Wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide20"
+        ]
+      },
+      "slide21": {
+        "eyebrow": "Companion App",
+        "title": "Consulting with Customers",
+        "body": "Companion content for Consulting with Customers.",
+        "prompt": "Wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide21"
+        ]
+      },
+      "slide22": {
+        "eyebrow": "Companion App",
+        "title": "Consulting with Jamie",
+        "body": "Companion content for Consulting with Jamie.",
+        "prompt": "Wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide22"
+        ]
+      },
+      "slide23": {
+        "eyebrow": "Companion App",
+        "title": "Consulting with Ryan",
+        "body": "Companion content for Consulting with Ryan.",
+        "prompt": "Wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide23"
+        ]
+      },
+      "slide33": {
+        "eyebrow": "Companion App",
+        "title": "Consulting Performance",
+        "body": "Companion content for Consulting Performance.",
+        "prompt": "Wired to the main presentation.",
+        "speakerNotes": [
+          "Binds to slide33"
+        ]
+      },
+      "slide34": {
+        "eyebrow": "Companion App",
+        "title": "Quick Baseline Check",
+        "body": "Baseline confidence + knowledge check.",
+        "prompt": "Open your companion.",
+        "speakerNotes": [
+          "Binds to slide34"
+        ]
+      },
+      "slide35": {
+        "eyebrow": "Companion App",
+        "title": "Session Impact",
+        "body": "Your session impact.",
+        "prompt": "See your results.",
+        "speakerNotes": [
+          "Binds to slide35"
         ]
       }
     },
@@ -380,14 +566,30 @@
       "slide14": {
         "slideStep": "slide14",
         "responseKey": "adas-ppt-test-slide14",
-        "interactionMode": "question",
-        "mainSlideEffect": "counter"
+        "interactionMode": "roster",
+        "mainSlideEffect": "roster",
+        "rosterLabel": "Locked In",
+        "rosterSide": "left"
       },
       "slide15": {
         "slideStep": "slide15",
         "responseKey": "adas-ppt-test-slide15",
-        "interactionMode": "question",
-        "mainSlideEffect": "counter"
+        "interactionMode": "poll",
+        "mainSlideEffect": "leaderboard",
+        "leaderboardCategories": [
+          {
+            "value": "driving",
+            "label": "Driving"
+          },
+          {
+            "value": "parking",
+            "label": "Parking"
+          },
+          {
+            "value": "visibility",
+            "label": "Visibility"
+          }
+        ]
       },
       "slide16": {
         "slideStep": "slide16",
@@ -484,9 +686,33 @@
         "responseKey": "adas-ppt-test-slide31",
         "interactionMode": "question",
         "mainSlideEffect": "counter"
+      },
+      "slide32": {
+        "slideStep": "slide32",
+        "responseKey": "adas-ppt-test-slide32",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide33": {
+        "slideStep": "slide33",
+        "responseKey": "adas-ppt-test-slide33",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide34": {
+        "slideStep": "slide34",
+        "responseKey": "adas-ppt-test-pretest",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      },
+      "slide35": {
+        "slideStep": "slide35",
+        "responseKey": "adas-ppt-test-posttest",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
       }
     }
   },
   "createdAt": "2026-06-07T19:40:41.462Z",
-  "updatedAt": "2026-06-07T20:39:55.769Z"
+  "updatedAt": "2026-06-09T00:00:00.000Z"
 }

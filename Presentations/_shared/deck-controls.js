@@ -144,6 +144,29 @@
   `;
   document.body.appendChild(responseRail);
 
+  // Live roster overlay (bottom-left of the slide) — names appear as audience
+  // members enroll via the companion "Initialize Session" form.
+  const rosterOverlay = document.createElement('div');
+  rosterOverlay.className = 'deck-roster';
+  rosterOverlay.setAttribute('aria-hidden', 'true');
+  rosterOverlay.innerHTML = `
+    <div class="deck-roster__label">On the roster</div>
+    <ul class="deck-roster__list" data-role="roster-list"></ul>
+  `;
+  document.body.appendChild(rosterOverlay);
+  const rosterListEl = rosterOverlay.querySelector('[data-role="roster-list"]');
+  let lastRosterSignature = '';
+  let rosterNames = [];
+
+  // Live poll leaderboard overlay (lower-left of the slide). Shows on the slide
+  // whose companion binding is marked mainSlideEffect:'leaderboard'; each card's
+  // count + bar reflect live votes coming in from the companion.
+  const leaderboardOverlay = document.createElement('div');
+  leaderboardOverlay.className = 'deck-leaderboard';
+  leaderboardOverlay.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(leaderboardOverlay);
+  let lastLeaderboardSignature = '';
+
   const presentationShell = document.createElement('div');
   presentationShell.className = 'deck-present-shell';
   presentationShell.innerHTML = `
@@ -179,6 +202,13 @@
   const presentationFrame = presentationShell.querySelector('.deck-present-shell__frame');
   let currentSessionToken = null;
   let currentAudienceUrl = null;
+
+  // Expose live-session identity so injected slide scripts (e.g. the slide 32
+  // AI confidence profile) can query room-scoped data without re-deriving it.
+  window.DeckLive = window.DeckLive || {};
+  window.DeckLive.room = liveRoom;
+  window.DeckLive.deckId = deckId;
+  window.DeckLive.getSessionToken = () => currentSessionToken;
   let responseRefreshTimer = null;
   let liveSessionEventSource = null;
   let lastRespondentCount = -1;
@@ -837,6 +867,9 @@
     nextZone.disabled = currentIndex === -1 || currentIndex >= slideOrder.length - 1;
 
     updateFilmstripActive();
+    applyRosterVisibility();
+    applyLeaderboardVisibility(leaderboardStepBinding());
+    void syncLeaderboard();
   };
 
   // --- Slide thumbnail filmstrip (multi-file decks) ---
@@ -848,6 +881,15 @@
     if (currentIndex === -1) return;
     navigateByOffset(index - currentIndex);
   };
+
+  // Let injected slide content (e.g. the slide 32 AI feature cards) jump the deck
+  // to a specific slide — behaves exactly like clicking that filmstrip thumbnail,
+  // so the audience follows in a live session.
+  window.DeckLive.goToSlideNumber = (n) => {
+    const idx = Math.floor(Number(n)) - 1;
+    if (Number.isFinite(idx) && idx >= 0 && idx < slideOrder.length) navigateToIndex(idx);
+  };
+  window.DeckLive.slideCount = () => slideOrder.length;
 
   const loadThumbFrame = (thumb) => {
     const frame = thumb && thumb.querySelector ? thumb.querySelector('iframe') : null;
@@ -1034,6 +1076,126 @@
     }
   };
 
+  // The roster overlay only shows on the slide whose companion binding is marked
+  // as a roster (so names don't follow you onto every slide). Per-slide the
+  // binding can set the label ("On the roster" / "Locked In") and side.
+  const rosterStepBinding = () => {
+    const step = inferStepFromFile(activeSlideFile, currentIndex + 1);
+    const binding = getCompanionBindingForStep(step);
+    return (binding && (binding.mainSlideEffect === 'roster' || binding.interactionMode === 'roster')) ? binding : null;
+  };
+  const applyRosterVisibility = () => {
+    const binding = rosterStepBinding();
+    const show = rosterNames.length > 0 && Boolean(binding);
+    rosterOverlay.classList.toggle('deck-roster--visible', show);
+    if (binding) {
+      const labelEl = rosterOverlay.querySelector('.deck-roster__label');
+      if (labelEl) labelEl.textContent = binding.rosterLabel || 'On the roster';
+      rosterOverlay.classList.toggle('deck-roster--left', binding.rosterSide === 'left');
+    }
+  };
+
+  // Live roster — names enrolled via the companion form, shown bottom-left.
+  const syncRoster = async () => {
+    if (!currentSessionToken) return;
+    try {
+      const url = new URL('/api/live-session/roster', window.location.origin);
+      url.searchParams.set('sessionToken', currentSessionToken);
+      url.searchParams.set('room', liveRoom);
+      const response = await fetch(url.toString(), { cache: 'no-store' });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+      const names = entries.map((entry) => String(entry?.name || '').trim()).filter(Boolean);
+      const signature = names.join('|');
+      if (signature === lastRosterSignature) return;
+      lastRosterSignature = signature;
+
+      rosterNames = names;
+      if (rosterListEl instanceof HTMLElement) {
+        rosterListEl.innerHTML = '';
+        names.forEach((name) => {
+          const li = document.createElement('li');
+          li.className = 'deck-roster__name';
+          li.textContent = name;
+          rosterListEl.appendChild(li);
+        });
+        // Keep the newest lock-ins in view when the list overflows.
+        rosterListEl.scrollTop = rosterListEl.scrollHeight;
+      }
+      applyRosterVisibility();
+    } catch (error) {
+      // Keep the deck usable even if roster polling blips.
+    }
+  };
+
+  // --- Live poll leaderboard ----------------------------------------------
+  // The binding turns this on per slide (mainSlideEffect:'leaderboard') and
+  // supplies the category list it should always show, e.g.
+  //   leaderboardCategories: [{ value:'driving', label:'Driving' }, ...]
+  const DEFAULT_LEADERBOARD_CATEGORIES = [
+    { value: 'driving', label: 'Driving' },
+    { value: 'parking', label: 'Parking' },
+    { value: 'visibility', label: 'Visibility' },
+  ];
+  const leaderboardStepBinding = () => {
+    const step = inferStepFromFile(activeSlideFile, currentIndex + 1);
+    const binding = getCompanionBindingForStep(step);
+    return (binding && binding.mainSlideEffect === 'leaderboard') ? binding : null;
+  };
+  const renderLeaderboard = (binding, tally, total) => {
+    const categories = (Array.isArray(binding.leaderboardCategories) && binding.leaderboardCategories.length)
+      ? binding.leaderboardCategories
+      : DEFAULT_LEADERBOARD_CATEGORIES;
+    const counts = categories.map((cat) => {
+      const hit = tally ? tally[String(cat.value).toLowerCase()] : null;
+      return { label: cat.label || cat.value, count: hit && Number.isFinite(hit.count) ? hit.count : 0 };
+    });
+    const maxCount = Math.max(1, ...counts.map((c) => c.count));
+    const leadCount = Math.max(...counts.map((c) => c.count));
+    const signature = counts.map((c) => `${c.label}:${c.count}`).join('|');
+    if (signature === lastLeaderboardSignature) return;
+    lastLeaderboardSignature = signature;
+    leaderboardOverlay.innerHTML = counts.map((c) => {
+      const leading = c.count > 0 && c.count === leadCount ? ' deck-leaderboard__card--leading' : '';
+      const pct = total > 0 ? Math.round((c.count / maxCount) * 100) : 0;
+      return `
+        <div class="deck-leaderboard__card${leading}">
+          <div class="deck-leaderboard__head">
+            <span class="deck-leaderboard__dot"></span>
+            <span class="deck-leaderboard__name">${c.label}</span>
+          </div>
+          <div class="deck-leaderboard__count">${c.count}<small>${c.count === 1 ? 'vote' : 'votes'}</small></div>
+          <div class="deck-leaderboard__bar"><div class="deck-leaderboard__fill" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+  };
+  const applyLeaderboardVisibility = (binding) => {
+    leaderboardOverlay.classList.toggle('deck-leaderboard--visible', Boolean(binding));
+  };
+  const syncLeaderboard = async () => {
+    const binding = leaderboardStepBinding();
+    applyLeaderboardVisibility(binding);
+    if (!binding || !currentSessionToken) {
+      lastLeaderboardSignature = '';
+      return;
+    }
+    try {
+      const url = new URL('/api/live-session/responses', window.location.origin);
+      url.searchParams.set('deckId', deckId);
+      url.searchParams.set('slideStep', inferStepFromFile(activeSlideFile, currentIndex + 1));
+      url.searchParams.set('sessionToken', currentSessionToken);
+      if (binding.responseKey) url.searchParams.set('responseKey', binding.responseKey);
+      url.searchParams.set('groupByAnswer', '1');
+      const response = await fetch(url.toString(), { cache: 'no-store' });
+      if (!response.ok) return;
+      const payload = await response.json();
+      renderLeaderboard(binding, payload?.tally || {}, Number(payload?.tallyTotal) || 0);
+    } catch (error) {
+      // Keep the deck usable even if leaderboard polling blips.
+    }
+  };
+
   const syncResponseRail = async () => {
     if (!currentSessionToken) return;
     const currentStep = inferStepFromFile(activeSlideFile, currentIndex + 1);
@@ -1186,6 +1348,8 @@
       syncAudienceQrFrame();
       syncResponseRail();
       syncPresenceRail();
+      syncRoster();
+      syncLeaderboard();
 
       if (!liveSessionEventSource) {
         liveSessionEventSource = new EventSource(withRoom('/api/live-session/stream'));
@@ -1210,7 +1374,7 @@
     });
 
   syncScrollCue();
-  responseRefreshTimer = window.setInterval(() => { void syncResponseRail(); void syncPresenceRail(); }, 1800);
+  responseRefreshTimer = window.setInterval(() => { void syncResponseRail(); void syncPresenceRail(); void syncRoster(); void syncLeaderboard(); }, 1800);
 
   window.addEventListener('beforeunload', () => {
     if (responseRefreshTimer !== null) {

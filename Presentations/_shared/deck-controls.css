@@ -489,6 +489,156 @@ body.deck-presenting .deck-filmstrip__toggle { display: none; }
   font-variant-numeric: tabular-nums;
 }
 
+/* Live roster overlay — names appear bottom-left of the slide as people enroll. */
+.deck-roster {
+  position: fixed;
+  left: 28px;
+  bottom: 28px;
+  z-index: 940;
+  max-width: 30vw;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(142, 255, 113, 0.22);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+
+.deck-roster--visible { opacity: 1; transform: translateY(0); }
+
+/* "Locked In" style: a tall roll-call column down the left edge. The header
+ * stays pinned and the name list scrolls (auto-scrolled to the newest entry),
+ * so it keeps accepting names no matter how many lock in. */
+.deck-roster.deck-roster--left {
+  left: 28px;
+  top: 88px;
+  bottom: 28px;
+  max-width: 24vw;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+body.has-deck-filmstrip .deck-roster.deck-roster--left { bottom: 100px; }
+body.has-deck-filmstrip.deck-filmstrip-hidden .deck-roster.deck-roster--left { bottom: 28px; }
+.deck-roster--left .deck-roster__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  gap: 6px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+.deck-roster--left .deck-roster__list::-webkit-scrollbar { width: 4px; }
+.deck-roster--left .deck-roster__list::-webkit-scrollbar-thumb { background: rgba(142,255,113,0.4); border-radius: 4px; }
+.deck-roster--left .deck-roster__name { font-size: 18px; }
+
+/* Keep the roster above the thumbnail strip when it is showing. */
+body.has-deck-filmstrip .deck-roster { bottom: 100px; }
+body.has-deck-filmstrip.deck-filmstrip-hidden .deck-roster { bottom: 28px; }
+
+.deck-roster__label {
+  font: 700 10px/1 Inter, Arial, sans-serif;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #8eff71;
+  margin-bottom: 8px;
+}
+
+.deck-roster__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.deck-roster__name {
+  font: 600 16px/1.25 Inter, Arial, sans-serif;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  animation: deck-roster-in 0.35s ease;
+}
+
+@keyframes deck-roster-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+:fullscreen .deck-roster { left: 28px; bottom: 28px; }
+
+/* --- Live poll leaderboard (horizontal row of category cards) --- */
+/* Shows on the slide whose binding is mainSlideEffect:'leaderboard'. Sits in the
+ * lower-left of the slide and lays the categories out horizontally; each card's
+ * count + bar reflect live votes coming from the companion. */
+.deck-leaderboard {
+  position: fixed;
+  left: 32px;
+  bottom: 13vh;
+  z-index: 940;
+  display: flex;
+  gap: 14px;
+  max-width: 62vw;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+.deck-leaderboard--visible { opacity: 1; transform: translateY(0); }
+body.has-deck-filmstrip .deck-leaderboard { bottom: calc(13vh + 84px); }
+body.has-deck-filmstrip.deck-filmstrip-hidden .deck-leaderboard { bottom: 13vh; }
+
+.deck-leaderboard__card {
+  flex: 1 1 0;
+  min-width: 150px;
+  max-width: 230px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(16, 18, 22, 0.74);
+  border: 1px solid rgba(58, 61, 66, 0.9);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.42);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.deck-leaderboard__card--leading {
+  border-color: rgba(157, 255, 33, 0.85);
+  box-shadow: 0 0 22px rgba(157, 255, 33, 0.28);
+}
+.deck-leaderboard__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.deck-leaderboard__dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #9dff21; box-shadow: 0 0 8px rgba(157,255,33,0.7);
+  flex: none;
+}
+.deck-leaderboard__name {
+  font: 700 13px/1 Inter, Arial, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #e5e2e3;
+}
+.deck-leaderboard__count {
+  font: 700 40px/1 Inter, Arial, sans-serif;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+.deck-leaderboard__count small {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(192, 202, 174, 0.8); margin-left: 6px;
+}
+.deck-leaderboard__bar {
+  margin-top: 12px; height: 6px; border-radius: 4px;
+  background: rgba(58, 61, 66, 0.85); overflow: hidden;
+}
+.deck-leaderboard__fill {
+  height: 100%; width: 0%; border-radius: 4px;
+  background: linear-gradient(90deg, #5bbf00, #9dff21);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+:fullscreen .deck-leaderboard { left: 32px; }
+
 .deck-response-rail__replies {
   position: relative;
   z-index: 1;

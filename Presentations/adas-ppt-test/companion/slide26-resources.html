@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Recommended Resources</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<style>
+  :root { --blue:#38bdf8; --blue-dim:#0ea5e9; --bg:#0c0f14; --card:#161b22; --line:#2a313c; --ink:#e6e9ee; --muted:#93a1b3; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'Sora',system-ui,sans-serif; padding:26px 18px 80px; }
+  .eyebrow { color:var(--blue); font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; }
+  h1 { font-size:28px; margin:6px 0 6px; }
+  p.lead { color:var(--muted); font-size:13px; margin:0 0 22px; }
+  .res { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:15px 16px; margin-bottom:12px; }
+  .res .top { display:flex; align-items:center; gap:10px; }
+  .res .top .material-symbols-outlined { color:var(--blue); }
+  .res .title { font-size:15px; font-weight:700; flex:1; }
+  .res .badge { font-size:10px; font-weight:700; color:var(--blue); border:1px solid rgba(56,189,248,.4); border-radius:999px; padding:3px 8px; white-space:nowrap; }
+  .res .why { color:var(--muted); font-size:12px; margin:8px 0 0; line-height:1.5; }
+  .btn { width:100%; background:var(--blue); color:#04222f; border:none; border-radius:12px; padding:14px; font:inherit; font-weight:700; font-size:15px; cursor:pointer; margin-top:8px; }
+  .btn:active { background:var(--blue-dim); }
+  .status { text-align:center; font-size:12px; min-height:18px; margin-top:10px; color:var(--blue); }
+  .loading { color:var(--muted); font-size:14px; text-align:center; padding:30px 0; }
+</style>
+</head>
+<body>
+  <div class="eyebrow">Kia University · Recommended For You</div>
+  <h1>Resources for your gaps</h1>
+  <p class="lead">Picked from how you did today — start with these on the Kia Resource Center.</p>
+  <div id="list"><div class="loading">Finding your resources…</div></div>
+  <button class="btn" id="emailBtn" style="display:none" onclick="emailMe()">📧 Email me these links</button>
+  <p class="status" id="status"></p>
+
+<script src="/Presentations/_shared/companion-kit.js"></script>
+<script>
+  function ctx() { var p = new URLSearchParams(location.search); var uid = null; try { uid = localStorage.getItem('autodrive-audience-uid'); } catch (e) {} return { token: p.get('sessionToken'), deck: p.get('deckId') || 'adas-ppt-test', uid: uid }; }
+  function emailMe() {
+    if (window.AudienceKit) window.AudienceKit.submitAnswer('adas-ppt-test-slide26', 'email-links', 'Requested resource links');
+    document.getElementById('status').textContent = 'Sent! Check your inbox (demo: logged only).';
+  }
+  (function load() {
+    var c = ctx();
+    var list = document.getElementById('list');
+    if (!c.token || !c.uid) { list.innerHTML = '<div class="loading">Open this from your live session to see your resources.</div>'; return; }
+    var u = new URL('/api/live-session/ai-profile', location.origin);
+    u.searchParams.set('sessionToken', c.token); u.searchParams.set('deckId', c.deck);
+    u.searchParams.set('mode', 'individual'); u.searchParams.set('userId', c.uid); u.searchParams.set('report', 'takeaways');
+    fetch(u.toString(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      var res = (d && d.resources) || [];
+      if (!res.length) { list.innerHTML = '<div class="loading">Complete the consulting activity to get tailored resources.</div>'; return; }
+      list.innerHTML = res.map(function (r) {
+        return '<div class="res"><div class="top"><span class="material-symbols-outlined">menu_book</span>' +
+          '<span class="title">' + r.title + '</span><span class="badge">' + r.type + '</span></div>' +
+          '<p class="why">' + r.why + '</p></div>';
+      }).join('');
+      document.getElementById('emailBtn').style.display = 'block';
+    }).catch(function () { list.innerHTML = '<div class="loading">Could not load resources. Try again in a moment.</div>'; });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Visibility Confidence Profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "error": "#ffb4ab",
+                    "tertiary-container": "#e1e2e9",
+                    "secondary-fixed": "#e2e2e5",
+                    "primary-container": "#38bdf8",
+                    "primary": "#ffffff",
+                    "on-tertiary": "#2d3135",
+                    "on-primary": "#06283a",
+                    "on-background": "#e5e2e3",
+                    "on-secondary-fixed-variant": "#454749",
+                    "background": "#131314",
+                    "on-surface-variant": "#aebccb",
+                    "on-secondary": "#2f3133",
+                    "on-tertiary-fixed-variant": "#44474c",
+                    "surface-container-low": "#1c1b1c",
+                    "on-tertiary-fixed": "#191c20",
+                    "on-error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#c4c6cc",
+                    "surface-variant": "#353436",
+                    "surface-tint": "#0ea5e9",
+                    "surface-dim": "#131314",
+                    "secondary-container": "#454749",
+                    "primary-fixed-dim": "#0ea5e9",
+                    "on-primary-fixed": "#052433",
+                    "outline": "#8a947b",
+                    "on-primary-fixed-variant": "#0c4a6e",
+                    "inverse-surface": "#e5e2e3",
+                    "secondary-fixed-dim": "#c6c6c9",
+                    "primary-fixed": "#38bdf8",
+                    "surface-container-lowest": "#0e0e0f",
+                    "on-secondary-container": "#b4b5b7",
+                    "inverse-on-surface": "#313031",
+                    "secondary": "#c6c6c9",
+                    "surface": "#131314",
+                    "outline-variant": "#36454e",
+                    "on-secondary-fixed": "#1a1c1e",
+                    "on-surface": "#e5e2e3",
+                    "inverse-primary": "#0369a1",
+                    "tertiary-fixed": "#e1e2e9",
+                    "surface-container-high": "#2a2a2b",
+                    "surface-bright": "#3a393a",
+                    "error-container": "#93000a",
+                    "on-error": "#690005",
+                    "surface-container": "#201f20",
+                    "on-tertiary-container": "#62646a",
+                    "on-primary-container": "#075985",
+                    "tertiary": "#ffffff",
+                    "surface-container-highest": "#353436"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "margin-desktop": "48px",
+                    "unit": "4px",
+                    "margin-mobile": "16px",
+                    "container-max": "1440px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Sora"],
+                    "body-md": ["Sora"],
+                    "label-sm": ["Sora"],
+                    "headline-md": ["Sora"],
+                    "label-md": ["Sora"],
+                    "headline-lg-mobile": ["Sora"],
+                    "body-lg": ["Sora"],
+                    "headline-xl": ["Sora"]
+            },
+            "fontSize": {
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .neon-glow {
+            box-shadow: 0px 0px 12px rgba(56, 189, 248, 0.4);
+        }
+        .neon-border-glow {
+            filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.6));
+        }
+        .glass-panel {
+            background: rgba(26, 28, 30, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid #3A3D42;
+        }
+        .segmented-progress div {
+            height: 4px;
+            background: #1A1C1E;
+            margin-right: 2px;
+            flex-grow: 1;
+        }
+        .segmented-progress div.active {
+            background: #38bdf8;
+            box-shadow: 0 0 8px #38bdf8;
+        }
+        .card-active {
+            border-color: #38bdf8 !important;
+            background: rgba(56, 189, 248, 0.05);
+        }
+        body {
+            background-color: #0A0A0B;
+            color: #E5E2E3;
+            font-family: 'Sora', sans-serif;
+            overflow-x: hidden;
+        }
+        /* Custom scrollbar for desktop */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0A0A0B;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3A3D42;
+            border-radius: 10px;
+        }
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+<!-- TopAppBar -->
+
+<main class="flex-grow w-full max-w-container-max mx-auto px-margin-mobile py-8 md:px-margin-desktop mb-32">
+<!-- Section Label -->
+<div class="mb-2 flex items-center gap-2">
+<span class="w-8 h-px bg-primary-fixed"></span>
+<span class="text-primary-fixed font-label-md tracking-[0.2em] uppercase">VISIBILITY</span>
+</div>
+<!-- Introduction Header -->
+<div class="mb-10">
+<h2 class="font-headline-lg text-headline-lg-mobile mb-4">Visibility Confidence Profile</h2>
+<p class="font-body-md text-on-surface-variant max-w-2xl">Help the AI understand the visibility situations that impact your confidence behind the wheel. We are mapping your visual comfort zones to optimize safety intervention thresholds.</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Left Column: Interaction Canvas -->
+<div class="lg:col-span-7 space-y-6">
+<!-- Question Card -->
+<div class="glass-panel rounded-xl p-6 lg:p-8">
+<h3 class="font-headline-md text-primary mb-6">Which visibility challenge concerns you most?</h3>
+<div class="grid grid-cols-1 gap-3" id="selection-container">
+<!-- Options -->
+<button class="group flex items-center justify-between p-4 rounded-xl border border-outline-variant bg-surface-container-low transition-all duration-300 hover:border-primary-fixed/50 active:scale-[0.98]" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="nights_stay">nights_stay</span>
+<span class="font-body-md text-on-surface">Driving at night</span>
+</div>
+<span class="material-symbols-outlined text-primary-fixed opacity-0 group-[.card-active]:opacity-100" data-icon="check_circle">check_circle</span>
+</button>
+<button class="group flex items-center justify-between p-4 rounded-xl border border-outline-variant bg-surface-container-low transition-all duration-300 hover:border-primary-fixed/50 active:scale-[0.98]" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="thunderstorm">thunderstorm</span>
+<span class="font-body-md text-on-surface">Rain or bad weather</span>
+</div>
+<span class="material-symbols-outlined text-primary-fixed opacity-0 group-[.card-active]:opacity-100" data-icon="check_circle">check_circle</span>
+</button>
+<button class="group flex items-center justify-between p-4 rounded-xl border border-outline-variant bg-surface-container-low transition-all duration-300 hover:border-primary-fixed/50 active:scale-[0.98]" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="blind">blind</span>
+<span class="font-body-md text-on-surface">Blind spot awareness</span>
+</div>
+<span class="material-symbols-outlined text-primary-fixed opacity-0 group-[.card-active]:opacity-100" data-icon="check_circle">check_circle</span>
+</button>
+<button class="group flex items-center justify-between p-4 rounded-xl border border-outline-variant bg-surface-container-low transition-all duration-300 hover:border-primary-fixed/50 active:scale-[0.98]" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="speed">speed</span>
+<span class="font-body-md text-on-surface">Fast-moving traffic</span>
+</div>
+<span class="material-symbols-outlined text-primary-fixed opacity-0 group-[.card-active]:opacity-100" data-icon="check_circle">check_circle</span>
+</button>
+<button class="group flex items-center justify-between p-4 rounded-xl border border-outline-variant bg-surface-container-low transition-all duration-300 hover:border-primary-fixed/50 active:scale-[0.98]" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="apartment">apartment</span>
+<span class="font-body-md text-on-surface">Heavy urban environments</span>
+</div>
+<span class="material-symbols-outlined text-primary-fixed opacity-0 group-[.card-active]:opacity-100" data-icon="check_circle">check_circle</span>
+</button>
+</div>
+</div>
+<!-- Bento-style AI Insight Preview -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="glass-panel rounded-xl p-5 border-l-4 border-l-primary-fixed">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="auto_awesome">auto_awesome</span>
+<div>
+<h4 class="font-label-md text-primary mb-1">AI Recommendation</h4>
+<p class="text-label-sm text-on-surface-variant">Adaptive headlights will be prioritized based on your night driving concern profile.</p>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+<!-- Right Column: AI Profile Status Card -->
+<div class="lg:col-span-5">
+<div class="glass-panel rounded-2xl p-8 relative overflow-hidden group">
+<!-- Shimmering background effect -->
+<div class="absolute inset-0 shimmer opacity-20 pointer-events-none"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-center mb-12">
+<div class="w-14 h-14 bg-primary-container/10 rounded-full flex items-center justify-center border border-primary-fixed/30 neon-glow">
+<span class="material-symbols-outlined text-primary-fixed text-3xl animate-pulse" data-icon="psychology">psychology</span>
+</div>
+<div class="text-right">
+<p class="font-label-md text-primary-fixed">AI PROFILE STATUS</p>
+<p class="font-label-sm text-on-surface-variant">System Active</p>
+</div>
+</div>
+<div class="mb-8">
+<h3 class="font-headline-md text-primary mb-2">Finalizing your personalized ADAS profile...</h3>
+<p class="font-body-md text-on-surface-variant">Synthesizing behavioral data into actionable calibration maps.</p>
+</div>
+<!-- Progress Section -->
+<div class="space-y-4">
+<div class="flex justify-between font-label-md">
+<span class="text-primary-fixed">PROFILING PROGRESS</span>
+<span class="text-primary">3 of 3 categories completed</span>
+</div>
+<div class="flex segmented-progress">
+<div class="active rounded-l-full"></div>
+<div class="active"></div>
+<div class="active rounded-r-full"></div>
+</div>
+</div>
+<!-- Large Profile Asset Preview (Visual) -->
+<div class="mt-12 rounded-xl overflow-hidden aspect-video border border-outline-variant bg-black">
+<img alt="ADAS Visualization" class="w-full h-full object-cover opacity-60" data-alt="A highly complex and detailed 3D digital wireframe visualization of a vehicle driving through a dark, rainy city at night. Electric neon green scanning lines emit from the vehicle's sensors, illuminating obstacles and traffic participants in the obsidian-black environment. The style is futuristic automotive diagnostic software, with high contrast, glowing particles, and a cinematic technical aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBniVuzSbZEZCwxmoOweFPORWC_aAzjAP0uB6oDX-WmiqrH5teoHzm3GOPpIt8_Ld8RbAAmP8I9mbgvztlYGMXj8xRsC4Sy8_m68ZlSR3FqNpQFqCJtxQTRK9mLNY5HKJb_1Sd9PzUlqiRIqhMTnYXqiBk6uG1qdoiKoG_LOF5ezMIqteUvMk-HU3KOIFQOUPigtsi_OvM8uFuti5CuMc172b8HJsvw03JaYqAMuSbPteFhpfQ4DqkhalY-ZuAttbG-VqHIVIKMkw">
+</div>
+
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- NavigationDrawer (Simulated for Layout Anchor) -->
+<nav class="hidden lg:flex fixed left-0 top-1/2 -translate-y-1/2 flex-col gap-6 py-8 px-4 glass-panel rounded-r-3xl z-40 border-l-0" id="side-nav">
+<div class="flex flex-col items-center gap-8">
+<div class="p-3 bg-secondary-container text-primary-fixed font-bold rounded-full cursor-pointer hover:bg-surface-variant/50 transition-all">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+</div>
+<div class="p-3 text-on-surface-variant cursor-pointer hover:bg-surface-variant/50 rounded-full transition-all">
+<span class="material-symbols-outlined" data-icon="speed">speed</span>
+</div>
+<div class="p-3 text-on-surface-variant cursor-pointer hover:bg-surface-variant/50 rounded-full transition-all">
+<span class="material-symbols-outlined" data-icon="local_parking">local_parking</span>
+</div>
+</div>
+</nav>
+<!-- BottomNavBar -->
+
+<script>
+        // Multi-select with deselect. Submit the FULL current selection on every
+        // change, so multiple picks are logged and clearing resets to 'none'.
+        var AK_SLUGS_18 = [
+            [/night/i, 'night'],
+            [/rain|weather/i, 'weather'],
+            [/blind spot/i, 'blind-spot'],
+            [/fast-moving|fast moving|traffic/i, 'fast-traffic'],
+            [/urban/i, 'urban'],
+        ];
+        function akLabelOf(card) {
+            var el = card.querySelector('.font-body-md');
+            return el ? el.textContent.trim().replace(/\s+/g, ' ') : '';
+        }
+        function submitVisibilitySelections() {
+            if (!window.AudienceKit) return;
+            var slugs = [], labels = [];
+            document.querySelectorAll('#selection-container button.card-active').forEach(function (card) {
+                var label = akLabelOf(card);
+                var hit = AK_SLUGS_18.find(function (s) { return s[0].test(label); });
+                if (hit) { slugs.push(hit[1]); labels.push(label); }
+            });
+            window.AudienceKit.submitAnswer(
+                'adas-ppt-test-slide18',
+                slugs.join(',') || 'none',
+                labels.join(', ') || 'None selected'
+            );
+        }
+        function selectOption(element) {
+            // .card-active (green !important border + checkmark) is the selected look.
+            element.classList.toggle('card-active');
+            element.style.transform = 'scale(0.98)';
+            setTimeout(function () { element.style.transform = 'scale(1)'; }, 100);
+            submitVisibilitySelections();
+        }
+    </script>
+<script src="/Presentations/_shared/companion-kit.js"></script>
+</body></html>

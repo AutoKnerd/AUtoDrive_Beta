@@ -1,0 +1,185 @@
+<!-- slide6 | Sensor Diagnostics -->
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ADAS Workshop - Sensor Diagnostics</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    @keyframes pulse-glow {
+        0% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 0 0 rgba(157, 255, 33, 0.7); }
+        70% { transform: scale(1.2); opacity: 0.4; box-shadow: 0 0 0 15px rgba(157, 255, 33, 0); }
+        100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 0 0 rgba(157, 255, 33, 0); }
+    }
+    .animate-pulse-glow { animation: pulse-glow 2s infinite; }
+    .radar-beam {
+        background: linear-gradient(90deg, rgba(157, 255, 33, 0.4) 0%, rgba(157, 255, 33, 0) 100%);
+        clip-path: polygon(0 45%, 100% 0, 100% 100%, 0 55%);
+    }
+    .glass-panel { background: rgba(26, 28, 30, 0.8); backdrop-filter: blur(20px); border: 1px solid #3A3D42; }
+    body { background-color: #0A0A0B; color: #e5e2e3; overflow-x: hidden; }
+    .hud-scanline {
+        background: linear-gradient(to bottom, transparent 50%, rgba(157, 255, 33, 0.05) 50%);
+        background-size: 100% 4px;
+    }
+</style>
+<script id="tailwind-config">
+    tailwind.config = {
+        darkMode: "class",
+        theme: { extend: {
+            "colors": {
+                "surface-container": "#201f20", "surface-bright": "#3a393a", "inverse-surface": "#e5e2e3",
+                "secondary-container": "#454749", "surface-container-low": "#1c1b1c", "on-surface-variant": "#c0caae",
+                "outline-variant": "#404a34", "on-surface": "#e5e2e3", "surface-container-high": "#2a2a2b",
+                "surface-tint": "#84dd00", "surface": "#131314", "on-primary": "#1d3700", "primary": "#ffffff",
+                "primary-container": "#9afc1b", "on-primary-container": "#417000", "background": "#131314", "error": "#ffb4ab"
+            },
+            "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+            "fontFamily": { "body-lg": ["Sora"], "headline-md": ["Sora"], "headline-xl": ["Sora"], "body-md": ["Sora"] },
+            "fontSize": {
+                "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+        } }
+    }
+</script>
+</head>
+<body class="font-body-md antialiased min-h-screen flex flex-col">
+<header class="relative pt-8 px-6 pb-4 overflow-hidden">
+<div class="hud-scanline absolute inset-0 opacity-20 pointer-events-none"></div>
+<div class="flex flex-col items-center justify-center relative z-10 text-center">
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight uppercase" id="main-title">Radar Diagnostics</h1>
+<div class="w-16 h-[2px] bg-primary-container mt-2"></div>
+</div>
+</header>
+<main class="flex-1 flex flex-col px-4 gap-6 relative">
+<div class="relative w-full aspect-[1.79] rounded-xl overflow-hidden bg-surface-container-low border border-outline-variant/30 mt-4">
+<img alt="Kia Telluride Side Profile" class="w-full h-full object-cover opacity-60" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD08GaTehENNDCcpJ6Dc7NhcSpHqcZSJdqKzbE9WRymbXPAlZhEtzIUzRVU7LsfDva92Xr0tVGriv1vDoYUjsRCRDfkz6IQTz-Url04x0GFZe3Btv9xU0Mgd5tnW2m0GCt5I9YjHCAG6rXAayWzCNjLSINxZyoDdP-7sb2K9FMHDklJRDw1NEkKh7QA7tPzn-MnrwlbJtZWvbi5kFOYsgDPInVcKxFbFsvl27s7AXGsfYhE0LqXAzNKRn-QQqePxjWucT0c8qrsmQ"/>
+<div class="absolute inset-0 pointer-events-none transition-opacity duration-500" id="sensor-overlays" style="opacity: 1;"></div>
+<div class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10">
+<p class="text-[10px] text-on-surface-variant font-medium tracking-wider uppercase">Active Sensor Mapping: 2027 Kia Telluride</p>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-3">
+<button class="mode-btn flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 bg-primary-container/10 border-primary-container text-primary-container" data-mode="radar">
+<span class="material-symbols-outlined mb-1">radar</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Radar</span>
+</button>
+<button class="mode-btn flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 bg-surface-container-high border-outline-variant text-on-surface-variant" data-mode="vision">
+<span class="material-symbols-outlined mb-1">videocam</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Vision</span>
+</button>
+<button class="mode-btn flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 bg-surface-container-high border-outline-variant text-on-surface-variant" data-mode="lidar">
+<span class="material-symbols-outlined mb-1">layers</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Lidar</span>
+</button>
+</div>
+<div class="glass-panel rounded-xl p-5 shadow-2xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-primary-container opacity-40"></div>
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-primary-container/20 rounded-lg">
+<span class="material-symbols-outlined text-primary-container" id="spec-icon" style="font-variation-settings: 'FILL' 1;">precision_manufacturing</span>
+</div>
+<div>
+<h3 class="font-headline-md text-sm text-primary uppercase tracking-widest" id="spec-title">Radar Specifications</h3>
+<p class="text-[11px] text-on-surface-variant">Model Range: KI-RD-2027-X</p>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center border-b border-outline-variant/30 pb-2">
+<span class="text-on-surface-variant text-sm" id="label-1">Effective Range</span>
+<span class="text-primary font-bold" id="val-1">Up to 250m</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/30 pb-2">
+<span class="text-on-surface-variant text-sm" id="label-2">Field of View</span>
+<span class="text-primary font-bold" id="val-2">120 Degrees</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-on-surface-variant text-sm">Primary Functions</span>
+<div class="flex flex-wrap gap-2 mt-1" id="functions-list"></div>
+</div>
+</div>
+</div>
+</main>
+<footer class="p-6 mt-auto">
+<button class="w-full py-4 bg-primary-container text-black font-bold uppercase tracking-[0.15em] rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 hover:shadow-[0_0_20px_rgba(157,255,33,0.4)]" id="reset-btn">
+<span class="material-symbols-outlined text-xl">refresh</span>
+Reset Diagnostic
+</button>
+</footer>
+<script>
+    const sensorData = {
+        radar: {
+            title: "Radar Diagnostics", specTitle: "Radar Specifications", icon: "precision_manufacturing",
+            label1: "Effective Range", val1: "Up to 250m", label2: "Field of View", val2: "120 Degrees",
+            functions: ["Adaptive Cruise", "Emergency Braking"],
+            overlays: `
+                <div class="absolute left-[82%] top-[55%] w-[40%] h-[30%] radar-beam -translate-y-1/2"></div>
+                <div class="absolute left-[81%] top-[58%] w-4 h-4 bg-primary-container rounded-full animate-pulse-glow z-20"></div>
+                <div class="absolute left-[15%] top-[55%] w-3 h-3 bg-primary-container rounded-full animate-pulse-glow z-20" style="animation-delay: 0.5s;"></div>`
+        },
+        vision: {
+            title: "Vision Diagnostics", specTitle: "Vision Specifications", icon: "visibility",
+            label1: "Resolution", val1: "4K UHD", label2: "Frame Rate", val2: "60fps",
+            functions: ["Lane Keeping", "Sign Recognition", "Pedestrian Detection"],
+            overlays: `
+                <div class="absolute left-[62%] top-[30%] w-4 h-4 bg-primary-container rounded-full animate-pulse-glow z-20"></div>
+                <div class="absolute left-[54%] top-[48%] w-3 h-3 bg-primary-container rounded-full animate-pulse-glow z-20" style="animation-delay: 0.3s;"></div>
+                <div class="absolute left-[13%] top-[45%] w-3 h-3 bg-primary-container rounded-full animate-pulse-glow z-20" style="animation-delay: 0.6s;"></div>`
+        },
+        lidar: {
+            title: "LiDAR Diagnostics", specTitle: "LiDAR Specifications", icon: "view_in_ar",
+            label1: "Scan Rate", val1: "20Hz", label2: "Point Density", val2: "High-Res Cloud",
+            functions: ["Object Tracking", "3D Mapping"],
+            overlays: `
+                <div class="absolute left-[52%] top-[25%] w-5 h-5 bg-primary-container rounded-full animate-pulse-glow z-20"></div>
+                <div class="absolute left-[52%] top-[25%] -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-primary-container/30 rounded-full animate-ping opacity-20"></div>`
+        }
+    };
+
+    const buttons = document.querySelectorAll('.mode-btn');
+    const overlayContainer = document.getElementById('sensor-overlays');
+    const els = {
+        title: document.getElementById('main-title'), specTitle: document.getElementById('spec-title'),
+        icon: document.getElementById('spec-icon'), label1: document.getElementById('label-1'),
+        val1: document.getElementById('val-1'), label2: document.getElementById('label-2'),
+        val2: document.getElementById('val-2'), functions: document.getElementById('functions-list')
+    };
+
+    function updateUI(mode) {
+        const data = sensorData[mode];
+        if (!data) return;
+        els.title.textContent = data.title;
+        els.specTitle.textContent = data.specTitle;
+        els.icon.textContent = data.icon;
+        els.label1.textContent = data.label1;
+        els.val1.textContent = data.val1;
+        els.label2.textContent = data.label2;
+        els.val2.textContent = data.val2;
+        els.functions.innerHTML = data.functions.map(f =>
+            `<span class="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-[10px] text-white/80 uppercase">${f}</span>`).join('');
+
+        overlayContainer.style.opacity = '0';
+        setTimeout(() => { overlayContainer.innerHTML = data.overlays; overlayContainer.style.opacity = '1'; }, 150);
+
+        buttons.forEach(btn => {
+            const on = btn.dataset.mode === mode;
+            btn.classList.toggle('bg-primary-container/10', on);
+            btn.classList.toggle('border-primary-container', on);
+            btn.classList.toggle('text-primary-container', on);
+            btn.classList.toggle('bg-surface-container-high', !on);
+            btn.classList.toggle('border-outline-variant', !on);
+            btn.classList.toggle('text-on-surface-variant', !on);
+        });
+    }
+
+    buttons.forEach(btn => btn.addEventListener('click', () => updateUI(btn.dataset.mode)));
+    document.getElementById('reset-btn').addEventListener('click', () => updateUI('radar'));
+    updateUI('radar');
+</script>
+<script src="/Presentations/_shared/companion-kit.js"></script>
+</body></html>

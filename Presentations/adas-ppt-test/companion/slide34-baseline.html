@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quick Baseline Check</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --blue:#38bdf8; --blue-dim:#0ea5e9; --bg:#0c0f14; --card:#161b22; --line:#2a313c; --ink:#e6e9ee; --muted:#93a1b3; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'Sora',system-ui,sans-serif; padding:22px 16px 80px; }
+  .eyebrow { color:var(--blue); font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; }
+  h1 { font-size:26px; margin:6px 0 6px; }
+  p.lead { color:var(--muted); font-size:13px; line-height:1.6; margin:0 0 22px; }
+  .section-title { font-size:15px; font-weight:700; margin:22px 0 12px; }
+  .conf { display:flex; gap:8px; }
+  .conf button { flex:1; background:var(--card); border:1px solid var(--line); border-radius:12px; color:var(--ink);
+          font:inherit; font-weight:700; font-size:16px; padding:14px 0; cursor:pointer; transition:all .12s; }
+  .conf button.on { border-color:var(--blue); background:rgba(56,189,248,.1); color:var(--blue); box-shadow:0 0 12px rgba(56,189,248,.3); }
+  .conf-labels { display:flex; justify-content:space-between; color:var(--muted); font-size:11px; margin-top:6px; }
+  .status { text-align:center; font-size:12px; min-height:18px; margin-top:10px; color:var(--blue); }
+  hr { border:none; border-top:1px solid var(--line); margin:26px 0; }
+</style>
+</head>
+<body>
+  <div class="eyebrow">Before we start · Baseline</div>
+  <h1>Quick baseline check</h1>
+  <p class="lead">Two quick things before the workshop, so we can measure how far you go by the end.</p>
+
+  <div class="section-title">How confident are you explaining ADAS to a customer right now?</div>
+  <div class="conf" id="conf">
+    <button data-v="1" onclick="rateConf(this)">1</button>
+    <button data-v="2" onclick="rateConf(this)">2</button>
+    <button data-v="3" onclick="rateConf(this)">3</button>
+    <button data-v="4" onclick="rateConf(this)">4</button>
+    <button data-v="5" onclick="rateConf(this)">5</button>
+  </div>
+  <div class="conf-labels"><span>Not confident</span><span>Very confident</span></div>
+  <p class="status" id="confStatus"></p>
+
+  <hr />
+
+  <div class="section-title">Quick knowledge check (6 questions)</div>
+  <div id="quiz"></div>
+
+<script src="/Presentations/_shared/companion-kit.js"></script>
+<script src="/Presentations/adas-ppt-test/companion/adas-quiz.js"></script>
+<script>
+  var CONF_KEY = 'adas-ppt-test-confidence-pre';
+  var QUIZ_KEY = 'adas-ppt-test-pretest';
+  function rateConf(el) {
+    document.querySelectorAll('#conf button').forEach(function (b) { b.classList.remove('on'); });
+    el.classList.add('on');
+    if (window.AudienceKit) window.AudienceKit.submitAnswer(CONF_KEY, el.getAttribute('data-v'), 'Confidence ' + el.getAttribute('data-v') + '/5');
+    document.getElementById('confStatus').textContent = 'Logged.';
+  }
+  if (window.AdasQuiz) {
+    window.AdasQuiz.render(document.getElementById('quiz'), {
+      onScore: function (pct) {
+        if (window.AudienceKit) window.AudienceKit.submitAnswer(QUIZ_KEY, String(pct), 'Pre-test ' + pct + '%');
+      }
+    });
+  }
+</script>
+</body>
+</html>

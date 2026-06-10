@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Consulting with Ryan</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<style>
+  :root { --blue:#38bdf8; --blue-dim:#0ea5e9; --bg:#0c0f14; --card:#161b22; --line:#2a313c; --ink:#e6e9ee; --muted:#93a1b3; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'Sora',system-ui,sans-serif; padding:20px 16px 80px; }
+  .eyebrow { color:var(--blue); font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; }
+  h1 { font-size:30px; margin:6px 0 12px; }
+  .persona { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:22px; }
+  .persona ul { margin:6px 0 0; padding-left:18px; color:var(--muted); font-size:13px; line-height:1.7; }
+  .q { font-size:16px; font-weight:600; margin:0 0 12px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .feat { display:flex; align-items:center; gap:10px; text-align:left; background:var(--card); border:1px solid var(--line);
+          border-radius:14px; padding:12px 12px; color:var(--ink); font:inherit; font-size:13px; cursor:pointer;
+          position:relative; transition:border-color .15s, box-shadow .15s, background .15s; }
+  .feat .material-symbols-outlined { color:var(--muted); font-size:22px; flex:none; }
+  .feat .lbl { flex:1; line-height:1.25; }
+  .feat .check { position:absolute; top:8px; right:10px; color:var(--blue); font-weight:800; opacity:0; transition:opacity .15s; }
+  .feat.is-on { border-color:var(--blue); background:rgba(56,189,248,.08); box-shadow:0 0 14px rgba(56,189,248,.35); }
+  .feat.is-on .material-symbols-outlined { color:var(--blue); }
+  .feat.is-on .check { opacity:1; }
+  .pitch { margin-top:24px; }
+  .pitch textarea { width:100%; min-height:70px; background:var(--card); border:1px solid var(--line); border-radius:14px;
+            color:var(--ink); font:inherit; font-size:14px; padding:12px; resize:vertical; }
+  .pitch textarea:focus { outline:none; border-color:var(--blue); }
+  .btn { margin-top:10px; width:100%; background:var(--blue); color:#04222f; border:none; border-radius:12px; padding:13px;
+          font:inherit; font-weight:700; font-size:15px; cursor:pointer; }
+  .btn:active { background:var(--blue-dim); }
+  .status { text-align:center; font-size:12px; min-height:18px; margin-top:8px; color:var(--blue); }
+  .hint { color:var(--muted); font-size:12px; margin:0 0 14px; }
+</style>
+</head>
+<body>
+  <div class="eyebrow">Activity · Consulting</div>
+  <h1>Meet Ryan</h1>
+  <div class="persona">
+    <ul>
+      <li>Married, business owner</li>
+      <li>Lives in a gated community with his wife and three sons</li>
+      <li>Commutes daily to his business on a busy urban main street</li>
+      <li>Often drives home in the dark on congested roads with many cyclists</li>
+      <li>Enjoys camping and taking weekend trips with his family</li>
+    </ul>
+  </div>
+
+  <p class="q">Which Kia ADAS features would you recommend for Ryan?</p>
+  <p class="hint">Tap all that fit — tap again to deselect.</p>
+  <div class="grid" id="featureGrid">
+    <button class="feat" data-slug="scc-stopgo" data-label="Smart Cruise Control (Stop &amp; Go)" onclick="toggleFeat(this)"><span class="material-symbols-outlined">speed</span><span class="lbl">Smart Cruise Control (Stop &amp; Go)</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="hda" data-label="Highway Driving Assist" onclick="toggleFeat(this)"><span class="material-symbols-outlined">directions_car</span><span class="lbl">Highway Driving Assist</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="lfa" data-label="Lane Following Assist" onclick="toggleFeat(this)"><span class="material-symbols-outlined">road</span><span class="lbl">Lane Following Assist</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="fca" data-label="Forward Collision-Avoidance Assist" onclick="toggleFeat(this)"><span class="material-symbols-outlined">warning</span><span class="lbl">Forward Collision-Avoidance Assist</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="bvm" data-label="Blind-Spot View Monitor" onclick="toggleFeat(this)"><span class="material-symbols-outlined">visibility</span><span class="lbl">Blind-Spot View Monitor</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="bca" data-label="Blind-Spot Collision-Avoidance Assist" onclick="toggleFeat(this)"><span class="material-symbols-outlined">sensors</span><span class="lbl">Blind-Spot Collision-Avoidance Assist</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="rcca" data-label="Rear Cross-Traffic Collision-Avoidance" onclick="toggleFeat(this)"><span class="material-symbols-outlined">minor_crash</span><span class="lbl">Rear Cross-Traffic Collision-Avoidance</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="svm" data-label="Surround View Monitor" onclick="toggleFeat(this)"><span class="material-symbols-outlined">panorama</span><span class="lbl">Surround View Monitor</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="pdw" data-label="Parking Distance Warning" onclick="toggleFeat(this)"><span class="material-symbols-outlined">local_parking</span><span class="lbl">Parking Distance Warning</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="rspa" data-label="Remote Smart Parking Assist" onclick="toggleFeat(this)"><span class="material-symbols-outlined">open_with</span><span class="lbl">Remote Smart Parking Assist</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="hba" data-label="High Beam Assist" onclick="toggleFeat(this)"><span class="material-symbols-outlined">nights_stay</span><span class="lbl">High Beam Assist</span><span class="check">✓</span></button>
+    <button class="feat" data-slug="faw" data-label="Forward Attention Warning" onclick="toggleFeat(this)"><span class="material-symbols-outlined">face</span><span class="lbl">Forward Attention Warning</span><span class="check">✓</span></button>
+  </div>
+
+  <div class="pitch">
+    <p class="q">In one line, how would you pitch your top feature to Ryan?</p>
+    <textarea id="pitchText" placeholder="e.g. Ryan, get home safe past cyclists in the dark with High Beam Assist and Forward Collision-Avoidance."></textarea>
+    <button class="btn" onclick="submitPitch()">Submit my pitch</button>
+    <p class="status" id="status"></p>
+  </div>
+
+<script>
+  var FEATURE_KEY = 'adas-ppt-test-slide23';
+  var PITCH_KEY = 'adas-ppt-test-slide23-pitch';
+  function toggleFeat(el) {
+    el.classList.toggle('is-on');
+    submitFeats();
+  }
+  function submitFeats() {
+    if (!window.AudienceKit) return;
+    var slugs = [], labels = [];
+    document.querySelectorAll('#featureGrid .feat.is-on').forEach(function (b) {
+      slugs.push(b.getAttribute('data-slug'));
+      labels.push(b.getAttribute('data-label'));
+    });
+    window.AudienceKit.submitAnswer(FEATURE_KEY, slugs.join(',') || 'none', labels.join(', ') || 'None selected');
+  }
+  function submitPitch() {
+    var t = (document.getElementById('pitchText').value || '').trim();
+    var s = document.getElementById('status');
+    if (!t) { s.textContent = 'Type a one-line pitch first.'; s.style.color = '#ffb4ab'; return; }
+    if (!window.AudienceKit) return;
+    window.AudienceKit.submitAnswer(PITCH_KEY, t, t);
+    s.textContent = 'Pitch submitted — nice work!'; s.style.color = '#38bdf8';
+  }
+</script>
+<script src="/Presentations/_shared/companion-kit.js"></script>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .neon-glow {
+            box-shadow: 0px 0px 12px rgba(56, 189, 248, 0.4);
+        }
+        .neon-border-glow:focus-within {
+            box-shadow: 0px 4px 10px -2px rgba(56, 189, 248, 0.3);
+        }
+        .segmented-progress div {
+            border-right: 2px solid #131314;
+        }
+        .segmented-progress div:last-child {
+            border-right: none;
+        }
+        .glass-card {
+            background: rgba(26, 28, 30, 0.8);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ffb4ab",
+                        "tertiary-container": "#e1e2e9",
+                        "secondary-fixed": "#e2e2e5",
+                        "primary-container": "#38bdf8",
+                        "primary": "#ffffff",
+                        "on-tertiary": "#2d3135",
+                        "on-primary": "#06283a",
+                        "on-background": "#e5e2e3",
+                        "on-secondary-fixed-variant": "#454749",
+                        "background": "#131314",
+                        "on-surface-variant": "#aebccb",
+                        "on-secondary": "#2f3133",
+                        "on-tertiary-fixed-variant": "#44474c",
+                        "surface-container-low": "#1c1b1c",
+                        "on-tertiary-fixed": "#191c20",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#c4c6cc",
+                        "surface-variant": "#353436",
+                        "surface-tint": "#0ea5e9",
+                        "surface-dim": "#131314",
+                        "secondary-container": "#454749",
+                        "primary-fixed-dim": "#0ea5e9",
+                        "on-primary-fixed": "#052433",
+                        "outline": "#8a947b",
+                        "on-primary-fixed-variant": "#0c4a6e",
+                        "inverse-surface": "#e5e2e3",
+                        "secondary-fixed-dim": "#c6c6c9",
+                        "primary-fixed": "#38bdf8",
+                        "surface-container-lowest": "#0e0e0f",
+                        "on-secondary-container": "#b4b5b7",
+                        "inverse-on-surface": "#313031",
+                        "secondary": "#c6c6c9",
+                        "surface": "#131314",
+                        "outline-variant": "#36454e",
+                        "on-secondary-fixed": "#1a1c1e",
+                        "on-surface": "#e5e2e3",
+                        "inverse-primary": "#0369a1",
+                        "tertiary-fixed": "#e1e2e9",
+                        "surface-container-high": "#2a2a2b",
+                        "surface-bright": "#3a393a",
+                        "error-container": "#93000a",
+                        "on-error": "#690005",
+                        "surface-container": "#201f20",
+                        "on-tertiary-container": "#62646a",
+                        "on-primary-container": "#075985",
+                        "tertiary": "#ffffff",
+                        "surface-container-highest": "#353436"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin-desktop": "48px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "container-max": "1440px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Sora"],
+                        "body-md": ["Sora"],
+                        "label-sm": ["Sora"],
+                        "headline-md": ["Sora"],
+                        "label-md": ["Sora"],
+                        "headline-lg-mobile": ["Sora"],
+                        "body-lg": ["Sora"],
+                        "headline-xl": ["Sora"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- Top App Bar -->
+<header class="w-full top-0 sticky bg-background dark:bg-background border-b border-outline-variant dark:border-outline-variant z-50">
+
+</header>
+<main class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop pt-8 pb-32">
+<!-- Section Header -->
+<div class="mb-8 animate-fade-in">
+<div class="flex items-center gap-2 mb-2">
+<span class="w-8 h-[2px] bg-primary-fixed"></span>
+<span class="text-primary-fixed font-label-md tracking-[0.2em]">PARKING</span>
+</div>
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-2">Parking Confidence Profile</h2>
+<p class="text-on-surface-variant font-body-md max-w-2xl">Help us understand which parking situations challenge you most to optimize your ADAS assistance thresholds.</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+<!-- Left Content: Question Card -->
+<div class="lg:col-span-7 space-y-6">
+<div class="bg-surface-container p-6 md:p-8 rounded-xl border border-outline-variant relative overflow-hidden group">
+<!-- Subtle background glow -->
+<div class="absolute -top-24 -right-24 w-48 h-48 bg-primary-fixed/5 rounded-full blur-3xl group-hover:bg-primary-fixed/10 transition-colors"></div>
+<div class="relative z-10">
+<div class="flex items-center gap-4 mb-6">
+<div class="p-3 bg-surface-variant rounded-lg border border-outline-variant">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="local_parking">local_parking</span>
+</div>
+<h3 class="font-headline-md text-headline-md-mobile">Which parking scenario causes the most concern?</h3>
+</div>
+<div class="space-y-3" id="selection-container">
+<!-- Options -->
+<button class="w-full text-left p-4 rounded-lg bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all active:scale-[0.98] group/item flex items-center justify-between" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover/item:text-primary-fixed" data-icon="straighten">straighten</span>
+<span class="font-body-md">Tight parking spaces</span>
+</div>
+<div class="w-5 h-5 rounded-full border-2 border-outline-variant group-hover/item:border-primary-fixed flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-primary-fixed scale-0 transition-transform"></div>
+</div>
+</button>
+<button class="w-full text-left p-4 rounded-lg bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all active:scale-[0.98] group/item flex items-center justify-between" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover/item:text-primary-fixed" data-icon="width">width</span>
+<span class="font-body-md">Parallel parking</span>
+</div>
+<div class="w-5 h-5 rounded-full border-2 border-outline-variant group-hover/item:border-primary-fixed flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-primary-fixed scale-0 transition-transform"></div>
+</div>
+</button>
+<button class="w-full text-left p-4 rounded-lg bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all active:scale-[0.98] group/item flex items-center justify-between" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover/item:text-primary-fixed" data-icon="minor_crash">minor_crash</span>
+<span class="font-body-md">Backing out of crowded lots</span>
+</div>
+<div class="w-5 h-5 rounded-full border-2 border-outline-variant group-hover/item:border-primary-fixed flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-primary-fixed scale-0 transition-transform"></div>
+</div>
+</button>
+<button class="w-full text-left p-4 rounded-lg bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all active:scale-[0.98] group/item flex items-center justify-between" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover/item:text-primary-fixed" data-icon="sensors">sensors</span>
+<span class="font-body-md">Detecting nearby objects</span>
+</div>
+<div class="w-5 h-5 rounded-full border-2 border-outline-variant group-hover/item:border-primary-fixed flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-primary-fixed scale-0 transition-transform"></div>
+</div>
+</button>
+<button class="w-full text-left p-4 rounded-lg bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all active:scale-[0.98] group/item flex items-center justify-between" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover/item:text-primary-fixed" data-icon="directions_walk">directions_walk</span>
+<span class="font-body-md">Pedestrians and shopping carts</span>
+</div>
+<div class="w-5 h-5 rounded-full border-2 border-outline-variant group-hover/item:border-primary-fixed flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-primary-fixed scale-0 transition-transform"></div>
+</div>
+</button>
+</div>
+<div class="mt-8 flex justify-end">
+
+</div>
+</div>
+</div>
+</div>
+<!-- Right Content: AI Visualizer & Info -->
+<div class="lg:col-span-5 space-y-gutter">
+
+
+</div>
+</div>
+<!-- Bottom Status Card -->
+<div class="fixed bottom-24 left-margin-mobile right-margin-mobile md:left-auto md:right-margin-desktop md:w-96 z-40">
+
+</div>
+</main>
+<!-- Navigation Drawer (Desktop Placeholder) -->
+<aside class="fixed left-0 top-0 h-full w-80 bg-surface-container dark:bg-surface-container border-r border-outline-variant hidden xl:flex flex-col py-6 translate-x-[-100%] transition-transform duration-300 hover:translate-x-0 group">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-full border border-primary-fixed p-1">
+<img alt="AI System Status" class="w-full h-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkK-G7Mx_r92bE7oNc12iWGYl-PF5j9HD8_OWiYn4eeihC4n0Zu_gRvK7NDdv0-f4meL_pfbr0oT4Fztc-ESdffXtm7kR4UecdjgSw7NIB65SjNO0FthlQnQWKxon2j8t0E5RXeHrD3WJ2W8no8sMob3lV4H-LwjBf1B-yaLCvdCWKwCzdJ30OwF4wQ1e_YhOnqGYU-cJ2-qq8gJOsNq9qj3OQ6FOtMERo1Oy0QxZPM9Ec6Dck4zwy5DD-GZQlOypZnNa7N0AS_w">
+</div>
+<div>
+<h3 class="font-headline-md text-primary-fixed text-lg">AI Companion</h3>
+<p class="text-label-sm text-on-surface-variant">System Active</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<div class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-full mx-2 transition-all">
+<span class="material-symbols-outlined" data-icon="speed">speed</span>
+<span class="font-body-md">Driving Confidence</span>
+</div>
+<div class="flex items-center gap-4 px-4 py-3 bg-secondary-container text-primary-fixed font-bold rounded-full mx-2 transition-all">
+<span class="material-symbols-outlined" data-icon="local_parking">local_parking</span>
+<span class="font-body-md">Parking Mastery</span>
+</div>
+<div class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-full mx-2 transition-all">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<span class="font-body-md">Visibility Safety</span>
+</div>
+</nav>
+<div class="px-6 mt-auto">
+<div class="bg-surface-variant/30 p-4 rounded-xl">
+<p class="text-label-sm text-on-surface-variant uppercase tracking-tighter mb-2">Completion Progress</p>
+<div class="flex gap-1 h-1">
+<div class="flex-1 bg-primary-fixed"></div>
+<div class="flex-1 bg-primary-fixed"></div>
+<div class="flex-1 bg-on-surface-variant/20"></div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Bottom Navigation Bar (Mobile) -->
+
+<script>
+        // Multi-select with deselect. Submit the FULL current selection on every
+        // change, so multiple picks are logged and clearing resets to 'none'.
+        var AK_SLUGS_17 = [
+            [/tight parking/i, 'tight-spaces'],
+            [/parallel/i, 'parallel'],
+            [/backing out/i, 'backing-out'],
+            [/detecting nearby/i, 'detecting-objects'],
+            [/pedestrian/i, 'pedestrians'],
+        ];
+        function akLabelOf(card) {
+            var el = card.querySelector('.font-body-md');
+            return el ? el.textContent.trim().replace(/\s+/g, ' ') : '';
+        }
+        function submitParkingSelections() {
+            if (!window.AudienceKit) return;
+            var slugs = [], labels = [];
+            document.querySelectorAll('#selection-container button.is-ak-selected').forEach(function (card) {
+                var label = akLabelOf(card);
+                var hit = AK_SLUGS_17.find(function (s) { return s[0].test(label); });
+                if (hit) { slugs.push(hit[1]); labels.push(label); }
+            });
+            window.AudienceKit.submitAnswer(
+                'adas-ppt-test-slide17',
+                slugs.join(',') || 'none',
+                labels.join(', ') || 'None selected'
+            );
+        }
+        function selectOption(element) {
+            var selected = !element.classList.contains('is-ak-selected');
+            element.classList.toggle('is-ak-selected', selected);
+            element.classList.toggle('border-primary-fixed', selected);
+            element.classList.toggle('bg-primary-fixed/5', selected);
+            var dot = element.querySelector('.bg-primary-fixed'); // inner radio dot
+            if (dot) { dot.classList.toggle('scale-0', !selected); dot.classList.toggle('scale-100', selected); }
+            submitParkingSelections();
+        }
+    </script>
+<script src="/Presentations/_shared/companion-kit.js"></script>
+</body></html>

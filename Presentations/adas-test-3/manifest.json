@@ -1,0 +1,42 @@
+{
+  "deckId": "adas-test-3",
+  "title": "ADAS Test 3",
+  "description": "Imported from an HTML presentation folder.",
+  "entry": "index.html",
+  "slideCount": 1,
+  "slides": [
+    "ADAS_Workshop.html"
+  ],
+  "importSource": {
+    "type": "html-folder"
+  },
+  "audience": {
+    "enabled": true,
+    "liveSessionId": "adas-test-3-main",
+    "qrOverlayEnabled": true,
+    "contentByStep": {
+      "slide1": {
+        "eyebrow": "Live Session",
+        "title": "Index",
+        "body": "You are viewing synced audience content for Index.",
+        "prompt": "Keep this page open. It updates as the presentation moves."
+      }
+    }
+  },
+  "companion": {
+    "enabled": false,
+    "entry": "companion/index.html",
+    "files": [],
+    "contentByStep": {},
+    "bindingsByStep": {
+      "slide1": {
+        "slideStep": "slide1",
+        "responseKey": "adas-test-3-slide1",
+        "interactionMode": "question",
+        "mainSlideEffect": "counter"
+      }
+    }
+  },
+  "createdAt": "2026-05-18T22:39:17.819Z",
+  "updatedAt": "2026-06-07T18:10:50.199Z"
+}

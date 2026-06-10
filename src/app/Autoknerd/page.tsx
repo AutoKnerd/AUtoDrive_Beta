@@ -31,12 +31,12 @@ const ecosystemProducts = [
   },
   {
     key: 'autodrivecx',
-    label: 'PLATFORM',
-    title: 'AutoDriveCX',
-    copy: 'The central nervous system. Unified behavioral training designed for scale and consistency.',
-    href: 'https://autodrivecx.com',
-    ariaLabel: 'Explore AutoDriveCX platform',
-    cta: 'Explore the System',
+    label: 'MANAGER CLARITY',
+    title: 'See Where Execution Is Slipping',
+    copy: 'AutoKnerd shows owners and GMs which CX behaviors are strong, which ones are costing consistency, and where managers should coach this week.',
+    href: '/Autoknerd/app',
+    ariaLabel: 'View the AutoKnerd clarity panel',
+    cta: 'View the Clarity Panel',
     accentText: 'text-[#bdfc00]',
     accentMutedText: 'text-[#bdfc00]/75',
     accentHoverText: 'group-hover:text-[#bdfc00]',
@@ -47,8 +47,8 @@ const ecosystemProducts = [
     accentImageBorder: 'border-[#eaffb8]/40',
     accentIconActive: 'text-[#bdfc00] drop-shadow-[0_0_20px_rgba(189,252,0,0.8)]',
     accentIconInactive: 'text-[#bdfc00]/25',
-    image: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTw-h2OTfPHdg19cY-HzLdqnDuxvXj8uWO8T7EK87rJnbjPD9qZo_l8wHKzA-YF7BAWpBSIfTZaaS779w24oWVPEPfLFY7tJvy7S6hWF4UmFPDRXPiTsbsmbHolmQiXmkEgAOGfQt1S5NC3jjIki0AxGkvAjI3m2Dv9CQt-uMt5aXCsB8QtccX1n4GSFwVtYiNoaIpieyoT3rbLarb5E6P_oUELaobTdTo86pET7KEtmi0izS13KqH6l7qcKyL2tHdJx8lKL3kCwk')",
-    icon: 'psychology',
+    image: "url('/autoknerd-app-card.svg')",
+    icon: null,
   },
   {
     key: 'autoforge',
@@ -399,7 +399,7 @@ export default function AutoknerdPage() {
             <h3 className="mb-6 text-xl tracking-tight text-zinc-400 md:text-2xl">
               If your team sounds different from one customer to the next, your system isn&apos;t working.
             </h3>
-            <h2 className="mb-4 text-4xl tracking-tighter text-[#f4f3f3] md:text-5xl">Three connected products. One performance system.</h2>
+            <h2 className="mb-4 text-4xl tracking-tighter text-[#f4f3f3] md:text-5xl">Three connected engines. One performance system.</h2>
             <p className="mb-8 text-lg font-light text-[#aaabab] md:text-xl">Start where you are. Scale as your dealership grows.</p>
           </div>
           <div className="relative">
@@ -412,6 +412,8 @@ export default function AutoknerdPage() {
                 const isActive = (hoveredProduct ?? activeProduct) === product.key;
                 const isPlatform = product.key === 'autodrivecx';
                 const isExternal = product.href.startsWith('http');
+                const shouldContainImage = product.key === 'autodrivecx';
+                const isManagerClarity = product.key === 'autodrivecx';
 
                 return (
                   <Link
@@ -452,31 +454,65 @@ export default function AutoknerdPage() {
                       ].join(' ')}
                     >
                       {isActive && <div className={`absolute right-0 top-0 h-32 w-32 rounded-full ${product.accentOrb} blur-3xl`} />}
-                      <h3 className={isActive ? 'mb-3 text-3xl text-white' : 'mb-3 text-2xl text-[#f4f3f3]'}>
-                        {product.title}
-                      </h3>
-                      <p
-                        className={[
-                          'mb-8 transition-all duration-500',
-                          isActive ? 'text-base font-medium leading-relaxed text-white' : 'line-clamp-2 text-sm text-[#aaabab]',
-                        ].join(' ')}
-                      >
-                        {product.copy}
-                      </p>
+                      {isManagerClarity ? (
+                        <div className="mb-5 overflow-hidden border border-[#bdfc00]/18 bg-[#0b0d0c]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                          <div className="flex items-center justify-between border-b border-[#bdfc00]/10 px-4 py-3">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#bdfc00]">Owner View</span>
+                            <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">This week</span>
+                          </div>
+                          <div className="space-y-4 px-4 py-4">
+                            <h3 className={isActive ? 'text-2xl leading-tight text-white' : 'text-xl leading-tight text-[#f4f3f3]'}>
+                              {product.title}
+                            </h3>
+                            <p className={isActive ? 'text-sm font-medium leading-relaxed text-white/85' : 'line-clamp-2 text-sm text-[#aaabab]'}>
+                              {product.copy}
+                            </p>
+                            <div className="grid grid-cols-[1fr_auto] gap-3 border-t border-[#bdfc00]/10 pt-4 text-[10px] uppercase tracking-[0.16em]">
+                              <span className="text-zinc-500">Weakest signal</span>
+                              <span className="font-bold text-[#bdfc00]">Pacing</span>
+                              <span className="text-zinc-500">Manager focus</span>
+                              <span className="font-bold text-[#bdfc00]">Active Listening</span>
+                              <span className="text-zinc-500">Network avg</span>
+                              <span className="font-bold text-[#eaffb8]">61%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <h3 className={isActive ? 'mb-3 text-3xl text-white' : 'mb-3 text-2xl text-[#f4f3f3]'}>
+                            {product.title}
+                          </h3>
+                          <p
+                            className={[
+                              'mb-8 transition-all duration-500',
+                              isActive ? 'text-base font-medium leading-relaxed text-white' : 'line-clamp-2 text-sm text-[#aaabab]',
+                            ].join(' ')}
+                          >
+                            {product.copy}
+                          </p>
+                        </>
+                      )}
                       <div
                         className={[
-                          'relative flex items-center justify-center overflow-hidden bg-black transition-all duration-500',
-                          isActive ? `h-40 border ${product.accentImageBorder}` : 'h-32 border border-[#464848]/5',
+                          'relative flex items-center justify-center overflow-hidden transition-all duration-500',
+                          '-mx-8',
+                          'w-[calc(100%+4rem)]',
+                          isActive
+                            ? 'h-[18rem]'
+                            : 'h-[13rem]',
                         ].join(' ')}
                       >
                         <div
                           className={[
-                            'absolute inset-0 bg-cover bg-center transition-all duration-500',
-                            isActive ? 'opacity-70' : 'opacity-20',
+                            'absolute inset-0 bg-center bg-no-repeat transition-all duration-500',
+                            isActive ? 'opacity-100' : 'opacity-30',
                           ].join(' ')}
-                          style={{ backgroundImage: product.image }}
+                          style={{
+                            backgroundImage: product.image,
+                            backgroundSize: shouldContainImage ? '100% 100%' : 'cover',
+                          }}
                         />
-                        {isPlatform && (
+                        {isPlatform && product.icon && (
                           <span
                             className={[
                               'material-symbols-outlined relative z-10 transition-all duration-500',

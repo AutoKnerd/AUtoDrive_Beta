@@ -1,0 +1,227 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>ADAS Workshop Enrollment</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#2c5000",
+                        "outline-variant": "#404a34",
+                        "on-error": "#690005",
+                        "on-secondary-fixed-variant": "#454749",
+                        "inverse-primary": "#3d6a00",
+                        "on-primary-fixed": "#0f2000",
+                        "surface": "#131314",
+                        "background": "#131314",
+                        "secondary-fixed": "#e2e2e5",
+                        "outline": "#8a947b",
+                        "surface-bright": "#3a393a",
+                        "surface-container-low": "#1c1b1c",
+                        "surface-container-highest": "#353436",
+                        "secondary-fixed-dim": "#c6c6c9",
+                        "on-tertiary-fixed-variant": "#44474c",
+                        "surface-container-lowest": "#0e0e0f",
+                        "on-tertiary": "#2d3135",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-high": "#2a2a2b",
+                        "secondary-container": "#454749",
+                        "on-tertiary-container": "#62646a",
+                        "surface-variant": "#353436",
+                        "primary-fixed": "#9afc1b",
+                        "on-secondary": "#2f3133",
+                        "surface-container": "#201f20",
+                        "on-tertiary-fixed": "#191c20",
+                        "on-secondary-container": "#b4b5b7",
+                        "on-background": "#e5e2e3",
+                        "on-primary": "#1d3700",
+                        "inverse-on-surface": "#313031",
+                        "on-secondary-fixed": "#1a1c1e",
+                        "on-primary-container": "#417000",
+                        "on-surface": "#e5e2e3",
+                        "tertiary-fixed": "#e1e2e9",
+                        "surface-tint": "#84dd00",
+                        "error-container": "#93000a",
+                        "on-surface-variant": "#c0caae",
+                        "primary-container": "#9afc1b",
+                        "primary": "#ffffff",
+                        "inverse-surface": "#e5e2e3",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed-dim": "#c4c6cc",
+                        "primary-fixed-dim": "#84dd00",
+                        "secondary": "#c6c6c9",
+                        "surface-dim": "#131314",
+                        "tertiary-container": "#e1e2e9",
+                        "tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "margin-desktop": "48px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Sora"],
+                        "headline-md": ["Sora"],
+                        "label-md": ["Sora"],
+                        "headline-xl": ["Sora"],
+                        "headline-lg-mobile": ["Sora"],
+                        "body-md": ["Sora"],
+                        "headline-lg": ["Sora"],
+                        "label-sm": ["Sora"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0B;
+            color: #e5e2e3;
+            -webkit-font-smoothing: antialiased;
+        }
+        .neon-glow {
+            box-shadow: 0px 0px 12px rgba(154, 252, 27, 0.4);
+        }
+        .neon-border-focus:focus-within {
+            border-bottom-color: #9afc1b;
+            box-shadow: 0 4px 12px -6px rgba(154, 252, 27, 0.5);
+        }
+        .segmented-progress::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: linear-gradient(90deg, transparent 95%, #0A0A0B 95%);
+            background-size: 20px 100%;
+        }
+        .glass-panel {
+            background: rgba(26, 28, 30, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid #3A3D42;
+        }
+    </style>
+</head>
+<body class="font-body-md overflow-x-hidden pb-24 md:pb-0">
+<!-- TopAppBar -->
+
+<main class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-16 grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Hero Section -->
+<section class="lg:col-span-7 flex flex-col gap-6">
+<div class="relative rounded-xl overflow-hidden aspect-video group">
+<img alt="Kia EV6 Tech HUD" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyP9B1VZT9bSqHSqoYNbNrYl_gn06vn3GOHl4CLR-LRADNvFLfQxZHJ4aripI02o1pAJLqH1t-eWFXwQM1lZzXBXU9QkEbV8n5YXPYNQpDrKlAe50ABgiGcebFjUsyKqtfcAAEkDE567s07Fg7X6nXYTUm5JJ0XT4V8ETqu-B7OwiOjZwqNfBBlfQ4kpJ9zdkGajI8b37nI1GRpNIb8K4MTD8BG930qQBBvDPFVsJonPBGZgDhXx-IfpDq_6jYGdOYMeqGQgGliw">
+<div class="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent"></div>
+<div class="absolute bottom-6 left-6 right-6">
+<span class="inline-block px-3 py-1 bg-primary-container/10 border border-primary-container/30 text-primary-fixed text-label-sm font-label-sm mb-4" style="opacity: 1;">SYSTEM STATUS: READY</span>
+<h2 class="font-headline-xl text-headline-xl text-primary mb-2">WORKSHOP ENROLLMENT</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-xl">Please Sign In Below</p>
+</div>
+</div>
+<!-- Stats/System Info (Atmospheric) -->
+<div class="grid grid-cols-3 gap-4">
+
+
+
+</div>
+</section>
+<!-- Enrollment Form -->
+<section class="lg:col-span-5">
+<div class="glass-panel p-8 rounded-xl flex flex-col gap-8 sticky top-24">
+<div class="flex flex-col gap-2">
+<h3 class="font-headline-md text-headline-md text-primary">Roster:</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Complete the form below to initialize your session.</p>
+</div>
+<form class="flex flex-col gap-6" onsubmit="event.preventDefault();">
+<div class="flex flex-col gap-2 neon-border-focus group">
+<label class="font-label-md text-label-md text-on-surface-variant group-focus-within:text-primary-fixed transition-colors" for="full_name">FULL NAME</label>
+<input class="bg-[#121214] border-0 border-b border-[#3A3D42] py-3 text-primary font-body-md focus:ring-0 focus:border-primary-fixed placeholder:text-surface-container-highest transition-all" id="full_name" placeholder="Lead Engineer Name" type="text">
+</div>
+<div class="flex flex-col gap-2 neon-border-focus group">
+<label class="font-label-md text-label-md text-on-surface-variant group-focus-within:text-primary-fixed transition-colors" for="dealer_code">DEALER CODE</label>
+<input class="bg-[#121214] border-0 border-b border-[#3A3D42] py-3 text-primary font-body-md focus:ring-0 focus:border-primary-fixed placeholder:text-surface-container-highest transition-all [appearance:textfield] [&amp;::-webkit-outer-spin-button]:appearance-none [&amp;::-webkit-inner-spin-button]:appearance-none" id="dealer_code" placeholder="Enter Numeric Code" type="number">
+</div>
+<div class="flex flex-col gap-2 neon-border-focus group">
+<label class="font-label-md text-label-md text-on-surface-variant group-focus-within:text-primary-fixed transition-colors" for="kuid">KUID</label>
+<input class="bg-[#121214] border-0 border-b border-[#3A3D42] py-3 text-primary font-body-md focus:ring-0 focus:border-primary-fixed placeholder:text-surface-container-highest transition-all uppercase" id="kuid" placeholder="Alphanumeric ID" type="text">
+</div>
+<div class="flex flex-col gap-4 mt-4">
+<div class="flex items-center gap-3">
+<input class="rounded-sm bg-surface-container-low border-outline text-primary-fixed focus:ring-primary-fixed/50" id="terms" type="checkbox">
+<label class="text-label-sm font-label-sm text-on-surface-variant" for="terms">Agree To Important Things</label>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary font-label-md text-label-md h-14 rounded-sm hover:neon-glow hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2" type="button">
+                        INITIALIZE SESSION
+                        <span class="material-symbols-outlined text-[20px]">bolt</span>
+</button>
+</form>
+<div class="pt-4 border-t border-outline-variant">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-sm font-label-sm text-on-surface-variant">WORKSHOP TITLE</span>
+<span class="text-label-sm font-label-sm text-primary-fixed">ADAS</span>
+</div>
+<div class="relative h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="absolute top-0 left-0 h-full w-2/3 bg-primary-container segmented-progress"></div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+
+<!-- Sidebar (Desktop Navigation) - Subtle visual cue -->
+<div class="hidden md:fixed left-0 top-16 bottom-0 w-16 border-r border-outline-variant bg-surface-container flex-col items-center py-8 gap-10 md:flex">
+<span class="material-symbols-outlined text-primary-container cursor-pointer hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">settings_input_component</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">settings_remote</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">layers</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">history_edu</span>
+</div>
+<script>
+        // Micro-interaction: Focus effect for inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.querySelector('label').style.letterSpacing = '0.1em';
+            });
+            input.addEventListener('blur', () => {
+                input.parentElement.querySelector('label').style.letterSpacing = '0.05em';
+            });
+        });
+
+        // Atmospheric pulse for "READY" badge
+        const badge = document.querySelector('.bg-primary-container\\/10');
+        if(badge) {
+            setInterval(() => {
+                badge.style.opacity = badge.style.opacity === '0.6' ? '1' : '0.6';
+            }, 1000);
+        }
+    </script>
+
+
+<script src="/Presentations/_shared/companion-kit.js"></script>
+</body></html>

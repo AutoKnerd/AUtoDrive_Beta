@@ -1,0 +1,300 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Driving Confidence Profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: #131314;
+        }
+        .neon-glow {
+            box-shadow: 0px 0px 12px rgba(56, 189, 248, 0.4);
+        }
+        /* Selected multi-choice card — wins over Tailwind border/shadow utils. */
+        .option-card.ak-on {
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.45) !important;
+            background-color: rgba(56, 189, 248, 0.08) !important;
+        }
+        .neon-border-glow:focus-within {
+            box-shadow: 0px 4px 12px rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+        }
+        .segmented-progress {
+            background-image: linear-gradient(to right, #38bdf8 70%, transparent 70%);
+            background-size: 10px 100%;
+        }
+        .glass-card {
+            background: rgba(26, 28, 30, 0.8);
+            backdrop-filter: blur(12px);
+        }
+        @keyframes pulse-neon {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.98); }
+        }
+        .ai-pulse {
+            animation: pulse-neon 2s infinite ease-in-out;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ffb4ab",
+                        "tertiary-container": "#e1e2e9",
+                        "secondary-fixed": "#e2e2e5",
+                        "primary-container": "#38bdf8",
+                        "primary": "#ffffff",
+                        "on-tertiary": "#2d3135",
+                        "on-primary": "#06283a",
+                        "on-background": "#e5e2e3",
+                        "on-secondary-fixed-variant": "#454749",
+                        "background": "#131314",
+                        "on-surface-variant": "#aebccb",
+                        "on-secondary": "#2f3133",
+                        "on-tertiary-fixed-variant": "#44474c",
+                        "surface-container-low": "#1c1b1c",
+                        "on-tertiary-fixed": "#191c20",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#c4c6cc",
+                        "surface-variant": "#353436",
+                        "surface-tint": "#0ea5e9",
+                        "surface-dim": "#131314",
+                        "secondary-container": "#454749",
+                        "primary-fixed-dim": "#0ea5e9",
+                        "on-primary-fixed": "#052433",
+                        "outline": "#8a947b",
+                        "on-primary-fixed-variant": "#0c4a6e",
+                        "inverse-surface": "#e5e2e3",
+                        "secondary-fixed-dim": "#c6c6c9",
+                        "primary-fixed": "#38bdf8",
+                        "surface-container-lowest": "#0e0e0f",
+                        "on-secondary-container": "#b4b5b7",
+                        "inverse-on-surface": "#313031",
+                        "secondary": "#c6c6c9",
+                        "surface": "#131314",
+                        "outline-variant": "#36454e",
+                        "on-secondary-fixed": "#1a1c1e",
+                        "on-surface": "#e5e2e3",
+                        "inverse-primary": "#0369a1",
+                        "tertiary-fixed": "#e1e2e9",
+                        "surface-container-high": "#2a2a2b",
+                        "surface-bright": "#3a393a",
+                        "error-container": "#93000a",
+                        "on-error": "#690005",
+                        "surface-container": "#201f20",
+                        "on-tertiary-container": "#62646a",
+                        "on-primary-container": "#075985",
+                        "tertiary": "#ffffff",
+                        "surface-container-highest": "#353436"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin-desktop": "48px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "container-max": "1440px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Sora"],
+                        "body-md": ["Sora"],
+                        "label-sm": ["Sora"],
+                        "headline-md": ["Sora"],
+                        "label-md": ["Sora"],
+                        "headline-lg-mobile": ["Sora"],
+                        "body-lg": ["Sora"],
+                        "headline-xl": ["Sora"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-background border-b border-outline-variant z-40">
+
+</header>
+<main class="flex-grow container mx-auto px-margin-mobile py-8 md:px-margin-desktop max-w-4xl">
+<!-- Introduction -->
+<section class="mb-10">
+<div class="flex items-center gap-2 mb-2">
+<span class="bg-primary-container/10 text-primary-fixed px-3 py-1 rounded-full font-label-md text-label-md">DRIVING</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg-mobile mb-4">Driving Confidence Profile</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+                Tell us which driving situations create the most stress or uncertainty. Your responses will help the AI personalize your ADAS learning journey.
+            </p>
+</section>
+<!-- Question Card -->
+<div class="bg-surface-container rounded-xl border border-outline-variant p-6 mb-8">
+<div class="flex items-center gap-4 mb-6">
+<div class="w-1 bg-primary-fixed h-8 rounded-full"></div>
+<h3 class="font-headline-md text-headline-md-mobile">Which driving situation concerns you most?</h3>
+</div>
+<div class="grid grid-cols-1 gap-4" id="options-container">
+<!-- Option 1 -->
+<button class="option-card flex items-center justify-between p-5 rounded-xl bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all duration-200 group text-left" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="car_crash">car_crash</span>
+<span class="font-body-md text-body-md">Sudden braking ahead</span>
+</div>
+<div class="check-mark opacity-0 scale-50 transition-all duration-200">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</button>
+<!-- Option 2 -->
+<button class="option-card flex items-center justify-between p-5 rounded-xl bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all duration-200 group text-left" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="road">road</span>
+<span class="font-body-md text-body-md">Lane drifting</span>
+</div>
+<div class="check-mark opacity-0 scale-50 transition-all duration-200">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</button>
+<!-- Option 3 -->
+<button class="option-card flex items-center justify-between p-5 rounded-xl bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all duration-200 group text-left" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="traffic">traffic</span>
+<span class="font-body-md text-body-md">Heavy traffic</span>
+</div>
+<div class="check-mark opacity-0 scale-50 transition-all duration-200">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</button>
+<!-- Option 4 -->
+<button class="option-card flex items-center justify-between p-5 rounded-xl bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all duration-200 group text-left" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="visibility_off">visibility_off</span>
+<span class="font-body-md text-body-md">Blind spots</span>
+</div>
+<div class="check-mark opacity-0 scale-50 transition-all duration-200">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</button>
+<!-- Option 5 -->
+<button class="option-card flex items-center justify-between p-5 rounded-xl bg-surface-container-low border border-outline-variant hover:border-primary-fixed transition-all duration-200 group text-left" onclick="selectOption(this)">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed" data-icon="speed">speed</span>
+<span class="font-body-md text-body-md">Long highway drives</span>
+</div>
+<div class="check-mark opacity-0 scale-50 transition-all duration-200">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</button>
+</div>
+</div>
+<!-- AI Profile Status Card -->
+
+</main>
+<!-- NavigationDrawer (Hidden on mobile, simulated as side structure) -->
+<aside class="hidden lg:flex fixed left-0 top-20 h-[calc(100vh-80px)] w-80 flex-col py-6 bg-surface-container border-r border-outline-variant rounded-r-full shadow-xl z-30">
+<div class="px-6 mb-8 flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="security_update_good">security_update_good</span>
+</div>
+<div>
+<h5 class="font-body-md text-primary-fixed font-bold">AI Companion</h5>
+<p class="text-xs text-on-surface-variant">System Active</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2">
+<div class="bg-secondary-container text-primary-fixed font-bold rounded-full mx-2 px-6 py-4 flex items-center gap-3 transition-all duration-300">
+<span class="material-symbols-outlined" data-icon="speed">speed</span>
+<span class="font-body-md">Driving Confidence</span>
+</div>
+<div class="text-on-surface-variant mx-2 px-6 py-4 flex items-center gap-3 hover:bg-surface-variant/50 rounded-full transition-all duration-300 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="local_parking">local_parking</span>
+<span class="font-body-md">Parking Mastery</span>
+</div>
+<div class="text-on-surface-variant mx-2 px-6 py-4 flex items-center gap-3 hover:bg-surface-variant/50 rounded-full transition-all duration-300 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<span class="font-body-md">Visibility Safety</span>
+</div>
+</nav>
+<div class="mt-auto px-6 py-4">
+<p class="font-label-sm text-label-sm text-on-surface-variant">3 of 3 categories completed</p>
+</div>
+</aside>
+<!-- BottomNavBar -->
+
+<script>
+        // Multi-select with deselect. We submit the FULL current selection on
+        // every change (not the single tapped item), so multiple picks are
+        // logged together and clearing them all resets the answer to 'none'.
+        var AK_SLUGS = [
+            [/sudden braking/i, 'sudden-braking'],
+            [/lane drift/i, 'lane-drifting'],
+            [/heavy traffic/i, 'heavy-traffic'],
+            [/blind spot/i, 'blind-spots'],
+            [/highway/i, 'highway'],
+        ];
+        function akLabelOf(card) {
+            var el = card.querySelector('.font-body-md');
+            return el ? el.textContent.trim().replace(/\s+/g, ' ') : '';
+        }
+        function submitDrivingSelections() {
+            if (!window.AudienceKit) return;
+            var slugs = [], labels = [];
+            document.querySelectorAll('.option-card.is-ak-selected').forEach(function (card) {
+                var label = akLabelOf(card);
+                var hit = AK_SLUGS.find(function (s) { return s[0].test(label); });
+                if (hit) { slugs.push(hit[1]); labels.push(label); }
+            });
+            window.AudienceKit.submitAnswer(
+                'adas-ppt-test-slide16',
+                slugs.join(',') || 'none',
+                labels.join(', ') || 'None selected'
+            );
+        }
+        function selectOption(element) {
+            var selected = !element.classList.contains('is-ak-selected');
+            element.classList.toggle('is-ak-selected', selected);
+            // Inline !important is the only thing guaranteed to beat the button's
+            // base border/shadow styles, so set the selected look directly.
+            if (selected) {
+                element.style.setProperty('border-color', '#38bdf8', 'important');
+                element.style.setProperty('box-shadow', '0 0 14px rgba(56, 189, 248, 0.45)', 'important');
+                element.style.setProperty('background-color', 'rgba(56, 189, 248, 0.08)', 'important');
+            } else {
+                element.style.removeProperty('border-color');
+                element.style.removeProperty('box-shadow');
+                element.style.removeProperty('background-color');
+            }
+            var checkMark = element.querySelector('.check-mark');
+            if (checkMark) {
+                checkMark.classList.toggle('opacity-0', !selected);
+                checkMark.classList.toggle('scale-50', !selected);
+                checkMark.classList.toggle('opacity-100', selected);
+                checkMark.classList.toggle('scale-100', selected);
+            }
+            element.classList.add('scale-[0.98]');
+            setTimeout(function () { element.classList.remove('scale-[0.98]'); }, 100);
+            submitDrivingSelections();
+        }
+    </script>
+<script src="/Presentations/_shared/companion-kit.js"></script>
+</body></html>
