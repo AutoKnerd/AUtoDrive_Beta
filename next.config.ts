@@ -25,6 +25,8 @@ function resolveGitSha() {
 const nextConfig: NextConfig = {
   output: 'standalone',
   /* config options here */
+  // Drop the "X-Powered-By: Next.js" response header so the stack is less obvious.
+  poweredByHeader: false,
   outputFileTracingRoot: path.resolve(__dirname),
   async redirects() {
     return [
