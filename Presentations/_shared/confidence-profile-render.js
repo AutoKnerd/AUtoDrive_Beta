@@ -197,7 +197,10 @@
   }
 
   var lastRendered = '';
+  var pollTimer = null;
+  var settled = false; // once the AI answer is developed we stop re-fetching
   async function poll() {
+    if (settled) return;
     var ctx = resolveContext();
     if (!ctx) return; // not in a live session yet — keep the static design as-is
     try {
@@ -211,12 +214,26 @@
       if (!res.ok) return;
       var data = await res.json();
       if (data && data.profile) {
-        // Only touch the DOM when something actually changed — otherwise the
-        // insight text and bars would visibly re-render on every poll.
-        var signature = JSON.stringify(data.profile);
-        if (signature === lastRendered) return;
-        render(data.profile, data.mode || ctx.mode);
-        lastRendered = signature; // only lock in after a successful render
+        // Dedupe on the NUMBERS, not the AI prose. The server's insight text can
+        // vary call-to-call (cache misses across serverless instances), which used
+        // to re-render the whole card every few seconds. By excluding insight /
+        // learningFocus from the signature, we only redraw when the underlying
+        // data actually changes — so the card never visibly "refreshes" on its own.
+        var sigData = Object.assign({}, data.profile);
+        delete sigData.insight;
+        delete sigData.learningFocus;
+        var signature = JSON.stringify(sigData);
+        if (signature !== lastRendered) {
+          render(data.profile, data.mode || ctx.mode);
+          lastRendered = signature; // only lock in after a successful render
+        }
+        // Once the AI has produced a real, data-backed answer, also stop polling
+        // entirely so nothing regenerates. Until data exists we keep polling
+        // (invisibly, thanks to the dedupe above) so the answer still appears.
+        if (data.profile.hasData) {
+          settled = true;
+          if (pollTimer) { window.clearInterval(pollTimer); pollTimer = null; }
+        }
       }
     } catch (e) {
       // keep the slide usable even if the AI endpoint blips
@@ -226,8 +243,9 @@
 
   function start() {
     poll();
-    // The room token can arrive a beat after load; poll a few times quickly, then settle.
-    window.setInterval(poll, 4000);
+    // The room token can arrive a beat after load; poll until the answer is
+    // developed (poll() clears this once profile.hasData is true).
+    pollTimer = window.setInterval(poll, 4000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
