@@ -762,6 +762,22 @@ function CompanionLiveSessionView({
     };
   }, []);
 
+  // The companion posts its overlay height while the 3D model is deployed (the
+  // slide content is hidden, so the iframe's own scrollHeight can't shrink — a
+  // classic auto-resize feedback loop). Honor that height directly so the page
+  // trims down to just the model instead of staying as tall as the slide.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { source?: string; type?: string; height?: number } | null;
+      if (!data || data.source !== 'autodrive-companion' || data.type !== 'model-height') return;
+      if (typeof data.height === 'number' && Number.isFinite(data.height)) {
+        setIframeHeight(Math.max(Math.round(data.height), 480));
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
   if (!payload.companionUrl) {
     return <GenericLiveSessionView payload={payload} status={status} />;
   }
@@ -781,7 +797,7 @@ function CompanionLiveSessionView({
         body.offsetHeight,
         documentElement.scrollHeight,
         documentElement.offsetHeight,
-        720,
+        520,
       );
 
       setIframeHeight(nextHeight);
@@ -794,7 +810,7 @@ function CompanionLiveSessionView({
             body.offsetHeight,
             documentElement.scrollHeight,
             documentElement.offsetHeight,
-            720,
+            520,
           );
           setIframeHeight(updatedHeight);
         });

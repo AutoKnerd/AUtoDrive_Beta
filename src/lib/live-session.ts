@@ -10,6 +10,13 @@ export type LiveSessionState = {
   // When true, the presentation screen shows the audience-join QR overlay.
   // Drivable from the presenter remote so new participants can scan in.
   audienceQrVisible: boolean;
+  // Active 3D-model sensor hotspot id (e.g. 'front-radar'). Drivable from the
+  // presenter remote so every companion's 3D car rotates to the same sensor.
+  spotlight: string | null;
+  // When true, every companion pops a full-screen 3D model overlay (over
+  // whatever slide content it's showing). Drivable from the presenter remote so
+  // the trainer can "deploy" the model mid-slide and "hide" it to return.
+  modelDeployed: boolean;
 };
 
 export type LiveSessionAudienceContent = {
@@ -88,6 +95,8 @@ export const LIVE_SESSION_DEFAULT_STATE: LiveSessionState = {
   sessionToken: 'session-0',
   updatedAt: null,
   audienceQrVisible: false,
+  spotlight: null,
+  modelDeployed: false,
 };
 
 export const LIVE_SESSION_AUDIENCE_RESPONSE_COLLECTION = 'presentation_live_session_responses';
@@ -119,6 +128,8 @@ export function normalizeLiveSessionState(input?: Partial<LiveSessionState> | nu
     sessionToken: input?.sessionToken ?? LIVE_SESSION_DEFAULT_STATE.sessionToken,
     updatedAt: input?.updatedAt ?? LIVE_SESSION_DEFAULT_STATE.updatedAt,
     audienceQrVisible: input?.audienceQrVisible === true,
+    spotlight: typeof input?.spotlight === 'string' && input.spotlight.trim() ? input.spotlight.trim() : null,
+    modelDeployed: input?.modelDeployed === true,
   };
 }
 

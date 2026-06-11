@@ -116,10 +116,22 @@
         <span class="material-symbols-outlined text-on-surface-variant group-active:text-primary" id="qrIcon">qr_code_2</span>
         <span class="font-label-caps text-[10px] text-on-surface-variant group-active:text-primary" id="qrLabel">AUDIENCE QR</span>
       </button>
+      <button class="flex-1 bg-surface-container-high rounded-xl border border-outline-variant flex flex-col items-center justify-center gap-1 active:bg-surface-bright transition-colors group" id="modelBtn">
+        <span class="material-symbols-outlined text-on-surface-variant group-active:text-primary" id="modelIcon">view_in_ar</span>
+        <span class="font-label-caps text-[10px] text-on-surface-variant group-active:text-primary" id="modelLabel">3D MODEL</span>
+      </button>
       <button class="flex-1 bg-surface-container-high rounded-xl border border-outline-variant flex flex-col items-center justify-center gap-1 active:bg-surface-bright transition-colors group" id="resetBtn">
         <span class="material-symbols-outlined text-on-surface-variant group-active:text-primary">restart_alt</span>
         <span class="font-label-caps text-[10px] text-on-surface-variant group-active:text-primary">RESET</span>
       </button>
+    </section>
+
+    <section class="flex flex-col gap-2 hidden" id="sensorPanel">
+      <div class="flex items-center justify-between px-1">
+        <span class="font-label-caps text-[10px] text-on-surface-variant tracking-widest">3D SENSOR SPOTLIGHT</span>
+        <button id="sensorClear" class="font-label-caps text-[10px] text-primary active:opacity-60">CLEAR</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2" id="sensorGrid"></div>
     </section>
 
     <section class="flex flex-col gap-4 mt-2">
@@ -243,8 +255,54 @@
   const withRoom = (path) => { const u = new URL(path, location.origin); u.searchParams.set('room', ROOM); return u.toString(); };
   const state = {
     deckId: '', slides: [], contentByStep: {}, currentSlide: '', currentStep: 'slide1',
-    sessionToken: '', currentIndex: -1, deckTitle: '', audienceQrVisible: false,
+    sessionToken: '', currentIndex: -1, deckTitle: '', audienceQrVisible: false, spotlight: null, modelDeployed: false,
   };
+
+  // 3D model: "3D MODEL" deploys a full-screen model on every companion
+  // (state.modelDeployed); while deployed, the sensor panel lets the trainer tap
+  // a sensor to rotate/highlight it on every companion (state.spotlight).
+  function reflectModel() {
+    const on = state.modelDeployed;
+    document.getElementById('modelIcon').textContent = on ? 'cancel_presentation' : 'view_in_ar';
+    document.getElementById('modelLabel').textContent = on ? 'HIDE MODEL' : '3D MODEL';
+    document.getElementById('modelBtn').classList.toggle('bg-secondary-container', on);
+    document.getElementById('modelBtn').classList.toggle('!text-on-secondary-container', on);
+  }
+  let sensorHotspots = [];
+  function renderSensors() {
+    fetch(`/Presentations/${encodeURIComponent(state.deckId || 'adas-ppt-test')}/model-hotspots.json`, { cache: 'no-store' })
+      .then((r) => r.json()).then((cfg) => {
+        sensorHotspots = cfg.hotspots || [];
+        const grid = document.getElementById('sensorGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        sensorHotspots.forEach((h) => {
+          const b = document.createElement('button');
+          b.dataset.id = h.id;
+          b.className = 'sensorBtn bg-surface-container-high rounded-xl border border-outline-variant text-on-surface-variant font-label-caps text-[11px] px-2 py-3 active:scale-95 transition-all';
+          b.textContent = h.label;
+          b.addEventListener('click', () => setSpotlight(h.id));
+          grid.appendChild(b);
+        });
+        reflectSensors();
+      }).catch(() => {});
+  }
+  function setSpotlight(id) {
+    state.spotlight = id;
+    reflectSensors();
+    post({ deckId: state.deckId, currentSlide: state.currentSlide, currentStep: state.currentStep, spotlight: id });
+  }
+  function reflectSensors() {
+    const panel = document.getElementById('sensorPanel');
+    if (!panel) return;
+    panel.classList.toggle('hidden', !state.modelDeployed);
+    document.querySelectorAll('.sensorBtn').forEach((b) => {
+      const on = b.dataset.id === state.spotlight;
+      b.classList.toggle('bg-secondary-container', on);
+      b.classList.toggle('!text-on-secondary-container', on);
+      b.classList.toggle('border-primary', on);
+    });
+  }
 
   function reflectQr() {
     const on = state.audienceQrVisible;
@@ -391,6 +449,9 @@
     if (s.currentStep) state.currentStep = s.currentStep;
     if (incoming) { state.currentSlide = incoming; state.currentIndex = indexOfSlide(incoming); }
     if (typeof s.audienceQrVisible === 'boolean') { state.audienceQrVisible = s.audienceQrVisible; reflectQr(); }
+    if ('spotlight' in s) state.spotlight = s.spotlight || null;
+    if (typeof s.modelDeployed === 'boolean') state.modelDeployed = s.modelDeployed;
+    reflectModel(); reflectSensors();
     render(); updateDeckActive();
   }
 
@@ -555,6 +616,15 @@
     state.audienceQrVisible = desired; reflectQr();
     post({ deckId: state.deckId, currentSlide: state.currentSlide, currentStep: state.currentStep, audienceQrVisible: desired });
   });
+  $('sensorClear').addEventListener('click', () => {
+    state.spotlight = null; reflectSensors();
+    post({ deckId: state.deckId, currentSlide: state.currentSlide, currentStep: state.currentStep, spotlight: null });
+  });
+  $('modelBtn').addEventListener('click', () => {
+    const desired = !state.modelDeployed;
+    state.modelDeployed = desired; reflectModel(); reflectSensors();
+    post({ deckId: state.deckId, currentSlide: state.currentSlide, currentStep: state.currentStep, modelDeployed: desired });
+  });
 
   // --- Timer (elapsed since remote opened) ---
   let elapsed = 0;
@@ -574,6 +644,8 @@
         applyPayload(payload);
       }
     } catch (e) { $('liveLabel').textContent = 'OFFLINE'; }
+
+    renderSensors(); // build the 3D sensor buttons (shown only on the sensor-tour slide)
 
     const es = new EventSource(withRoom(`${API}/stream`));
     es.onmessage = (ev) => { try { applyPayload(JSON.parse(ev.data)); } catch (e) {} };

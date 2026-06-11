@@ -100,7 +100,7 @@ function buildAudienceUrl(
   return buildBaseAudienceUrl(request, room).toString();
 }
 
-function buildCompanionUrl(state: LiveSessionState, companionEntry: string | null) {
+function buildCompanionUrl(state: LiveSessionState, companionEntry: string | null, room: string) {
   if (!companionEntry) {
     return undefined;
   }
@@ -116,6 +116,9 @@ function buildCompanionUrl(state: LiveSessionState, companionEntry: string | nul
   companionUrl.searchParams.set('currentSlide', state.currentSlide);
   if (state.sessionToken) {
     companionUrl.searchParams.set('sessionToken', state.sessionToken);
+  }
+  if (room) {
+    companionUrl.searchParams.set('room', room);
   }
 
   return `${companionUrl.pathname}${companionUrl.search}`;
@@ -151,7 +154,7 @@ async function buildPayload(input: Partial<LiveSessionState>, request: Request, 
       }
     : manifest;
   const audienceUrl = buildAudienceUrl(request, state, resolvedManifest ?? manifest, room);
-  const companionUrl = buildCompanionUrl(state, companionEntry);
+  const companionUrl = buildCompanionUrl(state, companionEntry, room);
 
   if (!manifest) {
     return {
@@ -216,20 +219,25 @@ export async function POST(request: Request) {
       audienceStep?: number | null;
       resetSession?: boolean;
       audienceQrVisible?: boolean;
+      spotlight?: string | null;
+      modelDeployed?: boolean;
       room?: string;
     };
     const room = sanitizeRoomId(body.room);
-    const deckId = typeof body.deckId === 'string' && body.deckId.trim().length > 0
-      ? body.deckId.trim()
-      : LIVE_SESSION_DEFAULT_STATE.deckId;
-    const currentSlide = typeof body.currentSlide === 'string' && body.currentSlide.trim().length > 0
-      ? body.currentSlide.trim()
-      : LIVE_SESSION_DEFAULT_STATE.currentSlide;
     const resetSession = body.resetSession === true;
     const snapshot = await getAdminDb().collection(COLLECTION_NAME).doc(room).get();
     const existingState = snapshot.exists
       ? normalizeLiveSessionState(snapshot.data() as Partial<LiveSessionState>)
       : LIVE_SESSION_DEFAULT_STATE;
+    // Fall back to the room's CURRENT deck/slide (not the global default) when a
+    // partial update omits them — otherwise a remote tap that posts only
+    // { modelDeployed } or { spotlight } would knock the room back to slide 1.
+    const deckId = typeof body.deckId === 'string' && body.deckId.trim().length > 0
+      ? body.deckId.trim()
+      : (resetSession ? LIVE_SESSION_DEFAULT_STATE.deckId : existingState.deckId);
+    const currentSlide = typeof body.currentSlide === 'string' && body.currentSlide.trim().length > 0
+      ? body.currentSlide.trim()
+      : (resetSession ? LIVE_SESSION_DEFAULT_STATE.currentSlide : existingState.currentSlide);
 
     const inferredStep = typeof body.currentStep === 'string' && body.currentStep.trim().length > 0
       ? body.currentStep
@@ -253,6 +261,17 @@ export async function POST(request: Request) {
       audienceQrVisible: resetSession
         ? false
         : (typeof body.audienceQrVisible === 'boolean' ? body.audienceQrVisible : existingState.audienceQrVisible),
+      // Active 3D sensor hotspot. Only changes when explicitly set (string = a
+      // hotspot id, null/'' = cleared); slide navigation never disturbs it; reset clears.
+      spotlight: resetSession
+        ? null
+        : (body.spotlight !== undefined
+            ? (typeof body.spotlight === 'string' && body.spotlight.trim() ? body.spotlight.trim() : null)
+            : existingState.spotlight),
+      // Deploy/hide the 3D model overlay on every companion. Reset hides it.
+      modelDeployed: resetSession
+        ? false
+        : (typeof body.modelDeployed === 'boolean' ? body.modelDeployed : existingState.modelDeployed),
     };
 
     await getAdminDb()

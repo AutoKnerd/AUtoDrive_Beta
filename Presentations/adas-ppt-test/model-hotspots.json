@@ -1,0 +1,13 @@
+{
+  "model": "/Presentations/adas-ppt-test/assets/3d/kia-ev6.glb",
+  "defaultOrbit": "-35deg 72deg 110%",
+  "note": "Kia EV6 GT-Line. cameraOrbit framings authored against this model; position markers are approximate — fine-tune by clicking the model in model-viewer to read exact x y z if a dot drifts off its sensor.",
+  "hotspots": [
+    { "id": "front-radar", "label": "Front Radar", "feature": "Forward Collision-Avoidance Assist", "desc": "Scans ahead to warn and brake for cars & pedestrians", "cameraOrbit": "0deg 82deg 90%", "position": "0 0.35 2.05" },
+    { "id": "blind-spot", "label": "Blind-Spot Sensor", "feature": "Blind-Spot Collision-Avoidance Assist", "desc": "Watches the lane beside you when you signal or merge", "cameraOrbit": "115deg 80deg 95%", "position": "0.95 0.55 -1.7" },
+    { "id": "surround-cameras", "label": "Surround View Cameras", "feature": "Surround View Monitor", "desc": "360° top-down view to make tight parking easy", "cameraOrbit": "0deg 18deg 100%", "position": "0 0.9 0" },
+    { "id": "in-cabin-camera", "label": "In-Cabin Camera (ICC-D)", "feature": "Forward Attention Warning", "desc": "Checks the driver is watching the road ahead", "cameraOrbit": "-20deg 60deg 70%", "position": "0 1.15 0.45" },
+    { "id": "rear-cross-traffic", "label": "Rear Cross-Traffic Sensor", "feature": "Rear Cross-Traffic Collision-Avoidance", "desc": "Warns of traffic crossing behind when backing out", "cameraOrbit": "180deg 80deg 95%", "position": "0 0.45 -2.1" },
+    { "id": "grip-sensor", "label": "Steering Wheel Grip Sensor", "feature": "Hands-On Detection", "desc": "Senses your hands stay on the wheel", "cameraOrbit": "-30deg 65deg 60%", "position": "0.35 1.0 0.55" }
+  ]
+}
